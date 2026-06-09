@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72" role="img" aria-labelledby="title desc">
+  <title id="title">Cova mark</title>
+  <desc id="desc">A shield mark for Cova in the black and blue risk OS identity.</desc>
+  <rect width="72" height="72" rx="10" fill="#06080c"/>
+  <path d="M36 8 58 17v16.5c0 14.8-8.6 24.8-22 30.5-13.4-5.7-22-15.7-22-30.5V17l22-9Z" fill="#f2f5f8"/>
+  <path d="M22.5 34.5c4.2-5.9 8.7-8.9 13.5-8.9 5 0 9.5 3 13.5 8.9-4.3-1.6-8.8-2.4-13.5-2.4s-9.2.8-13.5 2.4Z" fill="#06080c"/>
+  <path d="M22.5 40.7c4.4 4.1 8.9 6.2 13.5 6.2s9.1-2.1 13.5-6.2c-2.6 7.1-7.1 12-13.5 14.7-6.4-2.7-10.9-7.6-13.5-14.7Z" fill="#1269ff"/>
+  <circle cx="36" cy="20.5" r="3.6" fill="#06080c"/>
+</svg>
