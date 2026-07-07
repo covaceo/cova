@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowUpRight, Check, LockKeyhole, Mail, SlidersHorizontal, UserRound, X } from "lucide-react";
-import { buildHostedAuthUrl, canRedirectToHostedAuth, isLocalPreview } from "../lib/authEnvironment";
+import { buildHostedAuthUrl, canRedirectToHostedAuth, isDemoPreviewEnabled, isLocalPreview } from "../lib/authEnvironment";
 import { isSupabaseConfigured, sendSupabaseMagicLink } from "../lib/supabaseClient";
 import { GlassButton } from "./GlassButton";
 import { ImageAtmosphere } from "./LayoutShell";
@@ -27,7 +27,7 @@ type AuthSheetProps = {
 };
 
 export function AuthGate({ devPreviewEmail, openAuth, onDevPreview }: AuthGateProps) {
-  const showDevPreview = isLocalPreview();
+  const showDevPreview = isDemoPreviewEnabled();
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => openAuth("login"));
@@ -59,7 +59,7 @@ export function AuthGate({ devPreviewEmail, openAuth, onDevPreview }: AuthGatePr
           </div>
           {showDevPreview && (
             <p className="mx-auto mt-5 max-w-md font-body text-xs leading-relaxed text-white/38">
-              Local only: unlocks the demo workspace as {devPreviewEmail}.
+              Demo preview: unlocks the sample workspace as {devPreviewEmail}. No live broker connection or real trade execution.
             </p>
           )}
         </motion.div>
@@ -75,7 +75,7 @@ export function AuthSheet({ authIntentKey, mode, setMode, close, onAuthenticated
   const isSignup = mode === "signup";
   const canRedirect = mode ? canRedirectToHostedAuth(mode) : false;
   const supabaseReady = isSupabaseConfigured();
-  const showDevPreview = isLocalPreview();
+  const showDevPreview = isDemoPreviewEnabled();
 
   useEffect(() => {
     setNotice("");
@@ -99,7 +99,7 @@ export function AuthSheet({ authIntentKey, mode, setMode, close, onAuthenticated
       }),
     );
 
-    if (isLocalPreview()) {
+    if (isDemoPreviewEnabled()) {
       onAuthenticated(email, mode, "local-preview", "free");
       setAuthBusy(false);
       return;
@@ -236,7 +236,7 @@ export function AuthSheet({ authIntentKey, mode, setMode, close, onAuthenticated
 
               <button className="cova-button cova-button-primary mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3 font-body text-sm font-semibold disabled:cursor-wait disabled:opacity-60" disabled={authBusy} type="submit">
                 <UserRound className="h-4 w-4" />
-                {authBusy ? "Working..." : isLocalPreview() ? "Start local session" : supabaseReady ? "Send secure link" : canRedirect ? "Continue securely" : "Start local session"}
+                {authBusy ? "Working..." : isDemoPreviewEnabled() ? "Start demo session" : supabaseReady ? "Send secure link" : canRedirect ? "Continue securely" : "Start demo session"}
                 <ArrowUpRight className="h-4 w-4" />
               </button>
 
@@ -252,7 +252,7 @@ export function AuthSheet({ authIntentKey, mode, setMode, close, onAuthenticated
               )}
 
               <p className="mt-4 min-h-10 font-body text-xs leading-relaxed text-white/45">
-                {notice || (isLocalPreview() ? "Local preview creates a temporary Cova session immediately so you can test dashboard and account linking." : supabaseReady ? "Cova uses Supabase magic links when configured, so the app never stores your password." : "Production auth will redirect through your hosted auth provider. This MVP keeps the visual flow ready without storing passwords locally.")}
+                {notice || (isDemoPreviewEnabled() ? "Demo preview creates a temporary Cova session immediately so you can test dashboard and account linking." : supabaseReady ? "Cova uses Supabase magic links when configured, so the app never stores your password." : "Production auth will redirect through your hosted auth provider. This MVP keeps the visual flow ready without storing passwords locally.")}
               </p>
             </form>
           </motion.div>

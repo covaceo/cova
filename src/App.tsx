@@ -38,7 +38,7 @@ import { Navbar } from "./components/Navbar";
 import { OAuthConnectPage } from "./components/OAuthConnectPage";
 import { Toast } from "./components/Toast";
 import { WorkspaceShell } from "./components/WorkspaceShell";
-import { getHostedLogoutUrl, isLocalPreview } from "./lib/authEnvironment";
+import { getHostedLogoutUrl, isDemoPreviewEnabled } from "./lib/authEnvironment";
 import { BROKER_STATUS_KEY, brokerMessageForStatus, readBrokerStatus, writeBrokerStatus, type BrokerStatus } from "./lib/brokerStatus";
 import { buildFirmConnectUrl, canRedirectToFirmProvider, csvExportGuides, getFirmProviderHost, getPropFirm, propFirmOptions, type PropFirmId } from "./lib/propFirms";
 import { isProtectedSection, sections, useHashSection, type Section } from "./lib/appRoutes";
@@ -340,7 +340,7 @@ export default function App() {
   }
 
   function signInAsDevPreview() {
-    if (!isLocalPreview()) {
+    if (!isDemoPreviewEnabled()) {
       setAuthMode("login");
       return;
     }
@@ -360,7 +360,7 @@ export default function App() {
       return;
     }
 
-    if (isLocalPreview()) {
+    if (isDemoPreviewEnabled()) {
       const nextSession: AuthSession = {
         ...authSession,
         plan: "pro",

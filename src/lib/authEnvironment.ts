@@ -37,3 +37,11 @@ export function canRedirectToHostedAuth(mode: AuthMode) {
 export function isLocalPreview() {
   return ["localhost", "127.0.0.1", "0.0.0.0"].includes(window.location.hostname);
 }
+
+export function isDemoPreviewEnabled() {
+  const env = getViteEnv();
+  const hostname = window.location.hostname;
+  return isLocalPreview()
+    || env.VITE_ENABLE_DEMO_PREVIEW === "true"
+    || hostname.endsWith(".vercel.app");
+}
