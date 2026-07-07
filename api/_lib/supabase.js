@@ -9,18 +9,34 @@ function getSupabaseConfig() {
   return { supabaseUrl: supabaseUrl.replace(/\/$/, ""), serviceRoleKey };
 }
 
-export async function saveTradovateConnection({ connectionId, tokenData }) {
+export async function saveBrokerConnection({
+  accessToken,
+  connectionId,
+  expiresAt = null,
+  provider,
+  providerAccountId = null,
+  refreshToken = null,
+  tokenScope = null,
+}) {
+  if (!connectionId) {
+    throw new Error("Missing broker connection id");
+  }
+  if (!provider) {
+    throw new Error("Missing broker provider");
+  }
+  if (!accessToken) {
+    throw new Error("Missing broker access token");
+  }
+
   const { supabaseUrl, serviceRoleKey } = getSupabaseConfig();
 
-  const expiresIn = Number(tokenData?.expires_in || tokenData?.expiration || 0);
-  const expiresAt = expiresIn > 0 ? new Date(Date.now() + expiresIn * 1000).toISOString() : null;
   const row = {
     id: connectionId,
-    provider: "tradovate",
-    provider_account_id: tokenData?.userId ? String(tokenData.userId) : null,
-    access_token_encrypted: encryptSecret(tokenData?.access_token || tokenData?.accessToken),
-    refresh_token_encrypted: encryptSecret(tokenData?.refresh_token || tokenData?.refreshToken),
-    token_scope: tokenData?.scope || null,
+    provider,
+    provider_account_id: providerAccountId ? String(providerAccountId) : null,
+    access_token_encrypted: encryptSecret(accessToken),
+    refresh_token_encrypted: refreshToken ? encryptSecret(refreshToken) : null,
+    token_scope: tokenScope,
     expires_at: expiresAt,
     status: "connected",
   };
@@ -45,15 +61,32 @@ export async function saveTradovateConnection({ connectionId, tokenData }) {
   return payload?.[0] || row;
 }
 
-export async function getTradovateConnection(connectionId) {
+export async function saveTradovateConnection({ connectionId, tokenData }) {
+  const expiresIn = Number(tokenData?.expires_in || tokenData?.expiration || 0);
+  const expiresAt = expiresIn > 0 ? new Date(Date.now() + expiresIn * 1000).toISOString() : null;
+  return saveBrokerConnection({
+    connectionId,
+    provider: "tradovate",
+    providerAccountId: tokenData?.userId,
+    accessToken: tokenData?.access_token || tokenData?.accessToken,
+    refreshToken: tokenData?.refresh_token || tokenData?.refreshToken,
+    tokenScope: tokenData?.scope || null,
+    expiresAt,
+  });
+}
+
+export async function getBrokerConnection({ connectionId, provider }) {
   if (!connectionId) {
-    throw new Error("Missing Tradovate connection id");
+    throw new Error("Missing broker connection id");
+  }
+  if (!provider) {
+    throw new Error("Missing broker provider");
   }
 
   const { supabaseUrl, serviceRoleKey } = getSupabaseConfig();
   const endpoint = new URL(`${supabaseUrl}/rest/v1/broker_connections`);
   endpoint.searchParams.set("id", `eq.${connectionId}`);
-  endpoint.searchParams.set("provider", "eq.tradovate");
+  endpoint.searchParams.set("provider", `eq.${provider}`);
   endpoint.searchParams.set("status", "eq.connected");
   endpoint.searchParams.set("select", "*");
 
@@ -71,4 +104,8 @@ export async function getTradovateConnection(connectionId) {
 
   const rows = await response.json();
   return rows?.[0] || null;
+}
+
+export async function getTradovateConnection(connectionId) {
+  return getBrokerConnection({ connectionId, provider: "tradovate" });
 }
