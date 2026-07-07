@@ -6,8 +6,9 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        heading: ["Instrument Serif", "serif"],
-        body: ["Barlow", "sans-serif"],
+        heading: ["Inter", "Manrope", "system-ui", "sans-serif"],
+        body: ["Inter", "Manrope", "system-ui", "sans-serif"],
+        mono: ["JetBrains Mono", "ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"],
       },
       colors: {
         background: "hsl(var(--background))",

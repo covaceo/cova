@@ -1,0 +1,739 @@
+/*
+  Cova risk-desk visual system override.
+  This intentionally replaces the fake-liquid-glass treatment with grounded,
+  product-dashboard surfaces: matte panels, precise borders, tighter radii,
+  better typography, and restrained market-terminal contrast.
+*/
+
+:root {
+  --cova-bg: #050607;
+  --cova-bg-2: #090b0f;
+  --cova-surface: #0d1016;
+  --cova-surface-2: #111722;
+  --cova-surface-3: #171d28;
+  --cova-line: rgba(148, 163, 184, 0.16);
+  --cova-line-strong: rgba(203, 213, 225, 0.24);
+  --cova-text: #eef3f7;
+  --cova-muted: rgba(207, 216, 226, 0.62);
+  --cova-faint: rgba(207, 216, 226, 0.38);
+  --cova-accent: #33d69f;
+  --cova-accent-soft: rgba(51, 214, 159, 0.12);
+  --cova-danger: #ff5f73;
+  --cova-warn: #e4b658;
+  --font-dashboard-ui: "Inter", "Manrope", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+html,
+body {
+  background: var(--cova-bg) !important;
+}
+
+body {
+  position: relative;
+  color: var(--cova-text);
+  font-family: var(--font-dashboard-ui) !important;
+  font-feature-settings: "cv01", "ss03";
+  letter-spacing: -0.01em;
+}
+
+body::before {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  content: "";
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(148, 163, 184, 0.026) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.022) 1px, transparent 1px),
+    radial-gradient(circle at 18% 0%, rgba(51, 214, 159, 0.075), transparent 31rem),
+    radial-gradient(circle at 82% 22%, rgba(66, 153, 225, 0.055), transparent 34rem),
+    linear-gradient(180deg, #050607 0%, #07090d 42%, #040506 100%);
+  background-size: 72px 72px, 72px 72px, auto, auto, auto;
+}
+
+body::after {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  content: "";
+  pointer-events: none;
+  opacity: 0.46;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.03), transparent 18%, transparent 78%, rgba(0,0,0,0.45)),
+    repeating-linear-gradient(0deg, rgba(255,255,255,0.022) 0 1px, transparent 1px 4px);
+  mix-blend-mode: screen;
+}
+
+.font-heading,
+.font-body {
+  font-family: var(--font-dashboard-ui) !important;
+  font-style: normal !important;
+}
+
+.font-mono {
+  font-family: "JetBrains Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important;
+}
+
+.deferred-paint-section {
+  background: transparent !important;
+}
+
+.deferred-paint-section h1,
+.deferred-paint-section h2,
+.deferred-paint-section h3 {
+  letter-spacing: -0.055em !important;
+}
+
+.deferred-paint-section [class*="rounded-["] {
+  border-radius: 18px !important;
+}
+
+.deferred-paint-section [class*="rounded-[3"],
+.deferred-paint-section [class*="rounded-[4"] {
+  border-radius: 20px !important;
+}
+
+/* Replace fake glass with matte trading-desk surfaces. */
+.liquid-glass,
+.liquid-glass-strong,
+.terminal-info-panel,
+.motion-surface {
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.042), rgba(255, 255, 255, 0.014)),
+    var(--cova-surface) !important;
+  border: 1px solid var(--cova-line) !important;
+  border-radius: 18px !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.055),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.7),
+    0 18px 44px rgba(0, 0, 0, 0.28) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  transform: none;
+}
+
+.liquid-glass-strong {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.012)),
+    var(--cova-surface-2) !important;
+  border-color: var(--cova-line-strong) !important;
+}
+
+.liquid-glass::before,
+.liquid-glass::after,
+.liquid-glass-strong::before,
+.liquid-glass-strong::after,
+.glass-orb {
+  display: none !important;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .liquid-glass:hover,
+  .liquid-glass-strong:hover,
+  .motion-surface:hover {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.065), rgba(255, 255, 255, 0.018)),
+      #111824 !important;
+    border-color: rgba(203, 213, 225, 0.34) !important;
+    filter: none !important;
+    transform: translateY(-1px) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.075),
+      0 22px 56px rgba(0, 0, 0, 0.34) !important;
+  }
+}
+
+/* Header becomes product chrome, not a floating soap bubble. */
+.header-orbit,
+.header-orbit.product-header,
+.header-scroll-veil,
+.nav-chrome {
+  border-radius: 14px !important;
+  border-color: rgba(148, 163, 184, 0.18) !important;
+  background:
+    linear-gradient(180deg, rgba(15, 20, 30, 0.96), rgba(5, 7, 11, 0.94)) !important;
+  box-shadow:
+    inset 0 -1px 0 rgba(0, 0, 0, 0.82),
+    0 16px 42px rgba(0, 0, 0, 0.34) !important;
+  backdrop-filter: blur(8px) saturate(1.05) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(1.05) !important;
+}
+
+.header-orbit.marketing-header {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.header-orbit::before,
+.header-orbit::after,
+.header-scroll-veil::before,
+.header-scroll-veil::after {
+  display: none !important;
+}
+
+.header-link-button,
+.header-workspace-button,
+.header-risk-button,
+.nav-tab,
+.header-connect-button,
+.header-start-button {
+  border-radius: 10px !important;
+  text-shadow: none !important;
+}
+
+.nav-tab-active .nav-tab-label,
+.marketing-nav-link-active,
+.product-header .marketing-nav-link-active {
+  color: var(--cova-accent) !important;
+  text-shadow: none !important;
+}
+
+.nav-tab-motion,
+.header-start-button::after,
+.header-connect-button::after,
+.marketing-nav-link-active::before {
+  display: none !important;
+}
+
+/* Buttons: precise controls instead of shiny pills. */
+.cova-button,
+.native-start-button,
+.header-start-button,
+.marketing-start {
+  border-radius: 10px !important;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.014)),
+    #101722 !important;
+  border: 1px solid rgba(203, 213, 225, 0.22) !important;
+  color: #eef3f7 !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.06),
+    0 12px 28px rgba(0,0,0,0.28) !important;
+}
+
+.cova-button-primary,
+.native-start-button:not(.native-start-button-compact),
+.header-orbit.marketing-header .header-start-button.marketing-start {
+  color: #04100b !important;
+  background: linear-gradient(180deg, #49e2ad, #20b983) !important;
+  border-color: rgba(121, 255, 203, 0.52) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.34),
+    0 14px 34px rgba(31, 185, 131, 0.16) !important;
+}
+
+.cova-button::before,
+.cova-button::after,
+.cova-button-optics,
+.native-start-button::before,
+.native-start-button::after,
+.native-start-button-optics,
+.native-start-button-bloom {
+  display: none !important;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .cova-button:hover,
+  .native-start-button:hover,
+  .header-start-button:hover,
+  .header-connect-button:hover {
+    border-color: rgba(51, 214, 159, 0.46) !important;
+    transform: translateY(-1px) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.08),
+      0 16px 38px rgba(0,0,0,0.34) !important;
+  }
+}
+
+/* Dashboard controls: terminal-grade, not candy tabs. */
+.terminal-tab-bar {
+  border-radius: 12px !important;
+  border-color: rgba(148, 163, 184, 0.2) !important;
+  background: #070a0f !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.035) !important;
+}
+
+.terminal-tab {
+  border-radius: 8px !important;
+  color: var(--cova-faint) !important;
+}
+
+.terminal-tab-active {
+  color: var(--cova-text) !important;
+  border-color: rgba(51, 214, 159, 0.38) !important;
+  background: rgba(51, 214, 159, 0.105) !important;
+  transform: none !important;
+}
+
+.terminal-tab-motion,
+.terminal-tab::after,
+.terminal-tab-label::after {
+  display: none !important;
+}
+
+.terminal-tab-label {
+  border-radius: 8px !important;
+  background: rgba(51, 214, 159, 0.09) !important;
+  border-color: rgba(51, 214, 159, 0.28) !important;
+  box-shadow: none !important;
+}
+
+/* Make inner cards read like real data modules. */
+[class*="border-white/10"],
+[class*="border-white/8"],
+[class*="border-white/12"] {
+  border-color: rgba(148, 163, 184, 0.16) !important;
+}
+
+[class*="bg-black/24"],
+[class*="bg-black/28"],
+[class*="bg-black/20"],
+[class*="bg-black/18"],
+[class*="bg-white/[0.025]"],
+[class*="bg-white/[0.028]"],
+[class*="bg-white/[0.035]"] {
+  background-color: rgba(5, 8, 13, 0.62) !important;
+}
+
+.text-\[\#18c887\],
+.text-\[\#b9f5df\] {
+  color: var(--cova-accent) !important;
+}
+
+.bg-\[\#18c887\],
+.bg-emerald-400,
+.bg-emerald-300 {
+  background-color: var(--cova-accent) !important;
+}
+
+/* Charts and passport get a sober instrument-panel treatment. */
+svg[class*="bg-black"] {
+  background:
+    linear-gradient(rgba(148, 163, 184, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.045) 1px, transparent 1px),
+    #070a0f !important;
+  background-size: 48px 48px, 48px 48px, auto !important;
+}
+
+.passport-stage,
+.passport-card-scene,
+.passport-card-hitbox {
+  perspective: 900px;
+}
+
+.passport-card-face {
+  border: 1px solid rgba(203, 213, 225, 0.22) !important;
+  background:
+    linear-gradient(135deg, rgba(18, 24, 35, 0.98), rgba(7, 10, 15, 0.98)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    0 24px 70px rgba(0,0,0,0.46) !important;
+}
+
+.passport-card-shine,
+.passport-card-noise {
+  opacity: 0.16 !important;
+}
+
+/* Fewer theatrical backdrops in actual workspace. */
+section:has(.product-header) img[alt=""],
+section .pointer-events-none img[alt=""] {
+  opacity: 0.34;
+  filter: grayscale(0.25) contrast(1.08) brightness(0.78);
+}
+
+/* Inputs/ranges feel like a tool. */
+input,
+select,
+textarea {
+  border-color: rgba(148, 163, 184, 0.22) !important;
+  background-color: rgba(5, 8, 13, 0.72) !important;
+}
+
+.cova-range {
+  accent-color: var(--cova-accent);
+}
+
+
+/* Dashboard-specific tightening after visual QA. */
+.risk-command-center {
+  padding: 22px !important;
+  border-radius: 20px !important;
+  background:
+    linear-gradient(180deg, rgba(26, 34, 47, 0.98), rgba(12, 17, 25, 0.98)) !important;
+  border-color: rgba(148, 163, 184, 0.26) !important;
+}
+
+.risk-command-cell {
+  min-height: 100%;
+  background:
+    linear-gradient(180deg, rgba(8, 12, 18, 0.98), rgba(5, 8, 13, 0.98)) !important;
+  border: 1px solid rgba(148, 163, 184, 0.18) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.035) !important;
+}
+
+.risk-stat-tile {
+  display: grid;
+  min-height: 138px;
+  align-content: start;
+  background:
+    linear-gradient(180deg, rgba(14, 20, 30, 0.98), rgba(7, 10, 15, 0.98)) !important;
+}
+
+.risk-stat-tile p:nth-child(2) {
+  letter-spacing: -0.055em;
+}
+
+.risk-chart-panel {
+  min-height: 610px;
+  background:
+    linear-gradient(180deg, rgba(13, 19, 29, 0.98), rgba(6, 9, 14, 0.98)) !important;
+  border-color: rgba(148, 163, 184, 0.25) !important;
+}
+
+.risk-chart-panel svg {
+  min-height: 360px;
+  border-color: rgba(148, 163, 184, 0.2) !important;
+  background:
+    linear-gradient(rgba(148, 163, 184, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.05) 1px, transparent 1px),
+    radial-gradient(circle at 80% 18%, rgba(51, 214, 159, 0.08), transparent 22rem),
+    #05080d !important;
+  background-size: 56px 56px, 56px 56px, auto, auto !important;
+}
+
+.risk-chart-panel [class*="md:grid-cols-5"] {
+  background: #070a0f;
+  border-color: rgba(148, 163, 184, 0.18) !important;
+}
+
+.risk-chart-panel [class*="md:grid-cols-5"] > div {
+  background: rgba(255,255,255,0.012);
+}
+
+.risk-command-center button,
+.risk-chart-panel button,
+.risk-stat-tile button {
+  border-radius: 10px !important;
+}
+
+
+/* Real tools should not disappear until a scroll animation decides to run. */
+.motion-surface,
+.risk-command-center,
+.risk-chart-panel,
+.risk-stat-tile {
+  opacity: 1 !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+
+/* Logged-in workspace: left rail like a real risk desk, not floating top-nav SaaS. */
+.workspace-shell {
+  position: relative;
+  min-height: 100vh;
+}
+
+.workspace-sidebar {
+  position: fixed;
+  top: 22px;
+  bottom: 22px;
+  left: 22px;
+  z-index: 60;
+  display: none;
+  width: 248px;
+  flex-direction: column;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(13, 18, 27, 0.98), rgba(5, 7, 11, 0.98));
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.055),
+    0 24px 70px rgba(0,0,0,0.42);
+}
+
+.workspace-content {
+  min-height: 100vh;
+}
+
+.workspace-sidebar-brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 18px 16px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.13);
+}
+
+.workspace-brand-button {
+  display: inline-flex;
+  align-items: center;
+  width: 112px;
+  opacity: 0.94;
+  transition: opacity 180ms ease;
+}
+
+.workspace-brand-button:hover {
+  opacity: 1;
+}
+
+.workspace-brand-button img {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+.workspace-sidebar-brand span {
+  border: 1px solid rgba(51, 214, 159, 0.22);
+  border-radius: 999px;
+  padding: 5px 8px;
+  color: rgba(137, 244, 205, 0.88);
+  font-family: var(--font-dashboard-ui);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.workspace-risk-card {
+  margin: 16px;
+  padding: 16px;
+  border: 1px solid rgba(51, 214, 159, 0.2);
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 92% 10%, rgba(51, 214, 159, 0.11), transparent 38%),
+    rgba(51, 214, 159, 0.055);
+}
+
+.workspace-risk-label {
+  display: block;
+  color: rgba(207, 216, 226, 0.48);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.workspace-risk-card strong {
+  display: block;
+  margin-top: 10px;
+  color: var(--cova-accent);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 46px;
+  font-weight: 600;
+  letter-spacing: -0.08em;
+  line-height: 0.95;
+}
+
+.workspace-risk-card p {
+  margin-top: 8px;
+  color: rgba(238, 243, 247, 0.62);
+  font-size: 12px;
+}
+
+.workspace-sidebar-nav {
+  display: grid;
+  gap: 6px;
+  padding: 0 12px;
+}
+
+.workspace-sidebar-link {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 13px;
+  padding: 10px;
+  color: rgba(238, 243, 247, 0.68);
+  text-align: left;
+  transition:
+    border-color 180ms ease,
+    background 180ms ease,
+    color 180ms ease,
+    transform 180ms ease;
+}
+
+.workspace-sidebar-link:hover {
+  color: #fff;
+  border-color: rgba(148, 163, 184, 0.18);
+  background: rgba(255,255,255,0.035);
+}
+
+.workspace-sidebar-link-active {
+  color: #fff;
+  border-color: rgba(51, 214, 159, 0.28);
+  background:
+    linear-gradient(180deg, rgba(51, 214, 159, 0.13), rgba(51, 214, 159, 0.055));
+}
+
+.workspace-sidebar-icon {
+  display: grid;
+  height: 34px;
+  width: 34px;
+  place-items: center;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 10px;
+  background: rgba(5, 8, 13, 0.72);
+  color: currentColor;
+}
+
+.workspace-sidebar-copy strong,
+.workspace-sidebar-copy small {
+  display: block;
+}
+
+.workspace-sidebar-copy strong {
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.05;
+}
+
+.workspace-sidebar-copy small {
+  margin-top: 4px;
+  color: rgba(207, 216, 226, 0.38);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.workspace-sidebar-footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  margin: auto 14px 12px;
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.025);
+}
+
+.workspace-sidebar-footer span,
+.workspace-sidebar-watermark span {
+  color: rgba(207, 216, 226, 0.42);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.workspace-sidebar-footer strong {
+  display: block;
+  overflow: hidden;
+  margin-top: 4px;
+  color: rgba(238, 243, 247, 0.84);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-sidebar-footer button {
+  display: grid;
+  height: 34px;
+  width: 34px;
+  place-items: center;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 10px;
+  color: rgba(238, 243, 247, 0.64);
+  background: rgba(5, 8, 13, 0.62);
+}
+
+.workspace-sidebar-watermark {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 0 18px 18px;
+  color: rgba(51, 214, 159, 0.68);
+}
+
+.workspace-sidebar-watermark span {
+  letter-spacing: 0.08em;
+  line-height: 1.35;
+}
+
+.dashboard-desk-grid {
+  display: grid;
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+.dashboard-review-rail {
+  display: grid;
+  gap: 12px;
+}
+
+@media (min-width: 1024px) {
+  .workspace-sidebar {
+    display: flex;
+  }
+
+  .workspace-content {
+    padding-left: 278px;
+  }
+
+  .workspace-content .deferred-paint-section {
+    padding-left: clamp(28px, 3vw, 54px) !important;
+    padding-right: clamp(28px, 3vw, 54px) !important;
+    padding-top: 34px !important;
+  }
+
+  .workspace-content .deferred-paint-section > div {
+    max-width: min(1420px, calc(100vw - 340px)) !important;
+  }
+
+  .product-header .product-nav-group,
+  .product-header .product-actions .header-workspace-button,
+  .product-header .product-actions .header-link-button {
+    display: none !important;
+  }
+
+  .product-header {
+    width: auto !important;
+    min-width: 0 !important;
+    margin-left: 278px;
+    border-radius: 14px !important;
+  }
+
+  .dashboard-desk-grid {
+    grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.58fr);
+    align-items: stretch;
+  }
+
+  .dashboard-review-rail {
+    align-content: stretch;
+  }
+
+  .dashboard-review-rail .risk-stat-tile {
+    min-height: 0;
+  }
+}
+
+
+@media (min-width: 1024px) {
+  /* The sidebar owns workspace navigation/brand now; remove duplicate floating top chrome. */
+  .header-orbit.product-header {
+    display: none !important;
+  }
+}
+
+/* Prevent dense metric dock values from colliding inside the account-path module. */
+.risk-chart-panel .font-mono.text-3xl {
+  font-size: clamp(1.2rem, 1.45vw, 1.75rem) !important;
+  letter-spacing: -0.08em;
+  white-space: nowrap;
+}
+
+.risk-chart-panel [class*="md:grid-cols-5"] > div {
+  min-width: 0;
+}
+
+
+@media (min-width: 1024px) {
+  .workspace-top-header {
+    display: none !important;
+  }
+}
