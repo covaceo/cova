@@ -63,7 +63,7 @@ export function Dashboard({ analysis, brokerStatus, rules, go }: { analysis: Ret
       />
       <div className="dashboard-simple-grid">
         <motion.div
-          className="risk-chart-panel liquid-glass-strong motion-surface rounded-[36px] p-5 md:p-8"
+          className="risk-chart-panel risk-os-panel motion-surface p-5 md:p-7"
           initial={{ opacity: 0, y: 22, filter: "blur(8px)" }}
           whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
           viewport={{ once: true, margin: "-80px" }}
@@ -134,7 +134,7 @@ function DashboardCommandCenter({
 
   return (
     <motion.section
-      className="risk-command-center liquid-glass-strong mb-6 overflow-hidden rounded-[38px] p-4 md:p-5"
+      className="risk-command-center risk-os-panel mb-6 overflow-hidden p-4 md:p-5"
       initial={{ opacity: 0, y: 18, filter: "blur(8px)" }}
       whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
       viewport={{ once: true, margin: "-80px" }}

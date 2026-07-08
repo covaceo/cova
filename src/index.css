@@ -2511,17 +2511,23 @@ body {
   .market-feature-strip-wide {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: clamp(1.25rem, 4.2vw, 4.6rem);
-    max-width: none;
+    gap: clamp(1rem, 2.2vw, 2rem);
+    max-width: 78rem;
+    margin: 0 auto;
     padding: 0 clamp(1.5rem, 5vw, 5.2rem);
   }
 
   .market-feature-item {
     display: grid;
     grid-template-columns: auto 1fr;
-    gap: 0.9rem;
-    align-items: start;
+    gap: 0.85rem;
+    align-items: center;
     min-width: 0;
+    min-height: 4.15rem;
+    padding: 0.7rem 0.9rem;
+    border: 1px solid rgba(185, 245, 223, 0.14);
+    border-radius: 999px;
+    background: rgba(2, 8, 6, 0.34);
     opacity: 0.98;
   }
 
@@ -2541,8 +2547,8 @@ body {
 
   .market-feature-icon {
     display: grid;
-    width: 3.45rem;
-    height: 3.45rem;
+    width: 2.75rem;
+    height: 2.75rem;
     place-items: center;
     color: #18c887;
     border: 1px solid rgba(24, 200, 135, 0.28);

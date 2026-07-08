@@ -914,3 +914,149 @@ textarea {
 .dashboard-simple-side .next-session-brief-card [class*="md:grid-cols-2"] {
   grid-template-columns: minmax(0, 1fr) !important;
 }
+
+
+/* Raf shell correction: flatter risk OS, fewer rounded containers. */
+.story-section-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: clamp(0.95rem, 1.5vw, 1.15rem) !important;
+  letter-spacing: 0.18em !important;
+}
+
+.story-section-kicker::before {
+  width: 2.35rem;
+  height: 1px;
+  content: "";
+  background: #18c887;
+  box-shadow: 0 0 18px rgba(24, 200, 135, 0.58);
+}
+
+.risk-os-panel,
+.risk-score-panel,
+.risk-watch-panel,
+.risk-next-panel {
+  border-radius: 0 !important;
+  border: 0 !important;
+  border-top: 1px solid rgba(185, 245, 223, 0.16) !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14) !important;
+  background:
+    linear-gradient(180deg, rgba(10, 15, 22, 0.84), rgba(5, 8, 13, 0.72)) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.risk-command-center.risk-os-panel {
+  padding: 18px 0 !important;
+  background: transparent !important;
+  border-top-color: rgba(185, 245, 223, 0.22) !important;
+}
+
+.risk-command-center.risk-os-panel > div {
+  padding-inline: 18px;
+}
+
+.risk-command-center.risk-os-panel > div + div {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.risk-chart-panel.risk-os-panel {
+  min-height: 560px;
+  padding: 0 !important;
+  background: transparent !important;
+}
+
+.risk-chart-panel.risk-os-panel > div:first-child {
+  padding: 20px 18px 0;
+}
+
+.risk-chart-panel.risk-os-panel svg {
+  margin-top: 18px !important;
+  border-radius: 0 !important;
+  border-right: 0 !important;
+  border-left: 0 !important;
+}
+
+.risk-chart-panel.risk-os-panel [class*="md:grid-cols-5"] {
+  margin-top: 0 !important;
+  border-right: 0 !important;
+  border-left: 0 !important;
+  border-radius: 0 !important;
+  background: rgba(2, 5, 8, 0.62) !important;
+}
+
+.risk-score-panel,
+.risk-watch-panel,
+.risk-next-panel {
+  background: transparent !important;
+}
+
+.dashboard-simple-side {
+  gap: 0 !important;
+  border-top: 1px solid rgba(185, 245, 223, 0.18);
+}
+
+.dashboard-simple-side > * {
+  margin-bottom: 0 !important;
+  border-top: 0 !important;
+}
+
+.dashboard-simple-side > * + * {
+  border-top: 1px solid rgba(148, 163, 184, 0.14) !important;
+}
+
+.risk-score-panel [class*="rounded-"],
+.risk-watch-panel [class*="rounded-"],
+.risk-next-panel [class*="rounded-"] {
+  border-radius: 8px !important;
+}
+
+.risk-score-panel [class*="bg-black/20"],
+.risk-watch-panel [class*="bg-black/20"] {
+  background: rgba(255,255,255,0.018) !important;
+}
+
+.risk-command-center .rounded-\[18px\],
+.risk-command-center .rounded-\[24px\] {
+  border-radius: 8px !important;
+}
+
+
+/* Extra dashboard sharpening: rows, not cute cards. */
+.risk-command-center.risk-os-panel button.group {
+  min-width: 0 !important;
+  width: 100% !important;
+  border-radius: 0 !important;
+  border-right: 0 !important;
+  border-left: 2px solid rgba(24, 200, 135, 0.72) !important;
+  background: linear-gradient(90deg, rgba(24, 200, 135, 0.12), rgba(24, 200, 135, 0.025) 44%, transparent) !important;
+}
+
+.risk-command-center.risk-os-panel > div:first-child {
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.42fr) !important;
+}
+
+.risk-command-center.risk-os-panel > div:nth-child(2) > div {
+  border-radius: 0 !important;
+  border-right: 0 !important;
+  border-left: 0 !important;
+  background: transparent !important;
+}
+
+.risk-command-center.risk-os-panel > div:nth-child(2) > div + div {
+  border-left: 1px solid rgba(148, 163, 184, 0.14) !important;
+}
+
+.risk-chart-panel.risk-os-panel [class*="md:grid-cols-5"] > div {
+  border-radius: 0 !important;
+}
+
+.risk-score-panel [class*="rounded-"],
+.risk-watch-panel [class*="rounded-"],
+.risk-next-panel [class*="rounded-"] {
+  border-radius: 4px !important;
+}

@@ -114,7 +114,7 @@ export function NextSessionBriefCard({ analysis, go }: { analysis: ReturnType<ty
 
   return (
     <motion.article
-      className="next-session-brief-card liquid-glass-strong motion-surface mb-6 rounded-[32px] p-5 md:p-6"
+      className="next-session-brief-card risk-next-panel motion-surface mb-6 p-6"
       initial={{ opacity: 0, y: 18, filter: "blur(8px)" }}
       whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
       viewport={{ once: true, margin: "-80px" }}

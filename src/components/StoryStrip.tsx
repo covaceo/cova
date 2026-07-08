@@ -49,7 +49,7 @@ export function StoryStrip() {
       <div className="relative z-10 mx-auto max-w-7xl">
         <div className="grid gap-10 lg:grid-cols-[0.78fr_1.22fr] lg:items-end">
           <div>
-            <p className="font-body text-xs font-medium uppercase tracking-[0.28em] text-[#b9f5df]/80">How Cova works</p>
+            <p className="story-section-kicker font-body font-semibold uppercase tracking-[0.22em] text-[#b9f5df]">How Cova works</p>
             <h2 className="mt-5 max-w-2xl font-body text-4xl font-semibold leading-[0.98] tracking-[-0.055em] text-white md:text-6xl">
               Import trades. Find the leak. Build proof.
             </h2>

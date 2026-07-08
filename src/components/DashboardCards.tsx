@@ -22,7 +22,7 @@ export function MetricDock({ analysis }: { analysis: ReturnType<typeof analyze> 
 
 export function ScoreCard({ analysis }: { analysis: ReturnType<typeof analyze> }) {
   return (
-    <div className="liquid-glass rounded-[36px] p-7">
+    <div className="risk-score-panel p-6">
       <p className="font-body text-xs uppercase tracking-[0.22em] text-[#18c887]">Cova Score</p>
       <p className="mt-4 font-mono text-7xl text-[#18c887]">{analysis.score}<span className="text-2xl text-white/55">/100</span></p>
       <p className="mt-3 font-body text-sm text-white/55">{analysis.score >= 80 ? "Strong risk discipline" : analysis.score >= 60 ? "Decent, with room to tighten" : "Risk needs attention"}</p>
@@ -62,7 +62,7 @@ export function FlagStack({ analysis }: { analysis: ReturnType<typeof analyze> }
   }));
   const items = behaviorItems.length ? behaviorItems.slice(0, 3) : fallbackItems;
   return (
-    <div className="liquid-glass rounded-[36px] p-7">
+    <div className="risk-watch-panel p-6">
       <p className="font-body text-xs uppercase tracking-[0.22em] text-[#18c887]">What to watch</p>
       <div className="mt-5 space-y-3">
         {items.map((item) => (

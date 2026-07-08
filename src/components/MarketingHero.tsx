@@ -170,7 +170,7 @@ export function Hero({ go, openAuth, isSignedIn }: HeroProps) {
             </button>
           </div>
           <p className="market-hero-proof mt-5 font-body text-sm text-white/48">
-            <span /> {isSignedIn ? "Dashboard and account linking are ready" : "No credit card required. No signals. Just your own behavior."}
+            <span /> {isSignedIn ? "Dashboard ready" : "No credit card required."}
           </p>
 
         </motion.div>
