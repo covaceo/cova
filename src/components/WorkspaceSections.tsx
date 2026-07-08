@@ -285,29 +285,57 @@ const passportShareModes: PassportShareMode[] = [
 function getPassportTier(analysis: ReturnType<typeof analyze>): PassportTier {
   const breachCount = analysis.breaches.length;
   const score = analysis.score;
-  if (score >= 90 && analysis.compliance >= 0.9 && breachCount <= 1) {
+  const tradeCount = analysis.trades.length;
+  const profitable = analysis.totalPnl > 0;
+  const positiveExpectancy = analysis.avgR > 0 && analysis.profitFactor >= 1.05;
+
+  if (
+    profitable &&
+    positiveExpectancy &&
+    tradeCount >= 30 &&
+    score >= 90 &&
+    analysis.compliance >= 0.9 &&
+    breachCount <= 1 &&
+    analysis.avgR >= 0.3 &&
+    analysis.profitFactor >= 1.5
+  ) {
     return {
       badge: "BC",
       rank: "Black Card",
       skin: "Obsidian discipline",
       headline: "Elite risk control",
-      summary: "Rare flex: high Cova Score, clean rules, and enough proof to post without sounding like a guru.",
+      summary: "Rare flex: profitable sample, clean rules, strong expectancy, and almost no risk leaks.",
       className: "passport-tier-s",
       cardClass: "passport-card-skin-s",
     };
   }
-  if (score >= 80 && analysis.compliance >= 0.75) {
+  if (
+    profitable &&
+    positiveExpectancy &&
+    tradeCount >= 20 &&
+    score >= 82 &&
+    analysis.compliance >= 0.8 &&
+    breachCount <= 2 &&
+    analysis.avgR >= 0.15 &&
+    analysis.profitFactor >= 1.25
+  ) {
     return {
       badge: "EE",
       rank: "Emerald Edge",
       skin: "Funded-ready control",
       headline: "Disciplined trader profile",
-      summary: "Strong enough to show. A few more clean sessions would make this Black Card-worthy.",
+      summary: "Profitable, controlled, and clean enough to show without hiding the risk receipt.",
       className: "passport-tier-a",
       cardClass: "passport-card-skin-a",
     };
   }
-  if (score >= 65) {
+  if (
+    profitable &&
+    positiveExpectancy &&
+    tradeCount >= 10 &&
+    score >= 68 &&
+    analysis.compliance >= 0.6
+  ) {
     return {
       badge: "GG",
       rank: "Gold Grind",
@@ -318,13 +346,13 @@ function getPassportTier(analysis: ReturnType<typeof analyze>): PassportTier {
       cardClass: "passport-card-skin-b",
     };
   }
-  if (analysis.totalPnl > 0) {
+  if (profitable) {
     return {
       badge: "RL",
       rank: "Redline",
       skin: "Profit with heat",
       headline: "Green P&L, risky control",
-      summary: "The money is there, but the risk profile is not something to brag about yet.",
+      summary: "The account is green, but rule proof, expectancy, or sample quality is not flex-ready yet.",
       className: "passport-tier-v",
       cardClass: "passport-card-skin-v",
     };
@@ -334,7 +362,7 @@ function getPassportTier(analysis: ReturnType<typeof analyze>): PassportTier {
     rank: "Starter Proof",
     skin: "Build the receipt",
     headline: "Build the proof first",
-    summary: "Import more trades and keep rules clean before this Passport should be shared.",
+    summary: "Not enough profitable, controlled proof yet. Import more trades and keep the rules clean.",
     className: "passport-tier-r",
     cardClass: "passport-card-skin-r",
   };
