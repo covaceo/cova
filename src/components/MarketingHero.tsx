@@ -114,10 +114,10 @@ function clampNumber(value: number, min: number, max: number) {
 
 export function Hero({ go, openAuth, isSignedIn }: HeroProps) {
   const journalFeatures = [
-    { title: "Find the leak", body: "Spot the rule you keep breaking.", Icon: BookOpen },
-    { title: "Review pressure", body: "See size, drawdown, and streaks.", Icon: Gauge },
-    { title: "Protect payouts", body: "Check risk before it gets expensive.", Icon: ShieldCheck },
-    { title: "Show discipline", body: "Turn history into proof.", Icon: ArrowUpRight },
+    { title: "Find the leak", Icon: BookOpen },
+    { title: "Review pressure", Icon: Gauge },
+    { title: "Protect payouts", Icon: ShieldCheck },
+    { title: "Show discipline", Icon: ArrowUpRight },
   ];
 
   function scrollHowItWorks() {
@@ -185,12 +185,11 @@ export function Hero({ go, openAuth, isSignedIn }: HeroProps) {
         >
           <p className="market-feature-kicker">Built for traders who know discipline is the edge</p>
           <div className="market-feature-strip market-feature-strip-wide">
-            {journalFeatures.map(({ title, body, Icon }) => (
+            {journalFeatures.map(({ title, Icon }) => (
               <div className="market-feature-item" key={title}>
                 <span className="market-feature-icon"><Icon className="h-5 w-5" /></span>
                 <div>
                   <h3 className="font-body text-sm font-semibold text-white md:text-[0.95rem]">{title}</h3>
-                  <p className="mt-1 font-body text-xs leading-relaxed text-white/52">{body}</p>
                 </div>
               </div>
             ))}

@@ -132,16 +132,13 @@ export function NextSessionBriefCard({ analysis, go }: { analysis: ReturnType<ty
           <h3 className="mt-5 max-w-2xl font-heading text-4xl italic leading-[1.02] tracking-normal md:text-5xl">
             {brief.headline}
           </h3>
-          <p className="mt-4 max-w-2xl font-body font-light leading-relaxed text-white/62">
-            {brief.summary}
-          </p>
           <div className="mt-6 flex flex-wrap gap-3">
-            <GlassButton strong onClick={() => go("coach")}>Open insights <ArrowUpRight className="h-4 w-4" /></GlassButton>
-            <GlassButton onClick={() => go("rules")}>Review limits</GlassButton>
+            <GlassButton strong onClick={() => go("coach")}>Insights <ArrowUpRight className="h-4 w-4" /></GlassButton>
+            <GlassButton onClick={() => go("rules")}>Limits</GlassButton>
           </div>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-1">
+        <div className="grid gap-3">
           <div className="rounded-[28px] border border-white/10 bg-black/24 p-4">
             <div className="flex items-center gap-3">
               <Icon className="h-5 w-5 text-[#18c887]" />
@@ -150,14 +147,6 @@ export function NextSessionBriefCard({ analysis, go }: { analysis: ReturnType<ty
             <div className="mt-4 space-y-2">
               {brief.watchlist.slice(0, 3).map((item) => (
                 <p className="rounded-[18px] border border-white/8 bg-white/[0.025] px-3 py-2 font-body text-sm text-white/68" key={item}>{item}</p>
-              ))}
-            </div>
-          </div>
-          <div className="rounded-[28px] border border-white/10 bg-black/24 p-4">
-            <p className="font-body text-xs uppercase tracking-[0.22em] text-white/42">Evidence</p>
-            <div className="mt-4 space-y-2">
-              {brief.evidence.slice(0, 3).map((item) => (
-                <p className="font-mono text-xs leading-relaxed text-white/48" key={item}>{item}</p>
               ))}
             </div>
           </div>

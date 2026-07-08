@@ -1,11 +1,8 @@
 import { motion } from "motion/react";
 import { ArrowRight, FileUp, Fingerprint, Gauge, ShieldCheck } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { CsvExplainer } from "./CsvExplainer";
 
 type StoryFrame = {
-  body: string;
-  csvHelp?: { body: string; steps: string[] };
   eyebrow: string;
   Icon: LucideIcon;
   metric: string;
@@ -18,19 +15,13 @@ const proofStoryFrames: StoryFrame[] = [
     num: "01",
     eyebrow: "Import",
     title: "Bring in your trades.",
-    body: "Upload a CSV or connect an account. Cova turns your history into something you can actually review.",
     Icon: FileUp,
     metric: "Trades loaded",
-    csvHelp: {
-      body: "A CSV is the file most broker or prop dashboards export for your trades.",
-      steps: ["Export trade history", "Upload it", "Cova reads the rows"],
-    },
   },
   {
     num: "02",
     eyebrow: "Review",
     title: "See what keeps costing you.",
-    body: "Cova checks drawdown, sizing, daily loss, revenge trades, and rule breaks in plain language.",
     Icon: Gauge,
     metric: "Risk checked",
   },
@@ -38,7 +29,6 @@ const proofStoryFrames: StoryFrame[] = [
     num: "03",
     eyebrow: "Improve",
     title: "Know the next fix.",
-    body: "Instead of staring at a journal, you get the one or two habits to tighten before the next session.",
     Icon: ShieldCheck,
     metric: "Next action clear",
   },
@@ -46,7 +36,6 @@ const proofStoryFrames: StoryFrame[] = [
     num: "04",
     eyebrow: "Share",
     title: "Turn discipline into proof.",
-    body: "Risk Passport packages the clean version: gains, rule-following, and consistency without exposing every trade.",
     Icon: Fingerprint,
     metric: "Passport ready",
   },
@@ -64,9 +53,6 @@ export function StoryStrip() {
             <h2 className="mt-5 max-w-2xl font-body text-4xl font-semibold leading-[0.98] tracking-[-0.055em] text-white md:text-6xl">
               Import trades. Find the leak. Build proof.
             </h2>
-            <p className="mt-6 max-w-xl font-body text-base font-light leading-relaxed text-white/58">
-              Inspired by the clarity traders expect from modern journals, but focused on the thing that decides payouts: behavior under risk.
-            </p>
           </div>
           <div className="trade-proof-summary-panel">
             <div>
@@ -81,9 +67,6 @@ export function StoryStrip() {
                 </div>
               ))}
             </div>
-            <p className="mt-5 font-body text-sm leading-relaxed text-white/52">
-              This is the WOW layer: a clean shareable proof card traders can be proud to post without leaking private trade details.
-            </p>
           </div>
         </div>
 
@@ -114,8 +97,6 @@ function StoryStepCard({ frame, index }: { frame: StoryFrame; index: number }) {
       </div>
       <p className="mt-7 font-body text-xs uppercase tracking-[0.2em] text-[#b9f5df]/70">{frame.eyebrow}</p>
       <h3 className="mt-3 font-body text-2xl font-semibold tracking-[-0.035em] text-white">{frame.title}</h3>
-      <p className="mt-3 font-body text-sm font-light leading-relaxed text-white/56">{frame.body}</p>
-      {frame.csvHelp && <CsvExplainer body={frame.csvHelp.body} steps={frame.csvHelp.steps} compact />}
       <div className="mt-6 flex items-center justify-between gap-4 border-t border-white/10 pt-4">
         <span className="font-body text-sm text-white/58">{frame.metric}</span>
         <ArrowRight className="h-4 w-4 text-[#18c887]" />

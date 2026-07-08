@@ -1,20 +1,19 @@
-import { analyze, formatMoney, formatPercent } from "../lib/risk";
+import { analyze, formatMoney } from "../lib/risk";
 
 export function MetricDock({ analysis }: { analysis: ReturnType<typeof analyze> }) {
   const metrics = [
-    ["Cova Score", `${analysis.score}/100`, "Overall risk health"],
-    ["Net P&L", formatMoney(analysis.totalPnl), `${analysis.trades.length} trades`],
-    ["Biggest Dip", formatMoney(-analysis.maxDrawdown), "Largest pullback"],
-    ["Profit Factor", Number.isFinite(analysis.profitFactor) ? analysis.profitFactor.toFixed(2) : "∞", `${formatPercent(analysis.winRate)} win rate`],
-    ["Average R", `${analysis.avgR.toFixed(2)}R`, "Realized expectancy"],
+    ["Score", `${analysis.score}/100`],
+    ["Net P&L", formatMoney(analysis.totalPnl)],
+    ["Biggest Dip", formatMoney(-analysis.maxDrawdown)],
+    ["Profit Factor", Number.isFinite(analysis.profitFactor) ? analysis.profitFactor.toFixed(2) : "∞"],
+    ["Average R", `${analysis.avgR.toFixed(2)}R`],
   ];
   return (
     <div className="mt-5 grid overflow-hidden rounded-[28px] border border-white/10 md:grid-cols-5">
-      {metrics.map(([label, value, note]) => (
+      {metrics.map(([label, value]) => (
         <div className="border-b border-white/10 p-5 md:border-b-0 md:border-r last:border-r-0" key={label}>
           <p className="font-body text-sm text-white/62">{label}</p>
           <p className={`mt-3 font-mono text-3xl ${String(value).startsWith("-") ? "text-red-400" : "text-[#18c887]"}`}>{value}</p>
-          <p className="mt-2 font-body text-sm text-white/45">{note}</p>
         </div>
       ))}
     </div>
@@ -30,7 +29,6 @@ export function ScoreCard({ analysis }: { analysis: ReturnType<typeof analyze> }
       <p className="mt-3 w-fit rounded-full border border-white/10 bg-black/24 px-3 py-1.5 font-body text-xs text-white/42">
         {analysis.evidenceQuality.label} | {analysis.trades.length} trades checked
       </p>
-      <p className="mt-4 font-body text-sm leading-relaxed text-white/48">{analysis.evidenceQuality.summary}</p>
       <div className="mt-5 space-y-2">
         {analysis.scoreFactors.slice(0, 3).map((factor) => (
           <div className="rounded-[18px] border border-white/10 bg-black/20 p-3" key={factor.label}>
@@ -40,7 +38,6 @@ export function ScoreCard({ analysis }: { analysis: ReturnType<typeof analyze> }
                 {factor.impact}
               </span>
             </div>
-            <p className="mt-1 font-body text-xs leading-relaxed text-white/42">{factor.evidence}</p>
           </div>
         ))}
       </div>
@@ -74,7 +71,6 @@ export function FlagStack({ analysis }: { analysis: ReturnType<typeof analyze> }
               <span className="font-body text-sm text-white/75">{item.label}</span>
               <span className={item.tone}>{item.status}</span>
             </div>
-            <p className="mt-1 font-body text-xs leading-relaxed text-white/42">{item.summary}</p>
           </div>
         ))}
       </div>
