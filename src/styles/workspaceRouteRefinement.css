@@ -18,7 +18,8 @@
 .insight-briefing-row,
 .passport-intro-strip,
 .passport-proof-panel,
-.passport-share-console,
+.passport-tier-panel,
+.passport-mode-console,
 .passport-rule-proof {
   border-radius: 0 !important;
   border: 0 !important;
@@ -195,8 +196,9 @@
 }
 
 .passport-proof-panel,
-.passport-rule-proof,
-.passport-share-console {
+.passport-tier-panel,
+.passport-mode-console,
+.passport-rule-proof {
   background: rgba(255,255,255,0.012) !important;
 }
 
@@ -204,12 +206,12 @@
   border-top-color: rgba(148, 163, 184, 0.18) !important;
 }
 
-.passport-share-console button,
-.passport-share-console select {
+.passport-mode-console button,
+.passport-mode-console select {
   border-radius: 6px !important;
 }
 
-.passport-stage .passport-share-console {
+.passport-stage .passport-mode-console {
   border-left: 2px solid rgba(24, 200, 135, 0.34) !important;
 }
 

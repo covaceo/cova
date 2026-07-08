@@ -11,6 +11,7 @@ import {
   LockKeyhole,
   ShieldCheck,
   SlidersHorizontal,
+  Trophy,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { analyze, formatMoney, formatPercent, type RiskRule } from "../lib/risk";
@@ -220,13 +221,188 @@ export function Coach({ analysis, entitlements, go, upgradeToPro }: { analysis: 
   );
 }
 
+type PassportTier = {
+  badge: string;
+  cardClass: string;
+  className: string;
+  headline: string;
+  nextScore: number | null;
+  rank: string;
+  skin: string;
+  summary: string;
+};
+
+type PassportShareModeId = "flex" | "discipline" | "private" | "coach";
+
+type PassportShareMode = {
+  cardSubtitle: string;
+  hidden: string[];
+  id: PassportShareModeId;
+  label: string;
+  reveals: string[];
+  tagline: string;
+};
+
+type PassportStat = {
+  label: string;
+  tone?: "positive" | "negative" | "neutral";
+  value: string;
+};
+
+const passportShareModes: PassportShareMode[] = [
+  {
+    id: "flex",
+    label: "Flex",
+    tagline: "Gains visible, risk proof intact.",
+    cardSubtitle: "Gains + discipline proof",
+    reveals: ["Net P&L", "Cova rank", "Risk score", "Rules kept"],
+    hidden: ["Full trade list", "Broker details", "Private notes"],
+  },
+  {
+    id: "discipline",
+    label: "Discipline",
+    tagline: "Show control without flashing P&L.",
+    cardSubtitle: "Discipline proof, P&L hidden",
+    reveals: ["Cova rank", "Rules kept", "Average R", "Drawdown control"],
+    hidden: ["Net P&L", "Individual trades", "Account size"],
+  },
+  {
+    id: "private",
+    label: "Ghost",
+    tagline: "Clean proof with sensitive stats masked.",
+    cardSubtitle: "Private proof layer",
+    reveals: ["Verification date", "Sample quality", "Risk score range", "Rules kept"],
+    hidden: ["Net P&L", "Win rate", "Trader identity"],
+  },
+  {
+    id: "coach",
+    label: "Coach",
+    tagline: "Expose leaks for accountability.",
+    cardSubtitle: "Coach review mode",
+    reveals: ["Top leak", "Rule breaches", "Next fix", "Risk score"],
+    hidden: ["Shareable flex stats", "Public P&L", "Broker details"],
+  },
+];
+
+function getPassportTier(analysis: ReturnType<typeof analyze>): PassportTier {
+  const breachCount = analysis.breaches.length;
+  const score = analysis.score;
+  if (score >= 90 && analysis.compliance >= 0.9 && breachCount <= 1) {
+    return {
+      badge: "S",
+      rank: "S-TIER",
+      skin: "Black Card",
+      headline: "Elite risk control",
+      summary: "High score, clean rules, and enough proof to flex without sounding like a guru.",
+      className: "passport-tier-s",
+      cardClass: "passport-card-skin-s",
+      nextScore: null,
+    };
+  }
+  if (score >= 80 && analysis.compliance >= 0.75) {
+    return {
+      badge: "A",
+      rank: "A-TIER",
+      skin: "Emerald",
+      headline: "Disciplined trader profile",
+      summary: "Strong enough to show. A few more clean sessions move this toward Black Card status.",
+      className: "passport-tier-a",
+      cardClass: "passport-card-skin-a",
+      nextScore: 90,
+    };
+  }
+  if (score >= 65) {
+    return {
+      badge: "B",
+      rank: "B-TIER",
+      skin: "Gold Grind",
+      headline: "Profitable, still tightening",
+      summary: "Enough proof to build from, but rule breaches still cap the flex. Clean those and the card levels up.",
+      className: "passport-tier-b",
+      cardClass: "passport-card-skin-b",
+      nextScore: 80,
+    };
+  }
+  if (analysis.totalPnl > 0) {
+    return {
+      badge: "V",
+      rank: "VOLATILE",
+      skin: "Redline",
+      headline: "Green P&L, risky control",
+      summary: "The money is there, but the risk profile is not something to brag about yet.",
+      className: "passport-tier-v",
+      cardClass: "passport-card-skin-v",
+      nextScore: 65,
+    };
+  }
+  return {
+    badge: "R",
+    rank: "ROOKIE",
+    skin: "Starter",
+    headline: "Build the proof first",
+    summary: "Import more trades and keep rules clean to unlock a better Passport skin.",
+    className: "passport-tier-r",
+    cardClass: "passport-card-skin-r",
+    nextScore: 65,
+  };
+}
+
+function getPassportMode(id: PassportShareModeId) {
+  return passportShareModes.find((mode) => mode.id === id) ?? passportShareModes[0];
+}
+
+function getPrimaryLeak(analysis: ReturnType<typeof analyze>) {
+  return analysis.behaviorFlags.find((flag) => flag.severity === "critical" || flag.severity === "warning")?.label
+    ?? analysis.breaches[0]?.rule.name
+    ?? "No major leak";
+}
+
+function getPassportStats(analysis: ReturnType<typeof analyze>, mode: PassportShareModeId): PassportStat[] {
+  if (mode === "discipline") {
+    return [
+      { label: "Risk score", value: `${analysis.score}/100`, tone: "positive" },
+      { label: "Rules kept", value: formatPercent(analysis.compliance), tone: analysis.compliance >= 0.75 ? "positive" : "negative" },
+      { label: "Average R", value: `${analysis.avgR.toFixed(2)}R`, tone: analysis.avgR >= 0 ? "positive" : "negative" },
+      { label: "Max DD", value: formatMoney(Math.round(analysis.maxDrawdown)), tone: analysis.maxDrawdown > 0 ? "neutral" : "positive" },
+    ];
+  }
+  if (mode === "private") {
+    return [
+      { label: "Risk score", value: analysis.score ? `${Math.floor(analysis.score / 10) * 10}+` : "Hidden", tone: "positive" },
+      { label: "Rules kept", value: formatPercent(analysis.compliance), tone: analysis.compliance >= 0.75 ? "positive" : "negative" },
+      { label: "Sample", value: analysis.evidenceQuality.label, tone: "neutral" },
+      { label: "Generated", value: analysis.latestDate, tone: "neutral" },
+    ];
+  }
+  if (mode === "coach") {
+    return [
+      { label: "Risk score", value: `${analysis.score}/100`, tone: "neutral" },
+      { label: "Flags", value: `${analysis.breaches.length}`, tone: analysis.breaches.length ? "negative" : "positive" },
+      { label: "Top leak", value: getPrimaryLeak(analysis), tone: analysis.breaches.length ? "negative" : "positive" },
+      { label: "Next", value: analysis.nextSessionBrief.status.toUpperCase(), tone: analysis.nextSessionBrief.status === "ready" ? "positive" : "negative" },
+    ];
+  }
+  return [
+    { label: "Net P&L", value: formatMoney(analysis.totalPnl), tone: analysis.totalPnl >= 0 ? "positive" : "negative" },
+    { label: "Risk score", value: `${analysis.score}/100`, tone: "positive" },
+    { label: "Rules kept", value: formatPercent(analysis.compliance), tone: analysis.compliance >= 0.75 ? "positive" : "negative" },
+    { label: "Win rate", value: formatPercent(analysis.winRate), tone: "neutral" },
+  ];
+}
+
 export function Passport({ analysis, entitlements, sharePassport, go, upgradeToPro }: { analysis: ReturnType<typeof analyze>; entitlements: WorkspaceEntitlements; sharePassport: () => void; go: (section: Section) => void; upgradeToPro: () => void }) {
   const [copied, setCopied] = useState(false);
   const [visibility, setVisibility] = useState<"private" | "public">("private");
   const [expiry, setExpiry] = useState("7 days");
+  const [shareModeId, setShareModeId] = useState<PassportShareModeId>("flex");
   const cardRef = useRef<HTMLDivElement | null>(null);
   const shadowRef = useRef<HTMLDivElement | null>(null);
   const frameRef = useRef<number | null>(null);
+  const tier = getPassportTier(analysis);
+  const shareMode = getPassportMode(shareModeId);
+  const cardStats = getPassportStats(analysis, shareModeId);
+  const pointsToNext = tier.nextScore === null ? 0 : Math.max(0, tier.nextScore - analysis.score);
+  const rankProgress = tier.nextScore === null ? 100 : Math.min(100, Math.max(8, Math.round((analysis.score / tier.nextScore) * 100)));
 
   useEffect(() => () => {
     if (frameRef.current !== null) {
@@ -298,21 +474,42 @@ export function Passport({ analysis, entitlements, sharePassport, go, upgradeToP
   return (
     <SectionShell
       eyebrow="Risk Passport"
-      title="Share a Risk Passport."
+      title="Flex the proof, not the signal."
       variant="workspace"
       backdrop={<ImageAtmosphere src="/media/cova-passport-product.jpg" align="right" opacity="opacity-[0.35]" />}
     >
       <div className="passport-intro-strip mb-7 grid gap-4 p-5 md:grid-cols-[0.8fr_1.2fr] md:items-center">
-        <p className="font-body text-xs uppercase tracking-[0.22em] text-[#18c887]">{entitlements.plan === "free" ? "Free preview" : "What is this?"}</p>
+        <p className="font-body text-xs uppercase tracking-[0.22em] text-[#18c887]">{entitlements.plan === "free" ? "Free preview" : "Verified credential"}</p>
         <p className="font-body text-sm font-light leading-relaxed text-white/62">
-          A Risk Passport is a shareable summary of your discipline, limits, and trade behavior.
-          It helps someone see how you manage risk without turning Cova into a signal report.
+          A Risk Passport turns trade history into a gamer-style credential: rank, skin, proof badges, and share modes.
+          Show gains when you want the flex. Hide P&L when the proof is discipline.
           {entitlements.plan === "free" ? " Free accounts can preview one Passport; Pro unlocks export and full sharing controls." : ""}
         </p>
       </div>
-      <div className="grid gap-7 lg:grid-cols-[0.75fr_1.1fr_0.75fr]">
+      <div className="grid gap-7 lg:grid-cols-[0.75fr_1.12fr_0.78fr]">
         <div className="space-y-5">
           <ScoreCard analysis={analysis} />
+          <div className={`passport-tier-panel ${tier.className} p-7`}>
+            <div className="flex items-center justify-between gap-4">
+              <p className="font-body text-xs uppercase tracking-[0.22em] text-white/42">Current skin</p>
+              <span className="passport-tier-badge"><Trophy className="h-4 w-4" /> {tier.badge}</span>
+            </div>
+            <p className="passport-tier-rank mt-5 font-mono text-5xl uppercase tracking-[-0.06em]">{tier.rank}</p>
+            <p className="mt-2 font-body text-xl font-semibold tracking-[-0.035em] text-white">{tier.skin}</p>
+            <p className="mt-4 font-body text-sm font-light leading-relaxed text-white/58">{tier.summary}</p>
+            <div className="mt-6">
+              <div className="flex items-center justify-between font-mono text-[0.68rem] uppercase tracking-[0.18em] text-white/38">
+                <span>{tier.headline}</span>
+                <span>{tier.nextScore === null ? "Max rank" : `${pointsToNext} pts`}</span>
+              </div>
+              <div className="passport-rank-meter mt-3">
+                <span style={{ width: `${rankProgress}%` }} />
+              </div>
+              <p className="mt-3 font-body text-xs text-white/42">
+                {tier.nextScore === null ? "Black Card unlocked. Keep the sample clean." : `${pointsToNext} Cova points to the next skin.`}
+              </p>
+            </div>
+          </div>
           <div className="passport-proof-panel p-7">
             <p className="font-body text-xs uppercase tracking-[0.22em] text-white/40">Limits followed</p>
             <p className="mt-3 font-body text-5xl text-emerald-400">{analysis.ruleStatuses.length - analysis.breaches.length}/{analysis.ruleStatuses.length}</p>
@@ -338,7 +535,7 @@ export function Passport({ analysis, entitlements, sharePassport, go, upgradeToP
             >
               <div className="passport-card-3d" ref={cardRef}>
                 <div className="passport-card-depth" />
-                <div className="passport-card-face">
+                <div className={`passport-card-face ${tier.cardClass}`}>
                   <div className="passport-card-noise" />
                   <div className="passport-card-shine" />
                   <div className="passport-card-grid" />
@@ -347,28 +544,29 @@ export function Passport({ analysis, entitlements, sharePassport, go, upgradeToP
                       <div>
                         <p className="font-heading text-4xl italic tracking-normal text-white/76">COVA</p>
                         <h3 className="mt-5 font-mono text-2xl uppercase tracking-[0.14em] text-white/86 md:text-4xl md:tracking-[0.2em]">Risk Passport</h3>
-                        <p className="mt-3 font-mono text-xs uppercase tracking-[0.22em] text-white/44 md:text-sm">Shareable risk summary</p>
+                        <p className="mt-3 font-mono text-xs uppercase tracking-[0.22em] text-white/44 md:text-sm">{shareMode.cardSubtitle}</p>
                       </div>
-                      <div className="passport-chip" aria-hidden="true">
-                        <span />
-                        <span />
-                        <span />
-                        <span />
+                      <div className="passport-rank-chip" aria-label={`${tier.rank} ${tier.skin}`}>
+                        <span>{tier.badge}</span>
+                        <small>{tier.rank}</small>
                       </div>
+                    </div>
+
+                    <div className="mt-6 grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+                      <div>
+                        <p className="font-mono text-xs uppercase tracking-[0.18em] text-white/38">Season skin</p>
+                        <p className="mt-2 font-body text-3xl font-semibold tracking-[-0.055em] text-white md:text-5xl">{tier.skin}</p>
+                      </div>
+                      <div className="passport-mode-chip">{shareMode.label} mode</div>
                     </div>
 
                     <div className="mt-6 h-px bg-white/14" />
 
                     <div className="mt-auto grid grid-cols-2 gap-x-5 gap-y-3 pt-5 md:grid-cols-4">
-                      {[
-                        ["Passport ID", "7CVA-2505-741"],
-                        ["Generated", analysis.latestDate],
-                        ["Risk score", `${analysis.score}/100`],
-                        ["Limits followed", formatPercent(analysis.compliance)],
-                      ].map(([label, value]) => (
-                        <div className="border-t border-white/10 pt-3 font-mono" key={label}>
-                          <span className="block text-[0.62rem] uppercase tracking-[0.16em] text-white/34 md:text-[0.68rem]">{label}</span>
-                          <span className="mt-1 block text-xs text-white/86 md:text-sm">{value}</span>
+                      {cardStats.map((stat) => (
+                        <div className={`passport-stat-slot passport-stat-${stat.tone ?? "neutral"}`} key={stat.label}>
+                          <span>{stat.label}</span>
+                          <strong>{stat.value}</strong>
                         </div>
                       ))}
                     </div>
@@ -379,24 +577,48 @@ export function Passport({ analysis, entitlements, sharePassport, go, upgradeToP
             </div>
           </div>
 
-          <div className="passport-share-console mt-8 grid gap-3 p-4 md:grid-cols-[1fr_auto] md:items-center">
-            <button
-              className="flex items-center gap-3 rounded-full text-left font-body text-sm text-white"
-              onClick={() => setVisibility(visibility === "private" ? "public" : "private")}
-              type="button"
-            >
-              <span className="grid h-9 w-9 place-items-center rounded-full border border-white/10 bg-white/5 text-[#18c887]">
+          <div className="passport-mode-console mt-8 p-4">
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="font-body text-xs uppercase tracking-[0.22em] text-[#18c887]">Share mode</p>
+                <p className="mt-1 font-body text-sm text-white/50">Pick what this Passport reveals.</p>
+              </div>
+              <button
+                className="passport-visibility-toggle"
+                onClick={() => setVisibility(visibility === "private" ? "public" : "private")}
+                type="button"
+              >
                 {visibility === "private" ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </span>
-              <span>
-                <span className="block text-white/80">{visibility === "private" ? "Private draft" : "Public share link"}</span>
-                <span className="block text-xs text-white/42">Toggle share visibility</span>
-              </span>
-            </button>
-            <label className="font-body text-xs uppercase tracking-[0.18em] text-white/38">
+                {visibility === "private" ? "Private draft" : "Public link"}
+              </button>
+            </div>
+            <div className="passport-mode-grid mt-4">
+              {passportShareModes.map((mode) => (
+                <button
+                  className={`passport-mode-button ${shareModeId === mode.id ? "is-active" : ""}`}
+                  key={mode.id}
+                  onClick={() => setShareModeId(mode.id)}
+                  type="button"
+                >
+                  <strong>{mode.label}</strong>
+                  <span>{mode.tagline}</span>
+                </button>
+              ))}
+            </div>
+            <div className="passport-reveal-ledger mt-4 grid gap-4 md:grid-cols-2">
+              <div>
+                <p className="font-mono text-[0.68rem] uppercase tracking-[0.18em] text-emerald-300">Reveals</p>
+                {shareMode.reveals.map((item) => <span key={item}>✓ {item}</span>)}
+              </div>
+              <div>
+                <p className="font-mono text-[0.68rem] uppercase tracking-[0.18em] text-white/38">Hidden</p>
+                {shareMode.hidden.map((item) => <span key={item}>× {item}</span>)}
+              </div>
+            </div>
+            <label className="mt-4 block font-body text-xs uppercase tracking-[0.18em] text-white/38">
               Expiry
               <select
-                className="mt-2 block rounded-full border border-white/10 bg-black/50 px-4 py-2 font-body text-sm normal-case tracking-normal text-white outline-none"
+                className="mt-2 block w-full rounded-md border border-white/10 bg-black/50 px-4 py-2 font-body text-sm normal-case tracking-normal text-white outline-none md:w-auto"
                 value={expiry}
                 onChange={(event) => setExpiry(event.target.value)}
               >
@@ -410,7 +632,7 @@ export function Passport({ analysis, entitlements, sharePassport, go, upgradeToP
 
           <div className="mt-8 flex flex-wrap gap-3">
             <GlassButton strong onClick={copyPassport}>{copied ? "Copied" : "Copy Link"} <Copy className="h-4 w-4" /></GlassButton>
-            <GlassButton onClick={entitlements.canExportPassport ? () => downloadPassportPng(analysis, visibility, expiry) : upgradeToPro}>
+            <GlassButton onClick={entitlements.canExportPassport ? () => downloadPassportPng(analysis, visibility, expiry, tier, shareMode) : upgradeToPro}>
               {entitlements.canExportPassport ? "Export PNG" : "Unlock Export"} <Download className="h-4 w-4" />
             </GlassButton>
             <GlassButton onClick={() => go("dashboard")}>Back to Review</GlassButton>
@@ -418,6 +640,16 @@ export function Passport({ analysis, entitlements, sharePassport, go, upgradeToP
         </motion.div>
 
         <div className="grid gap-5">
+          <div className="passport-proof-panel p-6">
+            <p className="font-body text-xs uppercase tracking-[0.22em] text-white/40">Proof badges</p>
+            {[
+              `${analysis.evidenceQuality.label} · ${analysis.trades.length} trades`,
+              `${formatPercent(analysis.compliance)} rules kept`,
+              analysis.breaches.length ? `${analysis.breaches.length} active leak${analysis.breaches.length === 1 ? "" : "s"}` : "No active leaks",
+            ].map((badge) => (
+              <div className="passport-proof-badge" key={badge}><BadgeCheck className="h-4 w-4" /> {badge}</div>
+            ))}
+          </div>
           {analysis.ruleStatuses.slice(0, 3).map((status) => (
             <div className="passport-rule-proof p-6" key={status.rule.id}>
               <BadgeCheck className={`h-9 w-9 ${status.breached ? "text-red-400" : "text-emerald-400"}`} />
@@ -443,33 +675,35 @@ function friendlyRuleMetric(metric: RiskRule["metric"]) {
   return labels[metric];
 }
 
-function downloadPassportPng(analysis: ReturnType<typeof analyze>, visibility: string, expiry: string) {
+function downloadPassportPng(analysis: ReturnType<typeof analyze>, visibility: string, expiry: string, tier: PassportTier, shareMode: PassportShareMode) {
+  const displayPnl = shareMode.id === "flex" ? formatMoney(analysis.totalPnl) : "P&L HIDDEN";
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="1400" height="900" viewBox="0 0 1400 900">
       <defs>
         <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
           <stop stop-color="#020306"/>
+          <stop offset="0.48" stop-color="#11100a"/>
           <stop offset="1" stop-color="#071225"/>
         </linearGradient>
         <linearGradient id="line" x1="0" x2="1">
-          <stop stop-color="#b9f5df"/>
+          <stop stop-color="#f7c96c"/>
           <stop offset="1" stop-color="#18c887"/>
         </linearGradient>
       </defs>
       <rect width="1400" height="900" rx="54" fill="url(#bg)"/>
       <rect x="58" y="58" width="1284" height="784" rx="42" fill="rgba(255,255,255,0.035)" stroke="rgba(255,255,255,0.24)" stroke-width="2"/>
-      <text x="104" y="150" fill="#f8fbff" font-family="Georgia,serif" font-size="68" font-style="italic">Cova</text>
-      <text x="104" y="252" fill="#f8fbff" font-family="Courier New,monospace" font-size="72" letter-spacing="14">RISK PASSPORT</text>
-      <text x="104" y="312" fill="#8fb7a6" font-family="Courier New,monospace" font-size="24" letter-spacing="8">VERIFIED RISK CREDENTIAL</text>
-      <rect x="104" y="390" width="1192" height="2" fill="rgba(255,255,255,0.16)"/>
-      <text x="104" y="500" fill="#18c887" font-family="Courier New,monospace" font-size="124">${analysis.score}</text>
-      <text x="292" y="500" fill="#a6b8b0" font-family="Courier New,monospace" font-size="44">/100 COVA SCORE</text>
-      <text x="104" y="600" fill="#36e2a0" font-family="Courier New,monospace" font-size="54">${formatPercent(analysis.compliance)} COMPLIANCE</text>
-      <text x="104" y="680" fill="#f8fbff" font-family="Courier New,monospace" font-size="32">Trades: ${analysis.trades.length} · Generated: ${analysis.latestDate}</text>
-      <text x="104" y="740" fill="#a6b8b0" font-family="Courier New,monospace" font-size="26">Visibility: ${visibility.toUpperCase()} · Expiry: ${expiry.toUpperCase()}</text>
+      <text x="104" y="142" fill="#f8fbff" font-family="Georgia,serif" font-size="68" font-style="italic">Cova</text>
+      <text x="104" y="236" fill="#f8fbff" font-family="Courier New,monospace" font-size="68" letter-spacing="14">RISK PASSPORT</text>
+      <text x="104" y="296" fill="#f7c96c" font-family="Courier New,monospace" font-size="30" letter-spacing="8">${tier.rank} · ${tier.skin.toUpperCase()}</text>
+      <rect x="104" y="360" width="1192" height="2" fill="rgba(255,255,255,0.16)"/>
+      <text x="104" y="486" fill="#18c887" font-family="Courier New,monospace" font-size="124">${analysis.score}</text>
+      <text x="292" y="486" fill="#a6b8b0" font-family="Courier New,monospace" font-size="44">/100 COVA SCORE</text>
+      <text x="104" y="586" fill="#f8fbff" font-family="Courier New,monospace" font-size="48">${displayPnl}</text>
+      <text x="104" y="656" fill="#36e2a0" font-family="Courier New,monospace" font-size="44">${formatPercent(analysis.compliance)} RULES KEPT</text>
+      <text x="104" y="728" fill="#a6b8b0" font-family="Courier New,monospace" font-size="26">Mode: ${shareMode.label.toUpperCase()} · Visibility: ${visibility.toUpperCase()} · Expiry: ${expiry.toUpperCase()}</text>
       <path d="M850 630 C920 560 960 690 1020 620 S1130 540 1230 590" fill="none" stroke="url(#line)" stroke-width="8"/>
-      <rect x="1082" y="128" width="156" height="156" rx="28" fill="rgba(24,200,135,0.08)" stroke="rgba(24,200,135,0.5)"/>
-      <text x="1118" y="216" fill="#f8fbff" font-family="Courier New,monospace" font-size="24">COVA</text>
+      <rect x="1074" y="116" width="172" height="172" rx="30" fill="rgba(247,201,108,0.1)" stroke="rgba(247,201,108,0.55)"/>
+      <text x="1122" y="222" fill="#f8fbff" font-family="Courier New,monospace" font-size="78">${tier.badge}</text>
     </svg>
   `;
   const image = new Image();
