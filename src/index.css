@@ -4383,11 +4383,11 @@ body {
   }
 
   .passport-card-face.passport-card-skin-s { --passport-gold: #eef9ff; }
-  .passport-card-face.passport-card-skin-a { --passport-gold: #45d28d; }
-  .passport-card-face.passport-card-skin-b { --passport-gold: #7cb7ff; }
-  .passport-card-face.passport-card-skin-v { --passport-gold: #ff4f72; }
+  .passport-card-face.passport-card-skin-a { --passport-gold: #d7dde8; }
+  .passport-card-face.passport-card-skin-b { --passport-gold: #d9b76e; }
+  .passport-card-face.passport-card-skin-v { --passport-gold: #bfc8d4; }
   .passport-card-face.passport-card-skin-blown { --passport-gold: #ff3b3b; }
-  .passport-card-face.passport-card-skin-r { --passport-gold: #aeb8c8; }
+  .passport-card-face.passport-card-skin-r { --passport-gold: #b9824a; }
 
   .passport-share-rail {
     display: grid;

@@ -301,11 +301,11 @@ function getPassportTier(analysis: ReturnType<typeof analyze>): PassportTier {
     analysis.profitFactor >= 1.5
   ) {
     return {
-      badge: "BD",
-      rank: "Black Diamond",
-      skin: "Rare discipline cut",
+      badge: "D",
+      rank: "Diamond",
+      skin: "Elite control",
       headline: "Elite risk control",
-      summary: "Rare flex: profitable sample, clean rules, strong expectancy, and almost no risk leaks.",
+      summary: "Top rank: profitable sample, clean rules, strong expectancy, and almost no risk leaks.",
       className: "passport-tier-s",
       cardClass: "passport-card-skin-s",
     };
@@ -321,8 +321,8 @@ function getPassportTier(analysis: ReturnType<typeof analyze>): PassportTier {
     analysis.profitFactor >= 1.25
   ) {
     return {
-      badge: "EE",
-      rank: "Emerald Edge",
+      badge: "P",
+      rank: "Platinum",
       skin: "Funded-ready control",
       headline: "Disciplined trader profile",
       summary: "Profitable, controlled, and clean enough to show without hiding the risk receipt.",
@@ -338,29 +338,29 @@ function getPassportTier(analysis: ReturnType<typeof analyze>): PassportTier {
     analysis.compliance >= 0.6
   ) {
     return {
-      badge: "SG",
-      rank: "Sapphire Grind",
-      skin: "Controlled climber",
+      badge: "G",
+      rank: "Gold",
+      skin: "Profitable control",
       headline: "Profitable, still tightening",
-      summary: "Real proof is forming, but rule breaches still cap the flex. Clean those and the card gets dangerous.",
+      summary: "Solid rank: real profit proof is forming, but breaches still cap the flex.",
       className: "passport-tier-b",
       cardClass: "passport-card-skin-b",
     };
   }
   if (profitable) {
     return {
-      badge: "RH",
-      rank: "Ruby Heat",
-      skin: "Profit with risk",
+      badge: "S",
+      rank: "Silver",
+      skin: "Green but unproven",
       headline: "Green P&L, risky control",
-      summary: "The account is green, but rule proof, expectancy, or sample quality is not flex-ready yet.",
+      summary: "The account is green, but rule proof, expectancy, or sample quality is not rank-up ready yet.",
       className: "passport-tier-v",
       cardClass: "passport-card-skin-v",
     };
   }
   if (inTheRed) {
     return {
-      badge: "BN",
+      badge: "BL",
       rank: "Blown",
       skin: "Red account warning",
       headline: "Account is in the red",
@@ -370,9 +370,9 @@ function getPassportTier(analysis: ReturnType<typeof analyze>): PassportTier {
     };
   }
   return {
-    badge: "RS",
-    rank: "Raw Stone",
-    skin: "Build the receipt",
+    badge: "B",
+    rank: "Bronze",
+    skin: "Starting rank",
     headline: "Build the proof first",
     summary: "Not enough profitable, controlled proof yet. Import more trades and keep the rules clean.",
     className: "passport-tier-r",
