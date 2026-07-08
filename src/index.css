@@ -3924,8 +3924,8 @@ body {
   .passport-card-hitbox {
     position: relative;
     width: 100%;
-    aspect-ratio: 1.43 / 1;
-    min-height: 430px;
+    aspect-ratio: 1.34 / 1;
+    min-height: 470px;
     margin-inline: auto;
     cursor: grab;
     transform-style: preserve-3d;
@@ -4104,7 +4104,7 @@ body {
     margin-top: 0.32rem;
     color: rgba(245, 231, 190, 0.96);
     font-family: var(--passport-display);
-    font-size: clamp(3.2rem, 8.2vw, 7.35rem);
+    font-size: clamp(2.95rem, 7.35vw, 6.55rem);
     font-weight: 400;
     letter-spacing: 0.035em;
     line-height: 0.82;
@@ -4383,9 +4383,10 @@ body {
   }
 
   .passport-card-face.passport-card-skin-s { --passport-gold: #eef9ff; }
-  .passport-card-face.passport-card-skin-a { --passport-gold: #8cebc2; }
-  .passport-card-face.passport-card-skin-b { --passport-gold: #d9b76e; }
-  .passport-card-face.passport-card-skin-v { --passport-gold: #ff7a8e; }
+  .passport-card-face.passport-card-skin-a { --passport-gold: #45d28d; }
+  .passport-card-face.passport-card-skin-b { --passport-gold: #7cb7ff; }
+  .passport-card-face.passport-card-skin-v { --passport-gold: #ff4f72; }
+  .passport-card-face.passport-card-skin-blown { --passport-gold: #ff3b3b; }
   .passport-card-face.passport-card-skin-r { --passport-gold: #aeb8c8; }
 
   .passport-share-rail {

@@ -287,6 +287,7 @@ function getPassportTier(analysis: ReturnType<typeof analyze>): PassportTier {
   const score = analysis.score;
   const tradeCount = analysis.trades.length;
   const profitable = analysis.totalPnl > 0;
+  const inTheRed = analysis.totalPnl < 0;
   const positiveExpectancy = analysis.avgR > 0 && analysis.profitFactor >= 1.05;
 
   if (
@@ -300,9 +301,9 @@ function getPassportTier(analysis: ReturnType<typeof analyze>): PassportTier {
     analysis.profitFactor >= 1.5
   ) {
     return {
-      badge: "BC",
-      rank: "Black Card",
-      skin: "Obsidian discipline",
+      badge: "BD",
+      rank: "Black Diamond",
+      skin: "Rare discipline cut",
       headline: "Elite risk control",
       summary: "Rare flex: profitable sample, clean rules, strong expectancy, and almost no risk leaks.",
       className: "passport-tier-s",
@@ -337,8 +338,8 @@ function getPassportTier(analysis: ReturnType<typeof analyze>): PassportTier {
     analysis.compliance >= 0.6
   ) {
     return {
-      badge: "GG",
-      rank: "Gold Grind",
+      badge: "SG",
+      rank: "Sapphire Grind",
       skin: "Controlled climber",
       headline: "Profitable, still tightening",
       summary: "Real proof is forming, but rule breaches still cap the flex. Clean those and the card gets dangerous.",
@@ -348,18 +349,29 @@ function getPassportTier(analysis: ReturnType<typeof analyze>): PassportTier {
   }
   if (profitable) {
     return {
-      badge: "RL",
-      rank: "Redline",
-      skin: "Profit with heat",
+      badge: "RH",
+      rank: "Ruby Heat",
+      skin: "Profit with risk",
       headline: "Green P&L, risky control",
       summary: "The account is green, but rule proof, expectancy, or sample quality is not flex-ready yet.",
       className: "passport-tier-v",
       cardClass: "passport-card-skin-v",
     };
   }
+  if (inTheRed) {
+    return {
+      badge: "BN",
+      rank: "Blown",
+      skin: "Red account warning",
+      headline: "Account is in the red",
+      summary: "This Passport is not flex-ready. First job is stopping the leak and rebuilding control.",
+      className: "passport-tier-blown",
+      cardClass: "passport-card-skin-blown",
+    };
+  }
   return {
-    badge: "SP",
-    rank: "Starter Proof",
+    badge: "RS",
+    rank: "Raw Stone",
     skin: "Build the receipt",
     headline: "Build the proof first",
     summary: "Not enough profitable, controlled proof yet. Import more trades and keep the rules clean.",
