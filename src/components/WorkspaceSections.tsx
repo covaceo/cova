@@ -287,20 +287,20 @@ function getPassportTier(analysis: ReturnType<typeof analyze>): PassportTier {
   const score = analysis.score;
   if (score >= 90 && analysis.compliance >= 0.9 && breachCount <= 1) {
     return {
-      badge: "S",
-      rank: "S-TIER",
-      skin: "Black Card",
+      badge: "BC",
+      rank: "Black Card",
+      skin: "Obsidian discipline",
       headline: "Elite risk control",
-      summary: "High Cova Score, clean rules, and enough proof to flex without sounding like a guru.",
+      summary: "Rare flex: high Cova Score, clean rules, and enough proof to post without sounding like a guru.",
       className: "passport-tier-s",
       cardClass: "passport-card-skin-s",
     };
   }
   if (score >= 80 && analysis.compliance >= 0.75) {
     return {
-      badge: "A",
-      rank: "A-TIER",
-      skin: "Emerald",
+      badge: "EE",
+      rank: "Emerald Edge",
+      skin: "Funded-ready control",
       headline: "Disciplined trader profile",
       summary: "Strong enough to show. A few more clean sessions would make this Black Card-worthy.",
       className: "passport-tier-a",
@@ -309,20 +309,20 @@ function getPassportTier(analysis: ReturnType<typeof analyze>): PassportTier {
   }
   if (score >= 65) {
     return {
-      badge: "B",
-      rank: "B-TIER",
-      skin: "Gold Grind",
+      badge: "GG",
+      rank: "Gold Grind",
+      skin: "Controlled climber",
       headline: "Profitable, still tightening",
-      summary: "Enough proof to build from, but rule breaches still cap the flex. Clean those and the status gets stronger.",
+      summary: "Real proof is forming, but rule breaches still cap the flex. Clean those and the card gets dangerous.",
       className: "passport-tier-b",
       cardClass: "passport-card-skin-b",
     };
   }
   if (analysis.totalPnl > 0) {
     return {
-      badge: "V",
-      rank: "VOLATILE",
-      skin: "Redline",
+      badge: "RL",
+      rank: "Redline",
+      skin: "Profit with heat",
       headline: "Green P&L, risky control",
       summary: "The money is there, but the risk profile is not something to brag about yet.",
       className: "passport-tier-v",
@@ -330,9 +330,9 @@ function getPassportTier(analysis: ReturnType<typeof analyze>): PassportTier {
     };
   }
   return {
-    badge: "R",
-    rank: "ROOKIE",
-    skin: "Starter",
+    badge: "SP",
+    rank: "Starter Proof",
+    skin: "Build the receipt",
     headline: "Build the proof first",
     summary: "Import more trades and keep rules clean before this Passport should be shared.",
     className: "passport-tier-r",
@@ -522,14 +522,14 @@ export function Passport({ analysis, entitlements, sharePassport, go, upgradeToP
                     <div className="passport-credential-inner">
                       <div className="passport-card-headerline">
                         <div>
-                          <p className="passport-brand-mark">Cova</p>
-                          <h3>Risk Passport</h3>
-                          <p>Verified trader credential</p>
+                          <p className="passport-brand-mark">Cova / Risk Passport</p>
+                          <h3>{tier.rank}</h3>
+                          <p>{tier.skin} · {tier.headline}</p>
                         </div>
                         <div className="passport-rank-plaque">
-                          <span>Rank</span>
-                          <strong>{tier.rank}</strong>
-                          <em>{tier.skin}</em>
+                          <span>Edition</span>
+                          <strong>{tier.badge}</strong>
+                          <em>{analysis.score}/100 Cova Score</em>
                         </div>
                       </div>
 
@@ -549,16 +549,17 @@ export function Passport({ analysis, entitlements, sharePassport, go, upgradeToP
                           ))}
                         </div>
 
-                        <div className="passport-verify-stack">
-                          <div className="passport-verified-seal">
-                            <span>Cova</span>
-                            <strong>{tier.badge}</strong>
-                            <em>Risk · Rules · Proof</em>
+                        <div className="passport-flex-stack">
+                          <div className="passport-edition-card">
+                            <span>Mode</span>
+                            <strong>{shareMode.label}</strong>
+                            <em>{shareMode.cardSubtitle}</em>
                           </div>
-                          <div className="passport-qr-mark" aria-label="Verification mark">
-                            {Array.from({ length: 25 }).map((_, index) => <span key={index} />)}
+                          <div className="passport-pass-id">
+                            <span>Verified ID</span>
+                            <code>{verificationId}</code>
+                            <small>{verifiedRules}/{analysis.ruleStatuses.length} rules held · {visibility === "private" ? "Private link" : "Public card"}</small>
                           </div>
-                          <p>VERIFY · {verificationId}</p>
                         </div>
                       </div>
                     </div>
