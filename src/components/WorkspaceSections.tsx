@@ -34,19 +34,19 @@ export function RulesEngine({ analysis, entitlements, rules, setRules, upgradeTo
       variant="workspace"
       backdrop={<ImageAtmosphere src="/media/cova-dashboard-plate.jpg" align="right" opacity="opacity-[0.18]" />}
     >
-      <div className="rules-desk-grid grid gap-6 lg:grid-cols-[0.72fr_1.28fr]">
-        <div className="rules-summary-card liquid-glass-strong rounded-[30px] p-6 md:p-7">
+      <div className="rules-desk-grid rules-ledger-grid grid gap-6 lg:grid-cols-[0.64fr_1.36fr]">
+        <div className="rules-summary-card rules-ledger-summary p-6 md:p-7">
           <SlidersHorizontal className="h-10 w-10 text-[#18c887]" />
           <h3 className="mt-7 font-body text-3xl font-semibold leading-[0.98] tracking-[-0.05em] md:text-4xl">Do not give the account back.</h3>
           <p className="mt-5 font-body font-light leading-relaxed text-white/60">
             Set the limits that stop the bad day from becoming a blown account. Cova checks every trade against these rules in plain English.
           </p>
           <div className="mt-8 grid grid-cols-2 gap-3">
-            <div className="liquid-glass rounded-[28px] p-5">
+            <div className="rules-ledger-stat p-5">
               <p className="font-body text-xs uppercase tracking-[0.22em] text-white/40">Active warnings</p>
               <p className="mt-2 font-body text-4xl text-red-400">{analysis.breaches.length}</p>
             </div>
-            <div className="liquid-glass rounded-[28px] p-5">
+            <div className="rules-ledger-stat p-5">
               <p className="font-body text-xs uppercase tracking-[0.22em] text-white/40">Rules followed</p>
               <p className="mt-2 font-body text-4xl text-emerald-400">{formatPercent(analysis.compliance)}</p>
             </div>
@@ -66,7 +66,7 @@ export function RulesEngine({ analysis, entitlements, rules, setRules, upgradeTo
             return (
               <motion.article
                 key={rule.id}
-                className={`rule-control-card liquid-glass rounded-[26px] p-4 md:p-5 ${locked ? "opacity-70" : ""}`}
+                className={`rule-control-card rules-ledger-row p-4 md:p-5 ${locked ? "opacity-70" : ""}`}
                 initial={{ opacity: 0, y: 24 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -172,11 +172,11 @@ export function Coach({ analysis, entitlements, go, upgradeToPro }: { analysis: 
       variant="workspace"
       backdrop={<ImageAtmosphere src="/media/cova-dashboard-plate.jpg" align="right" opacity="opacity-[0.2]" />}
     >
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="insights-briefing-feed grid gap-0">
         {visibleInsights.map((insight, index) => (
           <motion.article
             key={insight.title}
-            className="liquid-glass min-h-[320px] rounded-[36px] p-8"
+            className="insight-briefing-row p-6 md:p-7"
             initial={{ opacity: 0, y: 34, filter: "blur(14px)" }}
             whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
             viewport={{ once: true }}
@@ -195,7 +195,7 @@ export function Coach({ analysis, entitlements, go, upgradeToPro }: { analysis: 
         ))}
         {lockedInsightCount > 0 && (
           <motion.article
-            className="liquid-glass-strong min-h-[320px] rounded-[36px] p-8"
+            className="insight-briefing-row insight-briefing-locked p-6 md:p-7"
             initial={{ opacity: 0, y: 34, filter: "blur(14px)" }}
             whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
             viewport={{ once: true }}
@@ -302,7 +302,7 @@ export function Passport({ analysis, entitlements, sharePassport, go, upgradeToP
       variant="workspace"
       backdrop={<ImageAtmosphere src="/media/cova-passport-product.jpg" align="right" opacity="opacity-[0.35]" />}
     >
-      <div className="liquid-glass mb-7 grid gap-4 rounded-[32px] p-5 md:grid-cols-[0.8fr_1.2fr] md:items-center">
+      <div className="passport-intro-strip mb-7 grid gap-4 p-5 md:grid-cols-[0.8fr_1.2fr] md:items-center">
         <p className="font-body text-xs uppercase tracking-[0.22em] text-[#18c887]">{entitlements.plan === "free" ? "Free preview" : "What is this?"}</p>
         <p className="font-body text-sm font-light leading-relaxed text-white/62">
           A Risk Passport is a shareable summary of your discipline, limits, and trade behavior.
@@ -313,7 +313,7 @@ export function Passport({ analysis, entitlements, sharePassport, go, upgradeToP
       <div className="grid gap-7 lg:grid-cols-[0.75fr_1.1fr_0.75fr]">
         <div className="space-y-5">
           <ScoreCard analysis={analysis} />
-          <div className="liquid-glass rounded-[36px] p-7">
+          <div className="passport-proof-panel p-7">
             <p className="font-body text-xs uppercase tracking-[0.22em] text-white/40">Limits followed</p>
             <p className="mt-3 font-body text-5xl text-emerald-400">{analysis.ruleStatuses.length - analysis.breaches.length}/{analysis.ruleStatuses.length}</p>
             <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/10">
@@ -379,7 +379,7 @@ export function Passport({ analysis, entitlements, sharePassport, go, upgradeToP
             </div>
           </div>
 
-          <div className="liquid-glass mt-8 grid gap-3 rounded-[28px] p-4 md:grid-cols-[1fr_auto] md:items-center">
+          <div className="passport-share-console mt-8 grid gap-3 p-4 md:grid-cols-[1fr_auto] md:items-center">
             <button
               className="flex items-center gap-3 rounded-full text-left font-body text-sm text-white"
               onClick={() => setVisibility(visibility === "private" ? "public" : "private")}
@@ -419,7 +419,7 @@ export function Passport({ analysis, entitlements, sharePassport, go, upgradeToP
 
         <div className="grid gap-5">
           {analysis.ruleStatuses.slice(0, 3).map((status) => (
-            <div className="liquid-glass rounded-[32px] p-6" key={status.rule.id}>
+            <div className="passport-rule-proof p-6" key={status.rule.id}>
               <BadgeCheck className={`h-9 w-9 ${status.breached ? "text-red-400" : "text-emerald-400"}`} />
               <h3 className="mt-5 font-body text-xl font-medium">{status.rule.name}</h3>
               <p className="mt-2 font-body text-sm font-light leading-relaxed text-white/56">{status.summary}</p>

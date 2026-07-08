@@ -1,0 +1,237 @@
+/* Cova workspace route refinement: source workflow, guardrail ledger, briefing feed, premium passport. */
+
+.import-source-workflow,
+.rules-ledger-grid,
+.insights-briefing-feed {
+  --route-line: rgba(148, 163, 184, 0.14);
+  --route-line-strong: rgba(185, 245, 223, 0.2);
+}
+
+.source-ledger-panel,
+.import-workflow-panel,
+.csv-export-ledger,
+.import-next-ledger,
+.csv-preview-ledger,
+.import-raw-ledger,
+.rules-ledger-summary,
+.rules-ledger-row,
+.insight-briefing-row,
+.passport-intro-strip,
+.passport-proof-panel,
+.passport-share-console,
+.passport-rule-proof {
+  border-radius: 0 !important;
+  border: 0 !important;
+  border-top: 1px solid var(--route-line-strong, rgba(185, 245, 223, 0.18)) !important;
+  border-bottom: 1px solid var(--route-line, rgba(148, 163, 184, 0.14)) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Trade History: source workflow, not connector card soup. */
+.source-ledger-panel {
+  padding-inline: 0 !important;
+}
+
+.source-ledger-panel > div:first-child,
+.source-ledger-panel > p,
+.source-ledger-panel .projectx-ledger,
+.source-route-ledger {
+  margin-inline: 20px;
+}
+
+.firm-card-grid {
+  gap: 0 !important;
+  border-top: 1px solid rgba(148, 163, 184, 0.14) !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14) !important;
+}
+
+.source-ledger-row,
+.firm-connect-card.source-ledger-row {
+  min-height: 154px !important;
+  border-radius: 0 !important;
+  border-top: 0 !important;
+  border-bottom: 0 !important;
+  border-left: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.source-ledger-row + .source-ledger-row,
+.firm-card-grid > * + * {
+  border-left: 1px solid rgba(148, 163, 184, 0.12) !important;
+}
+
+.source-ledger-row.is-active,
+.firm-connect-card.source-ledger-row.is-active {
+  border-bottom: 2px solid rgba(24, 200, 135, 0.72) !important;
+  background: linear-gradient(180deg, rgba(24, 200, 135, 0.075), transparent 68%) !important;
+}
+
+.import-ledger-stat,
+.import-step-row,
+.csv-export-step,
+.source-security-row,
+.source-route-ledger,
+.csv-export-detail {
+  border-radius: 0 !important;
+  border: 0 !important;
+  border-top: 1px solid rgba(148, 163, 184, 0.12) !important;
+  background: rgba(255, 255, 255, 0.012) !important;
+}
+
+.import-workflow-panel {
+  border-left: 2px solid rgba(24, 200, 135, 0.42) !important;
+}
+
+.import-workflow-panel label.liquid-glass {
+  border-radius: 8px !important;
+  background: rgba(24, 200, 135, 0.1) !important;
+}
+
+.import-raw-ledger textarea {
+  border-radius: 0 !important;
+  border-color: rgba(148, 163, 184, 0.16) !important;
+}
+
+.projectx-ledger,
+.source-route-ledger {
+  border-radius: 0 !important;
+}
+
+/* Limits: guardrail ledger. */
+.rules-ledger-summary {
+  position: sticky;
+  top: 28px;
+  border-left: 2px solid rgba(24, 200, 135, 0.42) !important;
+}
+
+.rules-ledger-stat {
+  border-radius: 0 !important;
+  border-top: 1px solid rgba(148, 163, 184, 0.13) !important;
+  background: rgba(255,255,255,0.012) !important;
+}
+
+.rules-ledger-row {
+  display: grid;
+  min-height: 164px;
+  align-content: center;
+  border-left: 0 !important;
+}
+
+.rules-ledger-row + .rules-ledger-row {
+  margin-top: 0 !important;
+  border-top-color: rgba(148, 163, 184, 0.18) !important;
+}
+
+.rules-ledger-row input[type="number"] {
+  border-radius: 6px !important;
+}
+
+.rules-ledger-row button[aria-label] {
+  border-radius: 999px !important;
+}
+
+/* Insights: briefing feed, not cards. */
+.insights-briefing-feed {
+  border-top: 1px solid rgba(185, 245, 223, 0.2);
+}
+
+.insight-briefing-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 0.38fr) minmax(0, 1fr);
+  gap: clamp(1rem, 2vw, 2rem);
+  align-items: start;
+  min-height: 0 !important;
+}
+
+.insight-briefing-row + .insight-briefing-row {
+  border-top-color: rgba(148, 163, 184, 0.18) !important;
+}
+
+.insight-briefing-row svg {
+  width: 1.35rem !important;
+  height: 1.35rem !important;
+  margin-top: 0.2rem;
+}
+
+.insight-briefing-row > span {
+  grid-column: 2;
+  grid-row: 1;
+  width: fit-content;
+  margin-top: 0 !important;
+  border-radius: 4px !important;
+  background: rgba(255,255,255,0.05) !important;
+}
+
+.insight-briefing-row h3 {
+  grid-column: 2;
+  margin-top: 2.2rem !important;
+  font-family: var(--font-dashboard-ui) !important;
+  font-size: clamp(1.35rem, 2.2vw, 2rem) !important;
+  font-style: normal !important;
+  letter-spacing: -0.045em !important;
+}
+
+.insight-briefing-row p {
+  grid-column: 3;
+  margin-top: 0 !important;
+}
+
+.insight-briefing-row > div {
+  grid-column: 3;
+  margin-top: 1.15rem !important;
+}
+
+.insight-briefing-locked {
+  border-left: 2px solid rgba(24, 200, 135, 0.44) !important;
+}
+
+/* Passport: keep the artifact premium, flatten surrounding proof/control chrome. */
+.passport-intro-strip {
+  border-left: 2px solid rgba(24, 200, 135, 0.46) !important;
+}
+
+.passport-proof-panel,
+.passport-rule-proof,
+.passport-share-console {
+  background: rgba(255,255,255,0.012) !important;
+}
+
+.passport-rule-proof + .passport-rule-proof {
+  border-top-color: rgba(148, 163, 184, 0.18) !important;
+}
+
+.passport-share-console button,
+.passport-share-console select {
+  border-radius: 6px !important;
+}
+
+.passport-stage .passport-share-console {
+  border-left: 2px solid rgba(24, 200, 135, 0.34) !important;
+}
+
+@media (max-width: 1023px) {
+  .source-ledger-row + .source-ledger-row,
+  .firm-card-grid > * + * {
+    border-left: 0 !important;
+    border-top: 1px solid rgba(148, 163, 184, 0.12) !important;
+  }
+
+  .rules-ledger-summary {
+    position: static;
+  }
+
+  .insight-briefing-row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .insight-briefing-row > span,
+  .insight-briefing-row h3,
+  .insight-briefing-row p,
+  .insight-briefing-row > div {
+    grid-column: 2;
+  }
+}

@@ -56,7 +56,7 @@ export function CsvUploadPanel({
 }) {
   return (
     <div
-      className={`import-upload-panel liquid-glass-strong rounded-[30px] p-6 transition md:p-7 ${dragActive ? "scale-[1.01] border-[#18c887]/60" : ""}`}
+      className={`import-upload-panel import-workflow-panel p-6 transition md:p-7 ${dragActive ? "scale-[1.01] border-[#18c887]/60" : ""}`}
       data-csv-import
       onDragEnter={(event) => { event.preventDefault(); setDragActive(true); }}
       onDragOver={(event) => { event.preventDefault(); setDragActive(true); }}
@@ -127,7 +127,7 @@ export function CsvUploadPanel({
 
 export function ImportStat({ label, value, tone }: { label: string; value: string; tone: string }) {
   return (
-    <div className="rounded-[24px] border border-white/10 bg-black/24 p-4">
+    <div className="import-ledger-stat p-4">
       <p className="font-body text-xs uppercase tracking-[0.2em] text-white/36">{label}</p>
       <p className={`mt-2 font-mono text-xl capitalize ${tone}`}>{value}</p>
     </div>
@@ -142,7 +142,7 @@ export function ImportNextSteps({ entitlements }: { entitlements: ImportEntitlem
   ];
 
   return (
-    <div className="liquid-glass rounded-[32px] p-5">
+    <div className="import-next-ledger p-5">
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="font-body text-xs uppercase tracking-[0.22em] text-[#b9f5df]">What happens next</p>
@@ -158,7 +158,7 @@ export function ImportNextSteps({ entitlements }: { entitlements: ImportEntitlem
       </div>
       <div className="mt-5 grid gap-3 md:grid-cols-3">
         {steps.map(([label, body], index) => (
-          <div className="rounded-[22px] border border-white/10 bg-white/[0.025] p-4" key={label}>
+          <div className="import-step-row p-4" key={label}>
             <span className="font-mono text-xs text-[#18c887]">0{index + 1}</span>
             <p className="mt-2 font-body text-sm font-medium text-white/82">{label}</p>
             <p className="mt-1 font-body text-xs leading-relaxed text-white/44">{body}</p>
@@ -171,7 +171,7 @@ export function ImportNextSteps({ entitlements }: { entitlements: ImportEntitlem
 
 export function CsvPreview({ parsed }: { parsed: CsvParseResult }) {
   return (
-    <div className="liquid-glass rounded-[32px] p-5">
+    <div className="import-next-ledger p-5">
       <div className="flex items-center justify-between gap-4">
         <div>
           <p className="font-body text-xs uppercase tracking-[0.22em] text-[#18c887]">Quick check</p>
@@ -187,7 +187,7 @@ export function CsvPreview({ parsed }: { parsed: CsvParseResult }) {
           ))}
         </div>
       )}
-      <div className="mt-4 overflow-hidden rounded-[22px] border border-white/10">
+      <div className="mt-4 overflow-hidden border border-white/10">
         {parsed.trades.slice(0, 5).map((trade) => (
           <div className="grid grid-cols-[70px_48px_1fr_auto] gap-3 border-b border-white/10 px-4 py-3 font-body text-sm last:border-b-0" key={trade.id}>
             <span className="text-white/45">{trade.date.slice(5)}</span>
@@ -206,7 +206,7 @@ export function CsvExportGuide({ selectedFirmId, setSelectedFirmId }: { selected
   const guide = csvExportGuides.find((item) => item.id === selectedFirmId) ?? csvExportGuides[0];
 
   return (
-    <div className="liquid-glass rounded-[34px] p-5 md:p-6" data-export-guide>
+    <div className="csv-export-ledger p-5 md:p-6" data-export-guide>
       <div className="grid gap-6 lg:grid-cols-[0.78fr_1.22fr] lg:items-start">
         <div>
           <div className="flex flex-wrap items-center gap-3">
@@ -239,7 +239,7 @@ export function CsvExportGuide({ selectedFirmId, setSelectedFirmId }: { selected
           </div>
         </div>
 
-        <div className="rounded-[28px] border border-white/10 bg-black/24 p-4 md:p-5">
+        <div className="csv-export-detail p-4 md:p-5">
           <div className="flex flex-col gap-3 border-b border-white/10 pb-4 md:flex-row md:items-end md:justify-between">
             <div>
               <p className="font-body text-xs uppercase tracking-[0.2em] text-[#18c887]">{guide.source}</p>
@@ -252,14 +252,14 @@ export function CsvExportGuide({ selectedFirmId, setSelectedFirmId }: { selected
 
           <div className="mt-5 grid gap-3 md:grid-cols-2">
             {guide.steps.map((step, index) => (
-              <div className="rounded-[20px] border border-white/10 bg-white/[0.025] p-4" key={step}>
+              <div className="csv-export-step p-4" key={step}>
                 <span className="font-mono text-xs text-[#18c887]">0{index + 1}</span>
                 <p className="mt-2 font-body text-sm leading-relaxed text-white/72">{step}</p>
               </div>
             ))}
           </div>
 
-          <div className="mt-4 flex gap-3 rounded-[22px] border border-[#18c887]/16 bg-[#18c887]/8 p-4">
+          <div className="mt-4 flex gap-3 border-l-2 border-[#18c887]/50 bg-[#18c887]/8 p-4">
             <ClipboardCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#b9f5df]" />
             <p className="font-body text-sm leading-relaxed text-white/58">{guide.tip}</p>
           </div>
@@ -404,7 +404,7 @@ export function BrokerConnectPanel({
   }
 
   return (
-    <div className="broker-connect-panel liquid-glass-strong rounded-[32px] p-5 md:p-6">
+    <div className="broker-connect-panel source-ledger-panel p-5 md:p-6">
       <div className="grid gap-7 lg:grid-cols-[1.05fr_0.95fr] lg:items-end">
         <div>
           <div className="flex flex-wrap items-center gap-3">
@@ -442,7 +442,7 @@ export function BrokerConnectPanel({
           const tone = firm.status === "direct" ? "text-emerald-300" : firm.status === "advanced" ? "text-amber-200" : "text-[#b9f5df]";
           return (
             <motion.button
-              className={`firm-connect-card rounded-[26px] border p-4 text-left transition ${active ? "border-[#18c887]/54 bg-[#18c887]/10" : "border-white/10 bg-black/22 hover:border-white/22 hover:bg-white/[0.035]"}`}
+              className={`firm-connect-card source-ledger-row border p-4 text-left transition ${active ? "is-active border-[#18c887]/54 bg-[#18c887]/10" : "border-white/10 bg-black/22 hover:border-white/22 hover:bg-white/[0.035]"}`}
               data-firm-id={firm.id}
               key={firm.id}
               onClick={() => selectAndConnectFirm(firm)}
@@ -473,7 +473,7 @@ export function BrokerConnectPanel({
 
       {isTopstepX && (
         <form
-          className="mt-6 rounded-[30px] border border-emerald-200/14 bg-[linear-gradient(135deg,rgba(24,200,135,0.11),rgba(0,0,0,0.22)_44%,rgba(59,130,246,0.08))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+          className="projectx-ledger mt-6 border border-emerald-200/14 bg-[linear-gradient(135deg,rgba(24,200,135,0.11),rgba(0,0,0,0.22)_44%,rgba(59,130,246,0.08))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
           data-projectx-connect
           onSubmit={submitProjectX}
         >
@@ -530,7 +530,7 @@ export function BrokerConnectPanel({
               { icon: BadgeCheck, label: "Encrypted", text: "The session token is encrypted before it is stored." },
               { icon: Gauge, label: "Review-ready", text: "Synced trades feed the dashboard, limits, insights, and Passport." },
             ].map(({ icon: Icon, label, text }) => (
-              <div className="rounded-[18px] border border-white/10 bg-black/20 p-3" key={label}>
+              <div className="source-security-row p-3" key={label}>
                 <Icon className="h-4 w-4 text-[#18c887]" />
                 <p className="mt-2 font-body text-xs font-medium text-white/78">{label}</p>
                 <p className="mt-1 font-body text-[11px] leading-relaxed text-white/42">{text}</p>
@@ -541,7 +541,7 @@ export function BrokerConnectPanel({
       )}
 
       <div className="mt-6 grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center">
-        <div className="rounded-[28px] border border-white/10 bg-black/24 p-5">
+        <div className="source-route-ledger p-5">
           <div className="grid gap-4 md:grid-cols-[auto_1fr] md:items-start">
             <span className={`grid h-12 w-12 place-items-center rounded-full border ${selectedFirm.status === "direct" ? "border-emerald-300/20 bg-emerald-400/10 text-emerald-200" : selectedFirm.status === "advanced" ? "border-amber-200/18 bg-amber-300/8 text-amber-100" : "border-[#18c887]/22 bg-[#18c887]/10 text-[#b9f5df]"}`}>
               {selectedFirm.status === "direct" ? <BadgeCheck className="h-5 w-5" /> : selectedFirm.status === "advanced" ? <SlidersHorizontal className="h-5 w-5" /> : <FileUp className="h-5 w-5" />}
@@ -555,7 +555,7 @@ export function BrokerConnectPanel({
                   { icon: BadgeCheck, label: "Read-only", text: "Cova imports history, not orders." },
                   { icon: Gauge, label: "CSV fallback", text: "Export trades when sync is not ready." },
                 ].map(({ icon: Icon, label, text }) => (
-                  <div className="rounded-[18px] border border-white/10 bg-white/[0.025] p-3" key={label}>
+                  <div className="source-security-row p-3" key={label}>
                     <Icon className="h-4 w-4 text-[#18c887]" />
                     <p className="mt-2 font-body text-xs font-medium text-white/78">{label}</p>
                     <p className="mt-1 font-body text-[11px] leading-relaxed text-white/42">{text}</p>

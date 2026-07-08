@@ -206,7 +206,7 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
       variant="workspace"
       backdrop={<ImageAtmosphere src="/media/cova-dashboard-plate.jpg" align="right" opacity="opacity-[0.22]" />}
     >
-      <div className="import-desk-flow grid gap-6">
+      <div className="import-desk-flow import-source-workflow grid gap-6">
         <BrokerConnectPanel
           brokerBusy={brokerBusy}
           brokerNotice={brokerNotice}
@@ -252,7 +252,7 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
             <CsvPreview parsed={parsed} />
           </div>
 
-          <div className="import-raw-editor liquid-glass rounded-[30px] p-3">
+          <div className="import-raw-editor import-raw-ledger p-3">
             <div className="flex items-center justify-between px-3 pb-3 pt-1">
               <span className="font-body text-xs uppercase tracking-[0.2em] text-white/38">Raw CSV</span>
               <span className="font-body text-xs text-white/34">Advanced edit</span>
