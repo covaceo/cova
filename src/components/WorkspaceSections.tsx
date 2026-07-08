@@ -226,7 +226,6 @@ type PassportTier = {
   cardClass: string;
   className: string;
   headline: string;
-  nextScore: number | null;
   rank: string;
   skin: string;
   summary: string;
@@ -293,10 +292,9 @@ function getPassportTier(analysis: ReturnType<typeof analyze>): PassportTier {
       rank: "S-TIER",
       skin: "Black Card",
       headline: "Elite risk control",
-      summary: "High score, clean rules, and enough proof to flex without sounding like a guru.",
+      summary: "High Cova Score, clean rules, and enough proof to flex without sounding like a guru.",
       className: "passport-tier-s",
       cardClass: "passport-card-skin-s",
-      nextScore: null,
     };
   }
   if (score >= 80 && analysis.compliance >= 0.75) {
@@ -305,10 +303,9 @@ function getPassportTier(analysis: ReturnType<typeof analyze>): PassportTier {
       rank: "A-TIER",
       skin: "Emerald",
       headline: "Disciplined trader profile",
-      summary: "Strong enough to show. A few more clean sessions move this toward Black Card status.",
+      summary: "Strong enough to show. A few more clean sessions would make this Black Card-worthy.",
       className: "passport-tier-a",
       cardClass: "passport-card-skin-a",
-      nextScore: 90,
     };
   }
   if (score >= 65) {
@@ -317,10 +314,9 @@ function getPassportTier(analysis: ReturnType<typeof analyze>): PassportTier {
       rank: "B-TIER",
       skin: "Gold Grind",
       headline: "Profitable, still tightening",
-      summary: "Enough proof to build from, but rule breaches still cap the flex. Clean those and the card levels up.",
+      summary: "Enough proof to build from, but rule breaches still cap the flex. Clean those and the status gets stronger.",
       className: "passport-tier-b",
       cardClass: "passport-card-skin-b",
-      nextScore: 80,
     };
   }
   if (analysis.totalPnl > 0) {
@@ -332,7 +328,6 @@ function getPassportTier(analysis: ReturnType<typeof analyze>): PassportTier {
       summary: "The money is there, but the risk profile is not something to brag about yet.",
       className: "passport-tier-v",
       cardClass: "passport-card-skin-v",
-      nextScore: 65,
     };
   }
   return {
@@ -340,10 +335,9 @@ function getPassportTier(analysis: ReturnType<typeof analyze>): PassportTier {
     rank: "ROOKIE",
     skin: "Starter",
     headline: "Build the proof first",
-    summary: "Import more trades and keep rules clean to unlock a better Passport skin.",
+    summary: "Import more trades and keep rules clean before this Passport should be shared.",
     className: "passport-tier-r",
     cardClass: "passport-card-skin-r",
-    nextScore: 65,
   };
 }
 
@@ -401,8 +395,6 @@ export function Passport({ analysis, entitlements, sharePassport, go, upgradeToP
   const tier = getPassportTier(analysis);
   const shareMode = getPassportMode(shareModeId);
   const cardStats = getPassportStats(analysis, shareModeId);
-  const pointsToNext = tier.nextScore === null ? 0 : Math.max(0, tier.nextScore - analysis.score);
-  const rankProgress = tier.nextScore === null ? 100 : Math.min(100, Math.max(8, Math.round((analysis.score / tier.nextScore) * 100)));
 
   useEffect(() => () => {
     if (frameRef.current !== null) {
@@ -481,7 +473,7 @@ export function Passport({ analysis, entitlements, sharePassport, go, upgradeToP
       <div className="passport-intro-strip mb-7 grid gap-4 p-5 md:grid-cols-[0.8fr_1.2fr] md:items-center">
         <p className="font-body text-xs uppercase tracking-[0.22em] text-[#18c887]">{entitlements.plan === "free" ? "Free preview" : "Verified credential"}</p>
         <p className="font-body text-sm font-light leading-relaxed text-white/62">
-          A Risk Passport turns trade history into a gamer-style credential: rank, skin, proof badges, and share modes.
+          A Risk Passport turns trade history into a stat-card credential: rank, skin, proof badges, and share modes.
           Show gains when you want the flex. Hide P&L when the proof is discipline.
           {entitlements.plan === "free" ? " Free accounts can preview one Passport; Pro unlocks export and full sharing controls." : ""}
         </p>
@@ -497,26 +489,20 @@ export function Passport({ analysis, entitlements, sharePassport, go, upgradeToP
             <p className="passport-tier-rank mt-5 font-mono text-5xl uppercase tracking-[-0.06em]">{tier.rank}</p>
             <p className="mt-2 font-body text-xl font-semibold tracking-[-0.035em] text-white">{tier.skin}</p>
             <p className="mt-4 font-body text-sm font-light leading-relaxed text-white/58">{tier.summary}</p>
-            <div className="mt-6">
-              <div className="flex items-center justify-between font-mono text-[0.68rem] uppercase tracking-[0.18em] text-white/38">
+            <div className="mt-6 border-t border-white/10 pt-4">
+              <div className="flex items-center justify-between gap-4 font-mono text-[0.68rem] uppercase tracking-[0.18em] text-white/38">
                 <span>{tier.headline}</span>
-                <span>{tier.nextScore === null ? "Max rank" : `${pointsToNext} pts`}</span>
-              </div>
-              <div className="passport-rank-meter mt-3">
-                <span style={{ width: `${rankProgress}%` }} />
+                <span>Verified status</span>
               </div>
               <p className="mt-3 font-body text-xs text-white/42">
-                {tier.nextScore === null ? "Black Card unlocked. Keep the sample clean." : `${pointsToNext} Cova points to the next skin.`}
+                Status is calculated from Cova Score, rule discipline, and breach severity.
               </p>
             </div>
           </div>
           <div className="passport-proof-panel p-7">
             <p className="font-body text-xs uppercase tracking-[0.22em] text-white/40">Limits followed</p>
             <p className="mt-3 font-body text-5xl text-emerald-400">{analysis.ruleStatuses.length - analysis.breaches.length}/{analysis.ruleStatuses.length}</p>
-            <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/10">
-              <div className="h-full rounded-full bg-emerald-400" style={{ width: `${analysis.compliance * 100}%` }} />
-            </div>
-            <p className="mt-4 font-body text-sm text-white/50">{formatPercent(analysis.compliance)} compliance</p>
+            <p className="mt-4 font-body text-sm text-white/50">{formatPercent(analysis.compliance)} compliance across checked limits.</p>
           </div>
         </div>
 

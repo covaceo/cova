@@ -4146,22 +4146,6 @@ body {
     text-shadow: 0 0 28px color-mix(in srgb, var(--tier-accent), transparent 72%);
   }
 
-  .passport-rank-meter {
-    height: 0.5rem;
-    overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.06);
-  }
-
-  .passport-rank-meter span {
-    display: block;
-    height: 100%;
-    border-radius: inherit;
-    background: linear-gradient(90deg, color-mix(in srgb, var(--tier-accent), black 8%), #18c887);
-    box-shadow: 0 0 18px color-mix(in srgb, var(--tier-accent), transparent 62%);
-  }
-
   .passport-mode-console {
     background:
       linear-gradient(135deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0.006)),
