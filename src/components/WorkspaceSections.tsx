@@ -29,26 +29,25 @@ type WorkspaceEntitlements = {
 export function RulesEngine({ analysis, entitlements, rules, setRules, upgradeToPro }: { analysis: ReturnType<typeof analyze>; entitlements: WorkspaceEntitlements; rules: RiskRule[]; setRules: (rules: RiskRule[]) => void; upgradeToPro: () => void }) {
   return (
     <SectionShell
-      eyebrow="Limits"
-      title="Set account limits."
+      eyebrow="Guardrails"
+      title="Rules that protect the payout."
       variant="workspace"
       backdrop={<ImageAtmosphere src="/media/cova-dashboard-plate.jpg" align="right" opacity="opacity-[0.18]" />}
     >
-      <div className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
-        <div className="liquid-glass-strong rounded-[36px] p-8">
+      <div className="rules-desk-grid grid gap-6 lg:grid-cols-[0.72fr_1.28fr]">
+        <div className="rules-summary-card liquid-glass-strong rounded-[30px] p-6 md:p-7">
           <SlidersHorizontal className="h-10 w-10 text-[#18c887]" />
-          <h3 className="mt-8 font-heading text-5xl italic leading-[0.98] tracking-normal">Your account rules.</h3>
+          <h3 className="mt-7 font-body text-3xl font-semibold leading-[0.98] tracking-[-0.05em] md:text-4xl">Do not give the account back.</h3>
           <p className="mt-5 font-body font-light leading-relaxed text-white/60">
-            Tell Cova what disciplined trading looks like for you. Every uploaded trade gets checked
-            against these limits so warnings are easy to understand.
+            Set the limits that stop the bad day from becoming a blown account. Cova checks every trade against these rules in plain English.
           </p>
           <div className="mt-8 grid grid-cols-2 gap-3">
             <div className="liquid-glass rounded-[28px] p-5">
-              <p className="font-body text-xs uppercase tracking-[0.22em] text-white/40">Warnings</p>
+              <p className="font-body text-xs uppercase tracking-[0.22em] text-white/40">Active warnings</p>
               <p className="mt-2 font-body text-4xl text-red-400">{analysis.breaches.length}</p>
             </div>
             <div className="liquid-glass rounded-[28px] p-5">
-              <p className="font-body text-xs uppercase tracking-[0.22em] text-white/40">Compliance</p>
+              <p className="font-body text-xs uppercase tracking-[0.22em] text-white/40">Rules followed</p>
               <p className="mt-2 font-body text-4xl text-emerald-400">{formatPercent(analysis.compliance)}</p>
             </div>
           </div>
@@ -67,7 +66,7 @@ export function RulesEngine({ analysis, entitlements, rules, setRules, upgradeTo
             return (
               <motion.article
                 key={rule.id}
-                className={`liquid-glass rounded-[32px] p-5 md:p-6 ${locked ? "opacity-70" : ""}`}
+                className={`rule-control-card liquid-glass rounded-[26px] p-4 md:p-5 ${locked ? "opacity-70" : ""}`}
                 initial={{ opacity: 0, y: 24 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -86,7 +85,7 @@ export function RulesEngine({ analysis, entitlements, rules, setRules, upgradeTo
                       </button>
                     )}
                     <span className={`rounded-full px-3 py-1 font-body text-xs ${status?.breached ? "bg-red-500/15 text-red-300" : "bg-emerald-400/15 text-emerald-300"}`}>
-                      {status?.breached ? "Needs review" : "Looks good"}
+                      {status?.breached ? "Fix before trade" : "Clean"}
                     </span>
                     <button
                       className={`h-8 w-14 rounded-full border p-1 transition ${rule.enabled ? "border-emerald-300/50 bg-emerald-400/20" : "border-white/15 bg-white/5"}`}

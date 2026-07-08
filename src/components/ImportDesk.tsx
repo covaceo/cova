@@ -201,12 +201,12 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
 
   return (
     <SectionShell
-      eyebrow="Upload"
-      title="Connect trade history."
+      eyebrow="Trade history"
+      title="Get trades into Cova."
       variant="workspace"
       backdrop={<ImageAtmosphere src="/media/cova-dashboard-plate.jpg" align="right" opacity="opacity-[0.22]" />}
     >
-      <div className="grid gap-6">
+      <div className="import-desk-flow grid gap-6">
         <BrokerConnectPanel
           brokerBusy={brokerBusy}
           brokerNotice={brokerNotice}
@@ -230,7 +230,7 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
 
         <CsvExportGuide selectedFirmId={selectedFirmId} setSelectedFirmId={setSelectedFirmId} />
 
-        <div className="grid gap-6 lg:grid-cols-[0.88fr_1.12fr]">
+        <div className="import-csv-grid grid gap-6 lg:grid-cols-[0.92fr_1.08fr]">
           <div className="space-y-6">
             <CsvUploadPanel
               dragActive={dragActive}
@@ -252,9 +252,13 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
             <CsvPreview parsed={parsed} />
           </div>
 
-          <div className="liquid-glass rounded-[36px] p-3">
+          <div className="import-raw-editor liquid-glass rounded-[30px] p-3">
+            <div className="flex items-center justify-between px-3 pb-3 pt-1">
+              <span className="font-body text-xs uppercase tracking-[0.2em] text-white/38">Raw CSV</span>
+              <span className="font-body text-xs text-white/34">Advanced edit</span>
+            </div>
             <textarea
-              className="min-h-[520px] w-full resize-y rounded-[28px] border border-white/10 bg-black/50 p-6 font-mono text-sm leading-relaxed text-white/75 outline-none transition focus:border-[#18c887]"
+              className="min-h-[430px] w-full resize-y rounded-[22px] border border-white/10 bg-black/50 p-5 font-mono text-sm leading-relaxed text-white/75 outline-none transition focus:border-[#18c887]"
               value={text}
               onChange={(event) => setText(event.target.value)}
               spellCheck={false}

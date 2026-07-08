@@ -737,3 +737,180 @@ textarea {
     display: none !important;
   }
 }
+
+
+/* Cleaner how-it-works section: no glitchy 3D, just product proof. */
+.story-strip-simple {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.trade-proof-summary-panel,
+.trade-proof-step-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.018) 42%, rgba(0, 0, 0, 0.34)),
+    rgba(7, 10, 12, 0.92);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.34);
+}
+
+.trade-proof-summary-panel {
+  border-radius: 32px;
+  padding: 24px;
+}
+
+.trade-proof-step-card {
+  min-height: 300px;
+  border-radius: 28px;
+  padding: 22px;
+}
+
+.trade-proof-step-card::before,
+.trade-proof-summary-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: linear-gradient(180deg, rgba(0,0,0,0.72), transparent 78%);
+}
+
+.trade-proof-step-card > *,
+.trade-proof-summary-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+
+/* Simplified dashboard pass */
+.dashboard-simple-grid {
+  display: grid;
+  gap: 24px;
+}
+
+@media (min-width: 1180px) {
+  .dashboard-simple-grid {
+    grid-template-columns: minmax(0, 1.42fr) minmax(330px, 0.78fr);
+    align-items: start;
+  }
+}
+
+.dashboard-simple-side {
+  display: grid;
+  gap: 18px;
+}
+
+@media (min-width: 1180px) {
+  .dashboard-simple-side {
+    position: sticky;
+    top: 32px;
+  }
+}
+
+.dashboard-simple-side .liquid-glass,
+.dashboard-simple-side .liquid-glass-strong {
+  border-radius: 28px !important;
+}
+
+.risk-command-center {
+  margin-bottom: 22px !important;
+}
+
+.risk-command-center .risk-command-cell {
+  min-height: unset;
+}
+
+
+.story-strip-simple .trade-proof-step-card {
+  opacity: 1 !important;
+  transform: none !important;
+  filter: none !important;
+}
+
+
+/* Import + Limits cleanup pass */
+.broker-connect-panel,
+.import-upload-panel,
+.rules-summary-card,
+.rule-control-card,
+.import-raw-editor {
+  box-shadow: 0 18px 54px rgba(0, 0, 0, 0.28) !important;
+}
+
+.broker-connect-panel .firm-connect-card {
+  min-height: 188px;
+}
+
+.import-desk-flow > .liquid-glass,
+.import-desk-flow > .liquid-glass-strong,
+.broker-connect-panel,
+.import-upload-panel,
+.rule-control-card,
+.rules-summary-card {
+  border-radius: 24px !important;
+}
+
+.import-csv-grid {
+  align-items: start;
+}
+
+.import-raw-editor {
+  position: sticky;
+  top: 28px;
+}
+
+.import-raw-editor textarea {
+  tab-size: 2;
+}
+
+.rules-desk-grid {
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .rules-summary-card {
+    position: sticky;
+    top: 28px;
+  }
+}
+
+.rule-control-card {
+  background: linear-gradient(145deg, rgba(255,255,255,0.045), rgba(255,255,255,0.014)), rgba(7, 10, 15, 0.84) !important;
+}
+
+.rule-control-card input[type="number"] {
+  border-radius: 12px !important;
+}
+
+@media (max-width: 1023px) {
+  .import-raw-editor,
+  .rules-summary-card {
+    position: static;
+  }
+}
+
+
+.dashboard-simple-side .next-session-brief-card {
+  overflow: hidden;
+}
+
+.dashboard-simple-side .next-session-brief-card > div {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.dashboard-simple-side .next-session-brief-card h3 {
+  font-family: var(--font-dashboard-ui) !important;
+  font-style: normal !important;
+  font-size: clamp(1.55rem, 2.5vw, 2.2rem) !important;
+  letter-spacing: -0.045em !important;
+  line-height: 0.98 !important;
+}
+
+.dashboard-simple-side .next-session-brief-card [class*="md:grid-cols-2"] {
+  grid-template-columns: minmax(0, 1fr) !important;
+}

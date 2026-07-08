@@ -56,7 +56,7 @@ export function CsvUploadPanel({
 }) {
   return (
     <div
-      className={`liquid-glass-strong rounded-[36px] p-8 transition ${dragActive ? "scale-[1.01] border-[#18c887]/60" : ""}`}
+      className={`import-upload-panel liquid-glass-strong rounded-[30px] p-6 transition md:p-7 ${dragActive ? "scale-[1.01] border-[#18c887]/60" : ""}`}
       data-csv-import
       onDragEnter={(event) => { event.preventDefault(); setDragActive(true); }}
       onDragOver={(event) => { event.preventDefault(); setDragActive(true); }}
@@ -65,14 +65,13 @@ export function CsvUploadPanel({
     >
       <Upload className="h-10 w-10 text-[#18c887]" />
       <div className="mt-8 flex flex-wrap items-center gap-3">
-        <h3 className="font-heading text-5xl italic leading-[1.02] tracking-normal">Upload a trade export.</h3>
+        <h3 className="font-body text-3xl font-semibold leading-[1] tracking-[-0.045em] md:text-4xl">Upload CSV.</h3>
         <span className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-1 font-body text-xs text-white/52">
           {entitlements.plan === "free" ? `${entitlements.maxTradesPerImport} trade free limit` : "Unlimited imports"}
         </span>
       </div>
       <p className="mt-5 max-w-md font-body font-light leading-relaxed text-white/60">
-        Use this when direct sign-in is not available yet. Drop in the file your prop dashboard
-        already exports and Cova turns it into a clean risk review.
+        If the direct connector is not ready, upload the export your prop firm already gives you. Cova checks the file, then updates the risk desk.
       </p>
 
       <div className="mt-8 grid gap-3 sm:grid-cols-2">
@@ -117,8 +116,8 @@ export function CsvUploadPanel({
       </div>
 
       <div className="mt-8 flex flex-wrap gap-3">
-        <GlassButton strong onClick={() => importCsv(text, mode)}>Upload Trades</GlassButton>
-        <GlassButton onClick={reset}>Reset Demo</GlassButton>
+        <GlassButton strong onClick={() => importCsv(text, mode)}>Review trades</GlassButton>
+        <GlassButton onClick={reset}>Reset demo</GlassButton>
         {entitlements.plan === "free" && <GlassButton onClick={upgradeToPro}>Unlock Pro</GlassButton>}
       </div>
       <p className="mt-6 font-body text-sm text-white/50">{fileName || status}</p>
@@ -405,7 +404,7 @@ export function BrokerConnectPanel({
   }
 
   return (
-    <div className="liquid-glass-strong rounded-[40px] p-6 md:p-8">
+    <div className="broker-connect-panel liquid-glass-strong rounded-[32px] p-5 md:p-6">
       <div className="grid gap-7 lg:grid-cols-[1.05fr_0.95fr] lg:items-end">
         <div>
           <div className="flex flex-wrap items-center gap-3">
@@ -418,10 +417,9 @@ export function BrokerConnectPanel({
               {isTopstepX ? "TopstepX beta connector" : entitlements.canUseDirectSync ? "Pro sync enabled" : "Export guide available"}
             </span>
           </div>
-          <h3 className="mt-7 font-heading text-5xl italic leading-[1.02] tracking-normal md:text-6xl">Connect your trade history.</h3>
+          <h3 className="mt-6 font-body text-3xl font-semibold leading-[0.98] tracking-[-0.05em] md:text-5xl">Pick the source.</h3>
           <p className="mt-5 max-w-2xl font-body font-light leading-relaxed text-white/62">
-            Pick your prop firm. TopstepX can connect through a ProjectX API key; the rest use guided exports until an official read-only connector exists.
-            Cova reads trade history only and cannot place orders.
+            Choose where the trades come from. Cova only reviews history — no live orders, no money movement.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <GlassButton strong onClick={startFirmConnect}>
@@ -438,7 +436,7 @@ export function BrokerConnectPanel({
         </div>
       </div>
 
-      <div className="mt-7 grid gap-3 border-t border-white/10 pt-6 md:grid-cols-2 xl:grid-cols-4">
+      <div className="firm-card-grid mt-6 grid gap-3 border-t border-white/10 pt-5 md:grid-cols-2 xl:grid-cols-4">
         {propFirmOptions.map((firm) => {
           const active = firm.id === selectedFirm.id;
           const tone = firm.status === "direct" ? "text-emerald-300" : firm.status === "advanced" ? "text-amber-200" : "text-[#b9f5df]";

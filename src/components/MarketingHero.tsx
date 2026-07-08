@@ -9,7 +9,6 @@ import {
   FileText,
   Fingerprint,
   Gauge,
-  LockKeyhole,
   Play,
   Repeat2,
   Settings,
@@ -211,27 +210,17 @@ function HeroDashboardMockup({ revealStats }: { revealStats: boolean }) {
     { label: "Goals", Icon: Target },
     { label: "Review", Icon: ClipboardCheck },
   ] satisfies { Icon: LucideIcon; label: string }[];
-  const heroDashboardTrades = revealStats ? [
+  const heroDashboardTrades = [
     ["ES", "Long", "+$320"],
     ["NQ", "Short", "-$180"],
-    ["BTCUSD", "Long", "+$410"],
-    ["AAPL", "Long", "+$210"],
-  ] : [
-    ["Journal", "Private", "Locked"],
-    ["Trades", "Private", "Locked"],
-    ["Review", "Private", "Locked"],
-    ["Passport", "Private", "Locked"],
+    ["GC", "Long", "+$410"],
+    ["MES", "Long", "+$95"],
   ];
-  const heroMetrics = revealStats ? [
-    ["Total P&L", "+$12,540"],
-    ["Win Rate", "63.2%"],
-    ["Profit Factor", "2.14"],
-    ["Total Trades", "128"],
-  ] : [
-    ["Private review", "Locked"],
-    ["Trade log", "Sign in"],
-    ["Risk notes", "Hidden"],
-    ["Passport", "Private"],
+  const heroMetrics = [
+    ["Net P&L", "+$4,820"],
+    ["Win rate", "61%"],
+    ["Risk score", "82"],
+    ["Rules kept", "74%"],
   ];
 
   return (
@@ -274,14 +263,14 @@ function HeroDashboardMockup({ revealStats }: { revealStats: boolean }) {
               {heroMetrics.map(([label, value]) => (
                 <div className="hero-dashboard-metric" key={label}>
                   <span>{label}</span>
-                  <strong className={revealStats && label === "Total P&L" ? "text-[#39e3a6]" : "text-white"}>{value}</strong>
+                  <strong className={label === "Net P&L" || label === "Rules kept" ? "text-[#39e3a6]" : "text-white"}>{value}</strong>
                 </div>
               ))}
             </div>
 
             <div className="hero-dashboard-chart">
               <div className="hero-chart-toolbar">
-                <span>{revealStats ? "Performance" : "Private review"}</span>
+                <span>Sample account</span>
                 <div>
                   {["1W", "1M", "3M", "1Y", "All"].map((range) => (
                     <span className={range === "1M" ? "active" : ""} key={range}>{range}</span>
@@ -293,65 +282,42 @@ function HeroDashboardMockup({ revealStats }: { revealStats: boolean }) {
 
             <div className="hero-dashboard-cards">
               <div className="hero-dashboard-card hero-trades-card">
-                <h4>{revealStats ? "Recent Trades" : "Private Workspace"}</h4>
+                <h4>Recent trades</h4>
                 <div className="hero-trade-row hero-trade-row-head">
-                  <span>{revealStats ? "Symbol" : "Area"}</span>
+                  <span>Symbol</span>
                   <span>Status</span>
                   <strong>Access</strong>
                 </div>
                 {heroDashboardTrades.map(([market, side, pnl]) => (
                   <div className="hero-trade-row" key={`${market}-${pnl}`}>
                     <span>{market}</span>
-                    <span className={revealStats && side === "Long" ? "text-[#39e3a6]" : revealStats && side === "Short" ? "text-[#ff5f7b]" : "text-white/54"}>{side}</span>
-                    <strong className={revealStats && pnl.startsWith("+") ? "text-[#39e3a6]" : revealStats && pnl.startsWith("-") ? "text-[#ff5f7b]" : "text-white/48"}>{pnl}</strong>
+                    <span className={side === "Long" ? "text-[#39e3a6]" : side === "Short" ? "text-[#ff5f7b]" : "text-white/54"}>{side}</span>
+                    <strong className={pnl.startsWith("+") ? "text-[#39e3a6]" : pnl.startsWith("-") ? "text-[#ff5f7b]" : "text-white/48"}>{pnl}</strong>
                   </div>
                 ))}
               </div>
 
               <div className="hero-dashboard-card hero-journal-card">
                 <h4>Daily Journal</h4>
-                {revealStats ? (
-                  <>
-                    <p>How was your execution?</p>
-                    <div className="hero-stars" aria-hidden="true">
-                      {Array.from({ length: 5 }).map((_, index) => <span key={index}>★</span>)}
-                    </div>
-                    <p>What did you learn?</p>
-                    <strong>Patient entries worked.</strong>
-                  </>
-                ) : (
-                  <>
-                    <p>Sign in to save journal notes.</p>
-                    <div className="hero-stars hero-stars-muted" aria-hidden="true">
-                      {Array.from({ length: 5 }).map((_, index) => <span key={index}>•</span>)}
-                    </div>
-                    <p>Your account evidence stays hidden.</p>
-                    <strong>Member-only</strong>
-                  </>
-                )}
+                <p>Execution grade</p>
+                <div className="hero-stars" aria-hidden="true">
+                  {Array.from({ length: 5 }).map((_, index) => <span key={index}>★</span>)}
+                </div>
+                <p>Main note</p>
+                <strong>Waited for A+ setups.</strong>
               </div>
 
               <div className="hero-dashboard-card hero-risk-card">
-                <h4>{revealStats ? "Risk Breakdown" : "Risk Review"}</h4>
-                {revealStats ? (
-                  <>
-                    <div className="hero-risk-donut">
-                      <span>2.3%</span>
-                      <small>Avg Risk</small>
-                    </div>
-                    <div className="hero-risk-legend">
-                      <span><i className="win" /> Win</span>
-                      <span><i className="loss" /> Loss</span>
-                      <span><i /> Breakeven</span>
-                    </div>
-                  </>
-                ) : (
-                  <div className="hero-locked-risk">
-                    <LockKeyhole className="h-5 w-5" />
-                    <span>Stats hidden</span>
-                    <small>Sign in to unlock</small>
-                  </div>
-                )}
+                <h4>Risk breakdown</h4>
+                <div className="hero-risk-donut">
+                  <span>1.7%</span>
+                  <small>Avg risk</small>
+                </div>
+                <div className="hero-risk-legend">
+                  <span><i className="win" /> Win</span>
+                  <span><i className="loss" /> Loss</span>
+                  <span><i /> Scratch</span>
+                </div>
               </div>
             </div>
           </main>
