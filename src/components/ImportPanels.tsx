@@ -330,7 +330,7 @@ export function BrokerConnectPanel({
     }
 
     if (firm.id === "topstepx") {
-      setBrokerNotice("Enter your TopstepX username and API key below. Cova validates it through ProjectX before saving anything.");
+      setBrokerNotice("TopstepX beta connector: paste your username/API key below, or upload CSV first if you just want the review flow.");
       return;
     }
 
@@ -350,7 +350,7 @@ export function BrokerConnectPanel({
 
   function useCsvLane() {
     document.querySelector("[data-csv-import]")?.scrollIntoView({ behavior: "smooth", block: "center" });
-    setBrokerNotice(`${selectedFirm.name}: upload your trade export below while direct sync is being prepared.`);
+    setBrokerNotice(`${selectedFirm.name}: upload your trade export below. CSV is the default path while direct sync stays beta or unavailable.`);
   }
 
   function showExportGuide() {
@@ -367,7 +367,7 @@ export function BrokerConnectPanel({
     }
 
     if (isTopstepX) {
-      setBrokerNotice("TopstepX is ready to connect here. Paste the API key generated from your TopstepX settings.");
+      setBrokerNotice("TopstepX beta connector is available here. CSV upload is still the fastest review path if you do not want to test API access yet.");
       return;
     }
 
@@ -405,7 +405,24 @@ export function BrokerConnectPanel({
 
   return (
     <div className="broker-connect-panel source-ledger-panel p-5 md:p-6">
-      <div className="grid gap-7 lg:grid-cols-[1.05fr_0.95fr] lg:items-end">
+      <div className="source-primary-choice" data-csv-primary>
+        <div>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="terminal-tab-label inline-flex rounded-full px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.24em] text-[#b9f5df]">Upload CSV first</span>
+            <span className="rounded-full border border-amber-200/18 bg-amber-300/8 px-3 py-1.5 font-body text-xs text-amber-100">Beta connector optional</span>
+          </div>
+          <h3 className="mt-5 font-body text-3xl font-semibold leading-[0.98] tracking-[-0.05em] md:text-4xl">Start with the trade file you already trust.</h3>
+          <p className="mt-4 max-w-2xl font-body text-sm leading-relaxed text-white/58">
+            CSV is the live review path today. Connector access can follow, but the first decision should be simple: upload the export, check the rows, then let Cova build the risk desk.
+          </p>
+        </div>
+        <div className="source-primary-actions">
+          <GlassButton strong onClick={useCsvLane}>Upload CSV first</GlassButton>
+          <GlassButton onClick={startFirmConnect}>Try beta connector <ArrowUpRight className="h-4 w-4" /></GlassButton>
+        </div>
+      </div>
+
+      <div className="source-header-grid grid gap-7 lg:grid-cols-[1.05fr_0.95fr] lg:items-end">
         <div>
           <div className="flex flex-wrap items-center gap-3">
             <span className="terminal-tab-label inline-flex rounded-full px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.24em] text-[#b9f5df]">Secure link</span>
@@ -414,7 +431,7 @@ export function BrokerConnectPanel({
               {selectedConnected ? `${selectedProviderName} connected` : "CSV ready today"}
             </span>
             <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 font-body text-xs ${entitlements.canUseDirectSync || isTopstepX ? "border-[#18c887]/24 bg-[#18c887]/10 text-[#b9f5df]" : "border-white/12 bg-white/[0.035] text-white/48"}`}>
-              {isTopstepX ? "TopstepX beta connector" : entitlements.canUseDirectSync ? "Pro sync enabled" : "Export guide available"}
+              {isTopstepX ? "Beta connector" : entitlements.canUseDirectSync ? "Pro sync enabled" : "Export guide available"}
             </span>
           </div>
           <h3 className="mt-6 font-body text-3xl font-semibold leading-[0.98] tracking-[-0.05em] md:text-5xl">Pick the source.</h3>
@@ -463,7 +480,7 @@ export function BrokerConnectPanel({
               <p className="mt-3 font-body text-sm leading-relaxed text-white/54">{firm.summary}</p>
               {active && firm.id !== "other" && (
                 <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.2em] text-[#b9f5df]/80">
-                  {firm.id === "topstepx" ? "Use API key form below" : "Use export guide today"}
+                  {firm.id === "topstepx" ? "Beta connector below" : "Use export guide today"}
                 </p>
               )}
             </motion.button>
@@ -480,12 +497,12 @@ export function BrokerConnectPanel({
           <div className="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-end">
             <div>
               <div className="flex flex-wrap items-center gap-3">
-                <span className="rounded-full border border-emerald-200/16 bg-emerald-300/8 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-[#b9f5df]">Live connector</span>
+                <span className="rounded-full border border-emerald-200/16 bg-emerald-300/8 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-[#b9f5df]">Beta connector</span>
                 <span className="rounded-full border border-white/10 bg-black/28 px-3 py-1.5 font-body text-xs text-white/48">No password required</span>
               </div>
-              <h4 className="mt-4 font-body text-2xl font-semibold tracking-[-0.03em] text-white">Connect TopstepX with ProjectX.</h4>
+              <h4 className="mt-4 font-body text-2xl font-semibold tracking-[-0.03em] text-white">Test TopstepX through ProjectX.</h4>
               <p className="mt-2 max-w-2xl font-body text-sm leading-relaxed text-white/56">
-                Generate an API key in TopstepX settings, paste it here, and Cova validates it on the backend. We encrypt the read-only session token and never expose it in the browser.
+                CSV upload is the default path today. If you want to test the beta connector, generate an API key in TopstepX settings and Cova validates it on the backend before importing read-only trade history.
               </p>
             </div>
             <div className="flex flex-wrap gap-3 lg:justify-end">

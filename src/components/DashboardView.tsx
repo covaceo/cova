@@ -10,7 +10,7 @@ import { ImageAtmosphere, SectionShell } from "./LayoutShell";
 const DASHBOARD_FOCUS_KEY = "cova-dashboard-focus-v1";
 const DASHBOARD_RANGE_KEY = "cova-dashboard-range-v1";
 
-type Section = "overview" | "features" | "pricing" | "resources" | "community" | "dashboard" | "import" | "oauth" | "rules" | "coach" | "passport";
+type Section = "overview" | "features" | "pricing" | "resources" | "community" | "dashboard" | "import" | "oauth" | "rules" | "coach" | "practice" | "passport";
 type DashboardFocus = "health" | "risk" | "performance" | "proof";
 type TimeRange = "today" | "week" | "all";
 type BrokerStatus = {
@@ -104,7 +104,7 @@ function DashboardCommandCenter({
   const updated = brokerStatus?.updatedAt
     ? new Date(brokerStatus.updatedAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
     : "Not connected";
-  const sourceLabel = connected ? `${provider} linked` : analysis.trades.length ? "CSV/demo review" : "No trade history";
+  const sourceLabel = connected ? `${provider} linked` : analysis.trades.length ? "Sample funded review" : "No trade history";
   const quickMetrics = [
     ["P&L", formatMoney(analysis.totalPnl), analysis.totalPnl >= 0 ? "text-emerald-300" : "text-red-300"],
     ["Biggest dip", formatMoney(-analysis.maxDrawdown), analysis.maxDrawdown > 0 ? "text-red-300" : "text-white"],

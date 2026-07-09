@@ -3,12 +3,12 @@ import { ChevronDown, Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { StartFreeButton } from "./StartFreeButton";
 
-type Section = "overview" | "features" | "pricing" | "resources" | "community" | "dashboard" | "import" | "oauth" | "rules" | "coach" | "passport";
+type Section = "overview" | "features" | "pricing" | "resources" | "community" | "dashboard" | "import" | "oauth" | "rules" | "coach" | "practice" | "passport";
 type AuthMode = "login" | "signup";
 type AuthSession = { email: string } | null;
 
 function isProtectedSection(section: Section) {
-  return ["dashboard", "import", "oauth", "rules", "coach", "passport"].includes(section);
+  return ["dashboard", "import", "oauth", "rules", "coach", "practice", "passport"].includes(section);
 }
 
 const appNav = [
@@ -16,6 +16,7 @@ const appNav = [
   { id: "import", label: "Link account" },
   { id: "rules", label: "Limits" },
   { id: "coach", label: "Insights" },
+  { id: "practice", label: "Practice" },
   { id: "passport", label: "Passport" },
 ] satisfies { id: Section; label: string }[];
 

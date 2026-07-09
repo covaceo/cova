@@ -3,7 +3,7 @@ import { ArrowUpRight, CircleDot, Gauge, LockKeyhole, ShieldCheck } from "lucide
 import { analyze } from "../lib/risk";
 import { GlassButton } from "./GlassButton";
 
-type Section = "overview" | "features" | "pricing" | "resources" | "community" | "dashboard" | "import" | "oauth" | "rules" | "coach" | "passport";
+type Section = "overview" | "features" | "pricing" | "resources" | "community" | "dashboard" | "import" | "oauth" | "rules" | "coach" | "practice" | "passport";
 
 export function ScoreExplanationStrip({ analysis }: { analysis: ReturnType<typeof analyze> }) {
   const factors = analysis.scoreFactors.slice(0, 4);

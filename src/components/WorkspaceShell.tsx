@@ -1,4 +1,4 @@
-import { Activity, BarChart3, FileUp, Gauge, LogOut, Network, ShieldCheck } from "lucide-react";
+import { Activity, BarChart3, FileUp, Gauge, LogOut, Network, ShieldCheck, Target } from "lucide-react";
 import type { ReactNode } from "react";
 import type { Section } from "../lib/appRoutes";
 
@@ -26,6 +26,12 @@ const workspaceNav = [
     label: "Insights",
     kicker: "Plain English",
     icon: Activity,
+  },
+  {
+    id: "practice",
+    label: "Practice",
+    kicker: "Backtesting Lab",
+    icon: Target,
   },
   {
     id: "passport",

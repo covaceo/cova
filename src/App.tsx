@@ -31,7 +31,7 @@ import { CtaFooter, PlanStrip } from "./components/PlanSections";
 import { RouteFrame } from "./components/LayoutShell";
 import { AuthGate, AuthSheet } from "./components/AuthPanels";
 import { CommunityPage, FeaturesPage, PricingPage, ResourcesPage } from "./components/MarketingPages";
-import { Coach, Passport, RulesEngine } from "./components/WorkspaceSections";
+import { Coach, Passport, PracticeLab, RulesEngine } from "./components/WorkspaceSections";
 import { Dashboard } from "./components/DashboardView";
 import { ImportDesk } from "./components/ImportDesk";
 import { Navbar } from "./components/Navbar";
@@ -40,6 +40,7 @@ import { Toast } from "./components/Toast";
 import { WorkspaceShell } from "./components/WorkspaceShell";
 import { getHostedLogoutUrl, isDemoPreviewEnabled } from "./lib/authEnvironment";
 import { BROKER_STATUS_KEY, brokerMessageForStatus, readBrokerStatus, writeBrokerStatus, type BrokerStatus } from "./lib/brokerStatus";
+import { samplePracticeReps, type PracticeRep } from "./lib/backtesting";
 import { buildFirmConnectUrl, canRedirectToFirmProvider, csvExportGuides, getFirmProviderHost, getPropFirm, propFirmOptions, type PropFirmId } from "./lib/propFirms";
 import { isProtectedSection, sections, useHashSection, type Section } from "./lib/appRoutes";
 
@@ -108,16 +109,17 @@ export default function App() {
   const [brokerStatus, setBrokerStatus] = useState<BrokerStatus | null>(() => readBrokerStatus());
   const [trades, setTrades] = useState<Trade[]>(() => loadAuthSession() ? loadState()?.trades ?? sampleTrades : []);
   const [rules, setRules] = useState<RiskRule[]>(() => loadAuthSession() ? loadState()?.rules ?? defaultRules : defaultRules);
+  const [practiceReps, setPracticeReps] = useState<PracticeRep[]>(() => loadAuthSession() ? loadState()?.practiceReps ?? samplePracticeReps : []);
   const isSignedIn = Boolean(authSession);
   const entitlements = planEntitlements[authSession?.plan ?? "free"];
   const analysis = useMemo(() => analyze(trades, rules), [trades, rules]);
-  const brokerLabel = brokerStatus?.connected ? `${brokerStatus.provider} linked` : trades.length ? "CSV/demo review" : "No trade history";
+  const brokerLabel = brokerStatus?.connected ? `${brokerStatus.provider} linked` : trades.length ? "Sample funded review" : "No trade history";
 
   useEffect(() => {
     if (isSignedIn) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ trades, rules }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ trades, rules, practiceReps }));
     }
-  }, [isSignedIn, trades, rules]);
+  }, [isSignedIn, trades, rules, practiceReps]);
 
   useEffect(() => {
     const refreshBrokerStatus = () => setBrokerStatus(readBrokerStatus());
@@ -302,6 +304,7 @@ export default function App() {
     localStorage.removeItem(AUTH_INTENT_KEY);
     setTrades(saved?.trades?.length ? saved.trades : sampleTrades);
     setRules(saved?.rules ?? defaultRules);
+    setPracticeReps(saved?.practiceReps?.length ? saved.practiceReps : samplePracticeReps);
     setStatus("Signed in. Account stats are unlocked.");
     setAuthMode(null);
     announce("Signed in. Account stats are unlocked.", "success");
@@ -332,6 +335,7 @@ export default function App() {
     setMobileOpen(false);
     setTrades([]);
     setRules(defaultRules);
+    setPracticeReps([]);
     setStatus("Signed out. Account stats are hidden.");
     announce("Signed out. Account stats are hidden.", "info");
     if (isProtectedSection(section)) {
@@ -537,6 +541,11 @@ export default function App() {
               {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><Coach analysis={analysis} entitlements={entitlements} go={go} upgradeToPro={upgradeToPro} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={setAuthMode} onDevPreview={signInAsDevPreview} />}
             </RouteFrame>
           )}
+          {section === "practice" && (
+            <RouteFrame key="practice">
+              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><PracticeLab practiceReps={practiceReps} setPracticeReps={(next) => setPracticeReps(next)} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={setAuthMode} onDevPreview={signInAsDevPreview} />}
+            </RouteFrame>
+          )}
           {section === "passport" && (
             <RouteFrame key="passport">
               {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><Passport analysis={analysis} entitlements={entitlements} sharePassport={sharePassport} go={go} upgradeToPro={upgradeToPro} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={setAuthMode} onDevPreview={signInAsDevPreview} />}
@@ -607,16 +616,35 @@ function readAuthIntent(): { email?: string; mode?: AuthMode; returnSection?: Se
   }
 }
 
-function loadState(): { trades: Trade[]; rules: RiskRule[] } | null {
+function loadState(): { trades: Trade[]; rules: RiskRule[]; practiceReps: PracticeRep[] } | null {
   try {
     const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null");
     if (parsed?.trades && parsed?.rules) {
-      return { trades: parsed.trades, rules: normalizeSavedRules(parsed.rules) };
+      return {
+        trades: parsed.trades,
+        rules: normalizeSavedRules(parsed.rules),
+        practiceReps: normalizeSavedPracticeReps(parsed.practiceReps),
+      };
     }
   } catch {
     return null;
   }
   return null;
+}
+
+function normalizeSavedPracticeReps(value: unknown): PracticeRep[] {
+  if (!Array.isArray(value)) {
+    return samplePracticeReps;
+  }
+  return value.filter((rep): rep is PracticeRep => (
+    typeof rep?.id === "string" &&
+    typeof rep?.date === "string" &&
+    typeof rep?.market === "string" &&
+    typeof rep?.setup === "string" &&
+    typeof rep?.session === "string" &&
+    (rep?.direction === "Long" || rep?.direction === "Short") &&
+    Number.isFinite(rep?.resultR)
+  ));
 }
 
 function normalizeSavedRules(rules: RiskRule[]) {

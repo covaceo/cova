@@ -20,7 +20,7 @@ import { ImageAtmosphere, SectionShell } from "./LayoutShell";
 import { PlanStrip } from "./PlanSections";
 import { StartFreeButton } from "./StartFreeButton";
 
-type Section = "overview" | "features" | "pricing" | "resources" | "community" | "dashboard" | "import" | "oauth" | "rules" | "coach" | "passport";
+type Section = "overview" | "features" | "pricing" | "resources" | "community" | "dashboard" | "import" | "oauth" | "rules" | "coach" | "practice" | "passport";
 type AuthMode = "login" | "signup";
 type PlanTier = "free" | "pro";
 
@@ -59,6 +59,13 @@ export function FeaturesPage({ go, openAuth }: { go: (section: Section) => void;
       body: "Start with CSV exports today and prepare for read-only account connections.",
       Icon: FileUp,
       action: "View resources",
+      onClick: () => go("resources"),
+    },
+    {
+      title: "Backtesting lab",
+      body: "Planned workspace for replaying setups, tagging rule breaks, and comparing outcomes against TradingView replay without pretending to place trades.",
+      Icon: Target,
+      action: "View scope",
       onClick: () => go("resources"),
     },
     {
@@ -188,6 +195,11 @@ export function ResourcesPage({ go, openAuth }: { go: (section: Section) => void
       title: "Risk Passport basics",
       body: "The Passport is a shareable discipline summary. It is proof of process, not a trading signal.",
       Icon: Fingerprint,
+    },
+    {
+      title: "Backtesting scope",
+      body: "Use TradingView replay to test a setup, then log what the plan said, what happened, and whether the rule would have held.",
+      Icon: Target,
     },
   ];
 

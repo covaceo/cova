@@ -41,6 +41,12 @@ const proofStoryFrames: StoryFrame[] = [
   },
 ];
 
+const covaCaughtRows = [
+  ["Daily loss breach", "Intraday low hit -$3,000 even though the day closed better — Cova still flags the real drawdown."],
+  ["Size creep", "Contracts increased after a red trade, so the next-session brief tells the trader to cap size."],
+  ["Passport proof", "The share card can show gains and discipline while keeping broker details and trade history hidden."],
+];
+
 export function StoryStrip() {
   return (
     <section className="story-strip-simple relative overflow-hidden bg-black px-5 py-24 md:px-10 lg:px-14">
@@ -66,6 +72,17 @@ export function StoryStrip() {
                   <strong className={`mt-2 block font-mono text-2xl ${tone}`}>{value}</strong>
                 </div>
               ))}
+            </div>
+            <div className="mt-6 border-t border-white/10 pt-5">
+              <p className="font-body text-xs uppercase tracking-[0.22em] text-[#18c887]">What Cova caught</p>
+              <div className="mt-4 grid gap-3">
+                {covaCaughtRows.map(([label, body]) => (
+                  <div className="grid gap-2 border-l border-[#18c887]/32 pl-4 md:grid-cols-[150px_1fr]" key={label}>
+                    <strong className="font-body text-sm text-white/82">{label}</strong>
+                    <span className="font-body text-sm leading-relaxed text-white/52">{body}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>

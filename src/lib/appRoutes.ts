@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
-export const sections = ["overview", "features", "pricing", "resources", "community", "dashboard", "import", "oauth", "rules", "coach", "passport"] as const;
-const protectedSections = ["dashboard", "import", "oauth", "rules", "coach", "passport"] as const satisfies readonly Section[];
+export const sections = ["overview", "features", "pricing", "resources", "community", "dashboard", "import", "oauth", "rules", "coach", "practice", "passport"] as const;
+const protectedSections = ["dashboard", "import", "oauth", "rules", "coach", "practice", "passport"] as const satisfies readonly Section[];
 export type Section = (typeof sections)[number];
 export function isProtectedSection(section: Section) {
   return protectedSections.includes(section as (typeof protectedSections)[number]);

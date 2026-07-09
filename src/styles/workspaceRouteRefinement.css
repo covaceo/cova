@@ -38,9 +38,30 @@
 
 .source-ledger-panel > div:first-child,
 .source-ledger-panel > p,
+.source-ledger-panel .source-primary-choice,
+.source-ledger-panel .source-header-grid,
 .source-ledger-panel .projectx-ledger,
 .source-route-ledger {
   margin-inline: 20px;
+}
+
+.source-primary-choice {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: clamp(1rem, 2.4vw, 2rem);
+  align-items: end;
+  margin-bottom: 20px;
+  padding: 20px;
+  border-left: 2px solid rgba(24, 200, 135, 0.46);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  background: linear-gradient(90deg, rgba(24, 200, 135, 0.075), rgba(255, 255, 255, 0.012) 52%, transparent);
+}
+
+.source-primary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 12px;
 }
 
 .firm-card-grid {
@@ -152,6 +173,116 @@
   border-top-color: rgba(148, 163, 184, 0.18) !important;
 }
 
+/* Practice: replay/backtesting lab. */
+.practice-command-panel,
+.practice-readiness-panel,
+.practice-log-form,
+.practice-setups-panel,
+.practice-recent-panel {
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 0 !important;
+  background: linear-gradient(180deg, rgba(9, 14, 13, 0.82), rgba(2, 6, 5, 0.94));
+  box-shadow: none !important;
+}
+
+.practice-command-panel {
+  border-left: 2px solid rgba(24, 200, 135, 0.34);
+}
+
+.practice-stat-row,
+.practice-brief-box,
+.practice-setup-row,
+.practice-rep-row {
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.practice-stat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.95rem 1rem;
+}
+
+.practice-stat-row span,
+.practice-setup-row span,
+.practice-rep-row span {
+  display: block;
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.practice-stat-row strong,
+.practice-setup-row strong,
+.practice-rep-row strong {
+  font-family: var(--font-body);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.practice-brief-box {
+  padding: 1rem;
+  border-left: 2px solid rgba(24, 200, 135, 0.26);
+}
+
+.practice-field {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.practice-field span {
+  font-family: var(--font-body);
+  font-size: 0.64rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.38);
+}
+
+.practice-field input,
+.practice-field select,
+.practice-field textarea {
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.34);
+  padding: 0.8rem 0.9rem;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.9);
+  outline: none;
+}
+
+.practice-field textarea {
+  min-height: 92px;
+  resize: vertical;
+}
+
+.practice-field input:focus,
+.practice-field select:focus,
+.practice-field textarea:focus {
+  border-color: rgba(24, 200, 135, 0.52);
+}
+
+.practice-setup-row,
+.practice-rep-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.95rem 1rem;
+}
+
+.practice-rep-row button {
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid rgba(248, 113, 113, 0.16);
+  background: rgba(248, 113, 113, 0.08);
+  color: rgba(254, 202, 202, 0.82);
+}
+
 .insight-briefing-row svg {
   width: 1.35rem !important;
   height: 1.35rem !important;
@@ -215,7 +346,38 @@
   border-left: 2px solid rgba(24, 200, 135, 0.34) !important;
 }
 
+.passport-ledger-heading strong.has-flags {
+  border-color: rgba(251, 191, 36, 0.22) !important;
+  background: rgba(251, 191, 36, 0.08) !important;
+  color: rgb(253, 230, 138) !important;
+}
+
+.passport-ledger-heading strong.is-verified {
+  border-color: rgba(24, 200, 135, 0.24) !important;
+  background: rgba(24, 200, 135, 0.08) !important;
+  color: rgb(185, 245, 223) !important;
+}
+
 @media (max-width: 1023px) {
+  .source-primary-choice {
+    grid-template-columns: 1fr;
+  }
+
+  .source-primary-actions {
+    justify-content: flex-start;
+  }
+
+  .practice-setup-row,
+  .practice-rep-row {
+    grid-template-columns: 1fr;
+  }
+
+  .practice-setup-row > div:last-child,
+  .practice-rep-row > div:last-child {
+    text-align: left;
+    justify-content: flex-start;
+  }
+
   .source-ledger-row + .source-ledger-row,
   .firm-card-grid > * + * {
     border-left: 0 !important;
