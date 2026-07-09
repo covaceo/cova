@@ -149,7 +149,7 @@ export function ImportNextSteps({ entitlements }: { entitlements: ImportEntitlem
           <p className="mt-1 font-body text-sm text-white/52">
             {entitlements.plan === "free"
               ? `Free accounts review up to ${entitlements.maxStoredTrades} trades. Enough to test the workflow without committing.`
-              : "Pro accounts keep the full review history and can use direct sync when connectors are live."}
+              : "Pro accounts can review larger imports and use direct sync when a supported connector is configured."}
           </p>
         </div>
         <span className="w-fit rounded-full border border-white/10 bg-black/24 px-3 py-1.5 font-body text-xs text-white/46">
@@ -329,6 +329,11 @@ export function BrokerConnectPanel({
       return;
     }
 
+    if (!entitlements.canUseDirectSync) {
+      setBrokerNotice(`${firm.name}: direct account sync is a Pro feature. Use the CSV export path on Free.`);
+      return;
+    }
+
     if (firm.id === "topstepx") {
       setBrokerNotice("TopstepX beta connector: paste your username/API key below, or upload CSV first if you just want the review flow.");
       return;
@@ -361,7 +366,7 @@ export function BrokerConnectPanel({
   function startFirmConnect() {
     const canUseConfiguredProvider = canRedirectToFirmProvider(selectedFirm.id);
 
-    if (!entitlements.canUseDirectSync && canUseConfiguredProvider) {
+    if (!entitlements.canUseDirectSync && selectedFirm.id !== "other") {
       setBrokerNotice(`${selectedFirm.name}: direct firm sync is a Pro feature. Use CSV export on Free, or unlock Pro when sync is live.`);
       return;
     }
@@ -400,6 +405,10 @@ export function BrokerConnectPanel({
 
   function submitProjectX(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!entitlements.canUseDirectSync) {
+      setBrokerNotice("TopstepX direct sync is a Pro feature. Use CSV import on Free.");
+      return;
+    }
     void connectProjectX(projectXCredentials);
   }
 
@@ -430,8 +439,8 @@ export function BrokerConnectPanel({
               <span className={`h-2 w-2 rounded-full ${selectedConnected ? "bg-emerald-300" : "bg-white/30"}`} />
               {selectedConnected ? `${selectedProviderName} connected` : "CSV ready today"}
             </span>
-            <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 font-body text-xs ${entitlements.canUseDirectSync || isTopstepX ? "border-[#18c887]/24 bg-[#18c887]/10 text-[#b9f5df]" : "border-white/12 bg-white/[0.035] text-white/48"}`}>
-              {isTopstepX ? "Beta connector" : entitlements.canUseDirectSync ? "Pro sync enabled" : "Export guide available"}
+            <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 font-body text-xs ${entitlements.canUseDirectSync ? "border-[#18c887]/24 bg-[#18c887]/10 text-[#b9f5df]" : "border-white/12 bg-white/[0.035] text-white/48"}`}>
+              {entitlements.canUseDirectSync ? (isTopstepX ? "Pro beta connector" : "Pro sync enabled") : "Pro sync locked · CSV available"}
             </span>
           </div>
           <h3 className="mt-6 font-body text-3xl font-semibold leading-[0.98] tracking-[-0.05em] md:text-5xl">Pick the source.</h3>
@@ -488,7 +497,7 @@ export function BrokerConnectPanel({
         })}
       </div>
 
-      {isTopstepX && (
+      {isTopstepX && entitlements.canUseDirectSync && (
         <form
           className="projectx-ledger mt-6 border border-emerald-200/14 bg-[linear-gradient(135deg,rgba(24,200,135,0.11),rgba(0,0,0,0.22)_44%,rgba(59,130,246,0.08))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
           data-projectx-connect
@@ -590,9 +599,9 @@ export function BrokerConnectPanel({
           <GlassButton onClick={showExportGuide}>Export guide</GlassButton>
           {selectedFirm.id !== "other" && <GlassButton onClick={useCsvLane}>Use CSV export</GlassButton>}
           {!entitlements.canUseDirectSync && selectedFirm.id !== "other" && <GlassButton onClick={upgradeToPro}>Unlock sync</GlassButton>}
-          {selectedFirm.id === "topstepx" && selectedConnected && <GlassButton onClick={syncProjectX}>{projectXSyncBusy ? "Syncing..." : "Sync trades"}</GlassButton>}
-          {selectedFirm.id === "tradovate" && <GlassButton onClick={checkTradovateStatus}>{brokerBusy ? "Checking..." : "Check status"}</GlassButton>}
-          {selectedFirm.id === "tradovate" && connected && <GlassButton onClick={syncTradovate}>{syncBusy ? "Syncing..." : "Sync trades"}</GlassButton>}
+          {entitlements.canUseDirectSync && selectedFirm.id === "topstepx" && selectedConnected && <GlassButton onClick={syncProjectX}>{projectXSyncBusy ? "Syncing..." : "Sync trades"}</GlassButton>}
+          {entitlements.canUseDirectSync && selectedFirm.id === "tradovate" && <GlassButton onClick={checkTradovateStatus}>{brokerBusy ? "Checking..." : "Check status"}</GlassButton>}
+          {entitlements.canUseDirectSync && selectedFirm.id === "tradovate" && connected && <GlassButton onClick={syncTradovate}>{syncBusy ? "Syncing..." : "Sync trades"}</GlassButton>}
         </div>
       </div>
 

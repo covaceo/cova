@@ -9,9 +9,9 @@ const outDir = resolve("sketches/mobile-audit-2026-07-08");
 const routes = [
   { name: "overview", hash: "overview", needsAuth: false, requiredText: ["What Cova caught", "Daily loss breach"] },
   { name: "import", hash: "import", needsAuth: true, requiredText: ["Upload CSV first", "Beta connector"] },
-  { name: "insights", hash: "coach", needsAuth: true, requiredText: ["Pre-session risk brief", "Action"] },
-  { name: "practice", hash: "practice", needsAuth: true, requiredText: ["Practice replay", "Log practice rep", "Live permission"] },
-  { name: "passport", hash: "passport", needsAuth: true, requiredText: ["Proof checked", "Flagged"] },
+  { name: "insights", hash: "coach", needsAuth: true, requiredText: ["Current risk review", "Review note"] },
+  { name: "practice", hash: "practice", needsAuth: true, requiredText: ["Practice replay", "Replay chart", "Practice account", "Practice readiness"] },
+  { name: "passport", hash: "passport", needsAuth: true, requiredText: ["Sample review · demo data", "Feed 4:5", "Review receipt"] },
 ];
 
 const sleep = (ms) => new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
@@ -152,7 +152,15 @@ async function main() {
     }
 
     cdp.close();
-    console.log(JSON.stringify({ outDir, results }, null, 2));
+    const failures = results.flatMap((result) => [
+      ...(result.documentOverflow > 0 ? [`${result.name}: document overflow ${result.documentOverflow}px`] : []),
+      ...(result.hasAuthDialog ? [`${result.name}: unexpected auth dialog`] : []),
+      ...result.required.filter((check) => !check.present).map((check) => `${result.name}: missing “${check.text}”`),
+    ]);
+    console.log(JSON.stringify({ outDir, results, failures }, null, 2));
+    if (failures.length) {
+      throw new Error(`Mobile audit failed:\n${failures.join("\n")}`);
+    }
   } finally {
     chrome.kill("SIGTERM");
     await sleep(300);

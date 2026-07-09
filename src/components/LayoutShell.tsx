@@ -20,10 +20,10 @@ export function SectionShell({
 }: SectionShellProps) {
   const isWorkspace = variant === "workspace";
   return (
-    <section className={`deferred-paint-section relative min-h-screen overflow-hidden px-5 md:px-12 lg:px-20 ${isWorkspace ? "pb-16 pt-28 md:pt-28" : "pb-24 pt-36"}`}>
+    <section className={`deferred-paint-section relative min-h-screen overflow-hidden px-5 md:px-12 lg:px-20 ${isWorkspace ? "pb-16 pt-28 md:pt-28" : "pb-16 pt-28 md:pb-24 md:pt-36"}`}>
       {backdrop}
       <div className="relative z-10 mx-auto w-full max-w-[calc(100vw-2.5rem)] md:max-w-7xl">
-        <div className={`grid gap-6 md:grid-cols-[minmax(0,1fr)_auto] md:items-end ${isWorkspace ? "mb-6" : "mb-12"}`}>
+        <div className={`grid gap-6 md:grid-cols-[minmax(0,1fr)_auto] md:items-end ${isWorkspace ? "mb-6" : "mb-8 md:mb-12"}`}>
           <div className="min-w-0">
             <span
               className={isWorkspace

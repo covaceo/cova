@@ -40,7 +40,7 @@ import { Toast } from "./components/Toast";
 import { WorkspaceShell } from "./components/WorkspaceShell";
 import { getHostedLogoutUrl, isDemoPreviewEnabled } from "./lib/authEnvironment";
 import { BROKER_STATUS_KEY, brokerMessageForStatus, readBrokerStatus, writeBrokerStatus, type BrokerStatus } from "./lib/brokerStatus";
-import { samplePracticeReps, type PracticeRep } from "./lib/backtesting";
+import { PRACTICE_ACCOUNT_STORAGE_KEY, PRACTICE_TRADES_STORAGE_KEY, samplePracticeReps, type PracticeRep } from "./lib/backtesting";
 import { buildFirmConnectUrl, canRedirectToFirmProvider, csvExportGuides, getFirmProviderHost, getPropFirm, propFirmOptions, type PropFirmId } from "./lib/propFirms";
 import { isProtectedSection, sections, useHashSection, type Section } from "./lib/appRoutes";
 
@@ -60,7 +60,6 @@ type Entitlements = {
   canExportPassport: boolean;
   canUseDirectSync: boolean;
   insightLimit: number;
-  maxActivePassports: number;
   maxStoredTrades: number;
   maxTradesPerImport: number;
   plan: PlanTier;
@@ -81,7 +80,6 @@ const planEntitlements: Record<PlanTier, Entitlements> = {
     canExportPassport: false,
     canUseDirectSync: false,
     insightLimit: 2,
-    maxActivePassports: 1,
     maxStoredTrades: 25,
     maxTradesPerImport: 25,
     plan: "free",
@@ -91,7 +89,6 @@ const planEntitlements: Record<PlanTier, Entitlements> = {
     canExportPassport: true,
     canUseDirectSync: true,
     insightLimit: Number.POSITIVE_INFINITY,
-    maxActivePassports: Number.POSITIVE_INFINITY,
     maxStoredTrades: Number.POSITIVE_INFINITY,
     maxTradesPerImport: Number.POSITIVE_INFINITY,
     plan: "pro",
@@ -113,7 +110,16 @@ export default function App() {
   const isSignedIn = Boolean(authSession);
   const entitlements = planEntitlements[authSession?.plan ?? "free"];
   const analysis = useMemo(() => analyze(trades, rules), [trades, rules]);
-  const brokerLabel = brokerStatus?.connected ? `${brokerStatus.provider} linked` : trades.length ? "Sample funded review" : "No trade history";
+  const hasSampleTrades = trades.some((trade) => trade.id.startsWith("demo-"));
+  const hasReviewedTrades = trades.some((trade) => !trade.id.startsWith("demo-"));
+  const isSampleReview = hasSampleTrades;
+  const brokerLabel = brokerStatus?.connected
+    ? `${brokerStatus.provider} linked`
+    : hasSampleTrades
+      ? hasReviewedTrades ? "Sample + CSV review" : "Sample funded review"
+      : trades.length
+        ? "CSV trade review"
+        : "No trade history";
 
   useEffect(() => {
     if (isSignedIn) {
@@ -325,6 +331,8 @@ export default function App() {
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(BROKER_STATUS_KEY);
     localStorage.removeItem(OAUTH_FIRM_KEY);
+    localStorage.removeItem(PRACTICE_ACCOUNT_STORAGE_KEY);
+    localStorage.removeItem(PRACTICE_TRADES_STORAGE_KEY);
     const logoutUrl = getHostedLogoutUrl();
     if (logoutUrl) {
       void fetch(logoutUrl, { method: "POST", credentials: "include" }).catch(() => undefined);
@@ -380,6 +388,12 @@ export default function App() {
   }
 
   function openFirmOAuth(firmId: PropFirmId) {
+    if (!entitlements.canUseDirectSync) {
+      setStatus("Direct account sync is a Pro feature. CSV import remains available on Free.");
+      announce("Direct account sync is a Pro feature. Use CSV import or review Pro.", "warning");
+      go("pricing");
+      return;
+    }
     const firm = getPropFirm(firmId);
     setOauthFirmId(firm.id);
     localStorage.setItem(OAUTH_FIRM_KEY, firm.id);
@@ -533,7 +547,7 @@ export default function App() {
           )}
           {section === "rules" && (
             <RouteFrame key="rules">
-              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><RulesEngine analysis={analysis} entitlements={entitlements} rules={rules} setRules={setRules} upgradeToPro={upgradeToPro} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={setAuthMode} onDevPreview={signInAsDevPreview} />}
+              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><RulesEngine analysis={analysis} entitlements={entitlements} rules={rules} setRules={setRules} go={go} upgradeToPro={upgradeToPro} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={setAuthMode} onDevPreview={signInAsDevPreview} />}
             </RouteFrame>
           )}
           {section === "coach" && (
@@ -548,7 +562,7 @@ export default function App() {
           )}
           {section === "passport" && (
             <RouteFrame key="passport">
-              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><Passport analysis={analysis} entitlements={entitlements} sharePassport={sharePassport} go={go} upgradeToPro={upgradeToPro} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={setAuthMode} onDevPreview={signInAsDevPreview} />}
+              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><Passport analysis={analysis} entitlements={entitlements} isSampleReview={isSampleReview} sharePassport={sharePassport} go={go} upgradeToPro={upgradeToPro} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={setAuthMode} onDevPreview={signInAsDevPreview} />}
             </RouteFrame>
           )}
         </AnimatePresence>

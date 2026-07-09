@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cova × TradingView Advanced Charts Integration Brief</title>
+  <style>
+    :root { color-scheme: dark; --bg:#050709; --panel:#0b0f10; --line:rgba(185,245,223,.22); --green:#18c887; --text:#f4f7f5; --muted:rgba(244,247,245,.62); --amber:#f5c76b; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font:14px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif; }
+    .page { width: 8.5in; min-height: 11in; padding: .55in; margin:0 auto; background: radial-gradient(circle at 80% 8%, rgba(24,200,135,.12), transparent 26%), var(--bg); }
+    header { display:flex; justify-content:space-between; gap:24px; border-bottom:1px solid var(--line); padding-bottom:18px; }
+    .eyebrow { color:var(--green); font-size:11px; letter-spacing:.2em; text-transform:uppercase; }
+    h1 { margin:8px 0 0; font-size:34px; line-height:.95; letter-spacing:-.045em; }
+    h2 { margin:0 0 10px; font-size:15px; letter-spacing:.12em; text-transform:uppercase; color:var(--green); }
+    p { margin:0; color:var(--muted); }
+    .status { text-align:right; font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:11px; color:var(--muted); }
+    .grid { display:grid; grid-template-columns: 1.05fr .95fr; gap:16px; margin-top:18px; }
+    section, .box { border:1px solid rgba(255,255,255,.12); background:linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.015)); padding:16px; }
+    ul { margin:0; padding-left:18px; color:var(--muted); }
+    li { margin:5px 0; }
+    strong { color:var(--text); }
+    code { color:#b9f5df; background:rgba(24,200,135,.08); padding:1px 5px; border:1px solid rgba(24,200,135,.18); }
+    .flow { display:grid; gap:7px; margin-top:8px; font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px; }
+    .node { border:1px solid rgba(24,200,135,.20); background:rgba(24,200,135,.055); padding:8px 10px; }
+    .arrow { color:var(--green); text-align:center; margin:-3px 0; }
+    .wide { grid-column:1 / -1; }
+    .facts { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:16px; }
+    .fact { border:1px solid rgba(255,255,255,.1); padding:12px; }
+    .fact span { display:block; color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.14em; }
+    .fact b { display:block; margin-top:6px; font-size:16px; color:var(--text); }
+    footer { margin-top:18px; border-top:1px solid var(--line); padding-top:12px; color:var(--muted); font-size:11px; display:flex; justify-content:space-between; gap:20px; }
+    @media print { body { background:white; } .page { margin:0; width:auto; min-height:auto; } }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <div>
+        <div class="eyebrow">Advanced Charts access request</div>
+        <h1>Cova Practice × TradingView</h1>
+        <p style="margin-top:10px; max-width:540px;">Cova is requesting official TradingView Advanced Charts access to power an in-app historical replay and paper-practice workspace for active traders.</p>
+      </div>
+      <div class="status">
+        Cova Risk OS<br />
+        Integration path prepared<br />
+        /trading_platform/
+      </div>
+    </header>
+
+    <div class="facts">
+      <div class="fact"><span>Requested product</span><b>Advanced Charts</b></div>
+      <div class="fact"><span>Execution mode</span><b>Simulated only</b></div>
+      <div class="fact"><span>Library hosting</span><b>Self-hosted assets</b></div>
+    </div>
+
+    <div class="grid">
+      <section>
+        <h2>Use case</h2>
+        <p>Cova Practice lets a trader configure a paper account, choose a market/date/setup, replay historical candles, simulate Buy/Sell/Close decisions, and convert those practice reps into P&amp;L, R-multiple, drawdown, rule-follow, setup scorecard, and live-permission analytics.</p>
+      </section>
+
+      <section>
+        <h2>Compliance boundary</h2>
+        <ul>
+          <li><strong>No live order routing.</strong></li>
+          <li><strong>No broker execution.</strong></li>
+          <li><strong>No customer fund movement.</strong></li>
+          <li>Cova owns only replay, simulated execution, journaling, and analytics.</li>
+        </ul>
+      </section>
+
+      <section class="wide">
+        <h2>Architecture</h2>
+        <div class="flow">
+          <div class="node">Cova Practice UI — account setup, replay controls, execution controls, stats</div>
+          <div class="arrow">↓</div>
+          <div class="node">TradingView Advanced Charts — hosted inside Cova from <code>/trading_platform/</code></div>
+          <div class="arrow">↓</div>
+          <div class="node">Cova Datafeed API — onReady, resolveSymbol, searchSymbols, getBars, subscribeBars, getServerTime, getMarks, getTimescaleMarks</div>
+          <div class="arrow">↓</div>
+          <div class="node">Historical market-data provider/cache — OHLCV bars and symbol metadata</div>
+          <div class="arrow">↓</div>
+          <div class="node">Cova replay clock + simulated execution ledger + risk/readiness analytics</div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Why not the public widget?</h2>
+        <ul>
+          <li>Needs custom historical datafeed.</li>
+          <li>Needs replay-time control and execution marks.</li>
+          <li>Needs saved chart layouts/settings.</li>
+          <li>Needs premium in-app chart workstation UX.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Implementation status</h2>
+        <ul>
+          <li>Self-host path prepared: <code>/trading_platform/</code></li>
+          <li>Custom CSS path prepared: <code>/trading_view/cova-practice.css</code></li>
+          <li>Cova Datafeed adapter scaffold implemented.</li>
+          <li>Fallback chart remains active until licensed assets are available.</li>
+        </ul>
+      </section>
+    </div>
+
+    <footer>
+      <span>Prepared for TradingView Advanced Charts application.</span>
+      <span>Cova — trading journal and risk operating system.</span>
+    </footer>
+  </main>
+</body>
+</html>

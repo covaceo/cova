@@ -22,8 +22,29 @@ import {
   Trophy,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { analyzePracticeReps, practiceSetupOptions, type PracticeRep } from "../lib/backtesting";
+import { createPortal } from "react-dom";
+import {
+  analyzePracticeReps,
+  buildReplayTape,
+  calculatePracticeAccountStats,
+  createDefaultPracticeAccount,
+  createPracticeTrade,
+  evaluatePracticeAccountLimits,
+  hasPracticeAccountConfigurationChanged,
+  PRACTICE_ACCOUNT_STORAGE_KEY,
+  PRACTICE_TRADES_STORAGE_KEY,
+  practiceSetupOptions,
+  type PracticeAccount,
+  type PracticeDirection,
+  type PracticeMarket,
+  type PracticePosition,
+  type PracticeRep,
+  type PracticeTrade,
+  type ReplayCandle,
+  type ReplayTape,
+} from "../lib/backtesting";
 import { analyze, formatMoney, formatPercent, type RiskRule } from "../lib/risk";
+import { TradingViewChartHost } from "./practice/TradingViewChartHost";
 import { GlassButton } from "./GlassButton";
 import { ImageAtmosphere, SectionShell } from "./LayoutShell";
 
@@ -35,7 +56,7 @@ type WorkspaceEntitlements = {
   plan: "free" | "pro";
 };
 
-export function RulesEngine({ analysis, entitlements, rules, setRules, upgradeToPro }: { analysis: ReturnType<typeof analyze>; entitlements: WorkspaceEntitlements; rules: RiskRule[]; setRules: (rules: RiskRule[]) => void; upgradeToPro: () => void }) {
+export function RulesEngine({ analysis, entitlements, rules, setRules, go, upgradeToPro }: { analysis: ReturnType<typeof analyze>; entitlements: WorkspaceEntitlements; rules: RiskRule[]; setRules: (rules: RiskRule[]) => void; go: (section: Section) => void; upgradeToPro: () => void }) {
   return (
     <SectionShell
       eyebrow="Guardrails"
@@ -46,19 +67,30 @@ export function RulesEngine({ analysis, entitlements, rules, setRules, upgradeTo
       <div className="rules-desk-grid rules-ledger-grid grid gap-6 lg:grid-cols-[0.64fr_1.36fr]">
         <div className="rules-summary-card rules-ledger-summary p-6 md:p-7">
           <SlidersHorizontal className="h-10 w-10 text-[#18c887]" />
-          <h3 className="mt-7 font-body text-3xl font-semibold leading-[0.98] tracking-[-0.05em] md:text-4xl">Do not give the account back.</h3>
+          <h3 className="mt-7 font-body text-3xl font-semibold leading-[0.98] tracking-[-0.05em] md:text-4xl">Review the limits behind the warnings.</h3>
           <p className="mt-5 font-body font-light leading-relaxed text-white/60">
-            Set the limits that stop the bad day from becoming a blown account. Cova checks every trade against these rules in plain English.
+            Set review thresholds for imported history. Cova flags trades that cross them; it never blocks orders or changes broker settings.
           </p>
           <div className="mt-8 grid grid-cols-2 gap-3">
             <div className="rules-ledger-stat p-5">
-              <p className="font-body text-xs uppercase tracking-[0.22em] text-white/40">Active warnings</p>
+              <p className="font-body text-xs uppercase tracking-[0.22em] text-white/40">Breaches in history</p>
               <p className="mt-2 font-body text-4xl text-red-400">{analysis.breaches.length}</p>
             </div>
             <div className="rules-ledger-stat p-5">
               <p className="font-body text-xs uppercase tracking-[0.22em] text-white/40">Rules followed</p>
               <p className="mt-2 font-body text-4xl text-emerald-400">{formatPercent(analysis.compliance)}</p>
             </div>
+          </div>
+          <div className={`mt-4 border p-4 ${analysis.breaches.length ? "border-red-400/20 bg-red-400/[0.045]" : "border-emerald-300/16 bg-emerald-300/[0.035]"}`}>
+            <p className={`font-body text-sm font-semibold ${analysis.breaches.length ? "text-red-200" : "text-emerald-200"}`}>
+              {analysis.breaches.length ? `${analysis.breaches.length} warning${analysis.breaches.length === 1 ? " needs" : "s need"} a decision.` : "The imported history is inside your active limits."}
+            </p>
+            <p className="mt-2 font-body text-xs leading-relaxed text-white/48">Changing a threshold can change which warnings appear. It re-checks the same imported history; it does not rewrite a trade.</p>
+            {analysis.breaches.length > 0 && (
+              <button className="mt-4 inline-flex items-center gap-2 font-body text-sm font-medium text-[#b9f5df]" onClick={() => go("coach")} type="button">
+                Review warnings <ArrowUpRight className="h-4 w-4" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -72,10 +104,13 @@ export function RulesEngine({ analysis, entitlements, rules, setRules, upgradeTo
             const rangeStep = isCountRule ? 1 : isMinimumRule ? 0.05 : 50;
             const formattedLimit = isCountRule ? rule.limit : isMinimumRule ? rule.limit.toFixed(2) : formatMoney(rule.limit);
             const locked = isMinimumRule && !entitlements.canEditAdvancedLimits;
+            const ruleState = !rule.enabled ? "off" : status?.breached ? "breach" : "inside";
+            const ruleStateLabel = ruleState === "off" ? "Not checked" : ruleState === "breach" ? "Breach in history" : "Inside limit";
+            const ruleStateClass = ruleState === "off" ? "bg-white/7 text-white/45" : ruleState === "breach" ? "bg-red-500/15 text-red-300" : "bg-emerald-400/15 text-emerald-300";
             return (
               <motion.article
                 key={rule.id}
-                className={`rule-control-card rules-ledger-row p-4 md:p-5 ${locked ? "opacity-70" : ""}`}
+                className="rule-control-card rules-ledger-row p-4 md:p-5"
                 initial={{ opacity: 0, y: 24 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -85,22 +120,25 @@ export function RulesEngine({ analysis, entitlements, rules, setRules, upgradeTo
                   <div>
                     <p className="font-body text-xs uppercase tracking-[0.22em] text-[#18c887]">{friendlyRuleMetric(rule.metric)}</p>
                     <h3 className="mt-2 font-body text-xl font-medium">{rule.name}</h3>
-                    <p className="mt-1 font-body text-sm font-light text-white/50">{status?.summary}</p>
+                    <p className="mt-1 font-body text-sm font-light text-white/50">{rule.enabled ? status?.summary : "Disabled — excluded from the current review."}</p>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
                     {locked && (
-                      <button className="rounded-full border border-[#18c887]/24 bg-[#18c887]/10 px-3 py-1 font-body text-xs text-[#b9f5df]" onClick={upgradeToPro} type="button">
-                        Pro
+                      <button className="border border-[#18c887]/24 bg-[#18c887]/10 px-3 py-1 font-body text-xs text-[#b9f5df]" onClick={upgradeToPro} type="button">
+                        View-only on Free · Pro to edit
                       </button>
                     )}
-                    <span className={`rounded-full px-3 py-1 font-body text-xs ${status?.breached ? "bg-red-500/15 text-red-300" : "bg-emerald-400/15 text-emerald-300"}`}>
-                      {status?.breached ? "Fix before trade" : "Clean"}
+                    <span className={`rounded-full px-3 py-1 font-body text-xs ${ruleStateClass}`}>
+                      {ruleStateLabel}
                     </span>
+                    <span className="font-body text-[10px] uppercase tracking-[0.16em] text-white/38">{rule.enabled ? "On" : "Off"}</span>
                     <button
                       className={`h-8 w-14 rounded-full border p-1 transition ${rule.enabled ? "border-emerald-300/50 bg-emerald-400/20" : "border-white/15 bg-white/5"}`}
                       onClick={() => setRules(rules.map((item) => item.id === rule.id ? { ...item, enabled: !item.enabled } : item))}
                       disabled={locked}
                       type="button"
+                      role="switch"
+                      aria-checked={rule.enabled}
                       aria-label={`${rule.enabled ? "Disable" : "Enable"} ${rule.name}`}
                     >
                       <span className={`block h-6 w-6 rounded-full bg-white transition ${rule.enabled ? "translate-x-6" : ""}`} />
@@ -151,36 +189,36 @@ export function Coach({ analysis, entitlements, go, upgradeToPro }: { analysis: 
   const briefTone = brief.status === "locked" ? "PAUSE" : brief.status === "ready" ? "READY" : "CAUTION";
   const firstAction = primaryBreach
     ? primaryBreach.rule.metric === "maxContracts"
-      ? "Cap size until the position-size warning clears."
+      ? "Review the oversized rows against the configured position-size threshold."
       : primaryBreach.rule.metric === "maxDailyLoss"
-        ? "Stop trading after the daily loss warning instead of trying to win it back."
+        ? "Review what happened after the daily-loss threshold was crossed."
         : primaryBreach.rule.metric === "maxLossStreak"
-          ? "End the session after the loss-streak rule hits."
-          : "Reduce risk until this rule prints clean again."
-    : "Keep current size; do not scale until the next import confirms the pattern.";
+          ? "Review the rows that followed the configured loss-streak threshold."
+          : "Compare the flagged rows with the active review threshold."
+    : "No threshold breach appears in the current imported history.";
   const setupAction = bestSetup
-    ? `${bestSetup.name}: keep this as the A+ setup, but do not add size until rule warnings are clean.`
-    : "Upload more rows before scaling size or changing the playbook.";
+    ? `${bestSetup.name} is the strongest reviewed sample; compare future imports before changing the playbook.`
+    : "Upload more rows before drawing a conclusion about setup quality.";
   const sessionAction = brief.status === "locked"
-    ? "Do not trade live size until the flagged rule is addressed."
+    ? "Current review status: a flagged rule still needs inspection."
     : brief.status === "ready"
-      ? "Trade normal size only if the setup matches the plan."
-      : "Trade reduced size and wait for the cleanest setup only.";
+      ? "Current review status: no active blocker appears in the imported history."
+      : "Current review status: the imported history still carries caution flags.";
   const insights = [
     {
       icon: CircleDot,
-      title: "Pre-session risk brief",
-      body: analysis.breaches.length ? `${analysis.breaches.length} limit warning${analysis.breaches.length === 1 ? " is" : "s are"} still active. Treat this as the rule to protect before the next trade.` : "No active limit warnings in the imported sample. Keep the same risk limits instead of forcing size.",
+      title: "Limit warnings",
+      body: analysis.breaches.length ? `${analysis.breaches.length} historical limit warning${analysis.breaches.length === 1 ? " needs" : "s need"} review before the next session.` : "No active limit warnings in the imported sample. Keep the same review thresholds instead of forcing size.",
       action: firstAction,
       tone: analysis.breaches.length ? "WARN" : "GOOD",
       evidence: primaryBreach?.evidence.slice(0, 2) ?? [`${analysis.trades.length} trades checked`, `${formatPercent(analysis.compliance)} of limits followed`],
     },
     {
       icon: ShieldCheck,
-      title: "Setup permission",
+      title: "Setup review",
       body: bestSetup ? `${bestSetup.name} has the clearest sample right now: ${bestSetup.count} trades, ${bestSetup.avgR.toFixed(2)}R average result.` : "Cova needs more imported trades before it can name a clean setup with confidence.",
       action: setupAction,
-      tone: bestSetup && bestSetup.avgR > 0 ? "GOOD" : "CAUTION",
+      tone: analysis.breaches.length ? "CAUTION" : bestSetup && bestSetup.avgR > 0 ? "GOOD" : "CAUTION",
       evidence: bestSetup ? [`${bestSetup.count} trades`, `${bestSetup.avgR.toFixed(2)}R average result`] : ["Upload more rows to learn which setups are working."],
     },
     {
@@ -197,35 +235,44 @@ export function Coach({ analysis, entitlements, go, upgradeToPro }: { analysis: 
   return (
     <SectionShell
       eyebrow="Insights"
-      title="Pre-session risk brief."
+      title="Current risk review."
       variant="workspace"
       backdrop={<ImageAtmosphere src="/media/cova-dashboard-plate.jpg" align="right" opacity="opacity-[0.2]" />}
     >
       <div className="insights-briefing-feed grid gap-0">
-        {visibleInsights.map((insight, index) => (
-          <motion.article
-            key={insight.title}
-            className="insight-briefing-row p-6 md:p-7"
-            initial={{ opacity: 0, y: 34, filter: "blur(14px)" }}
-            whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-            viewport={{ once: true }}
-            transition={{ delay: index * 0.09, duration: 0.65 }}
-          >
-            <insight.icon className="h-10 w-10 text-[#18c887]" />
-            <span className="mt-10 inline-block rounded-full bg-white/5 px-3 py-1 font-body text-xs text-white/50">{insight.tone}</span>
-            <h3 className="mt-5 font-heading text-4xl italic leading-[1] tracking-normal">{insight.title}</h3>
-            <p className="mt-5 font-body font-light leading-relaxed text-white/58">{insight.body}</p>
-            <div className="mt-6 border-t border-white/10 pt-4">
-              <p className="font-body text-[10px] uppercase tracking-[0.22em] text-[#18c887]">Action</p>
-              <p className="mt-2 font-body text-sm font-medium leading-relaxed text-white/82">{insight.action}</p>
-            </div>
-            <div className="mt-5 space-y-2 border-t border-white/10 pt-4">
-              {insight.evidence.map((line) => (
-                <p className="font-mono text-xs text-white/42" key={line}>Checked: {line}</p>
-              ))}
-            </div>
-          </motion.article>
-        ))}
+        {visibleInsights.map((insight, index) => {
+          const isWarningTone = insight.tone !== "GOOD" && insight.tone !== "READY";
+          return (
+            <motion.article
+              key={insight.title}
+              className="insight-briefing-row p-6 md:p-7"
+              data-tone={insight.tone.toLowerCase()}
+              initial={{ opacity: 0, y: 34, filter: "blur(14px)" }}
+              whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              viewport={{ once: true }}
+              transition={{ delay: index * 0.09, duration: 0.65 }}
+            >
+              <insight.icon className={`h-10 w-10 ${isWarningTone ? "text-amber-300" : "text-[#18c887]"}`} />
+              <span className="mt-10 inline-block rounded-full bg-white/5 px-3 py-1 font-body text-xs text-white/50">{insight.tone}</span>
+              <h3 className="mt-5 font-heading text-4xl italic leading-[1] tracking-normal">{insight.title}</h3>
+              <p className="mt-5 font-body font-light leading-relaxed text-white/58">{insight.body}</p>
+              <div className="mt-6 border-t border-white/10 pt-4">
+                <p className="font-body text-[10px] uppercase tracking-[0.22em] text-[#18c887]">Review note</p>
+                <p className="mt-2 font-body text-sm font-medium leading-relaxed text-white/82">{insight.action}</p>
+                {index === 0 && analysis.breaches.length > 0 && (
+                  <button className="mt-4 inline-flex items-center gap-2 font-body text-sm font-medium text-amber-200" onClick={() => go("rules")} type="button">
+                    Review active limits <ArrowUpRight className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              <div className="mt-5 space-y-2 border-t border-white/10 pt-4">
+                {insight.evidence.map((line) => (
+                  <p className="font-mono text-xs text-white/42" key={line}>Checked: {line}</p>
+                ))}
+              </div>
+            </motion.article>
+          );
+        })}
         {lockedInsightCount > 0 && (
           <motion.article
             className="insight-briefing-row insight-briefing-locked p-6 md:p-7"
@@ -238,7 +285,7 @@ export function Coach({ analysis, entitlements, go, upgradeToPro }: { analysis: 
             <span className="mt-10 inline-block rounded-full bg-[#18c887]/10 px-3 py-1 font-body text-xs text-[#b9f5df]">PRO</span>
             <h3 className="mt-5 font-heading text-4xl italic leading-[1] tracking-normal">Unlock deeper risk briefs.</h3>
             <p className="mt-5 font-body font-light leading-relaxed text-white/58">
-              Pro keeps full insight history and shows every risk note Cova finds before the next session.
+              Pro shows the full three-part brief for the current imported history.
             </p>
             <div className="mt-6">
               <GlassButton strong onClick={upgradeToPro}>Unlock Pro <ArrowUpRight className="h-4 w-4" /></GlassButton>
@@ -246,49 +293,90 @@ export function Coach({ analysis, entitlements, go, upgradeToPro }: { analysis: 
           </motion.article>
         )}
       </div>
-      <div className="mt-8">
-        <GlassButton strong onClick={() => go("passport")}>Share Risk Passport <ArrowUpRight className="h-4 w-4" /></GlassButton>
+      <div className="mt-8 flex flex-wrap gap-3">
+        <GlassButton onClick={() => go("passport")}>Share Risk Passport <ArrowUpRight className="h-4 w-4" /></GlassButton>
       </div>
     </SectionShell>
   );
 }
 
-type PracticeDraft = {
+type PracticeAccountDraft = {
+  accountSize: string;
+  riskPerTrade: string;
+  maxDailyLoss: string;
+  maxDrawdown: string;
+  market: PracticeMarket;
+  contracts: string;
+  year: string;
   date: string;
-  market: string;
   setup: string;
-  session: string;
-  direction: "Long" | "Short";
-  plannedEntry: string;
-  stop: string;
-  target: string;
-  resultR: string;
-  rulesFollowed: "yes" | "no";
-  mistake: string;
-  screenshotUrl: string;
-  notes: string;
 };
 
-const defaultPracticeDraft = (): PracticeDraft => ({
-  date: new Date().toISOString().slice(0, 10),
+const defaultPracticeDate = "2025-03-14";
+
+const defaultPracticeAccountDraft = (): PracticeAccountDraft => ({
+  accountSize: "50000",
+  riskPerTrade: "500",
+  maxDailyLoss: "1500",
+  maxDrawdown: "2500",
   market: "NQ",
+  contracts: "1",
+  year: "2025",
+  date: defaultPracticeDate,
   setup: "ORH rejection",
-  session: "New York AM",
-  direction: "Short",
-  plannedEntry: "",
-  stop: "",
-  target: "",
-  resultR: "",
-  rulesFollowed: "yes",
-  mistake: "",
-  screenshotUrl: "",
-  notes: "",
 });
 
 export function PracticeLab({ practiceReps, setPracticeReps }: { practiceReps: PracticeRep[]; setPracticeReps: (next: PracticeRep[]) => void }) {
-  const [draft, setDraft] = useState<PracticeDraft>(() => defaultPracticeDraft());
-  const analysis = useMemo(() => analyzePracticeReps(practiceReps), [practiceReps]);
-  const recentReps = useMemo(() => [...practiceReps].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6), [practiceReps]);
+  const [account, setAccount] = useState<PracticeAccount | null>(() => readPracticeAccount());
+  const [simTrades, setSimTrades] = useState<PracticeTrade[]>(() => readPracticeTrades());
+  const [setupOpen, setSetupOpen] = useState(() => !readPracticeAccount());
+  const [accountDraft, setAccountDraft] = useState<PracticeAccountDraft>(() => {
+    const saved = readPracticeAccount();
+    return saved
+      ? {
+          accountSize: String(saved.accountSize),
+          riskPerTrade: String(saved.riskPerTrade),
+          maxDailyLoss: String(saved.maxDailyLoss),
+          maxDrawdown: String(saved.maxDrawdown),
+          market: saved.market,
+          contracts: String(saved.contracts),
+          year: "2025",
+          date: defaultPracticeDate,
+          setup: "ORH rejection",
+        }
+      : defaultPracticeAccountDraft();
+  });
+  const [replayDate, setReplayDate] = useState(accountDraft.date);
+  const [replayYear, setReplayYear] = useState(Number(accountDraft.year));
+  const [activeSetup, setActiveSetup] = useState(accountDraft.setup);
+  const [playIndex, setPlayIndex] = useState(32);
+  const [playing, setPlaying] = useState(false);
+  const [position, setPosition] = useState<PracticePosition | null>(null);
+  const [rulesFollowed, setRulesFollowed] = useState<"yes" | "no">("yes");
+  const [mistake, setMistake] = useState("");
+
+  const previewAccount = useMemo(() => createDefaultPracticeAccount({
+    accountSize: toDraftNumber(accountDraft.accountSize, 50000),
+    riskPerTrade: toDraftNumber(accountDraft.riskPerTrade, 500),
+    maxDailyLoss: toDraftNumber(accountDraft.maxDailyLoss, 1500),
+    maxDrawdown: toDraftNumber(accountDraft.maxDrawdown, 2500),
+    market: accountDraft.market,
+    contracts: toDraftNumber(accountDraft.contracts, 1),
+  }), [accountDraft]);
+  const activeAccount = account ?? previewAccount;
+  const replayTape = useMemo(() => buildReplayTape({
+    date: replayDate,
+    year: replayYear,
+    market: activeAccount.market,
+    setup: activeSetup,
+    session: "New York AM",
+  }), [activeAccount.market, activeSetup, replayDate, replayYear]);
+  const currentCandle = replayTape.candles[Math.min(playIndex, replayTape.candles.length - 1)] ?? replayTape.candles[0];
+  const visibleCandles = replayTape.candles.slice(0, Math.min(playIndex + 1, replayTape.candles.length));
+  const analysis = useMemo(() => analyzePracticeReps(simTrades), [simTrades]);
+  const accountStats = useMemo(() => calculatePracticeAccountStats(activeAccount, simTrades), [activeAccount, simTrades]);
+  const limitStatus = useMemo(() => evaluatePracticeAccountLimits(activeAccount, simTrades, replayTape.date), [activeAccount, replayTape.date, simTrades]);
+  const recentTrades = simTrades.slice(0, 5);
   const topSetups = analysis.bySetup.slice(0, 4);
   const readinessClass = analysis.readiness.tone === "ready"
     ? "text-emerald-300"
@@ -298,80 +386,227 @@ export function PracticeLab({ practiceReps, setPracticeReps }: { practiceReps: P
         ? "text-white/42"
         : "text-red-300";
 
-  function updateDraft<K extends keyof PracticeDraft>(key: K, value: PracticeDraft[K]) {
-    setDraft((current) => ({ ...current, [key]: value }));
+  useEffect(() => {
+    if (account) {
+      localStorage.setItem(PRACTICE_ACCOUNT_STORAGE_KEY, JSON.stringify(account));
+    }
+  }, [account]);
+
+  useEffect(() => {
+    localStorage.setItem(PRACTICE_TRADES_STORAGE_KEY, JSON.stringify(simTrades));
+  }, [simTrades]);
+
+  useEffect(() => {
+    if (!playing) return;
+    const timer = window.setInterval(() => {
+      setPlayIndex((current) => {
+        if (current >= replayTape.candles.length - 1) {
+          setPlaying(false);
+          return current;
+        }
+        return current + 1;
+      });
+    }, 460);
+    return () => window.clearInterval(timer);
+  }, [playing, replayTape.candles.length]);
+
+  function updateAccountDraft<K extends keyof PracticeAccountDraft>(key: K, value: PracticeAccountDraft[K]) {
+    setAccountDraft((current) => ({ ...current, [key]: value }));
   }
 
-  function saveRep(event: FormEvent<HTMLFormElement>) {
+  function createAccount(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const rep: PracticeRep = {
-      id: `practice-${Date.now()}`,
-      date: draft.date,
-      market: draft.market.trim() || "NQ",
-      setup: draft.setup.trim() || "Untitled setup",
-      session: draft.session.trim() || "New York AM",
-      direction: draft.direction,
-      plannedEntry: toNumber(draft.plannedEntry),
-      stop: toNumber(draft.stop),
-      target: toNumber(draft.target),
-      resultR: toNumber(draft.resultR),
-      rulesFollowed: draft.rulesFollowed === "yes",
-      mistake: draft.mistake.trim(),
-      screenshotUrl: draft.screenshotUrl.trim(),
-      notes: draft.notes.trim(),
-    };
-    setPracticeReps([rep, ...practiceReps]);
-    setDraft((current) => ({ ...current, resultR: "", mistake: "", screenshotUrl: "", notes: "" }));
+    const nextAccount = createDefaultPracticeAccount({
+      accountSize: toDraftNumber(accountDraft.accountSize, 50000),
+      riskPerTrade: toDraftNumber(accountDraft.riskPerTrade, 500),
+      maxDailyLoss: toDraftNumber(accountDraft.maxDailyLoss, 1500),
+      maxDrawdown: toDraftNumber(accountDraft.maxDrawdown, 2500),
+      market: accountDraft.market,
+      contracts: toDraftNumber(accountDraft.contracts, 1),
+    });
+    const accountChanged = account ? hasPracticeAccountConfigurationChanged(account, nextAccount) : true;
+    if (accountChanged) {
+      const simulatedIds = new Set(simTrades.map((trade) => trade.id));
+      setSimTrades([]);
+      setPracticeReps(practiceReps.filter((rep) => !simulatedIds.has(rep.id)));
+    }
+    setAccount(account && !accountChanged ? account : nextAccount);
+    setReplayDate(accountDraft.date);
+    setReplayYear(toDraftNumber(accountDraft.year, 2025));
+    setActiveSetup(accountDraft.setup || "ORH rejection");
+    setPlayIndex(32);
+    setPosition(null);
+    setPlaying(false);
+    setSetupOpen(false);
   }
 
-  function removeRep(id: string) {
-    setPracticeReps(practiceReps.filter((rep) => rep.id !== id));
+  function resetAccount() {
+    const confirmed = window.confirm("Reset the practice account and clear simulated trades?");
+    if (!confirmed) return;
+    const simulatedIds = new Set(simTrades.map((trade) => trade.id));
+    localStorage.removeItem(PRACTICE_ACCOUNT_STORAGE_KEY);
+    localStorage.removeItem(PRACTICE_TRADES_STORAGE_KEY);
+    setAccount(null);
+    setSimTrades([]);
+    setPracticeReps(practiceReps.filter((rep) => !simulatedIds.has(rep.id)));
+    setPosition(null);
+    setSetupOpen(true);
+  }
+
+  function loadReplayFromControls() {
+    setReplayDate(accountDraft.date);
+    setReplayYear(toDraftNumber(accountDraft.year, 2025));
+    setActiveSetup(accountDraft.setup || "ORH rejection");
+    setPlayIndex(32);
+    setPlaying(false);
+    setPosition(null);
+  }
+
+  function openPracticePosition(direction: PracticeDirection) {
+    if (!account || position || !currentCandle || !limitStatus.canOpenNewPosition) return;
+    setPosition({
+      id: `practice-position-${Date.now()}`,
+      direction,
+      entryIndex: playIndex,
+      entryPrice: currentCandle.close,
+      contracts: account.contracts,
+    });
+  }
+
+  function closePracticePosition() {
+    if (!account || !position || !currentCandle) return;
+    const trade = createPracticeTrade({
+      account,
+      tape: replayTape,
+      direction: position.direction,
+      entryIndex: position.entryIndex,
+      entryPrice: position.entryPrice,
+      exitIndex: playIndex,
+      exitPrice: currentCandle.close,
+      contracts: position.contracts,
+      rulesFollowed: rulesFollowed === "yes",
+      mistake: mistake.trim(),
+      notes: `Replay close from ${replayTape.date} ${replayTape.setup}`,
+    });
+    setSimTrades((current) => [trade, ...current]);
+    setPracticeReps([trade, ...practiceReps.filter((rep) => rep.id !== trade.id)]);
+    setPosition(null);
+    setMistake("");
+    setRulesFollowed("yes");
+  }
+
+  function stepReplay(amount: number) {
+    const earliestIndex = position ? position.entryIndex : 6;
+    setPlayIndex((current) => Math.max(earliestIndex, Math.min(replayTape.candles.length - 1, current + amount)));
   }
 
   return (
     <SectionShell
       eyebrow="Backtesting Lab"
-      title="Practice replay before live size."
+      title="Practice replay and review."
       variant="workspace"
       backdrop={<ImageAtmosphere src="/media/cova-dashboard-plate.jpg" align="right" opacity="opacity-[0.16]" />}
     >
-      <div className="practice-lab-grid grid gap-6 xl:grid-cols-[0.72fr_1.28fr]">
+      <div className="practice-simulator-grid grid gap-6 xl:grid-cols-[0.78fr_1.22fr]">
         <aside className="practice-command-panel p-6 md:p-7">
           <div className="flex flex-wrap items-center gap-3">
             <span className="terminal-tab-label inline-flex rounded-full px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.24em] text-[#b9f5df]">Practice replay</span>
-            <span className="rounded-full border border-white/10 bg-black/28 px-3 py-1.5 font-body text-xs text-white/48">TradingView sidecar</span>
+            <span className="rounded-full border border-white/10 bg-black/28 px-3 py-1.5 font-body text-xs text-white/48">In-app simulator</span>
           </div>
           <Target className="mt-8 h-10 w-10 text-[#18c887]" />
-          <h3 className="mt-6 font-body text-3xl font-semibold leading-[0.98] tracking-[-0.05em] md:text-4xl">Train the setup before it touches the account.</h3>
+          <h3 className="mt-6 font-body text-3xl font-semibold leading-[0.98] tracking-[-0.05em] md:text-4xl">A chart room for deliberate reps.</h3>
           <p className="mt-5 font-body text-sm leading-relaxed text-white/58">
-            Use TradingView replay as the chart workstation, then log the rep here. Cova tracks whether the setup is actually practiced enough for live permission.
+            Choose the account, date, market, and setup. Cova reveals a deterministic demo tape, records simulated executions, and turns those practice reps into stats. It is not historical market data.
           </p>
 
           <div className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
             <div className="practice-stat-row">
-              <span>Total reps</span>
-              <strong>{analysis.totalReps}</strong>
+              <span>Practice account</span>
+              <strong>{formatMoney(accountStats.balance)}</strong>
             </div>
             <div className="practice-stat-row">
-              <span>Avg R</span>
-              <strong>{analysis.avgR.toFixed(2)}R</strong>
+              <span>Net P&L</span>
+              <strong className={accountStats.netPnl >= 0 ? "text-emerald-300" : "text-red-300"}>{formatMoney(accountStats.netPnl)}</strong>
             </div>
             <div className="practice-stat-row">
-              <span>Rule follow</span>
-              <strong>{formatPercent(analysis.ruleFollowRate)}</strong>
+              <span>Trades</span>
+              <strong>{accountStats.tradeCount}</strong>
             </div>
             <div className="practice-stat-row">
-              <span>Win rate</span>
-              <strong>{formatPercent(analysis.winRate)}</strong>
+              <span>Max DD</span>
+              <strong>{formatMoney(accountStats.maxDrawdown)}</strong>
+            </div>
+            <div className="practice-stat-row sm:col-span-2 xl:col-span-1">
+              <span>Practice limits</span>
+              <strong className={limitStatus.canOpenNewPosition ? "text-emerald-300" : "text-red-300"}>{limitStatus.label}</strong>
             </div>
           </div>
+
+          <button className="practice-reset-account mt-6" type="button" onClick={() => setSetupOpen(true)}>
+            Change account / replay date
+          </button>
         </aside>
 
         <div className="grid gap-6">
+          <section className="practice-chart-panel p-4 md:p-6">
+            <div className="practice-chart-header flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <p className="font-body text-xs uppercase tracking-[0.22em] text-[#18c887]">Replay chart</p>
+                <h3 className="mt-2 font-body text-2xl font-semibold tracking-[-0.04em]">{replayTape.market} · {replayTape.date} · {activeSetup}</h3>
+                <p className="mt-2 font-body text-xs text-white/42">ORH {replayTape.levels.openingRangeHigh.toFixed(2)} · ORL {replayTape.levels.openingRangeLow.toFixed(2)} · VWAP {replayTape.levels.vwap.toFixed(2)}</p>
+              </div>
+              <div className="practice-date-controls">
+                <label>
+                  <span>Choose date</span>
+                  <input type="date" value={accountDraft.date} onChange={(event) => updateAccountDraft("date", event.target.value)} />
+                </label>
+                <label>
+                  <span>Year</span>
+                  <input type="number" min="2018" max="2026" value={accountDraft.year} onChange={(event) => updateAccountDraft("year", event.target.value)} />
+                </label>
+                <button type="button" onClick={loadReplayFromControls}>Load</button>
+              </div>
+            </div>
+
+            <TradingViewChartHost candles={visibleCandles} currentIndex={playIndex} position={position} tape={replayTape} trades={simTrades} />
+
+            <div className="practice-replay-controls mt-5 grid gap-3 xl:grid-cols-[1fr_auto] xl:items-center">
+              <div className="flex flex-wrap gap-2">
+                <button disabled={Boolean(position)} type="button" onClick={() => stepReplay(-12)}>Back 1h</button>
+                <button type="button" onClick={() => stepReplay(1)}>Step</button>
+                <button type="button" onClick={() => setPlaying((current) => !current)}>{playing ? "Pause" : "Play"}</button>
+                <button type="button" onClick={() => { setPlaying(false); setPlayIndex(32); setPosition(null); }}>Reset tape</button>
+              </div>
+              <div className="practice-execution-controls">
+                <button className="buy" disabled={!account || Boolean(position) || !limitStatus.canOpenNewPosition} type="button" onClick={() => openPracticePosition("Long")}>Buy</button>
+                <button className="sell" disabled={!account || Boolean(position) || !limitStatus.canOpenNewPosition} type="button" onClick={() => openPracticePosition("Short")}>Sell</button>
+                <button className="close" disabled={!position} type="button" onClick={closePracticePosition}>Close position</button>
+              </div>
+            </div>
+
+            <div className="practice-ticket-row mt-4 grid gap-3 md:grid-cols-[1fr_1fr_1.2fr]">
+              <label className="practice-field compact">
+                <span>Rules followed?</span>
+                <select value={rulesFollowed} onChange={(event) => setRulesFollowed(event.target.value as "yes" | "no")}>
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
+                </select>
+              </label>
+              <div className="practice-field compact">
+                <span>Open position</span>
+                <strong>{position ? `${position.direction} ${position.contracts} @ ${position.entryPrice.toFixed(2)}` : "Flat"}</strong>
+              </div>
+              <label className="practice-field compact">
+                <span>Mistake / leak</span>
+                <input value={mistake} onChange={(event) => setMistake(event.target.value)} placeholder="Held past invalidation" />
+              </label>
+            </div>
+          </section>
+
           <section className="practice-readiness-panel p-6 md:p-7">
             <div className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr] lg:items-end">
               <div>
-                <p className="font-body text-xs uppercase tracking-[0.22em] text-[#18c887]">Live permission</p>
+                <p className="font-body text-xs uppercase tracking-[0.22em] text-[#18c887]">Practice readiness</p>
                 <h3 className={`mt-3 font-body text-4xl font-semibold tracking-[-0.05em] ${readinessClass}`}>{analysis.readiness.label}</h3>
                 <p className="mt-3 max-w-xl font-body text-sm leading-relaxed text-white/58">{analysis.readiness.summary}</p>
               </div>
@@ -381,80 +616,6 @@ export function PracticeLab({ practiceReps, setPracticeReps }: { practiceReps: P
               </div>
             </div>
           </section>
-
-          <form className="practice-log-form p-6 md:p-7" onSubmit={saveRep}>
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <p className="font-body text-xs uppercase tracking-[0.22em] text-[#18c887]">Log practice rep</p>
-                <h3 className="mt-2 font-body text-2xl font-semibold tracking-[-0.04em]">One replay rep. One decision.</h3>
-              </div>
-              <GlassButton strong type="submit"><Plus className="h-4 w-4" /> Save rep</GlassButton>
-            </div>
-
-            <div className="mt-6 grid gap-4 md:grid-cols-4">
-              <label className="practice-field">
-                <span>Date</span>
-                <input type="date" value={draft.date} onChange={(event) => updateDraft("date", event.target.value)} />
-              </label>
-              <label className="practice-field">
-                <span>Market</span>
-                <input value={draft.market} onChange={(event) => updateDraft("market", event.target.value.toUpperCase())} placeholder="NQ" />
-              </label>
-              <label className="practice-field md:col-span-2">
-                <span>Setup</span>
-                <input list="practice-setup-options" value={draft.setup} onChange={(event) => updateDraft("setup", event.target.value)} placeholder="ORH rejection" />
-                <datalist id="practice-setup-options">
-                  {practiceSetupOptions.map((setup) => <option key={setup} value={setup} />)}
-                </datalist>
-              </label>
-              <label className="practice-field md:col-span-2">
-                <span>Session</span>
-                <input value={draft.session} onChange={(event) => updateDraft("session", event.target.value)} placeholder="New York AM" />
-              </label>
-              <label className="practice-field">
-                <span>Direction</span>
-                <select value={draft.direction} onChange={(event) => updateDraft("direction", event.target.value as PracticeDraft["direction"])}>
-                  <option>Long</option>
-                  <option>Short</option>
-                </select>
-              </label>
-              <label className="practice-field">
-                <span>Result R</span>
-                <input type="number" step="0.1" value={draft.resultR} onChange={(event) => updateDraft("resultR", event.target.value)} placeholder="1.2" />
-              </label>
-              <label className="practice-field">
-                <span>Planned entry</span>
-                <input type="number" step="0.25" value={draft.plannedEntry} onChange={(event) => updateDraft("plannedEntry", event.target.value)} placeholder="19000" />
-              </label>
-              <label className="practice-field">
-                <span>Stop</span>
-                <input type="number" step="0.25" value={draft.stop} onChange={(event) => updateDraft("stop", event.target.value)} placeholder="19030" />
-              </label>
-              <label className="practice-field">
-                <span>Target</span>
-                <input type="number" step="0.25" value={draft.target} onChange={(event) => updateDraft("target", event.target.value)} placeholder="18940" />
-              </label>
-              <label className="practice-field">
-                <span>Rules followed?</span>
-                <select value={draft.rulesFollowed} onChange={(event) => updateDraft("rulesFollowed", event.target.value as PracticeDraft["rulesFollowed"])}>
-                  <option value="yes">Yes</option>
-                  <option value="no">No</option>
-                </select>
-              </label>
-              <label className="practice-field md:col-span-2">
-                <span>Mistake / leak</span>
-                <input value={draft.mistake} onChange={(event) => updateDraft("mistake", event.target.value)} placeholder="Entered before rejection confirmed" />
-              </label>
-              <label className="practice-field md:col-span-2">
-                <span>Screenshot or TradingView link</span>
-                <input value={draft.screenshotUrl} onChange={(event) => updateDraft("screenshotUrl", event.target.value)} placeholder="https://..." />
-              </label>
-              <label className="practice-field md:col-span-4">
-                <span>Notes</span>
-                <textarea value={draft.notes} onChange={(event) => updateDraft("notes", event.target.value)} placeholder="What did price do at the level? Did you wait for confirmation?" />
-              </label>
-            </div>
-          </form>
 
           <div className="practice-review-grid grid gap-6 xl:grid-cols-[1fr_0.9fr]">
             <section className="practice-setups-panel p-6 md:p-7">
@@ -481,36 +642,233 @@ export function PracticeLab({ practiceReps, setPracticeReps }: { practiceReps: P
             <section className="practice-recent-panel p-6 md:p-7">
               <div className="flex items-center gap-3">
                 <CalendarDays className="h-5 w-5 text-[#18c887]" />
-                <h3 className="font-body text-xl font-semibold tracking-[-0.03em]">Recent reps</h3>
+                <h3 className="font-body text-xl font-semibold tracking-[-0.03em]">Practice trades</h3>
               </div>
               <div className="mt-5 grid gap-3">
-                {recentReps.map((rep) => (
-                  <div className="practice-rep-row" key={rep.id}>
+                {recentTrades.length ? recentTrades.map((trade) => (
+                  <div className="practice-rep-row" key={trade.id}>
                     <div>
-                      <strong>{rep.setup}</strong>
-                      <span>{rep.date} · {rep.market} · {rep.direction}</span>
+                      <strong>{trade.direction} {trade.market}</strong>
+                      <span>{trade.date} · {trade.entryPrice.toFixed(2)} → {trade.exitPrice.toFixed(2)}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className={rep.rulesFollowed ? "text-emerald-300" : "text-red-300"}>{rep.rulesFollowed ? <CheckCircle2 className="h-4 w-4" /> : "Flag"}</span>
-                      <strong>{rep.resultR.toFixed(2)}R</strong>
-                      <button aria-label={`Remove ${rep.setup} practice rep`} type="button" onClick={() => removeRep(rep.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                    <div className="flex items-center gap-3">
+                      <span className={trade.pnl >= 0 ? "text-emerald-300" : "text-red-300"}>{formatMoney(trade.pnl)}</span>
+                      <strong>{trade.resultR.toFixed(2)}R</strong>
                     </div>
                   </div>
-                ))}
+                )) : (
+                  <div className="practice-empty-trades">
+                    Open the replay, hit Buy or Sell, then Close position. Cova will fill this ledger from the practice account automatically.
+                  </div>
+                )}
               </div>
             </section>
           </div>
         </div>
       </div>
+
+      {setupOpen && createPortal(
+        <div className="practice-setup-modal" role="dialog" aria-modal="true" aria-label="Set practice account">
+          <form className="practice-setup-card" onSubmit={createAccount}>
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div>
+                <p className="font-body text-xs uppercase tracking-[0.24em] text-[#18c887]">Set practice account</p>
+                <h3 className="mt-3 font-body text-3xl font-semibold tracking-[-0.05em]">Build the replay account first.</h3>
+                <p className="mt-3 max-w-xl font-body text-sm leading-relaxed text-white/58">
+                  Pick the paper account size, drawdown limits, market, year, and starting date. Then the full Practice section opens as a simulator.
+                </p>
+              </div>
+              {account && <button className="practice-modal-close" type="button" onClick={() => setSetupOpen(false)}>Close</button>}
+            </div>
+
+            <div className="mt-7 grid gap-4 md:grid-cols-4">
+              <label className="practice-field">
+                <span>Account size</span>
+                <input type="number" min="1000" required step="1000" value={accountDraft.accountSize} onChange={(event) => updateAccountDraft("accountSize", event.target.value)} />
+              </label>
+              <label className="practice-field">
+                <span>Risk / trade</span>
+                <input type="number" min="1" required step="50" value={accountDraft.riskPerTrade} onChange={(event) => updateAccountDraft("riskPerTrade", event.target.value)} />
+              </label>
+              <label className="practice-field">
+                <span>Max daily loss</span>
+                <input type="number" min="1" required step="50" value={accountDraft.maxDailyLoss} onChange={(event) => updateAccountDraft("maxDailyLoss", event.target.value)} />
+              </label>
+              <label className="practice-field">
+                <span>Max drawdown</span>
+                <input type="number" min="1" required step="50" value={accountDraft.maxDrawdown} onChange={(event) => updateAccountDraft("maxDrawdown", event.target.value)} />
+              </label>
+              <label className="practice-field">
+                <span>Market</span>
+                <select value={accountDraft.market} onChange={(event) => updateAccountDraft("market", event.target.value as PracticeMarket)}>
+                  <option value="NQ">NQ</option>
+                  <option value="MNQ">MNQ</option>
+                  <option value="ES">ES</option>
+                  <option value="MES">MES</option>
+                </select>
+              </label>
+              <label className="practice-field">
+                <span>Contracts</span>
+                <input type="number" min="1" max="20" required step="1" value={accountDraft.contracts} onChange={(event) => updateAccountDraft("contracts", event.target.value)} />
+              </label>
+              <label className="practice-field">
+                <span>Year</span>
+                <input type="number" min="2018" max="2026" required value={accountDraft.year} onChange={(event) => updateAccountDraft("year", event.target.value)} />
+              </label>
+              <label className="practice-field">
+                <span>Choose date</span>
+                <input type="date" required value={accountDraft.date} onChange={(event) => updateAccountDraft("date", event.target.value)} />
+              </label>
+              <label className="practice-field md:col-span-2">
+                <span>Setup to drill</span>
+                <input list="practice-setup-options" required value={accountDraft.setup} onChange={(event) => updateAccountDraft("setup", event.target.value)} />
+                <datalist id="practice-setup-options">
+                  {practiceSetupOptions.map((setup) => <option key={setup} value={setup} />)}
+                </datalist>
+              </label>
+              <div className="practice-account-preview md:col-span-2">
+                <span>Preview</span>
+                <strong>{formatMoney(previewAccount.accountSize)} · {previewAccount.contracts} {previewAccount.market}</strong>
+                <p>Risk {formatMoney(previewAccount.riskPerTrade)} / trade · daily stop {formatMoney(previewAccount.maxDailyLoss)}</p>
+              </div>
+            </div>
+
+            <div className="mt-7 flex flex-wrap items-center justify-between gap-3">
+              <button className="practice-danger-link" type="button" onClick={resetAccount}>Reset account</button>
+              <GlassButton strong type="submit">Enter replay simulator <ArrowUpRight className="h-4 w-4" /></GlassButton>
+            </div>
+          </form>
+        </div>,
+        document.body,
+      )}
     </SectionShell>
   );
 }
 
-function toNumber(value: string) {
+function ReplayChart({ candles, position, tape, trades }: { candles: ReplayCandle[]; position: PracticePosition | null; tape: ReplayTape; trades: PracticeTrade[] }) {
+  const width = 920;
+  const height = 360;
+  const plotLeft = 48;
+  const plotRight = 18;
+  const plotTop = 24;
+  const plotBottom = 34;
+  const plotWidth = width - plotLeft - plotRight;
+  const plotHeight = height - plotTop - plotBottom;
+  const levelValues = [tape.levels.openingRangeHigh, tape.levels.openingRangeLow, tape.levels.vwap, tape.levels.overnightResistance];
+  const lows = candles.map((candle) => candle.low).concat(levelValues);
+  const highs = candles.map((candle) => candle.high).concat(levelValues);
+  const min = Math.min(...lows) - 8;
+  const max = Math.max(...highs) + 8;
+  const range = Math.max(1, max - min);
+  const xFor = (index: number) => plotLeft + (candles.length <= 1 ? 0 : (index / Math.max(1, candles.length - 1)) * plotWidth);
+  const yFor = (price: number) => plotTop + ((max - price) / range) * plotHeight;
+  const candleWidth = Math.max(3, Math.min(11, plotWidth / Math.max(12, candles.length) * 0.58));
+  const last = candles[candles.length - 1];
+  const visibleTradeMarkers = trades.filter((trade) => trade.date === tape.date && trade.market === tape.market && trade.setup === tape.setup && trade.exitIndex < candles.length).slice(0, 24);
+  const levelRows = [
+    { label: "ONR", value: tape.levels.overnightResistance, className: "level-resistance" },
+    { label: "ORH", value: tape.levels.openingRangeHigh, className: "level-orh" },
+    { label: "VWAP", value: tape.levels.vwap, className: "level-vwap" },
+    { label: "ORL", value: tape.levels.openingRangeLow, className: "level-orl" },
+  ];
+
+  return (
+    <div className="practice-chart-shell mt-5" aria-label="Replay chart">
+      <svg viewBox={`0 0 ${width} ${height}`} role="img">
+        <defs>
+          <linearGradient id="practiceChartGlow" x1="0" x2="1" y1="0" y2="1">
+            <stop offset="0%" stopColor="#18c887" stopOpacity="0.12" />
+            <stop offset="100%" stopColor="#0b0d10" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <rect x="0" y="0" width={width} height={height} rx="18" fill="#07090b" />
+        <rect x={plotLeft} y={plotTop} width={plotWidth} height={plotHeight} fill="url(#practiceChartGlow)" />
+        {[0.25, 0.5, 0.75].map((row) => (
+          <line key={row} x1={plotLeft} x2={width - plotRight} y1={plotTop + row * plotHeight} y2={plotTop + row * plotHeight} stroke="rgba(255,255,255,0.06)" />
+        ))}
+        {levelRows.map((level) => {
+          const y = yFor(level.value);
+          return (
+            <g key={level.label} className={level.className}>
+              <line x1={plotLeft} x2={width - plotRight} y1={y} y2={y} strokeDasharray="5 7" />
+              <text x={plotLeft + 8} y={y - 5}>{level.label} {level.value.toFixed(2)}</text>
+            </g>
+          );
+        })}
+        {candles.map((candle, localIndex) => {
+          const x = xFor(localIndex);
+          const green = candle.close >= candle.open;
+          const bodyY = yFor(Math.max(candle.open, candle.close));
+          const bodyHeight = Math.max(2, Math.abs(yFor(candle.open) - yFor(candle.close)));
+          return (
+            <g key={`${candle.time}-${localIndex}`} className={green ? "candle up" : "candle down"}>
+              <line x1={x} x2={x} y1={yFor(candle.high)} y2={yFor(candle.low)} />
+              <rect x={x - candleWidth / 2} y={bodyY} width={candleWidth} height={bodyHeight} rx="1.5" />
+            </g>
+          );
+        })}
+        {position && position.entryIndex < candles.length && (
+          <g className="position-line">
+            <line x1={plotLeft} x2={width - plotRight} y1={yFor(position.entryPrice)} y2={yFor(position.entryPrice)} />
+            <circle cx={xFor(position.entryIndex)} cy={yFor(position.entryPrice)} r="5" />
+            <text x={width - 176} y={yFor(position.entryPrice) - 7}>{position.direction} @ {position.entryPrice.toFixed(2)}</text>
+          </g>
+        )}
+        {visibleTradeMarkers.map((trade) => (
+          <g className={trade.pnl >= 0 ? "trade-marker win" : "trade-marker loss"} key={trade.id}>
+            <circle cx={xFor(trade.exitIndex)} cy={yFor(trade.exitPrice)} r="4" />
+            <text x={xFor(trade.exitIndex) + 6} y={yFor(trade.exitPrice) - 6}>{trade.resultR.toFixed(1)}R</text>
+          </g>
+        ))}
+        {last && (
+          <g className="current-price-pin">
+            <line x1={plotLeft} x2={width - plotRight} y1={yFor(last.close)} y2={yFor(last.close)} />
+            <rect x={width - 112} y={yFor(last.close) - 12} width="92" height="24" rx="12" />
+            <text x={width - 66} y={yFor(last.close) + 4} textAnchor="middle">{last.close.toFixed(2)}</text>
+          </g>
+        )}
+        <text className="chart-time-label" x={plotLeft} y={height - 12}>{candles[0]?.time ?? tape.date}</text>
+        <text className="chart-time-label" x={width - plotRight} y={height - 12} textAnchor="end">{last?.time ?? tape.date}</text>
+      </svg>
+    </div>
+  );
+}
+
+function readPracticeAccount(): PracticeAccount | null {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(PRACTICE_ACCOUNT_STORAGE_KEY) ?? "null");
+    if (parsed?.accountSize && parsed?.market) {
+      return parsed as PracticeAccount;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function readPracticeTrades(): PracticeTrade[] {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(PRACTICE_TRADES_STORAGE_KEY) ?? "[]");
+    if (Array.isArray(parsed)) {
+      return parsed.filter((trade): trade is PracticeTrade => (
+        typeof trade?.id === "string" &&
+        typeof trade?.date === "string" &&
+        typeof trade?.market === "string" &&
+        typeof trade?.entryPrice === "number" &&
+        typeof trade?.exitPrice === "number" &&
+        typeof trade?.pnl === "number"
+      ));
+    }
+  } catch {
+    return [];
+  }
+  return [];
+}
+
+function toDraftNumber(value: string, fallback: number) {
+  if (!value.trim()) return fallback;
   const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
+  return Number.isFinite(parsed) ? parsed : fallback;
 }
 
 type PassportTier = {
@@ -524,6 +882,15 @@ type PassportTier = {
 };
 
 type PassportShareModeId = "flex" | "discipline" | "private" | "coach";
+type PassportExportPresetId = "feed" | "square" | "story";
+
+type PassportExportPreset = {
+  height: number;
+  id: PassportExportPresetId;
+  label: string;
+  note: string;
+  width: number;
+};
 
 type PassportShareMode = {
   cardSubtitle: string;
@@ -573,6 +940,12 @@ const passportShareModes: PassportShareMode[] = [
     reveals: ["Top leak", "Rule breaches", "Next fix", "Risk score"],
     hidden: ["Shareable flex stats", "Public P&L", "Broker details"],
   },
+];
+
+const passportExportPresets: PassportExportPreset[] = [
+  { id: "feed", label: "Feed 4:5", note: "Best all-around post", width: 1080, height: 1350 },
+  { id: "square", label: "Square 1:1", note: "Profile and chat share", width: 1080, height: 1080 },
+  { id: "story", label: "Story 9:16", note: "Full-screen vertical", width: 1080, height: 1920 },
 ];
 
 function getPassportTier(analysis: ReturnType<typeof analyze>): PassportTier {
@@ -653,13 +1026,13 @@ function getPassportTier(analysis: ReturnType<typeof analyze>): PassportTier {
   }
   if (inTheRed) {
     return {
-      badge: "BL",
-      rank: "Blown",
-      skin: "Red account warning",
-      headline: "Account is in the red",
-      summary: "This Passport is not flex-ready. First job is stopping the leak and rebuilding control.",
-      className: "passport-tier-blown",
-      cardClass: "passport-card-skin-blown",
+      badge: "B",
+      rank: "Bronze",
+      skin: "Rebuild phase",
+      headline: "Red sample. Reset the process.",
+      summary: "The account is down, so the card stays honest: reduce the leaks, stack clean trades, and rebuild from Bronze.",
+      className: "passport-tier-rebuild",
+      cardClass: "passport-card-skin-rebuild",
     };
   }
   if (tradeCount < 10) {
@@ -923,57 +1296,90 @@ function getPrimaryLeak(analysis: ReturnType<typeof analyze>) {
 }
 
 function getPassportProofLine(tier: PassportTier, analysis: ReturnType<typeof analyze>) {
+  if (analysis.totalPnl < 0) {
+    return "Red sample · rebuild control";
+  }
   if (tier.rank === "Diamond") {
-    return "Elite control · verified restraint";
+    return "Elite control · high-confidence review";
   }
   if (tier.rank === "Platinum") {
-    return "Funded-ready control";
+    return "Profitable · pressure tested";
   }
   if (tier.rank === "Gold") {
-    return "Profitable control";
+    return "Profitable · leaks still visible";
   }
   if (tier.rank === "Silver") {
-    return "Green but inconsistent";
+    return "Green · still inconsistent";
   }
   if (tier.rank === "Bronze") {
-    return "Ranked / weak control";
+    return "Ranked · control needs work";
   }
-  if (tier.rank === "Unranked") {
-    return `${Math.max(0, 10 - analysis.trades.length)} trades until rank unlock`;
-  }
-  return "Account red / rebuild control first";
+  return `${Math.max(0, 10 - analysis.trades.length)} trades until rank unlock`;
 }
 
 function getPassportNextTarget(tier: PassportTier, analysis: ReturnType<typeof analyze>) {
+  if (analysis.totalPnl < 0) {
+    return "Reset: 5 clean trades · zero daily-loss breaches";
+  }
   if (tier.rank === "Diamond") {
-    return "Top rank · profit made clean · rules held under pressure";
+    return "Top rank · keep the process boring";
   }
   if (tier.rank === "Platinum") {
-    return "To Diamond: 90 score · 90% rules held · zero-breach week";
+    return "Diamond: 90 score · 90% rules held · zero-breach week";
   }
   if (tier.rank === "Gold") {
-    return "To Platinum: 20 trades · 80% rules held · 1.25 PF";
+    return "Platinum: 20 trades · 80% rules held · 1.25 PF";
   }
   if (tier.rank === "Silver") {
-    return "To Gold: 68 score · 70% rules held · 1.25 PF";
+    return "Gold: 68 score · 70% rules held · 1.25 PF";
   }
   if (tier.rank === "Bronze") {
-    return "To Silver: 60% rules held · PF 1.10 · fewer breaches";
+    return "Silver: 60% rules held · PF 1.10 · fewer breaches";
   }
-  if (tier.rank === "Unranked") {
-    return `Next: ${Math.max(0, 10 - analysis.trades.length)} more reviewed trades to unlock rank`;
-  }
-  return "Next: 5 clean trades · no daily-loss breaches";
+  return `${Math.max(0, 10 - analysis.trades.length)} more reviewed trades to unlock rank`;
+}
+
+function getPassportMoodLine(tier: PassportTier, analysis: ReturnType<typeof analyze>) {
+  const leakCount = analysis.breaches.length;
+  const leaks = `${leakCount} leak${leakCount === 1 ? "" : "s"}`;
+  if (analysis.totalPnl < 0) return "Red. Reset before the next click.";
+  if (tier.rank === "Diamond") return "Locked in. No chaos required.";
+  if (tier.rank === "Platinum") return leakCount ? `Sharp. ${leaks} left.` : "Clean money. Clean process.";
+  if (tier.rank === "Gold") return leakCount ? `Green. ${leaks} left.` : "Green. Now keep it boring.";
+  if (tier.rank === "Silver") return "Green, but the rules need work.";
+  if (tier.rank === "Bronze") return "The proof is early. Keep stacking reps.";
+  return `${Math.max(0, 10 - analysis.trades.length)} more trades and this gets interesting.`;
+}
+
+function getPassportSparkline(analysis: ReturnType<typeof analyze>) {
+  const trades = analysis.trades.slice(-18);
+  const values = trades.reduce<number[]>((running, trade) => {
+    running.push(running[running.length - 1] + trade.pnl);
+    return running;
+  }, [0]);
+  const minimum = Math.min(...values);
+  const maximum = Math.max(...values);
+  const spread = Math.max(1, maximum - minimum);
+  return values.map((value, index) => {
+    const x = values.length === 1 ? 0 : (index / (values.length - 1)) * 100;
+    const y = 92 - ((value - minimum) / spread) * 84;
+    return `${x.toFixed(2)},${y.toFixed(2)}`;
+  }).join(" ");
+}
+
+function getPassportMarketLine(analysis: ReturnType<typeof analyze>) {
+  const markets = [...new Set(analysis.trades.map((trade) => trade.market).filter(Boolean))].slice(0, 2);
+  return markets.length ? markets.join(" / ") : "MULTI-MARKET";
 }
 
 function getPassportStats(analysis: ReturnType<typeof analyze>, mode: PassportShareModeId): PassportStat[] {
     if (mode === "discipline") {
       return [
-        { label: "Cova score", value: `${analysis.score}`, tone: "positive" },
+        { label: "Control score", value: `${analysis.score}`, tone: "positive" },
         { label: "Rules held", value: formatPercent(analysis.compliance), tone: analysis.compliance >= 0.75 ? "positive" : "negative" },
         { label: "Average R", value: `${analysis.avgR.toFixed(2)}R`, tone: analysis.avgR >= 0 ? "positive" : "negative" },
         { label: "Max DD", value: formatMoney(Math.round(analysis.maxDrawdown)), tone: analysis.maxDrawdown > 0 ? "neutral" : "positive" },
-        { label: "Verified trades", value: `${analysis.trades.length}`, tone: "neutral" },
+        { label: "Trades reviewed", value: `${analysis.trades.length}`, tone: "neutral" },
         { label: "Breaches", value: `${analysis.breaches.length}`, tone: analysis.breaches.length ? "negative" : "positive" },
       ];
     }
@@ -983,13 +1389,13 @@ function getPassportStats(analysis: ReturnType<typeof analyze>, mode: PassportSh
         { label: "Rules held", value: formatPercent(analysis.compliance), tone: analysis.compliance >= 0.75 ? "positive" : "negative" },
         { label: "Sample", value: analysis.evidenceQuality.label, tone: "neutral" },
         { label: "Generated", value: analysis.latestDate, tone: "neutral" },
-        { label: "Verified trades", value: `${analysis.trades.length}`, tone: "neutral" },
+        { label: "Trades reviewed", value: `${analysis.trades.length}`, tone: "neutral" },
         { label: "Visibility", value: "Masked", tone: "neutral" },
       ];
     }
     if (mode === "coach") {
       return [
-        { label: "Cova score", value: `${analysis.score}`, tone: "neutral" },
+        { label: "Control score", value: `${analysis.score}`, tone: "neutral" },
         { label: "Flags", value: `${analysis.breaches.length}`, tone: analysis.breaches.length ? "negative" : "positive" },
         { label: "Top leak", value: getPrimaryLeak(analysis), tone: analysis.breaches.length ? "negative" : "positive" },
         { label: "Next", value: analysis.nextSessionBrief.status.toUpperCase(), tone: analysis.nextSessionBrief.status === "ready" ? "positive" : "negative" },
@@ -999,9 +1405,9 @@ function getPassportStats(analysis: ReturnType<typeof analyze>, mode: PassportSh
     }
     return [
       { label: "Net P&L", value: formatMoney(analysis.totalPnl), tone: analysis.totalPnl >= 0 ? "positive" : "negative" },
-      { label: "Cova score", value: `${analysis.score}`, tone: "positive" },
+      { label: "Control score", value: `${analysis.score}`, tone: "positive" },
       { label: "Rules held", value: formatPercent(analysis.compliance), tone: analysis.compliance >= 0.75 ? "positive" : "negative" },
-      { label: "Verified trades", value: `${analysis.trades.length}`, tone: "neutral" },
+      { label: "Trades reviewed", value: `${analysis.trades.length}`, tone: "neutral" },
       { label: "Profit factor", value: analysis.profitFactor.toFixed(2), tone: analysis.profitFactor >= 1 ? "positive" : "negative" },
       { label: "Breaches", value: `${analysis.breaches.length}`, tone: analysis.breaches.length ? "negative" : "positive" },
     ];
@@ -1010,11 +1416,11 @@ function getPassportStats(analysis: ReturnType<typeof analyze>, mode: PassportSh
 function getPassportDiamondPreviewStats(mode: PassportShareModeId): PassportStat[] {
   if (mode === "discipline") {
     return [
-      { label: "Cova score", value: "94", tone: "positive" },
+      { label: "Control score", value: "94", tone: "positive" },
       { label: "Rules held", value: "93%", tone: "positive" },
       { label: "Average R", value: "0.42R", tone: "positive" },
       { label: "Max DD", value: "$620", tone: "positive" },
-      { label: "Verified trades", value: "72", tone: "neutral" },
+      { label: "Trades reviewed", value: "72", tone: "neutral" },
       { label: "Breaches", value: "0", tone: "positive" },
     ];
   }
@@ -1023,14 +1429,14 @@ function getPassportDiamondPreviewStats(mode: PassportShareModeId): PassportStat
       { label: "Score range", value: "90+", tone: "positive" },
       { label: "Rules held", value: "93%", tone: "positive" },
       { label: "Sample", value: "Elite", tone: "neutral" },
-      { label: "Generated", value: "Verified", tone: "neutral" },
-      { label: "Verified trades", value: "72", tone: "neutral" },
+      { label: "Review date", value: "2026-05-06", tone: "neutral" },
+      { label: "Trades reviewed", value: "72", tone: "neutral" },
       { label: "Visibility", value: "Masked", tone: "neutral" },
     ];
   }
   if (mode === "coach") {
     return [
-      { label: "Cova score", value: "94", tone: "positive" },
+      { label: "Control score", value: "94", tone: "positive" },
       { label: "Flags", value: "0", tone: "positive" },
       { label: "Top leak", value: "No major leak", tone: "positive" },
       { label: "Next", value: "READY", tone: "positive" },
@@ -1040,19 +1446,20 @@ function getPassportDiamondPreviewStats(mode: PassportShareModeId): PassportStat
   }
   return [
     { label: "Net P&L", value: "$18,760", tone: "positive" },
-    { label: "Cova score", value: "94", tone: "positive" },
+    { label: "Control score", value: "94", tone: "positive" },
     { label: "Rules held", value: "93%", tone: "positive" },
-    { label: "Verified trades", value: "72", tone: "neutral" },
+    { label: "Trades reviewed", value: "72", tone: "neutral" },
     { label: "Profit factor", value: "1.86", tone: "positive" },
     { label: "Breaches", value: "0", tone: "positive" },
   ];
 }
 
-export function Passport({ analysis, entitlements, sharePassport, go, upgradeToPro }: { analysis: ReturnType<typeof analyze>; entitlements: WorkspaceEntitlements; sharePassport: () => void; go: (section: Section) => void; upgradeToPro: () => void }) {
+export function Passport({ analysis, entitlements, isSampleReview, sharePassport, go, upgradeToPro }: { analysis: ReturnType<typeof analyze>; entitlements: WorkspaceEntitlements; isSampleReview: boolean; sharePassport: () => void; go: (section: Section) => void; upgradeToPro: () => void }) {
   const [copied, setCopied] = useState(false);
   const [visibility, setVisibility] = useState<"private" | "public">("private");
   const [expiry, setExpiry] = useState("7 days");
   const [shareModeId, setShareModeId] = useState<PassportShareModeId>("flex");
+  const [exportPresetId, setExportPresetId] = useState<PassportExportPresetId>("feed");
   const cardRef = useRef<HTMLDivElement | null>(null);
   const faceRef = useRef<HTMLDivElement | null>(null);
   const shadowRef = useRef<HTMLDivElement | null>(null);
@@ -1061,14 +1468,23 @@ export function Passport({ analysis, entitlements, sharePassport, go, upgradeToP
   const tier = previewTier ?? getPassportTier(analysis);
   const previewingDiamond = previewTier?.rank === "Diamond";
   const shareMode = getPassportMode(shareModeId);
+  const exportPreset = passportExportPresets.find((preset) => preset.id === exportPresetId) ?? passportExportPresets[0];
   const cardStats = previewingDiamond ? getPassportDiamondPreviewStats(shareModeId) : getPassportStats(analysis, shareModeId);
   const proofLine = getPassportProofLine(tier, analysis);
+  const displayProofLine = isSampleReview ? "Sample analysis · not account verification" : proofLine;
   const nextTarget = getPassportNextTarget(tier, analysis);
   const verifiedRules = analysis.ruleStatuses.length - analysis.breaches.length;
   const displayScore = previewingDiamond ? 94 : analysis.score;
   const displayVerifiedRules = previewingDiamond ? 6 : verifiedRules;
   const displayRuleCount = previewingDiamond ? 6 : analysis.ruleStatuses.length;
   const verificationId = `COVA-${analysis.latestDate.replace(/-/g, "").slice(2)}-${displayScore}${displayVerifiedRules}`;
+  const traderNumber = verificationId.replace(/\D/g, "").slice(-4).padStart(4, "0");
+  const marketLine = previewingDiamond ? "NQ / OPENING RANGE" : getPassportMarketLine(analysis);
+  const setupLine = previewingDiamond ? "OPENING RANGE" : analysis.bySetup[0]?.name ?? "MIXED SETUPS";
+  const moodLine = getPassportMoodLine(tier, analysis);
+  const sparklinePoints = getPassportSparkline(analysis);
+  const heroStat = cardStats[0];
+  const profileStats = (shareModeId === "flex" ? [cardStats[2], cardStats[3], cardStats[4], cardStats[5]] : cardStats.slice(1, 5)).filter(Boolean) as PassportStat[];
   const privacyRows = [
     { label: "Net P&L", visible: shareMode.reveals.includes("Net P&L") },
     { label: "Broker", visible: false },
@@ -1077,17 +1493,9 @@ export function Passport({ analysis, entitlements, sharePassport, go, upgradeToP
     { label: "Trade history", visible: false },
     { label: "Open positions", visible: false },
   ];
-  const statByLabel = (label: string) => cardStats.find((stat) => stat.label === label);
-  const netPnlStat = statByLabel("Net P&L") ?? cardStats[0];
-  const covaScoreStat = statByLabel("Cova score") ?? { label: "Cova score", value: `${displayScore}`, tone: "positive" as const };
-  const rulesHeldStat = statByLabel("Rules held") ?? statByLabel("Score range");
-  const verifiedTradesStat = statByLabel("Verified trades") ?? statByLabel("Sample");
-  const profitFactorStat = statByLabel("Profit factor") ?? statByLabel("Average R");
-  const breachesStat = statByLabel("Breaches") ?? statByLabel("Flags") ?? statByLabel("Visibility");
-  const blackCardStats = [rulesHeldStat, verifiedTradesStat, profitFactorStat, breachesStat].filter(Boolean) as PassportStat[];
   const ledgerHasFlags = analysis.breaches.length > 0;
-  const ledgerStatusCopy = ledgerHasFlags ? "Proof checked · flags found" : "All systems verified";
-  const ledgerStatusClass = ledgerHasFlags ? "has-flags" : "is-verified";
+  const ledgerStatusCopy = isSampleReview ? "Sample review · demo data" : ledgerHasFlags ? "Proof checked · flags found" : "Review clean · no flags found";
+  const ledgerStatusClass = ledgerHasFlags || isSampleReview ? "has-flags" : "is-verified";
 
   useEffect(() => () => {
     if (frameRef.current !== null) {
@@ -1158,7 +1566,7 @@ export function Passport({ analysis, entitlements, sharePassport, go, upgradeToP
 
   return (
     <SectionShell
-      eyebrow="Verified credential"
+      eyebrow={isSampleReview ? "Sample trader profile" : "Trader profile"}
       title="Risk Passport"
       variant="workspace"
       backdrop={<ImageAtmosphere src="/media/cova-passport-product.jpg" align="right" opacity="opacity-[0.18]" />}
@@ -1166,15 +1574,15 @@ export function Passport({ analysis, entitlements, sharePassport, go, upgradeToP
       <div className="passport-workbench">
         <div className="passport-topbar">
           <div>
-            <p className="passport-kicker">{entitlements.plan === "free" ? "Free preview" : "Verified credential"}</p>
+            <p className="passport-kicker">{isSampleReview ? "Sample review · demo data" : entitlements.plan === "free" ? "Free preview" : "Reviewed profile"}</p>
             <p className="passport-topbar-copy">
-              A shareable black-card view of gains, discipline, and rule proof. Switch the mode before sending it.
+              Pick what shows, choose a format, then post it or send it. The full journal, broker details, and private notes stay out.
             </p>
           </div>
           <div className="passport-topbar-actions">
             <button className="passport-action-button" onClick={() => go("dashboard")} type="button">Back to review</button>
-            <button className="passport-action-button" onClick={entitlements.canExportPassport ? () => void downloadPassportPng(analysis, visibility, expiry, tier, shareMode, faceRef.current) : upgradeToPro} type="button">
-              <Download className="h-4 w-4" /> {entitlements.canExportPassport ? "Download card" : "Unlock export"}
+            <button className="passport-action-button" onClick={entitlements.canExportPassport ? () => void downloadPassportPng(analysis, visibility, expiry, tier, shareMode, exportPreset, isSampleReview, faceRef.current) : upgradeToPro} type="button">
+              <Download className="h-4 w-4" /> {entitlements.canExportPassport ? "Download PNG" : "Unlock export"}
             </button>
             <button className="passport-action-button passport-action-primary" onClick={copyPassport} type="button">
               <Copy className="h-4 w-4" /> {copied ? "Copied" : "Share"}
@@ -1204,65 +1612,86 @@ export function Passport({ analysis, entitlements, sharePassport, go, upgradeToP
                     <div className="passport-card-grid" />
                     <div className="passport-security-lines" />
                     <div className="passport-angular-frame" />
-                    <div className="passport-credential-inner passport-blackcard-inner">
-                      <div className="passport-blackcard-issuer">
-                        <div>
+                    {isSampleReview && (
+                      <div className="passport-sample-watermark" aria-label="Sample review demo data">
+                        <span>SAMPLE REVIEW · DEMO DATA</span>
+                        <strong>SAMPLE / NOT VERIFIED</strong>
+                      </div>
+                    )}
+                    <div className="passport-credential-inner passport-profile-card">
+                      <header className="passport-profile-header">
+                        <div className="passport-profile-brand">
                           <span>COVA</span>
                           <strong>Risk Passport</strong>
                         </div>
-                        <em>{visibility === "private" ? "Private Link" : "Public Card"}</em>
+                        <div className="passport-profile-pills">
+                          <span>{shareMode.label}</span>
+                          <span>{isSampleReview ? "Demo" : visibility === "private" ? "Private" : "Public"}</span>
+                        </div>
+                      </header>
+
+                      <div className="passport-profile-identity">
+                        <div className="passport-profile-avatar" aria-hidden="true">{tier.badge}</div>
+                        <div>
+                          <span>TRADER {traderNumber}</span>
+                          <strong>{marketLine} · {setupLine}</strong>
+                          <small>{isSampleReview ? "Anonymous sample profile" : "Anonymous reviewed profile"}</small>
+                        </div>
                       </div>
 
-                      <div className="passport-blackcard-hero">
-                        <div className="passport-blackcard-rank">
+                      <div className="passport-profile-status">
+                        <div className="passport-profile-rank">
                           <span>{tier.skin}</span>
                           <h3>{tier.rank}</h3>
-                          <p>{tier.headline}</p>
+                          <p>{moodLine}</p>
                         </div>
-                        <div className="passport-blackcard-chip" aria-hidden="true">
-                          <span />
-                          <span />
-                          <span />
-                        </div>
-                      </div>
-
-                      <div className="passport-blackcard-value-row">
-                        <div className={`passport-blackcard-value passport-stat-${netPnlStat.tone ?? "neutral"}`}>
-                          <span>{netPnlStat.label}</span>
-                          <strong>{netPnlStat.value}</strong>
-                          <small>{shareMode.label} mode · verified review</small>
-                        </div>
-                        <div className={`passport-blackcard-score passport-stat-${covaScoreStat.tone ?? "neutral"}`}>
-                          <span>Cova Score</span>
-                          <strong>{displayScore}</strong>
-                          <em>{displayVerifiedRules}/{displayRuleCount} rules held</em>
+                        <div className={`passport-profile-hero-stat passport-stat-${heroStat.tone ?? "neutral"}`}>
+                          <span>{heroStat.label}</span>
+                          <strong>{heroStat.value}</strong>
+                          <small>{displayVerifiedRules}/{displayRuleCount} rules held</small>
                         </div>
                       </div>
 
-                      <div className="passport-blackcard-stat-grid">
-                        {blackCardStats.map((stat) => (
-                          <div className={`passport-blackcard-stat passport-stat-${stat.tone ?? "neutral"}`} key={stat.label}>
+                      <div className="passport-profile-sparkline">
+                        <div>
+                          <span>Account path</span>
+                          <em>{analysis.trades.length} trades reviewed</em>
+                        </div>
+                        <svg aria-label="Cumulative reviewed trade result" preserveAspectRatio="none" role="img" viewBox="0 0 100 100">
+                          <line x1="0" x2="100" y1="92" y2="92" />
+                          <polyline points={sparklinePoints} />
+                        </svg>
+                      </div>
+
+                      <div className="passport-profile-stat-grid">
+                        {profileStats.map((stat) => (
+                          <div className={`passport-profile-stat passport-stat-${stat.tone ?? "neutral"}`} key={stat.label}>
                             <span>{stat.label}</span>
                             <strong>{stat.value}</strong>
                           </div>
                         ))}
                       </div>
 
-                      <div className="passport-blackcard-proof-band">
+                      <div className="passport-profile-proof">
                         <div>
-                          <span>Proof status</span>
-                          <strong>{proofLine}</strong>
+                          <span>{isSampleReview ? "Demo review" : "Review status"}</span>
+                          <strong>{displayProofLine}</strong>
                         </div>
                         <em>{shareMode.cardSubtitle}</em>
                       </div>
 
-                      <div className="passport-blackcard-footer">
+                      <div className="passport-rank-progress">
+                        <span>Next up</span>
+                        <strong>{nextTarget}</strong>
+                      </div>
+
+                      <footer className="passport-profile-footer">
                         <div>
-                          <span>Verified ID</span>
+                          <span>{isSampleReview ? "Demo ID" : "Review ID"}</span>
                           <code>{verificationId}</code>
                         </div>
-                        <p>{nextTarget}</p>
-                      </div>
+                        <p>{analysis.latestDate} · {visibility} · {expiry}</p>
+                      </footer>
                     </div>
                   </div>
                 </div>
@@ -1275,6 +1704,7 @@ export function Passport({ analysis, entitlements, sharePassport, go, upgradeToP
               <div className="passport-rail-heading">
                 <span>Share mode</span>
                 <button
+                  aria-pressed={visibility === "public"}
                   className="passport-visibility-toggle"
                   onClick={() => setVisibility(visibility === "private" ? "public" : "private")}
                   type="button"
@@ -1286,6 +1716,7 @@ export function Passport({ analysis, entitlements, sharePassport, go, upgradeToP
               <div className="passport-mode-list">
                 {passportShareModes.map((mode) => (
                   <button
+                    aria-pressed={shareModeId === mode.id}
                     className={`passport-mode-row ${shareModeId === mode.id ? "is-active" : ""}`}
                     key={mode.id}
                     onClick={() => setShareModeId(mode.id)}
@@ -1293,6 +1724,24 @@ export function Passport({ analysis, entitlements, sharePassport, go, upgradeToP
                   >
                     <span>{mode.label}</span>
                     <small>{mode.tagline}</small>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="passport-rail-section">
+              <div className="passport-rail-heading"><span>Export format</span><small>{exportPreset.width} × {exportPreset.height}</small></div>
+              <div className="passport-export-list">
+                {passportExportPresets.map((preset) => (
+                  <button
+                    aria-pressed={exportPresetId === preset.id}
+                    className={`passport-export-row ${exportPresetId === preset.id ? "is-active" : ""}`}
+                    key={preset.id}
+                    onClick={() => setExportPresetId(preset.id)}
+                    type="button"
+                  >
+                    <span>{preset.label}</span>
+                    <small>{preset.note}</small>
                   </button>
                 ))}
               </div>
@@ -1328,8 +1777,8 @@ export function Passport({ analysis, entitlements, sharePassport, go, upgradeToP
         <div className="passport-ledger-panel">
           <div className="passport-ledger-heading">
             <div>
-              <p>Proof ledger</p>
-              <span>Recent rule verifications and system checks.</span>
+              <p>Review receipt</p>
+              <span>What held, what did not, and when Cova checked it.</span>
             </div>
             <strong className={ledgerStatusClass}><BadgeCheck className="h-4 w-4" /> {ledgerStatusCopy}</strong>
           </div>
@@ -1342,7 +1791,7 @@ export function Passport({ analysis, entitlements, sharePassport, go, upgradeToP
                   <small>{status.summary}</small>
                 </div>
                 <span className={status.breached ? "is-failed" : "is-passed"}>{status.breached ? "Flagged" : "Passed"}</span>
-                <code>{status.rule.id}_{analysis.latestDate}.json</code>
+                <code>{friendlyRuleMetric(status.rule.metric)}</code>
                 <time>{analysis.latestDate}</time>
               </div>
             ))}
@@ -1371,7 +1820,6 @@ function getPassportExportPalette(tier: PassportTier) {
   if (tier.rank === "Gold") return { accent: "#d9b76e", metal: "#fff1c9", soft: "#f5c866" };
   if (tier.rank === "Silver") return { accent: "#bfc8d4", metal: "#e5ecf4", soft: "#8d9baa" };
   if (tier.rank === "Bronze") return { accent: "#b9824a", metal: "#f0c28a", soft: "#d38a48" };
-  if (tier.rank === "Blown") return { accent: "#ff4d5f", metal: "#ffd2d7", soft: "#ff7180" };
   return { accent: "#8e99a8", metal: "#cbd3de", soft: "#9aa5b3" };
 }
 
@@ -1390,20 +1838,101 @@ function downloadDataUrl(dataUrl: string, filename: string) {
   link.click();
 }
 
-async function downloadPassportPng(analysis: ReturnType<typeof analyze>, visibility: string, expiry: string, tier: PassportTier, shareMode: PassportShareMode, cardNode?: HTMLElement | null) {
-  const filename = `cova-risk-passport-${tier.rank.toLowerCase()}-${analysis.latestDate}.png`;
+function loadPassportImage(dataUrl: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Passport image could not be composed."));
+    image.src = dataUrl;
+  });
+}
+
+async function composePassportExport(sourceDataUrl: string, preset: PassportExportPreset, tier: PassportTier, isSampleReview: boolean) {
+  const source = await loadPassportImage(sourceDataUrl);
+  const canvas = document.createElement("canvas");
+  canvas.width = preset.width;
+  canvas.height = preset.height;
+  const context = canvas.getContext("2d");
+  if (!context) {
+    throw new Error("Passport export canvas is unavailable.");
+  }
+
+  const palette = getPassportExportPalette(tier);
+  const background = context.createLinearGradient(0, 0, preset.width, preset.height);
+  background.addColorStop(0, "#080907");
+  background.addColorStop(0.52, "#020302");
+  background.addColorStop(1, "#10100c");
+  context.fillStyle = background;
+  context.fillRect(0, 0, preset.width, preset.height);
+
+  context.strokeStyle = "rgba(255,255,255,0.035)";
+  context.lineWidth = 1;
+  for (let x = 0; x <= preset.width; x += 90) {
+    context.beginPath();
+    context.moveTo(x, 0);
+    context.lineTo(x, preset.height);
+    context.stroke();
+  }
+  for (let y = 0; y <= preset.height; y += 90) {
+    context.beginPath();
+    context.moveTo(0, y);
+    context.lineTo(preset.width, y);
+    context.stroke();
+  }
+
+  const headerSpace = preset.id === "feed" ? 24 : preset.id === "square" ? 118 : 270;
+  const footerSpace = preset.id === "feed" ? 24 : preset.id === "square" ? 82 : 230;
+  const sidePadding = preset.id === "feed" ? 28 : preset.id === "square" ? 62 : 80;
+  const availableWidth = preset.width - sidePadding * 2;
+  const availableHeight = preset.height - headerSpace - footerSpace;
+  const scale = Math.min(availableWidth / source.naturalWidth, availableHeight / source.naturalHeight);
+  const drawWidth = source.naturalWidth * scale;
+  const drawHeight = source.naturalHeight * scale;
+  const drawX = (preset.width - drawWidth) / 2;
+  const drawY = headerSpace + (availableHeight - drawHeight) / 2;
+
+  context.save();
+  context.shadowColor = "rgba(0,0,0,0.72)";
+  context.shadowBlur = 52;
+  context.shadowOffsetY = 28;
+  context.drawImage(source, drawX, drawY, drawWidth, drawHeight);
+  context.restore();
+
+  if (preset.id !== "feed") {
+    const titleY = preset.id === "story" ? 124 : 58;
+    context.fillStyle = palette.accent;
+    context.font = "700 24px Arial, sans-serif";
+    context.fillText("COVA  /  RISK PASSPORT", 64, titleY);
+    context.fillStyle = "rgba(255,255,255,0.72)";
+    context.font = preset.id === "story" ? "800 54px Arial, sans-serif" : "800 36px Arial, sans-serif";
+    context.fillText(`${tier.rank.toUpperCase()} TRADER PROFILE`, 64, titleY + (preset.id === "story" ? 72 : 48));
+  }
+
+  context.fillStyle = isSampleReview ? palette.accent : "rgba(255,255,255,0.48)";
+  context.font = "700 20px Arial, sans-serif";
+  const footerCopy = isSampleReview ? "DEMO DATA · NOT ACCOUNT VERIFIED" : "REVIEWED ACCOUNT HISTORY · PRIVATE DETAILS HIDDEN";
+  context.fillText(footerCopy, 64, preset.height - 48);
+  return canvas.toDataURL("image/png");
+}
+
+async function downloadPassportPng(analysis: ReturnType<typeof analyze>, visibility: string, expiry: string, tier: PassportTier, shareMode: PassportShareMode, exportPreset: PassportExportPreset, isSampleReview: boolean, cardNode?: HTMLElement | null) {
+  const sampleSlug = isSampleReview ? "sample-" : "";
+  const filename = `cova-risk-passport-${sampleSlug}${tier.rank.toLowerCase()}-${exportPreset.id}-${analysis.latestDate}.png`;
   if (cardNode) {
     try {
+      await document.fonts.ready;
       const dataUrl = await toPng(cardNode, {
         backgroundColor: "#020304",
         cacheBust: true,
         pixelRatio: 2.4,
+        skipFonts: true,
         style: {
           transform: "none",
           transformOrigin: "top left",
         },
       });
-      downloadDataUrl(dataUrl, filename);
+      const composedDataUrl = await composePassportExport(dataUrl, exportPreset, tier, isSampleReview);
+      downloadDataUrl(composedDataUrl, filename);
       return;
     } catch (error) {
       console.warn("Falling back to SVG Passport export", error);
@@ -1414,7 +1943,7 @@ async function downloadPassportPng(analysis: ReturnType<typeof analyze>, visibil
   const exportRankSize = isDiamondExport ? 116 : 134;
   const exportRankTracking = isDiamondExport ? 2 : 6;
   const stats = getPassportStats(analysis, shareMode.id).slice(0, 6);
-  const proofLine = getPassportProofLine(tier, analysis).toUpperCase();
+  const proofLine = (isSampleReview ? "Sample analysis · not account verification" : getPassportProofLine(tier, analysis)).toUpperCase();
   const nextTarget = getPassportNextTarget(tier, analysis).toUpperCase();
   const proofFontSize = isDiamondExport ? 22 : 28;
   const proofTracking = isDiamondExport ? 5 : 7;
@@ -1432,6 +1961,12 @@ async function downloadPassportPng(analysis: ReturnType<typeof analyze>, visibil
       <path d="M180 536 H900 M540 420 V652 M292 420 L540 652 M788 420 L540 652" stroke="rgba(210,248,255,0.12)" stroke-width="1"/>
       <circle cx="540" cy="536" r="268" fill="none" stroke="rgba(156,236,255,0.13)" stroke-width="1"/>
       <circle cx="540" cy="536" r="186" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+    ` : "";
+  const sampleExportWatermark = isSampleReview ? `
+      <g transform="rotate(-16 540 750)" opacity="0.28">
+        <text x="540" y="738" text-anchor="middle" fill="${palette.accent}" font-family="Arial Black, Arial, sans-serif" font-size="58" font-weight="900" letter-spacing="8">SAMPLE / NOT VERIFIED</text>
+        <text x="540" y="802" text-anchor="middle" fill="${palette.metal}" font-family="Arial, sans-serif" font-size="28" font-weight="800" letter-spacing="7">SAMPLE REVIEW · DEMO DATA</text>
+      </g>
     ` : "";
   const statCells = stats.map((stat, index) => {
     const x = index % 2 === 0 ? 92 : 548;
@@ -1490,7 +2025,8 @@ async function downloadPassportPng(analysis: ReturnType<typeof analyze>, visibil
       <path d="M138 1258 L178 1236 L218 1258 L178 1290 Z" fill="url(#facet)" stroke="rgba(255,255,255,0.45)"/>
       <text x="252" y="1272" fill="${palette.metal}" font-family="Arial, sans-serif" font-size="${proofFontSize}" font-weight="800" letter-spacing="${proofTracking}">${escapeSvgText(proofLine)}</text>
       ${nextTargetMarkup}
-      <text x="92" y="1430" fill="rgba(224,236,248,0.5)" font-family="Arial, sans-serif" font-size="17" font-weight="700" letter-spacing="3">MODE ${escapeSvgText(shareMode.label.toUpperCase())} · ${escapeSvgText(visibility.toUpperCase())} · ${escapeSvgText(expiry.toUpperCase())} · ${escapeSvgText(verificationId)}</text>
+      ${sampleExportWatermark}
+      <text x="92" y="1430" fill="rgba(224,236,248,0.5)" font-family="Arial, sans-serif" font-size="17" font-weight="700" letter-spacing="3">${isSampleReview ? "DEMO · NOT ACCOUNT VERIFIED · " : ""}MODE ${escapeSvgText(shareMode.label.toUpperCase())} · ${escapeSvgText(visibility.toUpperCase())} · ${escapeSvgText(expiry.toUpperCase())} · ${escapeSvgText(verificationId)}</text>
     </svg>
   `;
   const image = new Image();
@@ -1506,7 +2042,10 @@ async function downloadPassportPng(analysis: ReturnType<typeof analyze>, visibil
     }
     context.drawImage(image, 0, 0);
     URL.revokeObjectURL(svgUrl);
-    downloadDataUrl(canvas.toDataURL("image/png"), filename);
+    const fallbackDataUrl = canvas.toDataURL("image/png");
+    void composePassportExport(fallbackDataUrl, exportPreset, tier, isSampleReview)
+      .then((composedDataUrl) => downloadDataUrl(composedDataUrl, filename))
+      .catch(() => downloadDataUrl(fallbackDataUrl, filename));
   };
   image.src = svgUrl;
 }

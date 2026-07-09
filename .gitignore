@@ -10,3 +10,7 @@ tmp/
 .DS_Store
 .vercel/
 .vercel
+
+# Local agent plans, screenshots, concepts, and visual QA artifacts.
+.hermes/
+sketches/

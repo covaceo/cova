@@ -102,7 +102,7 @@ export function WorkspaceShell({ brokerLabel, children, email, go, riskScore, se
 
         <div className="workspace-sidebar-watermark">
           <Network className="h-4 w-4" />
-          <span>Read-only risk review. No trade execution.</span>
+          <span>Risk review + simulated practice. No live brokerage execution.</span>
         </div>
       </aside>
 

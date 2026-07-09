@@ -104,7 +104,9 @@ function DashboardCommandCenter({
   const updated = brokerStatus?.updatedAt
     ? new Date(brokerStatus.updatedAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
     : "Not connected";
-  const sourceLabel = connected ? `${provider} linked` : analysis.trades.length ? "Sample funded review" : "No trade history";
+  const hasSampleTrades = analysis.trades.some((trade) => trade.id.startsWith("demo-"));
+  const hasReviewedTrades = analysis.trades.some((trade) => !trade.id.startsWith("demo-"));
+  const sourceLabel = connected ? `${provider} linked` : hasSampleTrades ? hasReviewedTrades ? "Sample + CSV review" : "Sample funded review" : analysis.trades.length ? "CSV trade review" : "No trade history";
   const quickMetrics = [
     ["P&L", formatMoney(analysis.totalPnl), analysis.totalPnl >= 0 ? "text-emerald-300" : "text-red-300"],
     ["Biggest dip", formatMoney(-analysis.maxDrawdown), analysis.maxDrawdown > 0 ? "text-red-300" : "text-white"],
@@ -140,7 +142,7 @@ function DashboardCommandCenter({
       viewport={{ once: true, margin: "-80px" }}
       transition={{ duration: 0.46, ease: [0.16, 1, 0.3, 1] }}
     >
-      <div className="grid gap-4 xl:grid-cols-[1fr_auto] xl:items-center">
+      <div className="risk-command-primary-grid grid gap-4 xl:items-center">
         <div>
           <div className="flex flex-wrap items-center gap-3">
             <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 font-body text-xs ${connected ? "border-emerald-300/24 bg-emerald-400/10 text-emerald-200" : "border-white/12 bg-white/[0.035] text-white/52"}`}>

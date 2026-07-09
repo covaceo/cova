@@ -16,18 +16,17 @@ const planOptions = [
     badge: "Limited",
     description: "For trying Cova with a small sample before you commit to a real review workflow.",
     included: [
-      "1 limited workspace",
+      "1 workspace",
+      "25 stored trades total",
       "Up to 25 trades per import",
-      "1 active Risk Passport",
-      "Basic dashboard view",
-      "Starter risk limits only",
+      "1 current Risk Passport view",
+      "2 current insight notes",
+      "Starter risk limits",
     ],
     notIncluded: [
-      "No saved import history",
-      "No unlimited Passport links",
-      "No export library",
-      "No saved insight history",
-      "No saved member sync",
+      "Advanced limit editing",
+      "Passport image export",
+      "Direct account sync",
     ],
   },
   {
@@ -36,14 +35,14 @@ const planOptions = [
     price: "$29/mo",
     priceNote: "founding price",
     badge: "Active trader",
-    description: "For funded traders who want history, cleaner reviews, and stronger proof of discipline.",
+    description: "For funded traders who want a larger review workspace, export tools, and configurable risk checks.",
     included: [
       "Unlimited trade imports",
-      "Saved CSV and review history",
-      "Unlimited Risk Passports",
+      "Unlimited reviewed trades",
+      "Unlimited Passport image exports",
       "Full editable risk limits",
-      "Plain-English insight notes",
-      "Export tools and member access",
+      "Full three-part insight brief",
+      "Direct sync access when configured",
     ],
     notIncluded: [
       "No trade signals",
@@ -57,17 +56,25 @@ const planOptions = [
 
 export function PlanStrip({ compact = false, currentPlan, go, openAuth, upgradeToPro }: { compact?: boolean; currentPlan: PlanTier | null; go: (section: PlanRoute) => void; openAuth: (mode: AuthMode) => void; upgradeToPro: () => void }) {
   return (
-    <section className={`deferred-paint-section plans-section relative overflow-hidden px-5 md:px-12 lg:px-20 ${compact ? "pb-10 pt-32 md:pt-36" : "py-28"}`}>
+    <section className={`deferred-paint-section plans-section relative overflow-hidden px-5 md:px-12 lg:px-20 ${compact ? "pb-8 pt-28 md:pb-10 md:pt-36" : "py-28"}`}>
       <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-64 bg-[linear-gradient(180deg,#000_0%,rgba(0,0,0,0.8)_34%,rgba(0,0,0,0)_100%)]" />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-72 bg-[linear-gradient(180deg,rgba(0,0,0,0)_0%,rgba(0,0,0,0.74)_64%,#000_100%)]" />
       <div className="relative z-10 mx-auto w-full max-w-[calc(100vw-2.5rem)] md:max-w-7xl">
         <div className={`${compact ? "mb-7 max-w-3xl" : "mb-10 max-w-4xl"}`}>
           <span className="liquid-glass mb-5 inline-flex rounded-full px-4 py-2 font-body text-xs uppercase tracking-[0.22em] text-[#18c887]">Plans</span>
-          <h2 className={`max-w-[10ch] break-words font-heading italic leading-[1.05] tracking-[0.012em] [word-spacing:0.04em] md:max-w-none md:[word-spacing:0.14em] ${compact ? "text-[42px] md:text-7xl" : "text-[48px] md:text-8xl"}`}>Try the review flow before you pay.</h2>
+          <h2 className={`max-w-[12ch] break-words font-heading italic leading-[1.05] tracking-[0.012em] [word-spacing:0.04em] md:max-w-none md:[word-spacing:0.14em] ${compact ? "text-[40px] md:text-7xl" : "text-[48px] md:text-8xl"}`}>Try the review flow before you pay.</h2>
           <p className="mt-6 max-w-[31ch] font-body font-light leading-relaxed text-white/58 md:max-w-2xl">
             The free account is intentionally small: enough to see whether Cova helps you review risk.
-            Upgrade when you want saved history, more Passport exports, and ongoing insight notes.
+            Upgrade for a larger trade workspace, Passport image export, advanced limit editing, configured direct sync, and the full current brief.
           </p>
+          <div className="pricing-quick-actions mt-7 flex flex-wrap items-center gap-3">
+            {currentPlan ? (
+              <GlassButton strong onClick={() => go("import")}>Open your workspace <ArrowUpRight className="h-4 w-4" /></GlassButton>
+            ) : (
+              <StartFreeButton icon onClick={() => openAuth("signup")}>Start free</StartFreeButton>
+            )}
+            <span className="font-body text-xs leading-relaxed text-white/42">Free includes 25 stored trades, 25 trades per CSV import, the current Passport view, and 2 current insight notes. No card required.</span>
+          </div>
         </div>
 
         <div className="grid gap-5 lg:grid-cols-2">
@@ -76,7 +83,7 @@ export function PlanStrip({ compact = false, currentPlan, go, openAuth, upgradeT
             const isCurrentPlan = currentPlan === plan.id;
             return (
               <motion.article
-                className={`${isPro ? "liquid-glass-strong" : "liquid-glass"} rounded-[40px] p-5 md:p-8`}
+                className={`${isPro ? "liquid-glass-strong" : "liquid-glass"} rounded-[28px] p-5 md:rounded-[40px] md:p-8`}
                 key={plan.name}
                 initial={compact ? { opacity: 1, y: 0, filter: "blur(0px)" } : { opacity: 0, y: 30, filter: "blur(10px)" }}
                 whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
@@ -132,10 +139,12 @@ export function PlanStrip({ compact = false, currentPlan, go, openAuth, upgradeT
                 </div>
 
                 <div className="mt-8 flex flex-wrap gap-3">
-                  {isPro ? (
-                    <GlassButton strong onClick={upgradeToPro}>{currentPlan === "pro" ? "Pro active" : "Upgrade to Pro"} <ArrowUpRight className="h-4 w-4" /></GlassButton>
+                  {isPro ? currentPlan === "pro" ? (
+                    <span className="inline-flex min-h-11 items-center border border-[#18c887]/28 bg-[#18c887]/10 px-5 font-body text-sm font-medium text-[#b9f5df]" role="status">Pro active</span>
+                  ) : (
+                    <GlassButton strong onClick={upgradeToPro}>Upgrade to Pro <ArrowUpRight className="h-4 w-4" /></GlassButton>
                   ) : currentPlan ? (
-                    <GlassButton strong onClick={() => go("import")}>Upload Sample Trades <ArrowUpRight className="h-4 w-4" /></GlassButton>
+                    <GlassButton strong onClick={() => go("import")}>Open trade import <ArrowUpRight className="h-4 w-4" /></GlassButton>
                   ) : (
                     <StartFreeButton icon onClick={() => openAuth("signup")}>Start free</StartFreeButton>
                   )}
