@@ -342,10 +342,12 @@ textarea {
 
 .hero-dashboard-shell {
   --dashboard-shell-radius: 8px !important;
-  border: 1px solid rgba(232, 224, 211, 0.18) !important;
+  border: 1px solid rgba(232, 224, 211, 0.36) !important;
   border-radius: 8px !important;
   background: #0a0a09 !important;
   box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 0 0 1px rgba(191, 137, 100, 0.14),
     0 44px 110px rgba(0, 0, 0, 0.58),
     16px 18px 0 rgba(191, 137, 100, 0.035) !important;
   transform:
@@ -356,9 +358,43 @@ textarea {
     translateZ(0) !important;
 }
 
-.hero-dashboard-shell::before,
 .hero-dashboard-shell::after {
-  display: none !important;
+  display: block !important;
+  position: absolute;
+  inset: -0.28rem !important;
+  z-index: 4;
+  content: "";
+  pointer-events: none;
+  border: 1px solid rgba(191, 137, 100, 0.42) !important;
+  border-radius: 11px !important;
+  background: none !important;
+  box-shadow: 0 0 0 1px rgba(232, 224, 211, 0.045);
+  opacity: 1 !important;
+  padding: 0 !important;
+  filter: none !important;
+  -webkit-mask: none !important;
+  mask: none !important;
+}
+
+.hero-dashboard-shell::before {
+  display: block !important;
+  position: absolute;
+  top: -0.3rem !important;
+  left: 8% !important;
+  width: 34% !important;
+  height: 1px !important;
+  z-index: 5;
+  content: "";
+  pointer-events: none;
+  border: 0 !important;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(191, 137, 100, 0.95) 42%, rgba(232, 224, 211, 0.72) 68%, transparent) !important;
+  mix-blend-mode: normal !important;
+  opacity: 0.92 !important;
+  padding: 0 !important;
+  filter: none !important;
+  -webkit-mask: none !important;
+  mask: none !important;
 }
 
 .hero-dashboard-screen {
@@ -1212,8 +1248,8 @@ textarea {
   }
 
   .hero-dashboard-shell {
-    top: 0.5rem !important;
-    right: 1.125rem !important;
+    top: 1.75rem !important;
+    right: 2.75rem !important;
     width: min(92%, 54rem) !important;
   }
 }
