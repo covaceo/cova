@@ -1288,54 +1288,65 @@ textarea {
 
 .market-reaction-heading {
   display: flex;
-  width: min(100%, 78rem);
+  width: min(100%, 82rem);
   align-items: center;
   justify-content: flex-end;
   gap: 1rem;
-  margin: 0 auto 0.72rem;
-  padding-bottom: 0.66rem;
-  border-bottom: 1px solid rgba(191, 137, 100, 0.32);
-  font-family: "JetBrains Mono", monospace;
-  font-size: 0.58rem;
-  letter-spacing: 0.14em;
+  margin: 0 auto 0.78rem;
+  padding-bottom: 0.72rem;
+  border-bottom: 1px solid rgba(191, 137, 100, 0.52);
+  font-family: "Space Grotesk", "Inter", sans-serif;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .market-reaction-heading span {
-  color: rgba(191, 137, 100, 0.78);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.62rem;
+  color: rgba(232, 224, 211, 0.9);
   text-align: right;
+}
+
+.market-reaction-heading span::before {
+  width: 1.8rem;
+  height: 2px;
+  content: "";
+  background: var(--cova-copper);
 }
 
 .market-reaction-strip {
   display: grid;
-  width: min(100%, 78rem);
+  width: min(100%, 82rem);
   margin: 0 auto;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  border-top: 1px solid rgba(232, 224, 211, 0.1);
-  border-bottom: 1px solid rgba(232, 224, 211, 0.1);
+  border-top: 1px solid rgba(232, 224, 211, 0.18);
+  border-bottom: 1px solid rgba(232, 224, 211, 0.18);
 }
 
 .market-reaction-item {
   display: grid;
   min-width: 0;
-  min-height: 5.45rem;
+  min-height: 5.85rem;
   align-content: space-between;
-  gap: 0.62rem;
-  padding: 0.88rem 1rem;
-  background: rgba(5, 5, 5, 0.72);
+  gap: 0.68rem;
+  padding: 0.95rem 1.15rem;
+  background: rgba(5, 5, 5, 0.84);
 }
 
 .market-reaction-item + .market-reaction-item {
-  border-left: 1px solid rgba(232, 224, 211, 0.1);
+  border-left: 1px solid rgba(191, 137, 100, 0.22);
 }
 
 .market-reaction-item p {
   color: var(--cova-paper);
   font-family: "Space Grotesk", "Inter", sans-serif;
-  font-size: clamp(0.72rem, 0.88vw, 0.84rem);
-  font-weight: 500;
+  font-size: clamp(0.82rem, 1vw, 0.94rem);
+  font-weight: 560;
   letter-spacing: -0.018em;
-  line-height: 1.35;
+  line-height: 1.38;
 }
 
 .market-reaction-item footer {
@@ -1344,32 +1355,52 @@ textarea {
   justify-content: space-between;
   gap: 0.75rem;
   font-family: "JetBrains Mono", monospace;
-  font-size: 0.56rem;
+  font-size: 0.62rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
 .market-reaction-item footer strong {
-  color: rgba(232, 224, 211, 0.78);
-  font-weight: 500;
+  color: rgba(232, 224, 211, 0.9);
+  font-weight: 650;
 }
 
 .market-reaction-rating {
   display: inline-flex;
   align-items: center;
-  gap: 0.42rem;
-  color: rgba(191, 137, 100, 0.72);
-  font-size: 0.7rem;
+  gap: 0.46rem;
+  color: rgba(191, 137, 100, 0.78);
+  font-size: 0.78rem;
   letter-spacing: 0.1em;
   line-height: 1;
 }
 
 .market-reaction-rating span {
-  color: rgba(191, 137, 100, 0.94);
+  color: rgba(191, 137, 100, 1);
 }
 
 .market-reaction-rating small {
-  color: rgba(232, 224, 211, 0.58);
-  font-size: 0.52rem;
+  color: rgba(232, 224, 211, 0.68);
+  font-size: 0.56rem;
   letter-spacing: 0.08em;
+}
+
+@media (min-width: 1280px) and (max-height: 800px) {
+  .hero-dashboard-shell {
+    top: 0.625rem !important;
+  }
+
+  .market-reaction-band {
+    bottom: calc(clamp(3.3rem, 6vh, 4.8rem) + 0.75rem);
+  }
+
+  .market-reaction-heading {
+    margin-bottom: 0.62rem;
+    padding-bottom: 0.56rem;
+  }
+
+  .market-reaction-item {
+    min-height: 5.55rem;
+    padding: 0.82rem 1.15rem;
+  }
 }

@@ -57,6 +57,10 @@ assert.match(marketingHero, /Cova made my trade reviews faster, clearer, and way
 assert.equal((marketingHero.match(/rating: 5,/g) ?? []).length, 3, "All three supplied follower reviews should retain a five-star rating.");
 assert.match(marketingHero, /role="img" aria-label=\{`\$\{rating\} out of 5 stars`\}/, "Each follower review should expose a reliable accessible five-star rating.");
 assert.match(marketingHero, /\{"★"\.repeat\(rating\)\}/, "Each follower review should render its visible star rating.");
+assert.match(operatorDossierCss, /\.market-reaction-heading\s*\{[\s\S]*?width:\s*min\(100%,\s*82rem\);[\s\S]*?font-size:\s*0\.76rem;[\s\S]*?font-weight:\s*700;/, "The follower-review heading should remain visibly prominent on desktop.");
+assert.match(operatorDossierCss, /\.market-reaction-strip\s*\{[\s\S]*?width:\s*min\(100%,\s*82rem\);/, "The follower-review rail should retain its wider desktop footprint.");
+assert.match(operatorDossierCss, /\.market-reaction-item p\s*\{[\s\S]*?font-size:\s*clamp\(0\.82rem,\s*1vw,\s*0\.94rem\);/, "Follower review quotes should remain large enough to scan.");
+assert.match(operatorDossierCss, /@media \(min-width: 1280px\) and \(max-height: 800px\)[\s\S]*?\.hero-dashboard-shell\s*\{[\s\S]*?top:\s*0\.625rem\s*!important;[\s\S]*?\.market-reaction-band\s*\{[\s\S]*?bottom:\s*calc\(clamp\(3\.3rem,\s*6vh,\s*4\.8rem\) \+ 0\.75rem\);[\s\S]*?\.market-reaction-item\s*\{[\s\S]*?min-height:\s*5\.55rem;/, "Short desktop viewports should compact and separate the dashboard and review rail instead of allowing collisions.");
 assert.doesNotMatch(marketingHero, /Placeholder|Example feedback/, "Follower reviews should not retain placeholder copy.");
 assert.doesNotMatch(marketingHero, /Funded NQ trader|ES intraday trader|Funded futures trader/, "Homepage feedback should use plain-language names rather than trader-specific profile jargon.");
 assert.match(marketingHero, /Cova reviews your trade history, finds the habits hurting your results, and shows you what to fix next\./, "Homepage hero support copy should stay plain and easy to understand.");
