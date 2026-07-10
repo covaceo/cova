@@ -9,10 +9,11 @@ async function readSource(path) {
   }
 }
 
-const [marketingHero, riskCore, riskCoreCss] = await Promise.all([
+const [marketingHero, riskCore, riskCoreCss, riskCoreAudit] = await Promise.all([
   readSource("src/components/MarketingHero.tsx"),
   readSource("src/components/HeroRiskCore.tsx"),
   readSource("src/styles/heroRiskCore.css"),
+  readSource("scripts/hero-risk-core-browser-audit.mjs"),
 ]);
 
 assert.ok(riskCore, "HeroRiskCore component must exist.");
@@ -35,5 +36,12 @@ assert.match(riskCoreCss, /\.risk-core-geometry\s*\{[\s\S]*?transform-style:\s*p
 assert.match(riskCoreCss, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?animation:\s*none\s*!important;/, "Risk Core should disable cinematic loops for reduced-motion users.");
 assert.match(riskCoreCss, /@media\s*\(max-width:\s*767px\)[\s\S]*?\.hero-risk-core-stage\s*\{[\s\S]*?display:\s*none\s*!important;/, "Phones should retain the existing mobile dossier instead of shrinking the Risk Core.");
 assert.doesNotMatch(riskCoreCss, /backdrop-filter/, "Risk Core should use matte product-truth material rather than fake glass.");
+
+assert.match(riskCoreAudit, /\[800,\s*768\][\s\S]*\[768,\s*768\][\s\S]*\[899,\s*768\][\s\S]*\[900,\s*768\][\s\S]*\[901,\s*768\][\s\S]*\[1023,\s*768\]/, "Browser audit should cover every tablet breakpoint edge.");
+assert.match(riskCoreAudit, /AbortSignal\.timeout/, "CDP discovery fetches should have per-request timeouts.");
+assert.match(riskCoreAudit, /WebSocket connection timed out/, "CDP WebSocket opening should have an explicit timeout.");
+assert.match(riskCoreAudit, /waitForChromeExit/, "CDP cleanup should await Chrome exit before profile removal.");
+assert.match(riskCoreAudit, /document\.fonts\.ready/, "Browser audit should await web fonts before measuring the hero.");
+assert.match(riskCoreAudit, /contrast\s*>=\s*4\.5/, "Rendered evidence microcopy should be audited against WCAG AA contrast.");
 
 console.log("hero-risk-core-regression: all checks passed");

@@ -36,9 +36,9 @@ function allocateFreePort() {
 }
 
 async function getJson(url) {
-  for (let attempt = 0; attempt < 80; attempt += 1) {
+  for (let attempt = 0; attempt < 30; attempt += 1) {
     try {
-      const response = await fetch(url);
+      const response = await fetch(url, { signal: AbortSignal.timeout(1_000) });
       if (response.ok) return response.json();
     } catch {}
     await sleep(100);
@@ -51,20 +51,30 @@ function connect(url) {
     const socket = new WebSocket(url);
     const pending = new Map();
     let id = 0;
-    socket.onopen = () => resolve({
-      send(method, params = {}) {
-        const requestId = ++id;
-        socket.send(JSON.stringify({ id: requestId, method, params }));
-        return new Promise((resolveRequest, rejectRequest) => {
-          const timeoutId = setTimeout(() => {
-            pending.delete(requestId);
-            rejectRequest(new Error(`CDP request timed out: ${method}`));
-          }, 12_000);
-          pending.set(requestId, { resolveRequest, rejectRequest, timeoutId });
-        });
-      },
-      close() { socket.close(); },
-    });
+    let opened = false;
+    const openTimeout = setTimeout(() => {
+      if (opened) return;
+      socket.close();
+      reject(new Error("WebSocket connection timed out"));
+    }, 8_000);
+    socket.onopen = () => {
+      opened = true;
+      clearTimeout(openTimeout);
+      resolve({
+        send(method, params = {}) {
+          const requestId = ++id;
+          socket.send(JSON.stringify({ id: requestId, method, params }));
+          return new Promise((resolveRequest, rejectRequest) => {
+            const timeoutId = setTimeout(() => {
+              pending.delete(requestId);
+              rejectRequest(new Error(`CDP request timed out: ${method}`));
+            }, 12_000);
+            pending.set(requestId, { resolveRequest, rejectRequest, timeoutId });
+          });
+        },
+        close() { socket.close(); },
+      });
+    };
     socket.onmessage = (event) => {
       const message = JSON.parse(String(event.data));
       const request = pending.get(message.id);
@@ -74,8 +84,13 @@ function connect(url) {
       if (message.error) request.rejectRequest(new Error(message.error.message));
       else request.resolveRequest(message.result ?? {});
     };
-    socket.onerror = reject;
+    socket.onerror = () => {
+      if (opened) return;
+      clearTimeout(openTimeout);
+      reject(new Error("WebSocket connection failed"));
+    };
     socket.onclose = () => {
+      clearTimeout(openTimeout);
       for (const request of pending.values()) {
         clearTimeout(request.timeoutId);
         request.rejectRequest(new Error("CDP connection closed before request completed"));
@@ -92,6 +107,7 @@ async function evaluate(client, expression) {
 }
 
 async function waitForSettledHero(client, width) {
+  await evaluate(client, "document.fonts.ready.then(() => true)");
   for (let attempt = 0; attempt < 50; attempt += 1) {
     const settled = await evaluate(client, `(() => {
       const core = document.querySelector('.hero-risk-core-stage');
@@ -132,6 +148,21 @@ async function snapshot(client) {
       const style = getComputedStyle(element);
       return { left: box.left, top: box.top, right: box.right, bottom: box.bottom, width: box.width, height: box.height, display: style.display, opacity: Number(style.opacity), pointerEvents: style.pointerEvents, fontSize: Number.parseFloat(style.fontSize), animationName: style.animationName };
     };
+    const contrast = (selector) => {
+      const element = document.querySelector(selector);
+      if (!element) return 0;
+      const channels = getComputedStyle(element).color.match(/[0-9.]+/g)?.map(Number) ?? [];
+      const alpha = channels[3] ?? 1;
+      const background = [9, 9, 8];
+      const foreground = channels.slice(0, 3).map((channel, index) => channel * alpha + background[index] * (1 - alpha));
+      const luminance = (rgb) => rgb.map((channel) => {
+        const value = channel / 255;
+        return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+      }).reduce((sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index], 0);
+      const light = luminance(foreground);
+      const dark = luminance(background);
+      return (light + 0.05) / (dark + 0.05);
+    };
     return {
       viewport: { width: innerWidth, height: innerHeight },
       overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -142,12 +173,37 @@ async function snapshot(client) {
       finding: rect('.risk-core-finding'),
       findingTitle: rect('.risk-core-finding-copy > strong'),
       impact: rect('.risk-core-impact b'),
+      sampleQualifier: { ...rect('.risk-core-impact small'), contrast: contrast('.risk-core-impact small') },
+      occurrence: { ...rect('.risk-core-finding-copy p'), contrast: contrast('.risk-core-finding-copy p') },
       motion: rect('.risk-core-motion'),
       scan: rect('.risk-core-scan'),
       reaction: rect('.market-reaction-band'),
       mobileDossier: rect('.mobile-hero-dossier'),
     };
   })()`);
+}
+
+async function waitForChromeExit(timeoutMs) {
+  if (chrome.exitCode !== null) return true;
+  return new Promise((resolve) => {
+    const handleExit = () => {
+      clearTimeout(timeoutId);
+      resolve(true);
+    };
+    const timeoutId = setTimeout(() => {
+      chrome.off("exit", handleExit);
+      resolve(false);
+    }, timeoutMs);
+    chrome.once("exit", handleExit);
+  });
+}
+
+async function terminateChrome() {
+  if (chrome.exitCode !== null) return;
+  chrome.kill("SIGTERM");
+  if (await waitForChromeExit(2_000)) return;
+  chrome.kill("SIGKILL");
+  await waitForChromeExit(2_000);
 }
 
 let client;
@@ -161,7 +217,7 @@ try {
   await client.send("Page.enable");
   await client.send("Runtime.enable");
 
-  const desktopCases = [[1440, 900], [1440, 720], [1280, 720], [1024, 768]];
+  const desktopCases = [[800, 768], [768, 768], [899, 768], [900, 768], [901, 768], [1023, 768], [1024, 768], [1280, 720], [1440, 720], [1440, 900]];
   for (const [width, height] of desktopCases) {
     await setViewport(client, width, height);
     const state = await snapshot(client);
@@ -170,11 +226,16 @@ try {
     assert.notEqual(state.core?.display, "none", `${width}x${height} must render the Risk Core`);
     assert.equal(state.core?.pointerEvents, "none", "Risk Core must not intercept hero actions");
     assert.equal(state.mobileDossier?.display, "none", `${width}x${height} must not render the phone dossier`);
-    assert.ok(state.copy.right <= state.geometry.left + 1, `${width}x${height} Risk Core must not overlap hero copy`);
+    const horizontallySeparated = state.copy.right <= state.geometry.left + 1 || state.geometry.right <= state.copy.left + 1;
+    const verticallySeparated = state.copy.bottom <= state.geometry.top + 1 || state.geometry.bottom <= state.copy.top + 1;
+    assert.ok(horizontallySeparated || verticallySeparated, `${width}x${height} Risk Core must not overlap hero copy`);
+    assert.ok(state.geometry.left >= 0 && state.geometry.right <= width, `${width}x${height} Risk Core geometry must remain inside the viewport`);
     assert.ok(state.finding.right <= width - 8, `${width}x${height} finding card must clear the viewport edge`);
     assert.ok(state.finding.top >= 90, `${width}x${height} finding card must clear the header`);
     assert.ok(state.findingTitle.fontSize >= 12, `${width}x${height} finding title must remain readable`);
     assert.ok(state.impact.fontSize >= 16, `${width}x${height} impact value must remain readable`);
+    assert.ok(state.sampleQualifier.fontSize >= 9.5 && state.sampleQualifier.contrast >= 4.5, `${width}x${height} sample qualifier must remain readable and WCAG AA`);
+    assert.ok(state.occurrence.fontSize >= 9.5 && state.occurrence.contrast >= 4.5, `${width}x${height} occurrence evidence must remain readable and WCAG AA`);
     assert.ok(state.geometry.bottom <= state.hero.bottom, `${width}x${height} Risk Core must remain inside the hero`);
     if (width >= 1280) {
       assert.notEqual(state.reaction?.display, "none", `${width}x${height} should retain the follower review rail`);
@@ -188,18 +249,19 @@ try {
   assert.equal(reduced.motion.animationName, "none", "Reduced motion must disable Core floating");
   assert.equal(reduced.scan.animationName, "none", "Reduced motion must disable the scanning pass");
 
-  await setViewport(client, 390, 844);
-  const mobile = await snapshot(client);
-  console.error("[risk-core-audit] 390x844", JSON.stringify(mobile));
-  assert.equal(mobile.overflow, 0, "Phone hero must not overflow horizontally");
-  assert.equal(mobile.core?.display, "none", "Phone hero must hide the desktop Risk Core");
-  assert.notEqual(mobile.mobileDossier?.display, "none", "Phone hero must retain the dedicated dossier");
+  for (const [width, height] of [[767, 844], [390, 844]]) {
+    await setViewport(client, width, height);
+    const mobile = await snapshot(client);
+    console.error(`[risk-core-audit] ${width}x${height}`, JSON.stringify(mobile));
+    assert.equal(mobile.overflow, 0, `${width}px phone hero must not overflow horizontally`);
+    assert.equal(mobile.core?.display, "none", `${width}px phone hero must hide the desktop Risk Core`);
+    assert.notEqual(mobile.mobileDossier?.display, "none", `${width}px phone hero must retain the dedicated dossier`);
+  }
 
   console.log("hero-risk-core-browser-audit: all checks passed");
 } finally {
   client?.close();
-  chrome.kill("SIGTERM");
-  await sleep(350);
+  await terminateChrome();
   for (let attempt = 0; attempt < 5; attempt += 1) {
     try {
       await rm(profile, { recursive: true, force: true });
