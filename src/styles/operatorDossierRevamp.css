@@ -1212,6 +1212,8 @@ textarea {
   }
 
   .hero-dashboard-shell {
+    top: 0.5rem !important;
+    right: 1.125rem !important;
     width: min(92%, 54rem) !important;
   }
 }
@@ -1238,7 +1240,7 @@ textarea {
   }
 }
 
-/* Preview-only illustrative social proof: visibly labeled until verified feedback replaces it. */
+/* Example feedback with explicit placeholder names until verified feedback replaces it. */
 .market-reaction-band {
   position: absolute;
   right: 0;
@@ -1280,7 +1282,7 @@ textarea {
 .market-reaction-item {
   display: grid;
   min-width: 0;
-  min-height: 6.3rem;
+  min-height: 5.45rem;
   align-content: space-between;
   gap: 0.62rem;
   padding: 0.88rem 1rem;
@@ -1289,22 +1291,6 @@ textarea {
 
 .market-reaction-item + .market-reaction-item {
   border-left: 1px solid rgba(232, 224, 211, 0.1);
-}
-
-.market-reaction-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.7rem;
-  color: rgba(232, 224, 211, 0.62);
-  font-family: "JetBrains Mono", monospace;
-  font-size: 0.56rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.market-reaction-meta span:first-child {
-  color: var(--cova-copper);
 }
 
 .market-reaction-item p {
@@ -1317,9 +1303,21 @@ textarea {
 }
 
 .market-reaction-item footer {
-  color: rgba(82, 201, 157, 0.84);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
   font-family: "JetBrains Mono", monospace;
   font-size: 0.56rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+}
+
+.market-reaction-item footer strong {
+  color: rgba(232, 224, 211, 0.78);
+  font-weight: 500;
+}
+
+.market-reaction-item footer span {
+  color: rgba(191, 137, 100, 0.72);
 }

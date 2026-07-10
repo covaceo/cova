@@ -110,18 +110,18 @@ function clampNumber(value: number, min: number, max: number) {
 
 
 export function Hero({ go, openAuth, isSignedIn }: HeroProps) {
-  const sampleReactions = [
+  const exampleFeedback = [
     {
-      quote: "I knew I was overtrading. I didn't realize the damage always started after the first red trade.",
-      profile: "Funded NQ trader",
+      name: "Nancy M.",
+      quote: "I thought I was just having bad days. Cova showed me the same mistake kept happening after a loss.",
     },
     {
-      quote: "The P&L looked fine. Cova showed the risk pressure sitting underneath it.",
-      profile: "ES intraday trader",
+      name: "David R.",
+      quote: "I finally knew what to fix instead of guessing what went wrong.",
     },
     {
-      quote: "It gave me one thing to fix before the next session—not another dashboard to stare at.",
-      profile: "Funded futures trader",
+      name: "Chloe S.",
+      quote: "It made my habits easy to understand without giving me another complicated dashboard.",
     },
   ];
 
@@ -146,7 +146,7 @@ export function Hero({ go, openAuth, isSignedIn }: HeroProps) {
           transition={{ duration: 0.82, ease: [0.16, 1, 0.3, 1] }}
         >
           <p className="market-hero-eyebrow font-body text-xs font-medium uppercase tracking-[0.28em] text-[#18c887] md:text-sm">
-            Funded trader risk review
+            See what keeps going wrong
           </p>
 
           <h1 className="market-hero-title mt-5 text-[4.35rem] font-semibold leading-[0.92] text-white md:text-[4.95rem] lg:text-[5.45rem]">
@@ -155,7 +155,7 @@ export function Hero({ go, openAuth, isSignedIn }: HeroProps) {
           </h1>
 
           <p className="market-hero-subline mt-7 font-body text-lg font-light leading-relaxed text-white/72 md:text-xl">
-            Cova turns your trade history into a risk review, so you can catch revenge trading, size creep, and drawdown pressure before the next session.
+            Cova reviews your trade history, finds the habits hurting your results, and shows you what to fix next.
           </p>
 
           <div className="mt-8 flex flex-wrap items-center gap-5">
@@ -170,7 +170,7 @@ export function Hero({ go, openAuth, isSignedIn }: HeroProps) {
               <span className="market-play-dot grid place-items-center">
                 {isSignedIn ? <Fingerprint className="h-4 w-4 text-[#18c887]" /> : <Play className="h-4 w-4 fill-[#18c887] text-[#18c887]" />}
               </span>
-              <span className="market-hero-action-label">{isSignedIn ? "Link account" : "See the review flow"}</span>
+              <span className="market-hero-action-label">{isSignedIn ? "Link account" : "See how it works"}</span>
             </button>
           </div>
           <p className="market-hero-proof mt-5 font-body text-sm text-white/48">
@@ -189,17 +189,16 @@ export function Hero({ go, openAuth, isSignedIn }: HeroProps) {
           transition={{ duration: 0.74, delay: 0.38, ease: [0.16, 1, 0.3, 1] }}
         >
           <div className="market-reaction-heading">
-            <span>Illustrative trader reactions · sample preview · replace with verified feedback</span>
+            <span>Example feedback · placeholder names</span>
           </div>
           <div className="market-reaction-strip">
-            {sampleReactions.map(({ quote, profile }, index) => (
-              <blockquote className="market-reaction-item" key={profile}>
-                <div className="market-reaction-meta">
-                  <span>Sample {String(index + 1).padStart(2, "0")}</span>
-                  <span>Illustrative</span>
-                </div>
+            {exampleFeedback.map(({ name, quote }) => (
+              <blockquote className="market-reaction-item" key={name}>
                 <p>“{quote}”</p>
-                <footer>{profile}</footer>
+                <footer>
+                  <strong>{name}</strong>
+                  <span>Placeholder</span>
+                </footer>
               </blockquote>
             ))}
           </div>

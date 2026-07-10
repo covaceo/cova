@@ -49,9 +49,11 @@ assert.match(storyStrip, /What Cova caught/, "Homepage should include concrete p
 assert.match(storyStrip, /Daily loss breach/, "Homepage proof should show a specific risk issue Cova catches.");
 assert.match(storyStrip, /Passport proof/, "Homepage proof should connect review output to Passport proof.");
 assert.match(marketingHero, /HeroMobileDossier/, "Homepage should render a dedicated mobile risk-review proof instead of shrinking the desktop mockup.");
-assert.match(marketingHero, /Illustrative trader reactions · sample preview · replace with verified feedback/i, "Illustrative trader reactions must remain visibly disclosed until verified feedback replaces them.");
-assert.match(marketingHero, /Sample \{String\(index \+ 1\)\.padStart\(2, "0"\)\}/, "Every illustrative reaction should retain an explicit Sample label.");
-assert.match(marketingHero, /<span>Illustrative<\/span>/, "Every illustrative reaction should retain an explicit Illustrative label.");
+assert.match(marketingHero, /Example feedback · placeholder names/i, "Example feedback must remain visibly disclosed until verified feedback replaces it.");
+assert.match(marketingHero, /<span>Placeholder<\/span>/, "Every example quote should retain a visible placeholder marker.");
+assert.match(marketingHero, /Nancy M\./, "The example feedback layout should render a human-readable placeholder name.");
+assert.doesNotMatch(marketingHero, /Funded NQ trader|ES intraday trader|Funded futures trader/, "Homepage feedback should use plain-language names rather than trader-specific profile jargon.");
+assert.match(marketingHero, /Cova reviews your trade history, finds the habits hurting your results, and shows you what to fix next\./, "Homepage hero support copy should stay plain and easy to understand.");
 assert.match(operatorDossierCss, /\.mobile-hero-dossier\s*\{\s*display:\s*none;/, "The mobile dossier must stay hidden by default so desktop remains unchanged.");
 assert.match(operatorDossierCss, /@media \(max-width: 767px\)[\s\S]*?\.hero-dashboard-stage\s*\{[\s\S]*?display:\s*none\s*!important;[\s\S]*?\.mobile-hero-dossier\s*\{[\s\S]*?display:\s*block;/, "Phones should replace the oversized desktop hero mockup with the mobile dossier.");
 assert.match(navbar, /const usesWorkspaceChrome = isProtectedSection\(section\);/, "Only protected workspace routes should select chrome that desktop CSS hides behind the sidebar.");
