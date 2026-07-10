@@ -1189,9 +1189,30 @@ textarea {
 }
 
 @media (min-width: 901px) {
+  .market-hero-title .market-hero-editorial {
+    max-width: 9.5ch;
+    color: rgba(232, 224, 211, 0.88) !important;
+    font-family: "Space Grotesk", "Inter", sans-serif !important;
+    font-size: 0.84em;
+    font-style: normal;
+    font-weight: 600;
+    letter-spacing: -0.075em;
+    line-height: 0.94;
+  }
+
   .hero-dashboard-shell {
     right: 0 !important;
     width: min(100%, 57.5rem) !important;
+  }
+}
+
+@media (min-width: 1280px) {
+  .hero-dashboard-stage {
+    min-height: min(41vw, 37rem) !important;
+  }
+
+  .hero-dashboard-shell {
+    width: min(92%, 54rem) !important;
   }
 }
 
@@ -1215,4 +1236,90 @@ textarea {
   .signed-in-marketing-header-shell .operator-mobile-menu-panel {
     display: block !important;
   }
+}
+
+/* Preview-only illustrative social proof: visibly labeled until verified feedback replaces it. */
+.market-reaction-band {
+  position: absolute;
+  right: 0;
+  bottom: clamp(3.3rem, 6vh, 4.8rem);
+  left: 0;
+  z-index: 30;
+  transform: translateZ(1px);
+}
+
+.market-reaction-heading {
+  display: flex;
+  width: min(100%, 78rem);
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin: 0 auto 0.72rem;
+  padding-bottom: 0.66rem;
+  border-bottom: 1px solid rgba(191, 137, 100, 0.32);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.market-reaction-heading span {
+  color: rgba(191, 137, 100, 0.78);
+  text-align: right;
+}
+
+.market-reaction-strip {
+  display: grid;
+  width: min(100%, 78rem);
+  margin: 0 auto;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid rgba(232, 224, 211, 0.1);
+  border-bottom: 1px solid rgba(232, 224, 211, 0.1);
+}
+
+.market-reaction-item {
+  display: grid;
+  min-width: 0;
+  min-height: 6.3rem;
+  align-content: space-between;
+  gap: 0.62rem;
+  padding: 0.88rem 1rem;
+  background: rgba(5, 5, 5, 0.72);
+}
+
+.market-reaction-item + .market-reaction-item {
+  border-left: 1px solid rgba(232, 224, 211, 0.1);
+}
+
+.market-reaction-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  color: rgba(232, 224, 211, 0.62);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.56rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.market-reaction-meta span:first-child {
+  color: var(--cova-copper);
+}
+
+.market-reaction-item p {
+  color: var(--cova-paper);
+  font-family: "Space Grotesk", "Inter", sans-serif;
+  font-size: clamp(0.72rem, 0.88vw, 0.84rem);
+  font-weight: 500;
+  letter-spacing: -0.018em;
+  line-height: 1.35;
+}
+
+.market-reaction-item footer {
+  color: rgba(82, 201, 157, 0.84);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.56rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }

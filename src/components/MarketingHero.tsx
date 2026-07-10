@@ -1,18 +1,15 @@
 import { motion } from "motion/react";
 import {
   ArrowUpRight,
-  BookOpen,
   CalendarDays,
   ChartNoAxesColumnIncreasing,
   ChevronDown,
   ClipboardCheck,
   FileText,
   Fingerprint,
-  Gauge,
   Play,
   Repeat2,
   Settings,
-  ShieldCheck,
   Target,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -113,11 +110,19 @@ function clampNumber(value: number, min: number, max: number) {
 
 
 export function Hero({ go, openAuth, isSignedIn }: HeroProps) {
-  const journalFeatures = [
-    { num: "01", title: "Find the leak", detail: "Behavior evidence", Icon: BookOpen },
-    { num: "02", title: "Review pressure", detail: "Risk under stress", Icon: Gauge },
-    { num: "03", title: "Protect payouts", detail: "Guardrail review", Icon: ShieldCheck },
-    { num: "04", title: "Show discipline", detail: "Shareable proof", Icon: ArrowUpRight },
+  const sampleReactions = [
+    {
+      quote: "I knew I was overtrading. I didn't realize the damage always started after the first red trade.",
+      profile: "Funded NQ trader",
+    },
+    {
+      quote: "The P&L looked fine. Cova showed the risk pressure sitting underneath it.",
+      profile: "ES intraday trader",
+    },
+    {
+      quote: "It gave me one thing to fix before the next session—not another dashboard to stare at.",
+      profile: "Funded futures trader",
+    },
   ];
 
   function scrollHowItWorks() {
@@ -178,22 +183,24 @@ export function Hero({ go, openAuth, isSignedIn }: HeroProps) {
         <HeroDashboardMockup revealStats={isSignedIn} />
 
         <motion.div
-          className="market-feature-band hidden xl:block"
+          className="market-reaction-band hidden xl:block"
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.74, delay: 0.38, ease: [0.16, 1, 0.3, 1] }}
         >
-          <p className="market-feature-kicker">Built for traders who know discipline is the edge</p>
-          <div className="market-feature-strip market-feature-strip-wide">
-            {journalFeatures.map(({ num, title, detail, Icon }) => (
-              <div className="market-feature-item" key={title}>
-                <span className="market-feature-index">{num}</span>
-                <span className="market-feature-icon"><Icon className="h-5 w-5" /></span>
-                <div>
-                  <h3 className="font-body text-sm font-semibold text-white md:text-[0.95rem]">{title}</h3>
-                  <p>{detail}</p>
+          <div className="market-reaction-heading">
+            <span>Illustrative trader reactions · sample preview · replace with verified feedback</span>
+          </div>
+          <div className="market-reaction-strip">
+            {sampleReactions.map(({ quote, profile }, index) => (
+              <blockquote className="market-reaction-item" key={profile}>
+                <div className="market-reaction-meta">
+                  <span>Sample {String(index + 1).padStart(2, "0")}</span>
+                  <span>Illustrative</span>
                 </div>
-              </div>
+                <p>“{quote}”</p>
+                <footer>{profile}</footer>
+              </blockquote>
             ))}
           </div>
         </motion.div>
