@@ -18,6 +18,7 @@ const propFirms = read("src", "lib", "propFirms.ts");
 const authPanels = read("src", "components", "AuthPanels.tsx");
 const dashboard = read("src", "components", "DashboardView.tsx");
 const marketingHero = read("src", "components", "MarketingHero.tsx");
+const navbar = read("src", "components", "Navbar.tsx");
 const riskDeskCss = read("src", "styles", "riskDeskVisualSystem.css");
 const workspaceCss = read("src", "styles", "workspaceRouteRefinement.css");
 const operatorDossierCss = read("src", "styles", "operatorDossierRevamp.css");
@@ -50,6 +51,12 @@ assert.match(storyStrip, /Passport proof/, "Homepage proof should connect review
 assert.match(marketingHero, /HeroMobileDossier/, "Homepage should render a dedicated mobile risk-review proof instead of shrinking the desktop mockup.");
 assert.match(operatorDossierCss, /\.mobile-hero-dossier\s*\{\s*display:\s*none;/, "The mobile dossier must stay hidden by default so desktop remains unchanged.");
 assert.match(operatorDossierCss, /@media \(max-width: 767px\)[\s\S]*?\.hero-dashboard-stage\s*\{[\s\S]*?display:\s*none\s*!important;[\s\S]*?\.mobile-hero-dossier\s*\{[\s\S]*?display:\s*block;/, "Phones should replace the oversized desktop hero mockup with the mobile dossier.");
+assert.match(navbar, /const usesWorkspaceChrome = isProtectedSection\(section\);/, "Only protected workspace routes should select chrome that desktop CSS hides behind the sidebar.");
+assert.match(navbar, /const isAppMode = Boolean\(authSession\) \|\| usesWorkspaceChrome;/, "Signed-in mobile marketing routes should retain their existing app-navigation menu.");
+assert.match(navbar, /usesWorkspaceChrome \? "workspace-top-header"/, "Authentication alone must not hide the marketing header on Overview.");
+assert.match(navbar, /authSession && !usesWorkspaceChrome \? "marketing-header-signed-in"/, "Signed-in marketing pages should expose a compact desktop-header hook without entering workspace mode.");
+assert.match(operatorDossierCss, /@media \(min-width: 901px\)[\s\S]*?\.hero-dashboard-shell\s*\{[\s\S]*?right:\s*0\s*!important;[\s\S]*?width:\s*min\(100%,\s*57\.5rem\)\s*!important;/, "Desktop hero proof should stay anchored inside its grid lane instead of overlapping the copy.");
+assert.match(operatorDossierCss, /@media \(min-width: 768px\) and \(max-width: 1100px\)[\s\S]*?\.signed-in-marketing-header-shell \.marketing-header-signed-in\s*\{[\s\S]*?display:\s*none\s*!important;[\s\S]*?\.header-mobile-brand\s*\{[\s\S]*?display:\s*flex\s*!important;[\s\S]*?\.operator-mobile-menu-toggle\s*\{[\s\S]*?display:\s*grid\s*!important;[\s\S]*?\.operator-mobile-menu-panel\s*\{[\s\S]*?display:\s*block\s*!important;/, "Narrow signed-in desktop headers should replace crowded links with an accessible menu, not remove navigation.");
 
 assert.match(marketingPages, /Backtesting lab/, "Backtesting should appear as an active product module.");
 assert.match(marketingPages, /in-app replay simulator/i, "Marketing should describe Cova's current in-app Practice simulator.");

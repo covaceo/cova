@@ -39,7 +39,8 @@ export function Navbar({ section, go, openAuth, mobileOpen, setMobileOpen, authS
   signOut: () => void;
 }) {
   const [scrolled, setScrolled] = useState(false);
-  const isAppMode = Boolean(authSession) || isProtectedSection(section);
+  const usesWorkspaceChrome = isProtectedSection(section);
+  const isAppMode = Boolean(authSession) || usesWorkspaceChrome;
   const activeMarketingLabel = marketingNav.find((item) => item.action === section)?.label ?? "Product";
   const activeAppLabel = appNav.find((item) => item.id === section)?.label ?? "";
 
@@ -67,7 +68,7 @@ export function Navbar({ section, go, openAuth, mobileOpen, setMobileOpen, authS
 
   return (
     <motion.header
-      className={`fixed left-0 right-0 top-0 z-50 px-4 pb-3 pt-6 md:px-8 ${isAppMode ? "workspace-top-header" : ""}`}
+      className={`fixed left-0 right-0 top-0 z-50 px-4 pb-3 pt-6 md:px-8 ${usesWorkspaceChrome ? "workspace-top-header" : ""} ${authSession && !usesWorkspaceChrome ? "signed-in-marketing-header-shell" : ""}`}
       initial={{ opacity: 0, y: -24 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
@@ -77,8 +78,8 @@ export function Navbar({ section, go, openAuth, mobileOpen, setMobileOpen, authS
           scrolled ? "header-scroll-veil opacity-90" : "header-scroll-veil opacity-60"
         }`}
       />
-      <div className="mx-auto flex w-full max-w-[1400px] items-center justify-between md:justify-center">
-        <div className={`header-orbit marketing-header hidden items-center md:flex ${isAppMode ? "product-header" : ""}`}>
+      <div className="header-layout-row mx-auto flex w-full max-w-[1400px] items-center justify-between md:justify-center">
+        <div className={`header-orbit marketing-header hidden items-center md:flex ${usesWorkspaceChrome ? "product-header" : ""} ${authSession && !usesWorkspaceChrome ? "marketing-header-signed-in" : ""}`}>
           <button className="brand-lockup group flex min-w-0 shrink-0 items-center" onClick={() => go(authSession ? "dashboard" : "overview")} type="button" aria-label="Go to Cova home">
             <img
               src="/media/wordmark-options/cova-wordmark-option-3-sleek-cropped.png"
@@ -87,8 +88,8 @@ export function Navbar({ section, go, openAuth, mobileOpen, setMobileOpen, authS
             />
           </button>
 
-          <nav className={`header-nav-group marketing-nav-group ${isAppMode ? "product-nav-group" : ""}`} aria-label="Primary navigation">
-            {isAppMode ? (
+          <nav className={`header-nav-group marketing-nav-group ${usesWorkspaceChrome ? "product-nav-group" : ""}`} aria-label="Primary navigation">
+            {usesWorkspaceChrome ? (
               appNav.map((item) => (
                 <button
                   key={item.id}
@@ -116,7 +117,7 @@ export function Navbar({ section, go, openAuth, mobileOpen, setMobileOpen, authS
             )}
           </nav>
 
-          <div className={`header-actions ${isAppMode ? "product-actions" : ""}`}>
+          <div className={`header-actions ${usesWorkspaceChrome ? "product-actions" : ""}`}>
             {authSession ? (
               <>
                 <button
@@ -166,7 +167,7 @@ export function Navbar({ section, go, openAuth, mobileOpen, setMobileOpen, authS
           </div>
         </div>
 
-        <button className="brand-lockup flex min-w-0 shrink-0 items-center md:hidden" onClick={() => go(authSession ? "dashboard" : "overview")} type="button" aria-label="Go to Cova home">
+        <button className="header-mobile-brand brand-lockup flex min-w-0 shrink-0 items-center md:hidden" onClick={() => go(authSession ? "dashboard" : "overview")} type="button" aria-label="Go to Cova home">
           <img src="/cova-logo-minimal-white.svg" alt="Cova" className="header-brand-mark h-10 w-10 object-contain opacity-95" />
         </button>
 
