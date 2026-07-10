@@ -8,6 +8,12 @@
   html.cova-custom-cursor-active .cova-cursor {
     display: block;
   }
+
+  html.cova-custom-cursor-active iframe,
+  html.cova-custom-cursor-active video,
+  html.cova-custom-cursor-active [data-cursor="hidden"] {
+    cursor: auto !important;
+  }
 }
 
 .cova-cursor {
@@ -51,12 +57,22 @@
   z-index: 1;
   width: var(--cursor-frame-size);
   height: var(--cursor-frame-size);
+  transition:
+    width 150ms cubic-bezier(0.16, 1, 0.3, 1),
+    height 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cova-cursor-frame-geometry {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  pointer-events: none;
+  rotate: 45deg;
   border: 1px solid rgba(191, 137, 100, 0.88);
   border-radius: 3px;
   background: rgba(191, 137, 100, 0.025);
   transition:
-    width 150ms cubic-bezier(0.16, 1, 0.3, 1),
-    height 150ms cubic-bezier(0.16, 1, 0.3, 1),
+    rotate 190ms cubic-bezier(0.16, 1, 0.3, 1),
     border-color 120ms ease,
     border-radius 120ms ease,
     background-color 120ms ease,
@@ -105,6 +121,10 @@
 
 .cova-cursor[data-cursor-state="action"] .cova-cursor-frame {
   --cursor-frame-size: 32px;
+}
+
+.cova-cursor[data-cursor-state="action"] .cova-cursor-frame-geometry {
+  rotate: 0deg;
   border-color: rgba(191, 137, 100, 1);
   background: rgba(191, 137, 100, 0.11);
 }
@@ -118,6 +138,11 @@
 .cova-cursor[data-cursor-state="pressed"] .cova-cursor-frame,
 .cova-cursor[data-cursor-state="grabbing"] .cova-cursor-frame {
   --cursor-frame-size: 16px;
+}
+
+.cova-cursor[data-cursor-state="pressed"] .cova-cursor-frame-geometry,
+.cova-cursor[data-cursor-state="grabbing"] .cova-cursor-frame-geometry {
+  rotate: 0deg;
   border-color: rgba(232, 224, 211, 0.94);
   background: rgba(191, 137, 100, 0.18);
 }
@@ -136,6 +161,10 @@
 .cova-cursor[data-cursor-state="text"] .cova-cursor-frame {
   width: 2px;
   height: 22px;
+}
+
+.cova-cursor[data-cursor-state="text"] .cova-cursor-frame-geometry {
+  rotate: 0deg;
   border: 0;
   border-radius: 1px;
   background: #bf8964;
@@ -151,6 +180,10 @@
 
 .cova-cursor[data-cursor-state="disabled"] .cova-cursor-frame {
   --cursor-frame-size: 20px;
+}
+
+.cova-cursor[data-cursor-state="disabled"] .cova-cursor-frame-geometry {
+  rotate: 0deg;
   border-color: rgba(232, 224, 211, 0.34);
   background: linear-gradient(135deg, transparent 46%, rgba(191, 137, 100, 0.72) 47%, rgba(191, 137, 100, 0.72) 53%, transparent 54%);
   opacity: 0.68;
@@ -158,6 +191,10 @@
 
 .cova-cursor[data-cursor-state="grab"] .cova-cursor-frame {
   --cursor-frame-size: 26px;
+}
+
+.cova-cursor[data-cursor-state="grab"] .cova-cursor-frame-geometry {
+  rotate: 0deg;
   border-color: rgba(191, 137, 100, 0.96);
 }
 
@@ -176,6 +213,12 @@
 }
 
 @media (prefers-reduced-motion: reduce), (forced-colors: active) {
+  html.cova-custom-cursor-active,
+  html.cova-custom-cursor-active body,
+  html.cova-custom-cursor-active body * {
+    cursor: revert !important;
+  }
+
   .cova-cursor {
     display: none !important;
   }

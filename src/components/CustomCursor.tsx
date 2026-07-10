@@ -41,15 +41,15 @@ function classifyTarget(target: EventTarget | null): CursorState {
     return "default";
   }
 
-  const explicit = target.closest<HTMLElement>("[data-cursor]")?.dataset.cursor;
-  if (explicit && cursorStates.includes(explicit as CursorState)) {
-    return explicit as CursorState;
-  }
   if (target.closest("iframe, video, [data-cursor='hidden']")) {
     return "hidden";
   }
   if (target.closest(":disabled, [aria-disabled='true'], .cursor-not-allowed, [data-cursor='disabled']")) {
     return "disabled";
+  }
+  const explicit = target.closest<HTMLElement>("[data-cursor]")?.dataset.cursor;
+  if (explicit && cursorStates.includes(explicit as CursorState)) {
+    return explicit as CursorState;
   }
   if (target.closest(textInputSelector)) {
     return "text";
@@ -92,6 +92,7 @@ export function CustomCursor() {
     let frameInitialized = false;
 
     const eligible = () => finePointerQuery.matches && !reducedMotionQuery.matches && !forcedColorsQuery.matches;
+    const isNonMousePointer = (event: PointerEvent) => event.pointerType === "touch" || event.pointerType === "pen";
 
     const setVisible = (nextVisible: boolean) => {
       visible = nextVisible;
@@ -174,7 +175,7 @@ export function CustomCursor() {
     };
 
     const movePointer = (event: PointerEvent) => {
-      if (event.pointerType === "touch" || event.pointerType === "pen") {
+      if (isNonMousePointer(event)) {
         enabled = false;
         restoreNativeCursor();
         return;
@@ -185,6 +186,13 @@ export function CustomCursor() {
         return;
       }
       enabled = true;
+      const nextState = classifyTarget(event.target);
+      if (nextState === "hidden") {
+        restoreNativeCursor();
+        return;
+      }
+      baseState = nextState;
+      setState();
       activate();
       targetX = event.clientX;
       targetY = event.clientY;
@@ -195,9 +203,7 @@ export function CustomCursor() {
         frameInitialized = true;
         position(frame, frameX, frameY);
       }
-      if (baseState !== "hidden") {
-        setVisible(true);
-      }
+      setVisible(true);
       if (baseState === "text") {
         stopFrame();
         frameX = targetX;
@@ -209,45 +215,82 @@ export function CustomCursor() {
     };
 
     const updateTargetState = (event: PointerEvent) => {
+      if (isNonMousePointer(event)) {
+        enabled = false;
+        restoreNativeCursor();
+        return;
+      }
       if (!enabled) {
         return;
       }
       baseState = classifyTarget(event.target);
+      if (baseState === "hidden") {
+        restoreNativeCursor();
+        return;
+      }
       setState();
-      setVisible(baseState !== "hidden");
+      setVisible(true);
     };
 
     const leaveTarget = (event: PointerEvent) => {
+      if (isNonMousePointer(event)) {
+        enabled = false;
+        restoreNativeCursor();
+        return;
+      }
       if (event.relatedTarget instanceof Element) {
         baseState = classifyTarget(event.relatedTarget);
+        if (baseState === "hidden") {
+          restoreNativeCursor();
+          return;
+        }
         setState();
-        setVisible(baseState !== "hidden");
+        setVisible(true);
       } else {
-        setVisible(false);
+        restoreNativeCursor();
       }
     };
 
     const pressPointer = (event: PointerEvent) => {
-      if (!enabled || event.pointerType === "touch" || event.pointerType === "pen") {
+      if (isNonMousePointer(event)) {
+        enabled = false;
+        restoreNativeCursor();
+        return;
+      }
+      if (!enabled) {
         return;
       }
       baseState = classifyTarget(event.target);
+      if (baseState === "hidden") {
+        restoreNativeCursor();
+        return;
+      }
+      if (baseState === "disabled") {
+        pressed = false;
+        setState();
+        return;
+      }
       pressed = true;
       setState();
     };
 
     const releasePointer = (event: PointerEvent) => {
+      if (isNonMousePointer(event)) {
+        enabled = false;
+        restoreNativeCursor();
+        return;
+      }
       pressed = false;
       baseState = classifyTarget(event.target);
+      if (baseState === "hidden") {
+        restoreNativeCursor();
+        return;
+      }
       setState();
     };
 
-    const leaveViewport = () => setVisible(false);
-    const handleVisibility = () => {
-      if (document.hidden) {
-        setVisible(false);
-      }
-    };
+    const leaveViewport = () => restoreNativeCursor();
+    const handleVisibility = () => restoreNativeCursor();
 
     refreshEligibility();
     finePointerQuery.addEventListener("change", refreshEligibility);
@@ -284,10 +327,12 @@ export function CustomCursor() {
     <div ref={cursorRef} className="cova-cursor" data-cursor-state="default" aria-hidden="true">
       <span ref={pointRef} className="cova-cursor-point" />
       <span ref={frameRef} className="cova-cursor-frame">
-        <i className="cova-cursor-notch is-top" />
-        <i className="cova-cursor-notch is-right" />
-        <i className="cova-cursor-notch is-bottom" />
-        <i className="cova-cursor-notch is-left" />
+        <span className="cova-cursor-frame-geometry">
+          <i className="cova-cursor-notch is-top" />
+          <i className="cova-cursor-notch is-right" />
+          <i className="cova-cursor-notch is-bottom" />
+          <i className="cova-cursor-notch is-left" />
+        </span>
       </span>
     </div>
   );

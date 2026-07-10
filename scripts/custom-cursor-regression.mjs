@@ -9,11 +9,12 @@ async function readSource(path) {
   }
 }
 
-const [cursorSource, cursorCss, appSource, mainSource] = await Promise.all([
+const [cursorSource, cursorCss, appSource, mainSource, browserAudit] = await Promise.all([
   readSource("src/components/CustomCursor.tsx"),
   readSource("src/styles/customCursor.css"),
   readSource("src/App.tsx"),
   readSource("src/main.tsx"),
+  readSource("scripts/custom-cursor-browser-audit.mjs"),
 ]);
 
 assert.ok(cursorSource, "CustomCursor component must exist.");
@@ -43,5 +44,14 @@ assert.match(cursorCss, /\.cova-cursor\s*\{[\s\S]*?display:\s*none;/, "The inact
 assert.doesNotMatch(cursorCss, /^(?![\s\S]*html\.cova-custom-cursor-active)[\s\S]*(?:html|body|\*)\s*\{[^}]*cursor:\s*none/m, "Cursor must never be hidden unconditionally.");
 assert.match(cursorCss, /\.cova-cursor\s*\{[\s\S]*pointer-events:\s*none;/, "The custom cursor layer must never intercept input.");
 assert.doesNotMatch(cursorCss, /user-select:\s*none/, "Custom cursor styling must not disable text selection.");
+assert.match(cursorCss, /\.cova-cursor-frame-geometry\s*\{[\s\S]*?rotate:\s*45deg;/, "The standby reticle should be a 45-degree diamond.");
+assert.match(cursorCss, /\[data-cursor-state=["']action["']\]\s+\.cova-cursor-frame-geometry\s*\{[\s\S]*?rotate:\s*0deg;/, "Interactive hover should rotate the reticle into a square.");
+assert.match(cursorCss, /@media[^{]*(?:prefers-reduced-motion|forced-colors)[\s\S]*html\.cova-custom-cursor-active[\s\S]*cursor:\s*revert\s*!important/, "Accessibility fallback media queries should restore the native cursor without waiting for JavaScript.");
+
+assert.ok(browserAudit, "Custom cursor browser audit must exist.");
+assert.doesNotMatch(browserAudit, /const port\s*=\s*\d+/, "Browser audit must not use a fixed CDP port.");
+assert.match(browserAudit, /createServer/, "Browser audit should allocate a free CDP port.");
+assert.match(browserAudit, /CDP request timed out/, "Every CDP request should have a bounded timeout.");
+assert.match(browserAudit, /auditTargetToken/, "Browser audit should verify that the page target belongs to its spawned Chrome instance.");
 
 console.log("custom-cursor-regression: all checks passed");
