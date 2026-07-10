@@ -23,7 +23,7 @@ const riskDeskCss = read("src", "styles", "riskDeskVisualSystem.css");
 const workspaceCss = read("src", "styles", "workspaceRouteRefinement.css");
 const operatorDossierCss = read("src", "styles", "operatorDossierRevamp.css");
 const indexCss = read("src", "index.css");
-const tradingViewHost = read("src", "components", "practice", "TradingViewChartHost.tsx");
+const tradingViewHost = read("src", "components", "practice", "LightweightReplayChart.tsx");
 const backtesting = read("src", "lib", "backtesting.ts");
 
 assert.match(workspace, /Proof checked · flags found/, "Passport ledger should use mixed-state copy when any rules are flagged.");
@@ -121,10 +121,10 @@ assert.match(workspaceCss, /\.practice-simulator-grid\s*>\s*\*\s*\{[\s\S]*?min-w
 assert.match(workspaceCss, /\.practice-simulator-grid\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)/, "Practice should use a viewport-safe single track before the desktop breakpoint.");
 assert.match(workspaceCss, /\.practice-simulator-grid\s*>\s*:nth-child\(2\)\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)/, "Practice's chart column wrapper must use a shrinkable track.");
 assert.match(workspaceCss, /\.practice-chart-panel\s*\{[\s\S]*?min-width:\s*0;[\s\S]*?overflow:\s*hidden;/, "Practice should contain chart overflow at the panel boundary.");
-assert.match(workspaceCss, /\.practice-chart-shell\s*\{[\s\S]*?width:\s*100%;[\s\S]*?overflow-x:\s*auto;/, "Practice should make the chart shell—not the route—the horizontal scroll owner.");
-assert.match(tradingViewHost, /Basic replay chart/, "Practice should use user-safe fallback wording.");
-assert.match(tradingViewHost, /Deterministic demo tape/, "Practice fallback should disclose that the current tape is deterministic demo data.");
-assert.match(tradingViewHost, /not historical market data/, "Hosted and fallback Practice modes should disclose the demo-data boundary.");
+assert.match(workspaceCss, /\.practice-tv-container\s*\{[\s\S]*?width:\s*100%;/, "Practice should keep the responsive chart inside its panel width.");
+assert.match(tradingViewHost, /TradingView Lightweight Charts/, "Practice should identify the active official chart renderer.");
+assert.match(tradingViewHost, /Deterministic demo tape/, "Practice should disclose that the current tape is deterministic demo data.");
+assert.match(tradingViewHost, /not historical market data/, "Practice should preserve the demo-data boundary.");
 assert.match(importPanels, /!entitlements\.canUseDirectSync/, "Direct connector UI must enforce the Free/Pro boundary.");
 assert.match(importPanels, /entitlements\.canUseDirectSync && selectedFirm\.id === "topstepx" && selectedConnected/, "Free users must not see connected-sync actions.");
 assert.match(app, /if \(!entitlements\.canUseDirectSync\)/, "App-level OAuth entry must enforce the direct-sync entitlement.");

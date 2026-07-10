@@ -1,174 +1,111 @@
-# TradingView Advanced Charts application packet for Cova
+# Cova Practice chart and replay architecture
 
-Created: 2026-07-09
+Updated: 2026-07-10
 
-## Goal
+## Shipping decision
 
-Request official access to TradingView **Advanced Charts / Charting Library** for Cova Practice, so Cova can legally self-host TradingView chart assets under:
+Cova Practice uses **TradingView Lightweight Charts** as the chart renderer and keeps replay, simulated execution, account state, and analytics inside Cova.
 
 ```txt
-/public/trading_platform/
+Licensed historical futures data (future external gate)
+  -> authenticated Cova history API/cache
+  -> validated ReplayTape domain model
+  -> TradingView Lightweight Charts
+  -> Cova replay clock
+  -> Cova simulated Buy / Sell / Close execution
+  -> Cova practice ledger, P&L, drawdown, rule and readiness analytics
 ```
 
-Cova already has the integration scaffold in code:
+Active implementation:
 
 ```txt
+src/lib/backtesting.ts
 src/lib/practiceTradingView.ts
-src/components/practice/TradingViewChartHost.tsx
-public/trading_platform/README.md
-public/trading_view/cova-practice.css
+src/components/practice/LightweightReplayChart.tsx
+scripts/practice-history-regression.mjs
+scripts/practice-datafeed-regression.mjs
 scripts/practice-architecture-regression.mjs
 ```
 
-The Practice route currently falls back to the internal Cova SVG replay chart until licensed TradingView assets are added.
+## Why Cova is not waiting for Advanced Charts
 
-## Official target
+TradingView's current official documentation states:
 
-Use the TradingView Advanced Charts page:
+1. Advanced Charts and Trading Platform do not include market data; the integrator must provide it.
+2. Advanced Charts and Trading Platform do not support TradingView's built-in Bar Replay tool.
+3. Free Advanced Charts usage requires attribution and a public implementation, not a private or paywalled workspace.
+4. Lightweight Charts is Apache-2.0 licensed and may be used commercially when its attribution requirements are met.
 
-```txt
-https://www.tradingview.com/advanced-charts/
-```
+Official references:
 
-Click:
+- https://www.tradingview.com/charting-library-docs/latest/getting_started/FAQ/
+- https://www.tradingview.com/charting-library-docs/latest/getting_started/product-comparison/
+- https://github.com/tradingview/lightweight-charts
 
-```txt
-Contact us / Get the library
-```
+Cova Practice is authenticated and may be paywalled. More importantly, Cova must own replay behavior regardless of renderer. Lightweight Charts therefore removes an unnecessary license/application dependency while preserving the TradingView-grade charting surface.
 
-## Form fields seen on TradingView
+## Product-truth boundary
 
-Known required fields from the official form:
-
-1. Full name
-2. Company email
-3. Company name
-4. Website URL for the integration
-5. Link to GitHub profile
-6. Is your website live?
-7. Job / role
-8. Use-case description
-9. Optional file upload
-10. License Agreement checkbox
-
-## Fill values
-
-Use these unless Raf wants different official company info.
-
-| Field | Value |
-|---|---|
-| Full name | `[RAF FULL NAME]` |
-| Company email | `[COVA COMPANY EMAIL]` |
-| Company name | `Cova` |
-| Website URL for the integration | `[COVA APP URL OR LANDING URL]` |
-| Link to GitHub profile | `[RAF/COVA GITHUB PROFILE]` |
-| Is your website live? | `Yes` if Cova landing/app is publicly reachable; otherwise `No / not yet` |
-| Job / role | `Founder` |
-
-## Use-case description to paste
+The current tape is a deterministic generated demonstration. The UI must continue to display:
 
 ```txt
-Cova is a trading journal and risk operating system for active traders, with a Practice/Backtesting workspace for replaying historical market sessions before risking live capital.
-
-We want to integrate TradingView Advanced Charts as the charting surface inside Cova Practice. Cova will provide its own datafeed adapter for historical candles, symbol metadata, replay state, execution marks, and chart layout/settings persistence. The integration is not intended to route live orders, connect to brokerage accounts, or move customer funds.
-
-The product flow is:
-1. A trader configures a paper practice account: account size, risk per trade, max daily loss, max drawdown, market, contracts, year/date, and setup.
-2. Cova loads a TradingView-grade chart inside the Cova web app.
-3. Cova serves historical OHLCV bars through the TradingView Datafeed API.
-4. Cova controls the replay clock and lets the trader step/play through the session.
-5. Cova records simulated Buy/Sell/Close executions in a practice ledger.
-6. Cova calculates P&L, R-multiple, drawdown, rule-follow rate, setup scorecards, and live-trading permission status.
-
-We need Advanced Charts because the free public widget does not expose the level of control required for an in-app replay simulator, custom datafeed, execution marks, saved chart layouts, and a premium trading-workstation user experience.
-
-The integration will be hosted in Cova's authenticated web app. Depending on the user's plan, the Practice module may be available behind a subscription/paywall. Cova will follow TradingView's license requirements and will not redistribute the library outside the Cova application.
-
-Technical implementation already prepared:
-- Self-hosted library path: /trading_platform/
-- Custom CSS path: /trading_view/cova-practice.css
-- Custom Datafeed API methods: onReady, resolveSymbol, searchSymbols, getBars, subscribeBars, unsubscribeBars, getServerTime, getMarks, getTimescaleMarks
-- Cova-owned replay clock and paper execution engine
-- Chart layout/settings adapter seams
-
-We are requesting official access to the Advanced Charts / Charting Library package so we can complete the licensed implementation properly.
+Deterministic demo tape · not historical market data · 5-minute bars · simulated fills
 ```
 
-## Shorter description if the form has a tight character limit
+Do not describe current Practice as historical replay until a licensed data source is connected and production-verified.
 
-```txt
-Cova is a trading journal/risk OS with an in-app Practice workspace. We want TradingView Advanced Charts as the charting surface for historical replay/backtesting. Cova will provide its own Datafeed API for candles, symbols, replay time, marks, and saved layouts, while Cova owns the simulated Buy/Sell/Close paper execution, practice ledger, P&L/R calculations, drawdown, rule-follow stats, and live-permission scoring. This is not broker execution and will not route live orders or move funds. The module will be hosted in Cova's authenticated web app and may be behind a subscription/paywall. We have already prepared the self-hosted integration path `/trading_platform/`, custom CSS path `/trading_view/cova-practice.css`, datafeed adapter, replay clock, and practice execution engine; we need official licensed access to complete it correctly.
-```
+The domain model now records data provenance:
 
-## Optional attachment content
+- `kind`: `demo` or `historical`
+- `provider`
+- `resolutionMinutes`
+- optional actual futures `contract`
 
-If TradingView allows a file upload, attach a short one-page integration brief/PDF containing:
+Historical bars fail closed unless:
 
-- Cova product summary
-- Screenshot of Practice route if available
-- Architecture diagram:
+- timestamps match the selected session date;
+- timestamps are strictly chronological and unique;
+- OHLCV values are finite;
+- volume is non-negative;
+- high/low relationships are valid.
 
-```txt
-Cova Practice UI
-  -> TradingView Advanced Charts hosted from /trading_platform/
-  -> Cova Datafeed API
-  -> Historical market data provider/cache
-  -> Cova replay clock
-  -> Cova simulated execution ledger
-  -> Cova risk/readiness analytics
-```
+VWAP is cumulative and rendered only from bars already revealed by the replay clock. Future bars are never passed to the chart.
 
-- Explicit statement: `No live order routing; no brokerage execution; no movement of customer funds.`
+## Remaining external market-data gate
 
-## What TradingView access unlocks
+Before enabling real replay, Cova needs a historical CME futures provider and contract terms that permit the intended end-user display. At minimum:
 
-Once approved and assets are available:
+- NQ, MNQ, ES, and MES;
+- one-minute OHLCV or finer for deterministic intrabar simulation;
+- actual contract identifiers and rollover mapping;
+- clear display/redistribution rights;
+- server-side credentials and authenticated delivery;
+- cache/storage terms compatible with Cova.
 
-1. Place official package files under:
+Cova should not expose provider credentials or unrestricted raw historical data from a public endpoint.
 
-```txt
-public/trading_platform/
-```
+## Advanced Charts remains optional
 
-2. Confirm this file exists:
+After Cova has a custom domain, company email, legal/security pages, and a live product, it may still ask TradingView for commercial terms compatible with an authenticated/paywalled app. This would be an optional renderer upgrade for richer drawings/layout persistence—not a prerequisite for replay and not a source of market data.
 
-```txt
-public/trading_platform/charting_library.js
-```
+Do not submit the old Advanced Charts application packet or add proprietary files under `/public/trading_platform/` unless TradingView grants Cova an explicit compatible license.
 
-3. Run:
+## Verification gates
 
 ```bash
+npm run test:practice-history
+npm run test:practice-datafeed
+npm run test:practice-architecture
 npm test
 npm run build
-npm run dev
 ```
 
-4. Open Practice route.
-5. Confirm the chart host switches from:
+Browser QA must verify:
 
-```txt
-TRADINGVIEW FALLBACK
-```
-
-to:
-
-```txt
-TradingView hosted
-```
-
-6. Verify Cova Datafeed methods are hit and replay controls still update bars/marks.
-
-## Raf needs to provide before submit
-
-- `[RAF FULL NAME]`
-- `[COVA COMPANY EMAIL]`
-- `[COVA APP URL OR LANDING URL]`
-- `[RAF/COVA GITHUB PROFILE]`
-- whether Cova is live/public right now
-
-After those are known, submit the form directly from:
-
-```txt
-https://www.tradingview.com/advanced-charts/
-```
+- visible candles and running VWAP render;
+- Step/Play reveals bars progressively;
+- Buy/Sell/Close updates execution marks and account statistics;
+- reset and rewind rules remain enforced;
+- desktop and mobile widths stay contained;
+- no browser console errors;
+- the deterministic-demo disclosure remains visible until real licensed data is active.

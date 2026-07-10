@@ -30,7 +30,17 @@ export type ReplayCandle = {
   low: number;
   close: number;
   volume: number;
+  vwap?: number;
 };
+
+export type ReplayDataSource = {
+  kind: "demo" | "historical";
+  provider: string;
+  resolutionMinutes: number;
+  contract?: string;
+};
+
+export type HistoricalReplayBar = Omit<ReplayCandle, "index" | "vwap">;
 
 export type ReplayTape = {
   id: string;
@@ -40,10 +50,11 @@ export type ReplayTape = {
   setup: string;
   session: string;
   candles: ReplayCandle[];
+  dataSource: ReplayDataSource;
   levels: {
     openingRangeHigh: number;
     openingRangeLow: number;
-    overnightResistance: number;
+    overnightResistance?: number;
     vwap: number;
   };
 };
@@ -61,6 +72,7 @@ export type PracticeAccount = {
 };
 
 export type PracticeTrade = PracticeRep & {
+  tapeId?: string;
   entryIndex: number;
   exitIndex: number;
   entryTime: string;
@@ -218,6 +230,8 @@ export function buildReplayTape({
   const startHour = session.includes("PM") ? 13 : 9;
   const startMinute = session.includes("PM") ? 0 : 30;
   let previousClose = roundToTick(base + (rand() - 0.5) * 44, normalizedMarket);
+  let cumulativePriceVolume = 0;
+  let cumulativeVolume = 0;
 
   const startTotalMinutes = startHour * 60 + startMinute;
   const candleCount = Math.max(1, Math.floor((16 * 60 - startTotalMinutes) / 5));
@@ -234,6 +248,9 @@ export function buildReplayTape({
     const wick = Math.abs(rand() - 0.28) * (normalizedMarket.includes("NQ") ? 18 : 5) + 1;
     const high = roundToTick(Math.max(open, close) + wick * (0.45 + rand()), normalizedMarket);
     const low = roundToTick(Math.min(open, close) - wick * (0.45 + rand()), normalizedMarket);
+    const volume = Math.round(850 + rand() * 4200 + index * 6);
+    cumulativePriceVolume += ((high + low + close) / 3) * volume;
+    cumulativeVolume += volume;
     candles.push({
       index,
       time: candleTime(normalizedDate, startHour, startMinute + index * 5),
@@ -241,7 +258,8 @@ export function buildReplayTape({
       high,
       low,
       close,
-      volume: Math.round(850 + rand() * 4200 + index * 6),
+      volume,
+      vwap: roundToTick(cumulativePriceVolume / cumulativeVolume, normalizedMarket),
     });
     previousClose = close;
   }
@@ -253,15 +271,141 @@ export function buildReplayTape({
   const overnightResistance = roundToTick(openingRangeHigh + (normalizedMarket.includes("NQ") ? 24 : 7) + rand() * 12, normalizedMarket);
 
   return {
-    id: `tape-${normalizedMarket}-${normalizedDate}-${slug(setup)}`,
+    id: tapeIdentity(["demo", normalizedMarket, normalizedDate, session, 5, setup]),
     date: normalizedDate,
     year: normalizedYear,
     market: normalizedMarket,
     setup,
     session,
     candles,
+    dataSource: {
+      kind: "demo",
+      provider: "cova-deterministic-demo",
+      resolutionMinutes: 5,
+    },
     levels: { openingRangeHigh, openingRangeLow, overnightResistance, vwap },
   };
+}
+
+export function buildReplayTapeFromHistory({
+  date,
+  market = "NQ",
+  setup = "ORH rejection",
+  session = "New York AM",
+  provider,
+  contract,
+  resolutionMinutes,
+  overnightResistance,
+  bars,
+}: {
+  date: string;
+  market?: PracticeMarket | string;
+  setup?: string;
+  session?: string;
+  provider: string;
+  contract?: string;
+  resolutionMinutes: number;
+  overnightResistance?: number;
+  bars: HistoricalReplayBar[];
+}): ReplayTape {
+  const normalizedMarket = normalizeMarket(market);
+  const normalizedDate = normalizeHistoricalDate(date);
+  const safeProvider = provider.trim();
+  if (!safeProvider) throw new TypeError("Historical replay provider is required.");
+  if (!Number.isInteger(resolutionMinutes) || resolutionMinutes <= 0) {
+    throw new RangeError("Historical replay resolution must be a positive whole number of minutes.");
+  }
+  if (30 % resolutionMinutes !== 0) {
+    throw new RangeError("Historical replay resolution must divide the 30-minute opening range exactly.");
+  }
+  if (!Array.isArray(bars) || !bars.length) {
+    throw new RangeError("Historical replay requires at least one bar.");
+  }
+
+  const expectedSessionStart = historicalSessionStart(session);
+  const expectedSessionEnd = 16 * 60;
+  let previousSessionMinute: number | null = null;
+  let cumulativePriceVolume = 0;
+  let cumulativeVolume = 0;
+  const candles = bars.map((bar, index): ReplayCandle => {
+    const parsedTime = parseHistoricalSessionTime(bar.time);
+    if (parsedTime.date !== normalizedDate) {
+      throw new RangeError("Historical bar does not belong to the selected date.");
+    }
+    if (index === 0 && parsedTime.sessionMinute !== expectedSessionStart) {
+      throw new RangeError(`Historical replay must begin at the ${formatSessionMinute(expectedSessionStart)} session boundary.`);
+    }
+    if (parsedTime.sessionMinute + resolutionMinutes > expectedSessionEnd) {
+      throw new RangeError(`Historical replay bars must not extend beyond the ${formatSessionMinute(expectedSessionEnd)} session end.`);
+    }
+    if (previousSessionMinute !== null) {
+      const elapsedMinutes = parsedTime.sessionMinute - previousSessionMinute;
+      if (elapsedMinutes <= 0) {
+        throw new RangeError("Historical bars must be strictly chronological with no duplicate timestamps.");
+      }
+      if (elapsedMinutes !== resolutionMinutes) {
+        throw new RangeError("Historical bars must follow the declared resolution cadence with no gaps.");
+      }
+    }
+    previousSessionMinute = parsedTime.sessionMinute;
+
+    const values = [bar.open, bar.high, bar.low, bar.close, bar.volume];
+    if (!values.every(Number.isFinite) || bar.volume < 0) {
+      throw new TypeError("Historical OHLCV values must be finite and volume cannot be negative.");
+    }
+    if (bar.high < Math.max(bar.open, bar.close) || bar.low > Math.min(bar.open, bar.close) || bar.high < bar.low) {
+      throw new RangeError("Historical OHLC bar is invalid.");
+    }
+
+    const typicalPrice = (bar.high + bar.low + bar.close) / 3;
+    cumulativePriceVolume += typicalPrice * bar.volume;
+    cumulativeVolume += bar.volume;
+    const runningVwap = cumulativeVolume ? cumulativePriceVolume / cumulativeVolume : bar.close;
+    return {
+      ...bar,
+      index,
+      vwap: roundToTick(runningVwap, normalizedMarket),
+    };
+  });
+
+  const openingRangeCount = 30 / resolutionMinutes;
+  if (candles.length < openingRangeCount) {
+    throw new RangeError("Historical replay must include the complete 30-minute opening range.");
+  }
+  const openingRange = candles.slice(0, openingRangeCount);
+  const openingRangeHigh = Math.max(...openingRange.map((candle) => candle.high));
+  const openingRangeLow = Math.min(...openingRange.map((candle) => candle.low));
+  const latestVwap = candles[candles.length - 1]?.vwap ?? candles[0].close;
+
+  return {
+    id: tapeIdentity(["historical", safeProvider, normalizedMarket, normalizedDate, session, resolutionMinutes, contract?.trim() || null, setup]),
+    date: normalizedDate,
+    year: Number(normalizedDate.slice(0, 4)),
+    market: normalizedMarket,
+    setup,
+    session,
+    candles,
+    dataSource: {
+      kind: "historical",
+      provider: safeProvider,
+      resolutionMinutes,
+      ...(contract?.trim() ? { contract: contract.trim() } : {}),
+    },
+    levels: {
+      openingRangeHigh,
+      openingRangeLow,
+      ...(Number.isFinite(overnightResistance) ? { overnightResistance: Number(overnightResistance) } : {}),
+      vwap: latestVwap,
+    },
+  };
+}
+
+export function getOpeningRangeEndIndex(tape: { dataSource: { resolutionMinutes: number } }) {
+  const resolutionMinutes = tape.dataSource.resolutionMinutes;
+  if (!Number.isFinite(resolutionMinutes) || resolutionMinutes <= 0) {
+    throw new RangeError("Replay resolution must be positive.");
+  }
+  return Math.max(0, Math.ceil(30 / resolutionMinutes) - 1);
 }
 
 export function createPracticeTrade({
@@ -303,6 +447,7 @@ export function createPracticeTrade({
 
   return {
     id: `sim-${Date.now()}-${entryIndex}-${exitIndex}`,
+    tapeId: tape.id,
     date: tape.date,
     market: tape.market,
     setup: tape.setup,
@@ -539,6 +684,47 @@ function candleTime(date: string, hour: number, minute: number) {
   return `${date} ${String(safeHour).padStart(2, "0")}:${String(safeMinute).padStart(2, "0")}`;
 }
 
+function normalizeHistoricalDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw new TypeError("Historical selected date must use YYYY-MM-DD.");
+  }
+  return parseHistoricalSessionTime(`${value} 00:00`).date;
+}
+
+function historicalSessionStart(session: string) {
+  if (session === "New York AM") return 9 * 60 + 30;
+  if (session === "New York PM") return 13 * 60;
+  throw new RangeError(`Unsupported historical session: ${session}`);
+}
+
+function parseHistoricalSessionTime(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/.exec(value);
+  if (!match) {
+    throw new TypeError("Historical timestamp must use YYYY-MM-DD HH:mm session time.");
+  }
+  const [, yearText, monthText, dayText, hourText, minuteText] = match;
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  const calendarDate = new Date(Date.UTC(year, month - 1, day));
+  if (calendarDate.getUTCFullYear() !== year || calendarDate.getUTCMonth() !== month - 1 || calendarDate.getUTCDate() !== day) {
+    throw new RangeError("Historical timestamp contains an invalid calendar date.");
+  }
+  if (hour > 23 || minute > 59) {
+    throw new RangeError("Historical timestamp contains an invalid clock time.");
+  }
+  return {
+    date: `${yearText}-${monthText}-${dayText}`,
+    sessionMinute: hour * 60 + minute,
+  };
+}
+
+function formatSessionMinute(value: number) {
+  return `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
+}
+
 function weightedAverage(candles: ReplayCandle[]) {
   const totals = candles.reduce((acc, candle) => {
     const typical = (candle.high + candle.low + candle.close) / 3;
@@ -549,8 +735,8 @@ function weightedAverage(candles: ReplayCandle[]) {
   return totals.volume ? totals.priceVolume / totals.volume : candles[0]?.close ?? 0;
 }
 
-function slug(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "setup";
+function tapeIdentity(parts: Array<string | number | null>) {
+  return JSON.stringify(parts);
 }
 
 function hashSeed(value: string) {

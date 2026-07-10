@@ -30,6 +30,7 @@ import {
   createDefaultPracticeAccount,
   createPracticeTrade,
   evaluatePracticeAccountLimits,
+  getOpeningRangeEndIndex,
   hasPracticeAccountConfigurationChanged,
   PRACTICE_ACCOUNT_STORAGE_KEY,
   PRACTICE_TRADES_STORAGE_KEY,
@@ -40,11 +41,9 @@ import {
   type PracticePosition,
   type PracticeRep,
   type PracticeTrade,
-  type ReplayCandle,
-  type ReplayTape,
 } from "../lib/backtesting";
 import { analyze, formatMoney, formatPercent, type RiskRule } from "../lib/risk";
-import { TradingViewChartHost } from "./practice/TradingViewChartHost";
+import { LightweightReplayChart } from "./practice/LightweightReplayChart";
 import { GlassButton } from "./GlassButton";
 import { ImageAtmosphere, SectionShell } from "./LayoutShell";
 
@@ -54,6 +53,13 @@ type WorkspaceEntitlements = {
   canExportPassport: boolean;
   insightLimit: number;
   plan: "free" | "pro";
+};
+
+type ReplayRuntime = {
+  tapeId: string;
+  playIndex: number;
+  playing: boolean;
+  position: PracticePosition | null;
 };
 
 export function RulesEngine({ analysis, entitlements, rules, setRules, go, upgradeToPro }: { analysis: ReturnType<typeof analyze>; entitlements: WorkspaceEntitlements; rules: RiskRule[]; setRules: (rules: RiskRule[]) => void; go: (section: Section) => void; upgradeToPro: () => void }) {
@@ -349,9 +355,6 @@ export function PracticeLab({ practiceReps, setPracticeReps }: { practiceReps: P
   const [replayDate, setReplayDate] = useState(accountDraft.date);
   const [replayYear, setReplayYear] = useState(Number(accountDraft.year));
   const [activeSetup, setActiveSetup] = useState(accountDraft.setup);
-  const [playIndex, setPlayIndex] = useState(32);
-  const [playing, setPlaying] = useState(false);
-  const [position, setPosition] = useState<PracticePosition | null>(null);
   const [rulesFollowed, setRulesFollowed] = useState<"yes" | "no">("yes");
   const [mistake, setMistake] = useState("");
 
@@ -371,8 +374,21 @@ export function PracticeLab({ practiceReps, setPracticeReps }: { practiceReps: P
     setup: activeSetup,
     session: "New York AM",
   }), [activeAccount.market, activeSetup, replayDate, replayYear]);
+  const replayStartIndex = getOpeningRangeEndIndex(replayTape);
+  const [replayRuntime, setReplayRuntime] = useState<ReplayRuntime>(() => ({
+    tapeId: replayTape.id,
+    playIndex: replayStartIndex,
+    playing: false,
+    position: null,
+  }));
+  const activeReplayRuntime = replayRuntime.tapeId === replayTape.id
+    ? replayRuntime
+    : { tapeId: replayTape.id, playIndex: replayStartIndex, playing: false, position: null };
+  const { playIndex, playing, position } = activeReplayRuntime;
   const currentCandle = replayTape.candles[Math.min(playIndex, replayTape.candles.length - 1)] ?? replayTape.candles[0];
   const visibleCandles = replayTape.candles.slice(0, Math.min(playIndex + 1, replayTape.candles.length));
+  const openingRangeBarCount = 30 / replayTape.dataSource.resolutionMinutes;
+  const openingRangeComplete = visibleCandles.length >= openingRangeBarCount;
   const analysis = useMemo(() => analyzePracticeReps(simTrades), [simTrades]);
   const accountStats = useMemo(() => calculatePracticeAccountStats(activeAccount, simTrades), [activeAccount, simTrades]);
   const limitStatus = useMemo(() => evaluatePracticeAccountLimits(activeAccount, simTrades, replayTape.date), [activeAccount, replayTape.date, simTrades]);
@@ -385,6 +401,36 @@ export function PracticeLab({ practiceReps, setPracticeReps }: { practiceReps: P
       : analysis.readiness.tone === "empty"
         ? "text-white/42"
         : "text-red-300";
+
+  function currentReplayRuntime(runtime: ReplayRuntime): ReplayRuntime {
+    return runtime.tapeId === replayTape.id
+      ? runtime
+      : { tapeId: replayTape.id, playIndex: replayStartIndex, playing: false, position: null };
+  }
+
+  function setPlayIndex(next: number | ((current: number) => number)) {
+    setReplayRuntime((runtime) => {
+      const current = currentReplayRuntime(runtime);
+      const playIndex = typeof next === "function" ? next(current.playIndex) : next;
+      return { ...current, playIndex };
+    });
+  }
+
+  function setPlaying(next: boolean | ((current: boolean) => boolean)) {
+    setReplayRuntime((runtime) => {
+      const current = currentReplayRuntime(runtime);
+      const playing = typeof next === "function" ? next(current.playing) : next;
+      return { ...current, playing };
+    });
+  }
+
+  function setPosition(position: PracticePosition | null) {
+    setReplayRuntime((runtime) => ({ ...currentReplayRuntime(runtime), position }));
+  }
+
+  function resetReplayRuntime() {
+    setReplayRuntime({ tapeId: replayTape.id, playIndex: replayStartIndex, playing: false, position: null });
+  }
 
   useEffect(() => {
     if (account) {
@@ -408,7 +454,13 @@ export function PracticeLab({ practiceReps, setPracticeReps }: { practiceReps: P
       });
     }, 460);
     return () => window.clearInterval(timer);
-  }, [playing, replayTape.candles.length]);
+  }, [playing, replayTape.candles.length, replayTape.id]);
+
+  useEffect(() => {
+    setReplayRuntime((runtime) => runtime.tapeId === replayTape.id
+      ? runtime
+      : { tapeId: replayTape.id, playIndex: replayStartIndex, playing: false, position: null });
+  }, [replayStartIndex, replayTape.id]);
 
   function updateAccountDraft<K extends keyof PracticeAccountDraft>(key: K, value: PracticeAccountDraft[K]) {
     setAccountDraft((current) => ({ ...current, [key]: value }));
@@ -434,7 +486,7 @@ export function PracticeLab({ practiceReps, setPracticeReps }: { practiceReps: P
     setReplayDate(accountDraft.date);
     setReplayYear(toDraftNumber(accountDraft.year, 2025));
     setActiveSetup(accountDraft.setup || "ORH rejection");
-    setPlayIndex(32);
+    resetReplayRuntime();
     setPosition(null);
     setPlaying(false);
     setSetupOpen(false);
@@ -457,7 +509,7 @@ export function PracticeLab({ practiceReps, setPracticeReps }: { practiceReps: P
     setReplayDate(accountDraft.date);
     setReplayYear(toDraftNumber(accountDraft.year, 2025));
     setActiveSetup(accountDraft.setup || "ORH rejection");
-    setPlayIndex(32);
+    resetReplayRuntime();
     setPlaying(false);
     setPosition(null);
   }
@@ -496,7 +548,7 @@ export function PracticeLab({ practiceReps, setPracticeReps }: { practiceReps: P
   }
 
   function stepReplay(amount: number) {
-    const earliestIndex = position ? position.entryIndex : 6;
+    const earliestIndex = position ? position.entryIndex : replayStartIndex;
     setPlayIndex((current) => Math.max(earliestIndex, Math.min(replayTape.candles.length - 1, current + amount)));
   }
 
@@ -553,7 +605,12 @@ export function PracticeLab({ practiceReps, setPracticeReps }: { practiceReps: P
               <div>
                 <p className="font-body text-xs uppercase tracking-[0.22em] text-[#18c887]">Replay chart</p>
                 <h3 className="mt-2 font-body text-2xl font-semibold tracking-[-0.04em]">{replayTape.market} · {replayTape.date} · {activeSetup}</h3>
-                <p className="mt-2 font-body text-xs text-white/42">ORH {replayTape.levels.openingRangeHigh.toFixed(2)} · ORL {replayTape.levels.openingRangeLow.toFixed(2)} · VWAP {replayTape.levels.vwap.toFixed(2)}</p>
+                <p className="mt-2 font-body text-xs text-white/42">
+                  {openingRangeComplete
+                    ? `ORH ${replayTape.levels.openingRangeHigh.toFixed(2)} · ORL ${replayTape.levels.openingRangeLow.toFixed(2)}`
+                    : `Opening range building · ${visibleCandles.length}/${openingRangeBarCount} bars`}
+                  {` · VWAP ${(currentCandle.vwap ?? currentCandle.close).toFixed(2)}`}
+                </p>
               </div>
               <div className="practice-date-controls">
                 <label>
@@ -568,14 +625,14 @@ export function PracticeLab({ practiceReps, setPracticeReps }: { practiceReps: P
               </div>
             </div>
 
-            <TradingViewChartHost candles={visibleCandles} currentIndex={playIndex} position={position} tape={replayTape} trades={simTrades} />
+            <LightweightReplayChart key={replayTape.id} visibleCandles={visibleCandles} position={position} tape={replayTape} trades={simTrades} />
 
             <div className="practice-replay-controls mt-5 grid gap-3 xl:grid-cols-[1fr_auto] xl:items-center">
               <div className="flex flex-wrap gap-2">
-                <button disabled={Boolean(position)} type="button" onClick={() => stepReplay(-12)}>Back 1h</button>
+                <button disabled={Boolean(position)} type="button" onClick={() => stepReplay(-(60 / replayTape.dataSource.resolutionMinutes))}>Back 1h</button>
                 <button type="button" onClick={() => stepReplay(1)}>Step</button>
                 <button type="button" onClick={() => setPlaying((current) => !current)}>{playing ? "Pause" : "Play"}</button>
-                <button type="button" onClick={() => { setPlaying(false); setPlayIndex(32); setPosition(null); }}>Reset tape</button>
+                <button type="button" onClick={() => { setPlaying(false); resetReplayRuntime(); setPosition(null); }}>Reset tape</button>
               </div>
               <div className="practice-execution-controls">
                 <button className="buy" disabled={!account || Boolean(position) || !limitStatus.canOpenNewPosition} type="button" onClick={() => openPracticePosition("Long")}>Buy</button>
@@ -688,15 +745,15 @@ export function PracticeLab({ practiceReps, setPracticeReps }: { practiceReps: P
               </label>
               <label className="practice-field">
                 <span>Risk / trade</span>
-                <input type="number" min="1" required step="50" value={accountDraft.riskPerTrade} onChange={(event) => updateAccountDraft("riskPerTrade", event.target.value)} />
+                <input type="number" min="50" required step="50" value={accountDraft.riskPerTrade} onChange={(event) => updateAccountDraft("riskPerTrade", event.target.value)} />
               </label>
               <label className="practice-field">
                 <span>Max daily loss</span>
-                <input type="number" min="1" required step="50" value={accountDraft.maxDailyLoss} onChange={(event) => updateAccountDraft("maxDailyLoss", event.target.value)} />
+                <input type="number" min="50" required step="50" value={accountDraft.maxDailyLoss} onChange={(event) => updateAccountDraft("maxDailyLoss", event.target.value)} />
               </label>
               <label className="practice-field">
                 <span>Max drawdown</span>
-                <input type="number" min="1" required step="50" value={accountDraft.maxDrawdown} onChange={(event) => updateAccountDraft("maxDrawdown", event.target.value)} />
+                <input type="number" min="50" required step="50" value={accountDraft.maxDrawdown} onChange={(event) => updateAccountDraft("maxDrawdown", event.target.value)} />
               </label>
               <label className="practice-field">
                 <span>Market</span>
@@ -742,95 +799,6 @@ export function PracticeLab({ practiceReps, setPracticeReps }: { practiceReps: P
         document.body,
       )}
     </SectionShell>
-  );
-}
-
-function ReplayChart({ candles, position, tape, trades }: { candles: ReplayCandle[]; position: PracticePosition | null; tape: ReplayTape; trades: PracticeTrade[] }) {
-  const width = 920;
-  const height = 360;
-  const plotLeft = 48;
-  const plotRight = 18;
-  const plotTop = 24;
-  const plotBottom = 34;
-  const plotWidth = width - plotLeft - plotRight;
-  const plotHeight = height - plotTop - plotBottom;
-  const levelValues = [tape.levels.openingRangeHigh, tape.levels.openingRangeLow, tape.levels.vwap, tape.levels.overnightResistance];
-  const lows = candles.map((candle) => candle.low).concat(levelValues);
-  const highs = candles.map((candle) => candle.high).concat(levelValues);
-  const min = Math.min(...lows) - 8;
-  const max = Math.max(...highs) + 8;
-  const range = Math.max(1, max - min);
-  const xFor = (index: number) => plotLeft + (candles.length <= 1 ? 0 : (index / Math.max(1, candles.length - 1)) * plotWidth);
-  const yFor = (price: number) => plotTop + ((max - price) / range) * plotHeight;
-  const candleWidth = Math.max(3, Math.min(11, plotWidth / Math.max(12, candles.length) * 0.58));
-  const last = candles[candles.length - 1];
-  const visibleTradeMarkers = trades.filter((trade) => trade.date === tape.date && trade.market === tape.market && trade.setup === tape.setup && trade.exitIndex < candles.length).slice(0, 24);
-  const levelRows = [
-    { label: "ONR", value: tape.levels.overnightResistance, className: "level-resistance" },
-    { label: "ORH", value: tape.levels.openingRangeHigh, className: "level-orh" },
-    { label: "VWAP", value: tape.levels.vwap, className: "level-vwap" },
-    { label: "ORL", value: tape.levels.openingRangeLow, className: "level-orl" },
-  ];
-
-  return (
-    <div className="practice-chart-shell mt-5" aria-label="Replay chart">
-      <svg viewBox={`0 0 ${width} ${height}`} role="img">
-        <defs>
-          <linearGradient id="practiceChartGlow" x1="0" x2="1" y1="0" y2="1">
-            <stop offset="0%" stopColor="#18c887" stopOpacity="0.12" />
-            <stop offset="100%" stopColor="#0b0d10" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        <rect x="0" y="0" width={width} height={height} rx="18" fill="#07090b" />
-        <rect x={plotLeft} y={plotTop} width={plotWidth} height={plotHeight} fill="url(#practiceChartGlow)" />
-        {[0.25, 0.5, 0.75].map((row) => (
-          <line key={row} x1={plotLeft} x2={width - plotRight} y1={plotTop + row * plotHeight} y2={plotTop + row * plotHeight} stroke="rgba(255,255,255,0.06)" />
-        ))}
-        {levelRows.map((level) => {
-          const y = yFor(level.value);
-          return (
-            <g key={level.label} className={level.className}>
-              <line x1={plotLeft} x2={width - plotRight} y1={y} y2={y} strokeDasharray="5 7" />
-              <text x={plotLeft + 8} y={y - 5}>{level.label} {level.value.toFixed(2)}</text>
-            </g>
-          );
-        })}
-        {candles.map((candle, localIndex) => {
-          const x = xFor(localIndex);
-          const green = candle.close >= candle.open;
-          const bodyY = yFor(Math.max(candle.open, candle.close));
-          const bodyHeight = Math.max(2, Math.abs(yFor(candle.open) - yFor(candle.close)));
-          return (
-            <g key={`${candle.time}-${localIndex}`} className={green ? "candle up" : "candle down"}>
-              <line x1={x} x2={x} y1={yFor(candle.high)} y2={yFor(candle.low)} />
-              <rect x={x - candleWidth / 2} y={bodyY} width={candleWidth} height={bodyHeight} rx="1.5" />
-            </g>
-          );
-        })}
-        {position && position.entryIndex < candles.length && (
-          <g className="position-line">
-            <line x1={plotLeft} x2={width - plotRight} y1={yFor(position.entryPrice)} y2={yFor(position.entryPrice)} />
-            <circle cx={xFor(position.entryIndex)} cy={yFor(position.entryPrice)} r="5" />
-            <text x={width - 176} y={yFor(position.entryPrice) - 7}>{position.direction} @ {position.entryPrice.toFixed(2)}</text>
-          </g>
-        )}
-        {visibleTradeMarkers.map((trade) => (
-          <g className={trade.pnl >= 0 ? "trade-marker win" : "trade-marker loss"} key={trade.id}>
-            <circle cx={xFor(trade.exitIndex)} cy={yFor(trade.exitPrice)} r="4" />
-            <text x={xFor(trade.exitIndex) + 6} y={yFor(trade.exitPrice) - 6}>{trade.resultR.toFixed(1)}R</text>
-          </g>
-        ))}
-        {last && (
-          <g className="current-price-pin">
-            <line x1={plotLeft} x2={width - plotRight} y1={yFor(last.close)} y2={yFor(last.close)} />
-            <rect x={width - 112} y={yFor(last.close) - 12} width="92" height="24" rx="12" />
-            <text x={width - 66} y={yFor(last.close) + 4} textAnchor="middle">{last.close.toFixed(2)}</text>
-          </g>
-        )}
-        <text className="chart-time-label" x={plotLeft} y={height - 12}>{candles[0]?.time ?? tape.date}</text>
-        <text className="chart-time-label" x={width - plotRight} y={height - 12} textAnchor="end">{last?.time ?? tape.date}</text>
-      </svg>
-    </div>
   );
 }
 

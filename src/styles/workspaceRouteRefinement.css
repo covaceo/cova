@@ -456,51 +456,29 @@
 
 .practice-tv-host {
   position: relative;
+  width: 100%;
+  min-width: 0;
 }
 
 .practice-tv-container {
+  width: 100%;
+  min-width: 0;
+  height: 420px;
   min-height: 420px;
 }
 
-.practice-tv-host[data-tv-status="fallback"] .practice-tv-container {
+.practice-tv-host[data-tv-status="error"] .practice-tv-container {
   display: none;
 }
 
-.practice-tv-host[data-tv-status="checking"] .practice-tv-container {
-  position: absolute;
-  inset: 64px 0 0;
-  width: 100%;
-  height: 420px;
-  visibility: hidden;
-  pointer-events: none;
-}
-
-.practice-tv-fallback {
-  border: 0;
-}
-
-.practice-tv-fallback-note {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 0.8rem;
-  padding: 0.8rem 0.95rem 0;
+.practice-chart-error {
+  margin: 0;
+  padding: 2rem 1rem;
+  color: rgba(254, 202, 202, 0.78);
   font-family: var(--font-body);
-}
-
-.practice-tv-fallback-note span {
-  font-size: 0.6rem;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: rgba(248, 113, 113, 0.68);
-}
-
-.practice-tv-fallback-note strong {
-  max-width: 620px;
-  font-size: 0.76rem;
-  font-weight: 500;
-  line-height: 1.5;
-  color: rgba(255,255,255,0.52);
+  font-size: 0.82rem;
+  line-height: 1.6;
+  text-align: center;
 }
 
 .practice-chart-shell {
