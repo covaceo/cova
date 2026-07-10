@@ -49,9 +49,15 @@ assert.match(storyStrip, /What Cova caught/, "Homepage should include concrete p
 assert.match(storyStrip, /Daily loss breach/, "Homepage proof should show a specific risk issue Cova catches.");
 assert.match(storyStrip, /Passport proof/, "Homepage proof should connect review output to Passport proof.");
 assert.match(marketingHero, /HeroMobileDossier/, "Homepage should render a dedicated mobile risk-review proof instead of shrinking the desktop mockup.");
-assert.match(marketingHero, /Example feedback · placeholder names/i, "Example feedback must remain visibly disclosed until verified feedback replaces it.");
-assert.match(marketingHero, /<span>Placeholder<\/span>/, "Every example quote should retain a visible placeholder marker.");
-assert.match(marketingHero, /Nancy M\./, "The example feedback layout should render a human-readable placeholder name.");
+assert.match(marketingHero, /What people are saying/i, "Homepage should introduce the supplied follower reviews with a plain-language heading.");
+assert.match(marketingHero, /Marcus R\.[\s\S]*Daniel C\.[\s\S]*Jasmine B\./, "Follower reviews should use the supplied first names and last initials.");
+assert.match(marketingHero, /Cova showed me patterns in my trading I never noticed before\. My risk management has improved a lot\./, "Marcus's supplied quote should remain exact.");
+assert.match(marketingHero, /It’s more than a trade tracker\. Cova helps me understand why I keep making the same mistakes\./, "Daniel's supplied quote should remain exact.");
+assert.match(marketingHero, /Cova made my trade reviews faster, clearer, and way more useful\./, "Jasmine's supplied quote should remain exact.");
+assert.equal((marketingHero.match(/rating: 5,/g) ?? []).length, 3, "All three supplied follower reviews should retain a five-star rating.");
+assert.match(marketingHero, /role="img" aria-label=\{`\$\{rating\} out of 5 stars`\}/, "Each follower review should expose a reliable accessible five-star rating.");
+assert.match(marketingHero, /\{"★"\.repeat\(rating\)\}/, "Each follower review should render its visible star rating.");
+assert.doesNotMatch(marketingHero, /Placeholder|Example feedback/, "Follower reviews should not retain placeholder copy.");
 assert.doesNotMatch(marketingHero, /Funded NQ trader|ES intraday trader|Funded futures trader/, "Homepage feedback should use plain-language names rather than trader-specific profile jargon.");
 assert.match(marketingHero, /Cova reviews your trade history, finds the habits hurting your results, and shows you what to fix next\./, "Homepage hero support copy should stay plain and easy to understand.");
 assert.match(operatorDossierCss, /\.mobile-hero-dossier\s*\{\s*display:\s*none;/, "The mobile dossier must stay hidden by default so desktop remains unchanged.");

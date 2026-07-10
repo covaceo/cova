@@ -1276,7 +1276,7 @@ textarea {
   }
 }
 
-/* Example feedback with explicit placeholder names until verified feedback replaces it. */
+/* Supplied follower reviews with last names reduced to initials. */
 .market-reaction-band {
   position: absolute;
   right: 0;
@@ -1354,6 +1354,22 @@ textarea {
   font-weight: 500;
 }
 
-.market-reaction-item footer span {
+.market-reaction-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
   color: rgba(191, 137, 100, 0.72);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  line-height: 1;
+}
+
+.market-reaction-rating span {
+  color: rgba(191, 137, 100, 0.94);
+}
+
+.market-reaction-rating small {
+  color: rgba(232, 224, 211, 0.58);
+  font-size: 0.52rem;
+  letter-spacing: 0.08em;
 }

@@ -110,18 +110,21 @@ function clampNumber(value: number, min: number, max: number) {
 
 
 export function Hero({ go, openAuth, isSignedIn }: HeroProps) {
-  const exampleFeedback = [
+  const followerReviews = [
     {
-      name: "Nancy M.",
-      quote: "I thought I was just having bad days. Cova showed me the same mistake kept happening after a loss.",
+      name: "Marcus R.",
+      quote: "Cova showed me patterns in my trading I never noticed before. My risk management has improved a lot.",
+      rating: 5,
     },
     {
-      name: "David R.",
-      quote: "I finally knew what to fix instead of guessing what went wrong.",
+      name: "Daniel C.",
+      quote: "It’s more than a trade tracker. Cova helps me understand why I keep making the same mistakes.",
+      rating: 5,
     },
     {
-      name: "Chloe S.",
-      quote: "It made my habits easy to understand without giving me another complicated dashboard.",
+      name: "Jasmine B.",
+      quote: "Cova made my trade reviews faster, clearer, and way more useful.",
+      rating: 5,
     },
   ];
 
@@ -189,15 +192,18 @@ export function Hero({ go, openAuth, isSignedIn }: HeroProps) {
           transition={{ duration: 0.74, delay: 0.38, ease: [0.16, 1, 0.3, 1] }}
         >
           <div className="market-reaction-heading">
-            <span>Example feedback · placeholder names</span>
+            <span>What people are saying</span>
           </div>
           <div className="market-reaction-strip">
-            {exampleFeedback.map(({ name, quote }) => (
+            {followerReviews.map(({ name, quote, rating }) => (
               <blockquote className="market-reaction-item" key={name}>
                 <p>“{quote}”</p>
                 <footer>
                   <strong>{name}</strong>
-                  <span>Placeholder</span>
+                  <span className="market-reaction-rating" role="img" aria-label={`${rating} out of 5 stars`}>
+                    <span aria-hidden="true">{"★".repeat(rating)}</span>
+                    <small aria-hidden="true">{rating}/5</small>
+                  </span>
                 </footer>
               </blockquote>
             ))}
