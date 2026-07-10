@@ -17,8 +17,10 @@ const planSections = read("src", "components", "PlanSections.tsx");
 const propFirms = read("src", "lib", "propFirms.ts");
 const authPanels = read("src", "components", "AuthPanels.tsx");
 const dashboard = read("src", "components", "DashboardView.tsx");
+const marketingHero = read("src", "components", "MarketingHero.tsx");
 const riskDeskCss = read("src", "styles", "riskDeskVisualSystem.css");
 const workspaceCss = read("src", "styles", "workspaceRouteRefinement.css");
+const operatorDossierCss = read("src", "styles", "operatorDossierRevamp.css");
 const indexCss = read("src", "index.css");
 const tradingViewHost = read("src", "components", "practice", "TradingViewChartHost.tsx");
 const backtesting = read("src", "lib", "backtesting.ts");
@@ -45,6 +47,9 @@ assert.match(propFirms, /CSV-first beta/, "TopstepX connector status should be b
 assert.match(storyStrip, /What Cova caught/, "Homepage should include concrete product proof, not only process cards.");
 assert.match(storyStrip, /Daily loss breach/, "Homepage proof should show a specific risk issue Cova catches.");
 assert.match(storyStrip, /Passport proof/, "Homepage proof should connect review output to Passport proof.");
+assert.match(marketingHero, /HeroMobileDossier/, "Homepage should render a dedicated mobile risk-review proof instead of shrinking the desktop mockup.");
+assert.match(operatorDossierCss, /\.mobile-hero-dossier\s*\{\s*display:\s*none;/, "The mobile dossier must stay hidden by default so desktop remains unchanged.");
+assert.match(operatorDossierCss, /@media \(max-width: 767px\)[\s\S]*?\.hero-dashboard-stage\s*\{[\s\S]*?display:\s*none\s*!important;[\s\S]*?\.mobile-hero-dossier\s*\{[\s\S]*?display:\s*block;/, "Phones should replace the oversized desktop hero mockup with the mobile dossier.");
 
 assert.match(marketingPages, /Backtesting lab/, "Backtesting should appear as an active product module.");
 assert.match(marketingPages, /in-app replay simulator/i, "Marketing should describe Cova's current in-app Practice simulator.");

@@ -174,6 +174,7 @@ export function Hero({ go, openAuth, isSignedIn }: HeroProps) {
 
         </motion.div>
 
+        <HeroMobileDossier />
         <HeroDashboardMockup revealStats={isSignedIn} />
 
         <motion.div
@@ -198,6 +199,49 @@ export function Hero({ go, openAuth, isSignedIn }: HeroProps) {
         </motion.div>
       </div>
     </section>
+  );
+}
+
+function HeroMobileDossier() {
+  return (
+    <motion.div
+      className="mobile-hero-dossier"
+      initial={{ opacity: 0, y: 18 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.68, delay: 0.18, ease: [0.16, 1, 0.3, 1] }}
+      aria-label="Sample Cova risk review"
+    >
+      <div className="mobile-hero-dossier-head">
+        <div>
+          <span>COVA / REVIEW 04</span>
+          <strong>Funded account dossier</strong>
+        </div>
+        <small>Sample</small>
+      </div>
+
+      <div className="mobile-hero-alert">
+        <div className="mobile-hero-alert-code">02</div>
+        <div>
+          <span>Rule pressure detected</span>
+          <strong>Size increased after a red trade.</strong>
+          <p>Three occurrences across the last seven sessions.</p>
+        </div>
+      </div>
+
+      <div className="mobile-hero-metrics">
+        <div><span>Risk score</span><strong>82</strong></div>
+        <div><span>Rules kept</span><strong>74%</strong></div>
+        <div><span>Net P&amp;L</span><strong>+$4,820</strong></div>
+      </div>
+
+      <div className="mobile-hero-next-action">
+        <div>
+          <span>Next review action</span>
+          <strong>Cap size at 2 contracts.</strong>
+        </div>
+        <ArrowUpRight className="h-4 w-4" />
+      </div>
+    </motion.div>
   );
 }
 
