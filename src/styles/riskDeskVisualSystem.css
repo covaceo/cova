@@ -228,9 +228,7 @@ body::after {
 .cova-button::after,
 .cova-button-optics,
 .native-start-button::before,
-.native-start-button::after,
-.native-start-button-optics,
-.native-start-button-bloom {
+.native-start-button::after {
   display: none !important;
 }
 

@@ -87,9 +87,14 @@ export function StoryStrip() {
           </div>
         </div>
 
-        <div className="mt-12 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="trade-proof-ledger mt-12">
+          <div className="trade-proof-ledger-head" aria-hidden="true">
+            <span>Sequence</span>
+            <span>Review operation</span>
+            <span>System output</span>
+          </div>
           {proofStoryFrames.map((frame, index) => (
-            <StoryStepCard frame={frame} index={index} key={frame.num} />
+            <StoryStepRow frame={frame} index={index} key={frame.num} />
           ))}
         </div>
       </div>
@@ -97,24 +102,26 @@ export function StoryStrip() {
   );
 }
 
-function StoryStepCard({ frame, index }: { frame: StoryFrame; index: number }) {
+function StoryStepRow({ frame, index }: { frame: StoryFrame; index: number }) {
   return (
     <motion.article
-      className="trade-proof-step-card"
+      className="trade-proof-step-row"
       initial={{ opacity: 0, y: 22 }}
       transition={{ delay: index * 0.05, duration: 0.48, ease: [0.16, 1, 0.3, 1] }}
       viewport={{ once: true, margin: "-80px" }}
       whileInView={{ opacity: 1, y: 0 }}
     >
-      <div className="flex items-start justify-between gap-4">
-        <span className="font-mono text-xs uppercase tracking-[0.18em] text-white/36">{frame.num}</span>
-        <span className="grid h-10 w-10 place-items-center rounded-2xl border border-[#18c887]/18 bg-[#18c887]/10 text-[#b9f5df]">
+      <span className="trade-proof-step-index font-mono text-xs uppercase tracking-[0.18em] text-white/36">{frame.num}</span>
+      <div className="trade-proof-step-operation">
+        <span className="trade-proof-step-icon grid h-10 w-10 place-items-center border border-[#18c887]/18 bg-[#18c887]/10 text-[#b9f5df]">
           <frame.Icon className="h-4 w-4" />
         </span>
+        <div>
+          <p className="font-body text-xs uppercase tracking-[0.2em] text-[#b9f5df]/70">{frame.eyebrow}</p>
+          <h3 className="mt-2 font-body text-2xl font-semibold tracking-[-0.035em] text-white">{frame.title}</h3>
+        </div>
       </div>
-      <p className="mt-7 font-body text-xs uppercase tracking-[0.2em] text-[#b9f5df]/70">{frame.eyebrow}</p>
-      <h3 className="mt-3 font-body text-2xl font-semibold tracking-[-0.035em] text-white">{frame.title}</h3>
-      <div className="mt-6 flex items-center justify-between gap-4 border-t border-white/10 pt-4">
+      <div className="trade-proof-step-output flex items-center justify-between gap-4">
         <span className="font-body text-sm text-white/58">{frame.metric}</span>
         <ArrowRight className="h-4 w-4 text-[#18c887]" />
       </div>

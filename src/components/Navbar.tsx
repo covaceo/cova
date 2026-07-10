@@ -170,7 +170,7 @@ export function Navbar({ section, go, openAuth, mobileOpen, setMobileOpen, authS
           <img src="/cova-logo-minimal-white.svg" alt="Cova" className="header-brand-mark h-10 w-10 object-contain opacity-95" />
         </button>
 
-        <button className="liquid-glass mobile-menu-toggle shrink-0 rounded-full p-3 text-white md:hidden" onClick={() => setMobileOpen(!mobileOpen)} type="button" aria-label="Toggle menu">
+        <button className="liquid-glass mobile-menu-toggle operator-mobile-menu-toggle shrink-0 p-3 text-white md:hidden" onClick={() => setMobileOpen(!mobileOpen)} type="button" aria-label="Toggle menu">
           {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
       </div>
@@ -178,7 +178,7 @@ export function Navbar({ section, go, openAuth, mobileOpen, setMobileOpen, authS
       <AnimatePresence>
         {mobileOpen && (
           <motion.div
-            className="liquid-glass-strong mx-auto mt-3 max-w-7xl rounded-[28px] p-3 md:hidden"
+            className="liquid-glass-strong operator-mobile-menu-panel mx-auto mt-3 max-w-7xl p-3 md:hidden"
             initial={{ opacity: 0, y: -10, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.98 }}
@@ -186,7 +186,7 @@ export function Navbar({ section, go, openAuth, mobileOpen, setMobileOpen, authS
             {isAppMode ? appNav.map((item) => (
               <button
                 key={item.id}
-                className={`flex w-full items-center justify-between rounded-full px-4 py-3 text-left font-body text-sm ${activeAppLabel === item.label ? "bg-white/8 text-white" : "text-white/68"}`}
+                className={`operator-mobile-menu-link flex w-full items-center justify-between px-4 py-3 text-left font-body text-sm ${activeAppLabel === item.label ? "bg-white/8 text-white" : "text-white/68"}`}
                 onClick={() => { setMobileOpen(false); go(item.id); }}
                 type="button"
               >
@@ -195,7 +195,7 @@ export function Navbar({ section, go, openAuth, mobileOpen, setMobileOpen, authS
             )) : marketingNav.map((item) => (
                 <button
                   key={item.label}
-                  className={`flex w-full items-center justify-between rounded-full px-4 py-3 text-left font-body text-sm ${activeMarketingLabel === item.label ? "bg-white/8 text-white" : "text-white/68"}`}
+                  className={`operator-mobile-menu-link flex w-full items-center justify-between px-4 py-3 text-left font-body text-sm ${activeMarketingLabel === item.label ? "bg-white/8 text-white" : "text-white/68"}`}
                   onClick={() => handleMarketingNav(item.action)}
                   type="button"
                 >
@@ -204,13 +204,13 @@ export function Navbar({ section, go, openAuth, mobileOpen, setMobileOpen, authS
               </button>
             ))}
             <div className="mt-3 grid grid-cols-2 gap-2 border-t border-white/10 pt-3">
-              <button className="cova-button cova-button-secondary rounded-full px-4 py-3 font-body text-sm" onClick={() => { setMobileOpen(false); authSession ? signOut() : openAuth("login"); }} type="button">
+              <button className="cova-button cova-button-secondary px-4 py-3 font-body text-sm" onClick={() => { setMobileOpen(false); authSession ? signOut() : openAuth("login"); }} type="button">
                 {authSession ? "Sign out" : "Login"}
               </button>
               {!authSession ? (
                 <StartFreeButton compact className="w-full" onClick={() => { setMobileOpen(false); openAuth("signup"); }} />
               ) : (
-                <button className="cova-button cova-button-primary rounded-full px-4 py-3 font-body text-sm font-semibold" onClick={() => { setMobileOpen(false); go("import"); }} type="button">
+                <button className="cova-button cova-button-primary px-4 py-3 font-body text-sm font-semibold" onClick={() => { setMobileOpen(false); go("import"); }} type="button">
                   Link account
                 </button>
               )}

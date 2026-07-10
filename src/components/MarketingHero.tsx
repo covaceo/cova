@@ -114,14 +114,14 @@ function clampNumber(value: number, min: number, max: number) {
 
 export function Hero({ go, openAuth, isSignedIn }: HeroProps) {
   const journalFeatures = [
-    { title: "Find the leak", Icon: BookOpen },
-    { title: "Review pressure", Icon: Gauge },
-    { title: "Protect payouts", Icon: ShieldCheck },
-    { title: "Show discipline", Icon: ArrowUpRight },
+    { num: "01", title: "Find the leak", detail: "Behavior evidence", Icon: BookOpen },
+    { num: "02", title: "Review pressure", detail: "Risk under stress", Icon: Gauge },
+    { num: "03", title: "Protect payouts", detail: "Guardrail review", Icon: ShieldCheck },
+    { num: "04", title: "Show discipline", detail: "Shareable proof", Icon: ArrowUpRight },
   ];
 
   function scrollHowItWorks() {
-    document.querySelector(".scroll-story")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    document.querySelector(".story-strip-simple")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   return (
@@ -144,10 +144,9 @@ export function Hero({ go, openAuth, isSignedIn }: HeroProps) {
             Funded trader risk review
           </p>
 
-          <h1 className="market-hero-title mt-5 font-body text-[4.35rem] font-semibold leading-[0.98] tracking-[-0.055em] text-white md:text-[4.95rem] lg:text-[5.45rem]">
-            See the <span>rule</span><br />
-            costing you<br />
-            payouts.
+          <h1 className="market-hero-title mt-5 text-[4.35rem] font-semibold leading-[0.92] text-white md:text-[4.95rem] lg:text-[5.45rem]">
+            See the <span className="market-hero-signal">rule</span><br />
+            <span className="market-hero-editorial">costing you payouts.</span>
           </h1>
 
           <p className="market-hero-subline mt-7 font-body text-lg font-light leading-relaxed text-white/72 md:text-xl">
@@ -162,8 +161,8 @@ export function Hero({ go, openAuth, isSignedIn }: HeroProps) {
                 <StartFreeButton icon onClick={() => openAuth("signup")} />
               )}
             </span>
-            <button className="market-hero-action flex items-center gap-5 rounded-full font-body text-base font-light text-white" onClick={isSignedIn ? () => go("import") : scrollHowItWorks} type="button">
-              <span className="market-play-dot grid place-items-center rounded-full">
+            <button className="market-hero-action flex items-center gap-4 font-body text-base font-light text-white" onClick={isSignedIn ? () => go("import") : scrollHowItWorks} type="button">
+              <span className="market-play-dot grid place-items-center">
                 {isSignedIn ? <Fingerprint className="h-4 w-4 text-[#18c887]" /> : <Play className="h-4 w-4 fill-[#18c887] text-[#18c887]" />}
               </span>
               <span className="market-hero-action-label">{isSignedIn ? "Link account" : "See the review flow"}</span>
@@ -185,11 +184,13 @@ export function Hero({ go, openAuth, isSignedIn }: HeroProps) {
         >
           <p className="market-feature-kicker">Built for traders who know discipline is the edge</p>
           <div className="market-feature-strip market-feature-strip-wide">
-            {journalFeatures.map(({ title, Icon }) => (
+            {journalFeatures.map(({ num, title, detail, Icon }) => (
               <div className="market-feature-item" key={title}>
+                <span className="market-feature-index">{num}</span>
                 <span className="market-feature-icon"><Icon className="h-5 w-5" /></span>
                 <div>
                   <h3 className="font-body text-sm font-semibold text-white md:text-[0.95rem]">{title}</h3>
+                  <p>{detail}</p>
                 </div>
               </div>
             ))}

@@ -1,0 +1,922 @@
+/*
+  Cova Operator Dossier — 2026 visual refinement.
+  A restrained material and typography layer: warm-black instruments,
+  technical ledgers, tactile controls, and one editorial voice.
+*/
+
+:root {
+  --cova-bg: #050505;
+  --cova-bg-2: #090908;
+  --cova-surface: #0c0c0b;
+  --cova-surface-2: #11110f;
+  --cova-surface-3: #171612;
+  --cova-line: rgba(232, 224, 211, 0.12);
+  --cova-line-strong: rgba(232, 224, 211, 0.22);
+  --cova-text: #f0ece4;
+  --cova-muted: rgba(232, 224, 211, 0.62);
+  --cova-faint: rgba(232, 224, 211, 0.38);
+  --cova-paper: #eee7dc;
+  --cova-paper-soft: #d8d0c4;
+  --cova-accent: #52c99d;
+  --cova-accent-soft: rgba(82, 201, 157, 0.1);
+  --cova-copper: #bf8964;
+  --cova-copper-soft: rgba(191, 137, 100, 0.11);
+  --cova-oxblood: #9f4847;
+  --cova-warn: #d2a853;
+  --font-editorial: "Instrument Serif", Georgia, "Times New Roman", serif;
+  --font-dashboard-ui: "Inter", "Manrope", system-ui, sans-serif;
+}
+
+html,
+body {
+  background: var(--cova-bg) !important;
+}
+
+body {
+  color: var(--cova-text);
+}
+
+body::before {
+  opacity: 1 !important;
+  background:
+    linear-gradient(rgba(232, 224, 211, 0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(232, 224, 211, 0.018) 1px, transparent 1px),
+    radial-gradient(circle at 13% -8%, rgba(191, 137, 100, 0.08), transparent 30rem),
+    radial-gradient(circle at 86% 12%, rgba(82, 201, 157, 0.045), transparent 32rem),
+    linear-gradient(180deg, #050505 0%, #090908 48%, #040404 100%) !important;
+  background-size: 80px 80px, 80px 80px, auto, auto, auto !important;
+}
+
+body::after {
+  opacity: 0.2 !important;
+  background: repeating-linear-gradient(0deg, rgba(238, 231, 220, 0.018) 0 1px, transparent 1px 5px) !important;
+}
+
+::selection {
+  color: #080706;
+  background: rgba(191, 137, 100, 0.76);
+}
+
+/* Shared material: matte, warm and precise. */
+.liquid-glass,
+.liquid-glass-strong,
+.terminal-info-panel,
+.motion-surface {
+  border-color: var(--cova-line) !important;
+  border-radius: 7px !important;
+  background:
+    linear-gradient(180deg, rgba(238, 231, 220, 0.026), transparent 32%),
+    var(--cova-surface) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(238, 231, 220, 0.035),
+    0 18px 54px rgba(0, 0, 0, 0.3) !important;
+}
+
+.liquid-glass-strong {
+  border-color: var(--cova-line-strong) !important;
+  background:
+    linear-gradient(180deg, rgba(238, 231, 220, 0.035), transparent 38%),
+    var(--cova-surface-2) !important;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .liquid-glass:hover,
+  .liquid-glass-strong:hover,
+  .motion-surface:hover {
+    border-color: rgba(191, 137, 100, 0.34) !important;
+    background:
+      linear-gradient(180deg, rgba(238, 231, 220, 0.04), transparent 40%),
+      #12110f !important;
+    transform: translateY(-1px) !important;
+  }
+}
+
+.deferred-paint-section [class*="rounded-["]:not(.passport-card-face):not(.passport-card-hitbox):not(.passport-card-scene) {
+  border-radius: 8px !important;
+}
+
+.passport-card-face,
+.passport-card-hitbox,
+.passport-card-scene {
+  border-radius: 18px !important;
+}
+
+/* Editorial hierarchy. */
+.section-shell-kicker-editorial {
+  padding: 0 0 0.7rem !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(191, 137, 100, 0.52) !important;
+  border-radius: 0 !important;
+  color: var(--cova-copper) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  font-family: "JetBrains Mono", monospace !important;
+  font-size: 0.66rem !important;
+  letter-spacing: 0.24em !important;
+}
+
+.section-shell-title-editorial {
+  color: var(--cova-paper);
+  font-family: var(--font-editorial) !important;
+  font-style: italic;
+  font-weight: 400 !important;
+  letter-spacing: -0.035em !important;
+  text-wrap: balance;
+}
+
+.section-shell-kicker-workspace {
+  color: var(--cova-copper) !important;
+}
+
+.section-shell-title-workspace {
+  color: var(--cova-paper) !important;
+  letter-spacing: -0.05em !important;
+}
+
+/* Tactile controls — no gloss, no candy pill. */
+.cova-button,
+.native-start-button,
+.header-start-button,
+.header-connect-button,
+.header-workspace-button,
+.marketing-start {
+  min-height: 46px;
+  border: 1px solid rgba(232, 224, 211, 0.24) !important;
+  border-radius: 4px !important;
+  color: var(--cova-paper) !important;
+  background: #0c0c0b !important;
+  box-shadow:
+    inset 0 1px 0 rgba(238, 231, 220, 0.035),
+    3px 3px 0 rgba(191, 137, 100, 0.08) !important;
+  font-family: "Inter", sans-serif !important;
+  font-size: 0.76rem !important;
+  font-weight: 650 !important;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.cova-button-primary,
+.native-start-button:not(.native-start-button-compact),
+.header-orbit.marketing-header .header-start-button.marketing-start {
+  color: #07100c !important;
+  border-color: rgba(216, 247, 234, 0.72) !important;
+  background: #c7eadc !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    3px 3px 0 rgba(191, 137, 100, 0.2) !important;
+}
+
+.cova-button:disabled,
+.native-start-button:disabled {
+  opacity: 0.42;
+  box-shadow: none !important;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .cova-button:hover,
+  .native-start-button:hover,
+  .header-start-button:hover,
+  .header-connect-button:hover {
+    border-color: rgba(191, 137, 100, 0.62) !important;
+    color: var(--cova-paper) !important;
+    transform: translate(-1px, -1px) !important;
+    box-shadow: 4px 4px 0 rgba(191, 137, 100, 0.14) !important;
+  }
+
+  .cova-button-primary:hover,
+  .native-start-button:not(.native-start-button-compact):hover,
+  .header-orbit.marketing-header .header-start-button.marketing-start:hover {
+    color: #07100c !important;
+    border-color: #f4eee5 !important;
+    background: #d8efe6 !important;
+  }
+}
+
+.terminal-tab-bar,
+.terminal-tab,
+.terminal-tab-label,
+input,
+select,
+textarea {
+  border-radius: 3px !important;
+}
+
+.terminal-tab-active {
+  border-color: rgba(191, 137, 100, 0.4) !important;
+  background: var(--cova-copper-soft) !important;
+}
+
+/* Marketing header: quiet editorial chrome. */
+.header-orbit.marketing-header {
+  border-bottom: 1px solid rgba(232, 224, 211, 0.08) !important;
+}
+
+.marketing-nav-link {
+  color: rgba(238, 231, 220, 0.55) !important;
+  font-size: 0.77rem !important;
+  letter-spacing: 0.045em;
+}
+
+.marketing-nav-link-active,
+.product-header .marketing-nav-link-active {
+  color: var(--cova-paper) !important;
+}
+
+/* Hero: editorial conviction over ambient glow. */
+.market-hero {
+  background: #050505 !important;
+}
+
+.market-hero > div:first-child {
+  background:
+    radial-gradient(ellipse at 76% 42%, rgba(82, 201, 157, 0.055), transparent 36%),
+    radial-gradient(ellipse at 28% 24%, rgba(191, 137, 100, 0.055), transparent 30%),
+    linear-gradient(180deg, #050505 0%, #080807 58%, #050505 100%) !important;
+}
+
+.market-hero::before,
+.market-hero::after,
+.hero-dashboard-glow,
+.hero-dashboard-stage::before,
+.hero-primary-cta-wrap::before,
+.hero-primary-cta-wrap::after,
+.market-feature-band::before {
+  display: none !important;
+}
+
+.market-hero-grid {
+  opacity: 0.52 !important;
+  background-image:
+    linear-gradient(rgba(232, 224, 211, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(232, 224, 211, 0.03) 1px, transparent 1px) !important;
+  background-size: 80px 80px !important;
+  mask-image: linear-gradient(90deg, transparent 2%, rgba(0,0,0,0.42) 34%, #000 72%, transparent 100%) !important;
+}
+
+.market-hero-layout {
+  grid-template-columns: minmax(390px, 0.82fr) minmax(0, 1.18fr) !important;
+  max-width: 1460px;
+}
+
+.market-hero-copy {
+  max-width: 38rem !important;
+}
+
+.market-hero-eyebrow {
+  color: var(--cova-copper) !important;
+  font-family: "JetBrains Mono", monospace !important;
+  font-size: 0.68rem !important;
+  letter-spacing: 0.24em !important;
+  text-shadow: none !important;
+}
+
+.market-hero-title {
+  color: var(--cova-paper) !important;
+  font-family: "Space Grotesk", "Inter", sans-serif !important;
+  letter-spacing: -0.07em !important;
+  text-shadow: none !important;
+  text-wrap: balance;
+}
+
+.market-hero-title .market-hero-signal {
+  color: var(--cova-copper) !important;
+  text-shadow: none !important;
+}
+
+.market-hero-title .market-hero-editorial {
+  display: inline-block;
+  margin-top: 0.08em;
+  color: var(--cova-paper) !important;
+  font-family: var(--font-editorial) !important;
+  font-size: 0.91em;
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: -0.035em;
+  line-height: 0.88;
+  text-shadow: none !important;
+}
+
+.market-hero-subline {
+  color: rgba(232, 224, 211, 0.64) !important;
+  font-size: 1.05rem !important;
+  line-height: 1.72 !important;
+}
+
+.market-play-dot {
+  width: 2.9rem !important;
+  height: 2.9rem !important;
+  border: 1px solid rgba(191, 137, 100, 0.38) !important;
+  border-radius: 3px !important;
+  color: var(--cova-copper) !important;
+  background: var(--cova-copper-soft) !important;
+  box-shadow: none !important;
+}
+
+.market-play-dot svg {
+  color: var(--cova-copper) !important;
+  fill: var(--cova-copper) !important;
+}
+
+.market-hero-action {
+  color: rgba(232, 224, 211, 0.64) !important;
+}
+
+.market-hero-proof {
+  color: rgba(232, 224, 211, 0.62) !important;
+  font-family: "JetBrains Mono", monospace !important;
+  font-size: 0.68rem !important;
+  letter-spacing: 0.04em !important;
+  text-transform: uppercase;
+}
+
+.market-hero-proof span {
+  border-radius: 0 !important;
+  background: var(--cova-accent) !important;
+  box-shadow: none !important;
+}
+
+/* Hero product object: credible product plate, not floating glass. */
+.hero-dashboard-stage {
+  margin-top: -1rem !important;
+}
+
+.hero-dashboard-shell {
+  --dashboard-shell-radius: 8px !important;
+  border: 1px solid rgba(232, 224, 211, 0.18) !important;
+  border-radius: 8px !important;
+  background: #0a0a09 !important;
+  box-shadow:
+    0 44px 110px rgba(0, 0, 0, 0.58),
+    16px 18px 0 rgba(191, 137, 100, 0.035) !important;
+  transform:
+    perspective(1500px)
+    rotateY(-5deg)
+    rotateX(1deg)
+    rotateZ(-2.2deg)
+    translateZ(0) !important;
+}
+
+.hero-dashboard-shell::before,
+.hero-dashboard-shell::after {
+  display: none !important;
+}
+
+.hero-dashboard-screen {
+  inset: 0.42rem !important;
+  border: 1px solid rgba(232, 224, 211, 0.11) !important;
+  border-radius: 4px !important;
+  background: #070706 !important;
+  box-shadow: none !important;
+}
+
+.hero-dashboard-sidebar,
+.hero-dashboard-card,
+.hero-dashboard-chart,
+.hero-dashboard-metric {
+  border-radius: 3px !important;
+}
+
+.hero-dashboard-sidebar {
+  border-right-color: rgba(232, 224, 211, 0.1) !important;
+  background: #0b0b0a !important;
+}
+
+.hero-dashboard-nav-active {
+  color: var(--cova-paper) !important;
+  border-left: 2px solid var(--cova-copper) !important;
+  border-radius: 0 !important;
+  background: rgba(191, 137, 100, 0.08) !important;
+}
+
+.hero-dashboard-metric,
+.hero-dashboard-card {
+  border-color: rgba(232, 224, 211, 0.1) !important;
+  background: rgba(238, 231, 220, 0.018) !important;
+}
+
+/* Hero feature ledger. */
+.market-feature-band {
+  bottom: clamp(4.4rem, 8vh, 6.2rem) !important;
+  filter: none !important;
+}
+
+.market-feature-kicker {
+  width: min(100%, 78rem);
+  margin: 0 auto 0.85rem !important;
+  padding: 0 0 0.7rem;
+  border-bottom: 1px solid rgba(191, 137, 100, 0.32);
+  color: var(--cova-copper) !important;
+  font-family: "JetBrains Mono", monospace !important;
+  font-size: 0.62rem !important;
+  letter-spacing: 0.2em !important;
+  text-align: left !important;
+  text-shadow: none !important;
+}
+
+.market-feature-strip-wide {
+  gap: 0 !important;
+  padding: 0 !important;
+  border-top: 1px solid rgba(232, 224, 211, 0.1);
+  border-bottom: 1px solid rgba(232, 224, 211, 0.1);
+}
+
+.market-feature-item {
+  grid-template-columns: auto auto minmax(0, 1fr) !important;
+  gap: 0.8rem !important;
+  min-height: 4.7rem !important;
+  padding: 0.9rem 1rem !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: rgba(5, 5, 5, 0.66) !important;
+  box-shadow: none !important;
+}
+
+.market-feature-item + .market-feature-item {
+  border-left: 1px solid rgba(232, 224, 211, 0.1) !important;
+}
+
+.market-feature-index {
+  color: var(--cova-copper);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+}
+
+.market-feature-icon {
+  width: 2rem !important;
+  height: 2rem !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  color: var(--cova-accent) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.market-feature-item h3 {
+  color: var(--cova-paper) !important;
+  font-size: 0.82rem !important;
+  letter-spacing: -0.01em;
+  text-shadow: none !important;
+}
+
+.market-feature-item p {
+  margin-top: 0.2rem;
+  color: rgba(232, 224, 211, 0.62) !important;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.58rem !important;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* How Cova works: one evidence dossier, one indexed ledger. */
+.story-strip-simple {
+  padding-top: clamp(6rem, 10vw, 9rem) !important;
+  padding-bottom: clamp(6rem, 10vw, 9rem) !important;
+  border-color: rgba(232, 224, 211, 0.09) !important;
+  background:
+    radial-gradient(circle at 82% 8%, rgba(191, 137, 100, 0.06), transparent 28rem),
+    #070706 !important;
+}
+
+.story-section-kicker {
+  color: var(--cova-copper) !important;
+  font-family: "JetBrains Mono", monospace !important;
+  font-size: 0.66rem !important;
+  letter-spacing: 0.24em !important;
+}
+
+.story-strip-simple h2 {
+  color: var(--cova-paper) !important;
+  font-family: var(--font-editorial) !important;
+  font-style: italic;
+  font-weight: 400 !important;
+  letter-spacing: -0.035em !important;
+  line-height: 0.94 !important;
+}
+
+.trade-proof-summary-panel {
+  padding: 1.5rem 0 !important;
+  border: 0 !important;
+  border-top: 1px solid rgba(191, 137, 100, 0.42) !important;
+  border-bottom: 1px solid rgba(232, 224, 211, 0.12) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.trade-proof-summary-panel::before {
+  display: none !important;
+}
+
+.trade-proof-summary-panel > div {
+  padding-inline: 1.1rem;
+}
+
+.trade-proof-summary-panel .grid.sm\:grid-cols-3 > div {
+  border: 0 !important;
+  border-left: 1px solid rgba(232, 224, 211, 0.12) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.trade-proof-summary-panel .grid.sm\:grid-cols-3 > div:first-child {
+  border-left-color: rgba(191, 137, 100, 0.48) !important;
+}
+
+.trade-proof-summary-panel [class*="border-[#18c887]"] {
+  border-color: rgba(191, 137, 100, 0.48) !important;
+}
+
+.trade-proof-ledger {
+  border-top: 1px solid rgba(191, 137, 100, 0.42);
+  border-bottom: 1px solid rgba(232, 224, 211, 0.12);
+}
+
+.trade-proof-ledger-head,
+.trade-proof-step-row {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr) minmax(180px, 0.34fr);
+  gap: 1.2rem;
+  align-items: center;
+}
+
+.trade-proof-ledger-head {
+  padding: 0.72rem 1rem;
+  color: rgba(232, 224, 211, 0.62);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+}
+
+.trade-proof-step-row {
+  min-height: 7.5rem;
+  padding: 1.15rem 1rem;
+  border-top: 1px solid rgba(232, 224, 211, 0.1);
+  background: transparent;
+  opacity: 1 !important;
+  filter: none !important;
+  transform: none !important;
+  transition: background 220ms ease, border-color 220ms ease;
+}
+
+.trade-proof-step-row:hover {
+  border-top-color: rgba(191, 137, 100, 0.32);
+  background: linear-gradient(90deg, rgba(191, 137, 100, 0.06), transparent 52%);
+}
+
+.trade-proof-step-index {
+  color: var(--cova-copper) !important;
+}
+
+.trade-proof-step-operation {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 1rem;
+  align-items: center;
+}
+
+.trade-proof-step-icon {
+  border-radius: 3px !important;
+  border-color: rgba(82, 201, 157, 0.2) !important;
+  background: rgba(82, 201, 157, 0.07) !important;
+}
+
+.trade-proof-step-operation h3 {
+  color: var(--cova-paper) !important;
+}
+
+.trade-proof-step-output {
+  padding-left: 1rem;
+  border-left: 1px solid rgba(232, 224, 211, 0.1);
+}
+
+/* Logged-in workspace: a fixed operator rail, not a floating card. */
+.operator-workspace {
+  background:
+    linear-gradient(90deg, rgba(191, 137, 100, 0.025), transparent 22rem),
+    #050505;
+}
+
+.operator-workspace .workspace-sidebar {
+  top: 14px;
+  bottom: 14px;
+  left: 14px;
+  width: 250px;
+  border-color: rgba(232, 224, 211, 0.14);
+  border-radius: 4px !important;
+  background:
+    linear-gradient(180deg, rgba(238, 231, 220, 0.025), transparent 28%),
+    #0a0a09 !important;
+  box-shadow: 18px 0 70px rgba(0, 0, 0, 0.34) !important;
+}
+
+.operator-workspace .workspace-sidebar-brand span {
+  padding: 4px 7px;
+  border-color: rgba(191, 137, 100, 0.34);
+  border-radius: 2px !important;
+  color: var(--cova-copper);
+  background: rgba(191, 137, 100, 0.06);
+  font-family: "JetBrains Mono", monospace;
+}
+
+.operator-workspace .workspace-risk-card {
+  margin: 0;
+  padding: 1.25rem 1.1rem;
+  border: 0;
+  border-bottom: 1px solid rgba(232, 224, 211, 0.12);
+  border-left: 2px solid var(--cova-copper);
+  border-radius: 0 !important;
+  background: linear-gradient(90deg, rgba(191, 137, 100, 0.08), transparent) !important;
+}
+
+.operator-workspace .workspace-risk-card strong {
+  color: var(--cova-paper);
+  font-size: 3.05rem;
+}
+
+.operator-workspace .workspace-risk-label {
+  color: var(--cova-copper);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.58rem;
+}
+
+.operator-workspace .workspace-sidebar-nav {
+  gap: 0;
+  padding: 0;
+}
+
+.operator-workspace .workspace-sidebar-link {
+  min-height: 3.7rem;
+  padding: 0.72rem 1rem;
+  border: 0;
+  border-bottom: 1px solid rgba(232, 224, 211, 0.08);
+  border-radius: 0 !important;
+}
+
+.operator-workspace .workspace-sidebar-link:hover {
+  border-color: rgba(232, 224, 211, 0.1) !important;
+  background: rgba(238, 231, 220, 0.025) !important;
+}
+
+.operator-workspace .workspace-sidebar-link-active {
+  border-left: 2px solid var(--cova-accent) !important;
+  color: var(--cova-paper) !important;
+  background: linear-gradient(90deg, rgba(82, 201, 157, 0.09), transparent 74%) !important;
+}
+
+.operator-workspace .workspace-sidebar-icon {
+  border: 0;
+  border-radius: 0 !important;
+  color: rgba(232, 224, 211, 0.56);
+  background: transparent !important;
+}
+
+.operator-workspace .workspace-sidebar-link-active .workspace-sidebar-icon {
+  color: var(--cova-accent);
+}
+
+.operator-workspace .workspace-sidebar-footer {
+  margin: auto 0 0;
+  border: 0;
+  border-top: 1px solid rgba(232, 224, 211, 0.1);
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.operator-workspace .workspace-sidebar-footer button {
+  border-radius: 3px !important;
+}
+
+.operator-workspace .workspace-sidebar-watermark {
+  color: var(--cova-copper);
+}
+
+.operator-workspace .workspace-content .deferred-paint-section {
+  background:
+    linear-gradient(rgba(232, 224, 211, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(232, 224, 211, 0.014) 1px, transparent 1px) !important;
+  background-size: 80px 80px !important;
+}
+
+.operator-workspace .risk-command-center,
+.operator-workspace .risk-chart-panel,
+.operator-workspace .risk-stat-tile,
+.operator-workspace .practice-command-panel,
+.operator-workspace .practice-readiness-panel,
+.operator-workspace .practice-chart-panel,
+.operator-workspace .practice-setups-panel,
+.operator-workspace .practice-recent-panel {
+  border-radius: 5px !important;
+  border-color: rgba(232, 224, 211, 0.12) !important;
+  background:
+    linear-gradient(180deg, rgba(238, 231, 220, 0.022), transparent 36%),
+    #0a0a09 !important;
+}
+
+.operator-workspace .risk-command-center,
+.operator-workspace .practice-command-panel,
+.operator-workspace .rules-ledger-summary,
+.operator-workspace .source-primary-choice {
+  border-left-color: var(--cova-copper) !important;
+}
+
+/* Passport remains the expressive object; surrounding controls join the dossier. */
+.operator-workspace[data-workspace-section="passport"] .passport-card-face {
+  border-radius: 18px !important;
+}
+
+.operator-workspace[data-workspace-section="passport"] .passport-mode-console,
+.operator-workspace[data-workspace-section="passport"] .passport-proof-panel,
+.operator-workspace[data-workspace-section="passport"] .passport-tier-panel {
+  border-radius: 0 !important;
+}
+
+@media (min-width: 1024px) and (max-height: 760px) {
+  .operator-workspace .workspace-sidebar {
+    overflow: hidden;
+  }
+
+  .operator-workspace .workspace-sidebar-brand {
+    padding: 12px 14px 10px;
+  }
+
+  .operator-workspace .workspace-risk-card {
+    padding: 10px 14px;
+  }
+
+  .operator-workspace .workspace-risk-card strong {
+    margin-top: 5px;
+    font-size: 2.25rem;
+  }
+
+  .operator-workspace .workspace-risk-card p {
+    margin-top: 4px;
+  }
+
+  .operator-workspace .workspace-sidebar-link {
+    min-height: 2.9rem;
+    padding: 0.5rem 0.8rem;
+  }
+
+  .operator-workspace .workspace-sidebar-copy small {
+    margin-top: 2px;
+  }
+
+  .operator-workspace .workspace-sidebar-footer {
+    padding: 8px 12px;
+  }
+
+  .operator-workspace .workspace-sidebar-watermark {
+    display: none;
+  }
+}
+
+@media (max-width: 1199px) {
+  .market-hero-layout {
+    grid-template-columns: minmax(340px, 0.8fr) minmax(0, 1.2fr) !important;
+  }
+
+  .hero-dashboard-shell {
+    transform: perspective(1400px) rotateY(-3deg) rotateZ(-1.4deg) !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .market-hero-layout {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .market-hero-copy {
+    max-width: 42rem !important;
+  }
+
+  .hero-dashboard-stage {
+    min-height: 42rem !important;
+    margin-top: 0 !important;
+  }
+
+  .trade-proof-ledger-head {
+    display: none;
+  }
+
+  .trade-proof-step-row {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+
+  .trade-proof-step-output {
+    grid-column: 2;
+    padding: 0.8rem 0 0;
+    border-top: 1px solid rgba(232, 224, 211, 0.09);
+    border-left: 0;
+  }
+}
+
+@media (max-width: 767px) {
+  header.fixed {
+    padding: 0.75rem 0.75rem 0 !important;
+  }
+
+  .header-scroll-veil {
+    top: 0.75rem !important;
+    width: calc(100% - 1.5rem) !important;
+    height: 4.05rem !important;
+    border: 1px solid rgba(232, 224, 211, 0.12) !important;
+    border-radius: 4px !important;
+    background:
+      linear-gradient(180deg, rgba(238, 231, 220, 0.025), transparent),
+      rgba(8, 8, 7, 0.96) !important;
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.28) !important;
+  }
+
+  .header-brand-mark {
+    width: 2.35rem !important;
+    height: 2.35rem !important;
+  }
+
+  .operator-mobile-menu-toggle {
+    width: 3.15rem !important;
+    height: 3.15rem !important;
+    padding: 0 !important;
+    border-color: rgba(191, 137, 100, 0.32) !important;
+    border-radius: 3px !important;
+    color: var(--cova-paper) !important;
+    background: rgba(12, 12, 11, 0.96) !important;
+    box-shadow: none !important;
+  }
+
+  .operator-mobile-menu-panel {
+    border-radius: 4px !important;
+    background: #0a0a09 !important;
+  }
+
+  .operator-mobile-menu-link {
+    border-bottom: 1px solid rgba(232, 224, 211, 0.08);
+    border-radius: 0 !important;
+    font-family: "JetBrains Mono", monospace !important;
+    font-size: 0.68rem !important;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .market-hero-layout {
+    padding-top: 8.25rem !important;
+    padding-bottom: 5.5rem !important;
+  }
+
+  .market-hero-title {
+    font-size: clamp(3.6rem, 17vw, 4.7rem) !important;
+  }
+
+  .market-hero-title .market-hero-editorial {
+    max-width: 9ch;
+  }
+
+  .market-hero-subline {
+    max-width: 31rem !important;
+    font-size: 0.98rem !important;
+  }
+
+  .hero-dashboard-stage {
+    min-height: 31rem !important;
+  }
+
+  .hero-dashboard-shell {
+    right: -28% !important;
+    width: 132% !important;
+    transform: perspective(1100px) rotateY(-4deg) rotateZ(-1.8deg) scale(0.82) !important;
+    transform-origin: top center !important;
+  }
+
+  .story-strip-simple {
+    padding-inline: 1.25rem !important;
+  }
+
+  .trade-proof-summary-panel > div {
+    padding-inline: 0.2rem;
+  }
+
+  .trade-proof-step-row {
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 0.75rem;
+    padding-inline: 0;
+  }
+
+  .trade-proof-step-operation {
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 0.75rem;
+  }
+
+  .trade-proof-step-icon {
+    width: 34px !important;
+    height: 34px !important;
+  }
+
+  .trade-proof-step-operation h3 {
+    font-size: 1.3rem !important;
+  }
+
+  .section-shell-title-editorial {
+    font-size: clamp(3.2rem, 15vw, 4.75rem) !important;
+  }
+}

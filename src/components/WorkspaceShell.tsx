@@ -53,7 +53,7 @@ type WorkspaceShellProps = {
 
 export function WorkspaceShell({ brokerLabel, children, email, go, riskScore, section, signOut }: WorkspaceShellProps) {
   return (
-    <div className="workspace-shell">
+    <div className="workspace-shell operator-workspace" data-workspace-section={section}>
       <aside className="workspace-sidebar" aria-label="Cova workspace navigation">
         <div className="workspace-sidebar-brand">
           <button className="workspace-brand-button" onClick={() => go("dashboard")} type="button" aria-label="Go to Cova risk desk">

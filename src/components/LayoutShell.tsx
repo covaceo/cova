@@ -27,15 +27,15 @@ export function SectionShell({
           <div className="min-w-0">
             <span
               className={isWorkspace
-                ? "mb-3 inline-flex font-body text-[11px] font-medium uppercase tracking-[0.3em] text-[#18c887]/82"
-                : "liquid-glass mb-5 inline-block rounded-full px-4 py-2 font-body text-xs uppercase tracking-[0.22em] text-[#18c887]"}
+                ? "section-shell-kicker section-shell-kicker-workspace mb-3 inline-flex font-body text-[11px] font-medium uppercase tracking-[0.3em] text-[#18c887]/82"
+                : "section-shell-kicker section-shell-kicker-editorial mb-5 inline-block px-4 py-2 font-body text-xs uppercase tracking-[0.22em] text-[#18c887]"}
             >
               {eyebrow}
             </span>
             <h2
               className={isWorkspace
-                ? "max-w-3xl break-words font-body text-4xl font-semibold leading-[0.96] tracking-[-0.055em] text-white md:text-5xl lg:text-6xl"
-                : "max-w-[9.5ch] break-words font-heading text-[42px] italic leading-[1.05] tracking-[0.01em] [word-spacing:0.04em] md:max-w-none md:text-8xl md:[word-spacing:0.12em]"}
+                ? "section-shell-title section-shell-title-workspace max-w-3xl break-words font-body text-4xl font-semibold leading-[0.96] tracking-[-0.055em] text-white md:text-5xl lg:text-6xl"
+                : "section-shell-title section-shell-title-editorial max-w-[10ch] break-words text-[42px] leading-[0.98] md:max-w-none md:text-8xl"}
             >
               {title}
             </h2>

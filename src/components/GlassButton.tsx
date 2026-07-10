@@ -20,7 +20,7 @@ export function GlassButton({
 }: GlassButtonProps) {
   return (
     <motion.button
-      className={`cova-button ${strong ? "cova-button-primary" : "cova-button-secondary"} ${className} inline-flex items-center gap-2 whitespace-nowrap rounded-full px-6 py-3 font-body text-sm font-medium`}
+      className={`cova-button ${strong ? "cova-button-primary" : "cova-button-secondary"} ${className} inline-flex items-center gap-2 whitespace-nowrap rounded-[5px] px-6 py-3 font-body text-sm font-medium`}
       disabled={disabled}
       onClick={onClick}
       type={type}
