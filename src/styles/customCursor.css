@@ -1,0 +1,182 @@
+@media (hover: hover) and (pointer: fine) {
+  html.cova-custom-cursor-active,
+  html.cova-custom-cursor-active body,
+  html.cova-custom-cursor-active body * {
+    cursor: none !important;
+  }
+
+  html.cova-custom-cursor-active .cova-cursor {
+    display: block;
+  }
+}
+
+.cova-cursor {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483646;
+  display: none;
+  overflow: hidden;
+  opacity: 0;
+  contain: strict;
+  pointer-events: none;
+  transition: opacity 90ms linear;
+}
+
+.cova-cursor.is-visible:not([data-cursor-state="hidden"]) {
+  opacity: 1;
+}
+
+.cova-cursor-point,
+.cova-cursor-frame {
+  position: fixed;
+  top: 0;
+  left: 0;
+  box-sizing: border-box;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.cova-cursor-point {
+  z-index: 2;
+  width: 4px;
+  height: 4px;
+  border-radius: 1px;
+  background: #e8e0d3;
+  box-shadow: 0 0 0 1px rgba(10, 10, 9, 0.72);
+  transition: width 120ms ease, height 120ms ease, opacity 90ms linear, background-color 120ms ease;
+}
+
+.cova-cursor-frame {
+  --cursor-frame-size: 22px;
+  z-index: 1;
+  width: var(--cursor-frame-size);
+  height: var(--cursor-frame-size);
+  border: 1px solid rgba(191, 137, 100, 0.88);
+  border-radius: 3px;
+  background: rgba(191, 137, 100, 0.025);
+  transition:
+    width 150ms cubic-bezier(0.16, 1, 0.3, 1),
+    height 150ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 120ms ease,
+    border-radius 120ms ease,
+    background-color 120ms ease,
+    opacity 120ms ease;
+}
+
+.cova-cursor-notch {
+  position: absolute;
+  display: block;
+  background: #e8e0d3;
+  opacity: 0.78;
+  transition: width 140ms ease, height 140ms ease, opacity 120ms ease;
+}
+
+.cova-cursor-notch.is-top,
+.cova-cursor-notch.is-bottom {
+  left: 50%;
+  width: 4px;
+  height: 1px;
+  transform: translateX(-50%);
+}
+
+.cova-cursor-notch.is-top {
+  top: -3px;
+}
+
+.cova-cursor-notch.is-bottom {
+  bottom: -3px;
+}
+
+.cova-cursor-notch.is-right,
+.cova-cursor-notch.is-left {
+  top: 50%;
+  width: 1px;
+  height: 4px;
+  transform: translateY(-50%);
+}
+
+.cova-cursor-notch.is-right {
+  right: -3px;
+}
+
+.cova-cursor-notch.is-left {
+  left: -3px;
+}
+
+.cova-cursor[data-cursor-state="action"] .cova-cursor-frame {
+  --cursor-frame-size: 32px;
+  border-color: rgba(191, 137, 100, 1);
+  background: rgba(191, 137, 100, 0.11);
+}
+
+.cova-cursor[data-cursor-state="action"] .cova-cursor-point {
+  width: 5px;
+  height: 5px;
+  background: #fff8ec;
+}
+
+.cova-cursor[data-cursor-state="pressed"] .cova-cursor-frame,
+.cova-cursor[data-cursor-state="grabbing"] .cova-cursor-frame {
+  --cursor-frame-size: 16px;
+  border-color: rgba(232, 224, 211, 0.94);
+  background: rgba(191, 137, 100, 0.18);
+}
+
+.cova-cursor[data-cursor-state="pressed"] .cova-cursor-point,
+.cova-cursor[data-cursor-state="grabbing"] .cova-cursor-point {
+  width: 3px;
+  height: 3px;
+  background: #bf8964;
+}
+
+.cova-cursor[data-cursor-state="text"] .cova-cursor-point {
+  opacity: 0;
+}
+
+.cova-cursor[data-cursor-state="text"] .cova-cursor-frame {
+  width: 2px;
+  height: 22px;
+  border: 0;
+  border-radius: 1px;
+  background: #bf8964;
+}
+
+.cova-cursor[data-cursor-state="text"] .cova-cursor-notch {
+  opacity: 0;
+}
+
+.cova-cursor[data-cursor-state="disabled"] .cova-cursor-point {
+  opacity: 0.38;
+}
+
+.cova-cursor[data-cursor-state="disabled"] .cova-cursor-frame {
+  --cursor-frame-size: 20px;
+  border-color: rgba(232, 224, 211, 0.34);
+  background: linear-gradient(135deg, transparent 46%, rgba(191, 137, 100, 0.72) 47%, rgba(191, 137, 100, 0.72) 53%, transparent 54%);
+  opacity: 0.68;
+}
+
+.cova-cursor[data-cursor-state="grab"] .cova-cursor-frame {
+  --cursor-frame-size: 26px;
+  border-color: rgba(191, 137, 100, 0.96);
+}
+
+.cova-cursor[data-cursor-state="grab"] .cova-cursor-notch.is-top,
+.cova-cursor[data-cursor-state="grab"] .cova-cursor-notch.is-bottom {
+  width: 8px;
+}
+
+.cova-cursor[data-cursor-state="grab"] .cova-cursor-notch.is-right,
+.cova-cursor[data-cursor-state="grab"] .cova-cursor-notch.is-left {
+  height: 8px;
+}
+
+.cova-cursor[data-cursor-state="hidden"] {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce), (forced-colors: active) {
+  .cova-cursor {
+    display: none !important;
+  }
+}
