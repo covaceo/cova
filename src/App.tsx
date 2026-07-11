@@ -489,16 +489,18 @@ export default function App() {
       <div className="pointer-events-none fixed inset-0 z-0 bg-grid opacity-70" />
       <CustomCursor />
 
-      <Navbar
-        section={section}
-        go={go}
-        openAuth={setAuthMode}
-        mobileOpen={mobileOpen}
-        setMobileOpen={setMobileOpen}
-        authSession={authSession}
-        riskScore={analysis.score}
-        signOut={signOut}
-      />
+      {(section !== "practice" || !authSession) && (
+        <Navbar
+          section={section}
+          go={go}
+          openAuth={setAuthMode}
+          mobileOpen={mobileOpen}
+          setMobileOpen={setMobileOpen}
+          authSession={authSession}
+          riskScore={analysis.score}
+          signOut={signOut}
+        />
+      )}
       <AuthSheet authIntentKey={AUTH_INTENT_KEY} mode={authMode} setMode={setAuthMode} close={() => setAuthMode(null)} onAuthenticated={completeAuth} onDevPreview={signInAsDevPreview} />
       <Toast toast={toast} />
 
@@ -559,7 +561,7 @@ export default function App() {
           )}
           {section === "practice" && (
             <RouteFrame key="practice">
-              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><PracticeLab practiceReps={practiceReps} setPracticeReps={(next) => setPracticeReps(next)} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={setAuthMode} onDevPreview={signInAsDevPreview} />}
+              {isSignedIn ? <PracticeLab go={go} practiceReps={practiceReps} setPracticeReps={(next) => setPracticeReps(next)} /> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={setAuthMode} onDevPreview={signInAsDevPreview} />}
             </RouteFrame>
           )}
           {section === "passport" && (

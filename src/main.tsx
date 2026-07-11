@@ -6,6 +6,7 @@ import "./styles/riskDeskVisualSystem.css";
 import "./styles/workspaceRouteRefinement.css";
 import "./styles/operatorDossierRevamp.css";
 import "./styles/customCursor.css";
+import "./styles/backtestingLab.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

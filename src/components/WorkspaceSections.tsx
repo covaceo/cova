@@ -2,6 +2,7 @@ import { toPng } from "html-to-image";
 import { motion } from "motion/react";
 import * as THREE from "three";
 import {
+  ArrowLeft,
   ArrowUpRight,
   BadgeCheck,
   CalendarDays,
@@ -44,6 +45,7 @@ import {
 } from "../lib/backtesting";
 import { analyze, formatMoney, formatPercent, type RiskRule } from "../lib/risk";
 import { LightweightReplayChart } from "./practice/LightweightReplayChart";
+import { BacktestingTerminal } from "./practice/BacktestingTerminal";
 import { GlassButton } from "./GlassButton";
 import { ImageAtmosphere, SectionShell } from "./LayoutShell";
 
@@ -332,7 +334,7 @@ const defaultPracticeAccountDraft = (): PracticeAccountDraft => ({
   setup: "ORH rejection",
 });
 
-export function PracticeLab({ practiceReps, setPracticeReps }: { practiceReps: PracticeRep[]; setPracticeReps: (next: PracticeRep[]) => void }) {
+export function PracticeLab({ go, practiceReps, setPracticeReps }: { go: (section: Section) => void; practiceReps: PracticeRep[]; setPracticeReps: (next: PracticeRep[]) => void }) {
   const [account, setAccount] = useState<PracticeAccount | null>(() => readPracticeAccount());
   const [simTrades, setSimTrades] = useState<PracticeTrade[]>(() => readPracticeTrades());
   const [setupOpen, setSetupOpen] = useState(() => !readPracticeAccount());
@@ -357,6 +359,7 @@ export function PracticeLab({ practiceReps, setPracticeReps }: { practiceReps: P
   const [activeSetup, setActiveSetup] = useState(accountDraft.setup);
   const [rulesFollowed, setRulesFollowed] = useState<"yes" | "no">("yes");
   const [mistake, setMistake] = useState("");
+  const [orderQuantity, setOrderQuantity] = useState(() => readPracticeAccount()?.contracts ?? 1);
 
   const previewAccount = useMemo(() => createDefaultPracticeAccount({
     accountSize: toDraftNumber(accountDraft.accountSize, 50000),
@@ -486,6 +489,7 @@ export function PracticeLab({ practiceReps, setPracticeReps }: { practiceReps: P
     setReplayDate(accountDraft.date);
     setReplayYear(toDraftNumber(accountDraft.year, 2025));
     setActiveSetup(accountDraft.setup || "ORH rejection");
+    setOrderQuantity(nextAccount.contracts);
     resetReplayRuntime();
     setPosition(null);
     setPlaying(false);
@@ -521,7 +525,7 @@ export function PracticeLab({ practiceReps, setPracticeReps }: { practiceReps: P
       direction,
       entryIndex: playIndex,
       entryPrice: currentCandle.close,
-      contracts: account.contracts,
+      contracts: orderQuantity,
     });
   }
 
@@ -553,177 +557,48 @@ export function PracticeLab({ practiceReps, setPracticeReps }: { practiceReps: P
   }
 
   return (
-    <SectionShell
-      eyebrow="Backtesting Lab"
-      title="Practice replay and review."
-      variant="workspace"
-      backdrop={<ImageAtmosphere src="/media/cova-dashboard-plate.jpg" align="right" opacity="opacity-[0.16]" />}
-    >
-      <div className="practice-simulator-grid grid gap-6 xl:grid-cols-[0.78fr_1.22fr]">
-        <aside className="practice-command-panel p-6 md:p-7">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="terminal-tab-label inline-flex rounded-full px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.24em] text-[#b9f5df]">Practice replay</span>
-            <span className="rounded-full border border-white/10 bg-black/28 px-3 py-1.5 font-body text-xs text-white/48">In-app simulator</span>
-          </div>
-          <Target className="mt-8 h-10 w-10 text-[#18c887]" />
-          <h3 className="mt-6 font-body text-3xl font-semibold leading-[0.98] tracking-[-0.05em] md:text-4xl">A chart room for deliberate reps.</h3>
-          <p className="mt-5 font-body text-sm leading-relaxed text-white/58">
-            Choose the account, date, market, and setup. Cova reveals a deterministic demo tape, records simulated executions, and turns those practice reps into stats. It is not historical market data.
-          </p>
-
-          <div className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-            <div className="practice-stat-row">
-              <span>Practice account</span>
-              <strong>{formatMoney(accountStats.balance)}</strong>
-            </div>
-            <div className="practice-stat-row">
-              <span>Net P&L</span>
-              <strong className={accountStats.netPnl >= 0 ? "text-emerald-300" : "text-red-300"}>{formatMoney(accountStats.netPnl)}</strong>
-            </div>
-            <div className="practice-stat-row">
-              <span>Trades</span>
-              <strong>{accountStats.tradeCount}</strong>
-            </div>
-            <div className="practice-stat-row">
-              <span>Max DD</span>
-              <strong>{formatMoney(accountStats.maxDrawdown)}</strong>
-            </div>
-            <div className="practice-stat-row sm:col-span-2 xl:col-span-1">
-              <span>Practice limits</span>
-              <strong className={limitStatus.canOpenNewPosition ? "text-emerald-300" : "text-red-300"}>{limitStatus.label}</strong>
-            </div>
-          </div>
-
-          <button className="practice-reset-account mt-6" type="button" onClick={() => setSetupOpen(true)}>
-            Change account / replay date
-          </button>
-        </aside>
-
-        <div className="grid gap-6">
-          <section className="practice-chart-panel p-4 md:p-6">
-            <div className="practice-chart-header flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-              <div>
-                <p className="font-body text-xs uppercase tracking-[0.22em] text-[#18c887]">Replay chart</p>
-                <h3 className="mt-2 font-body text-2xl font-semibold tracking-[-0.04em]">{replayTape.market} · {replayTape.date} · {activeSetup}</h3>
-                <p className="mt-2 font-body text-xs text-white/42">
-                  {openingRangeComplete
-                    ? `ORH ${replayTape.levels.openingRangeHigh.toFixed(2)} · ORL ${replayTape.levels.openingRangeLow.toFixed(2)}`
-                    : `Opening range building · ${visibleCandles.length}/${openingRangeBarCount} bars`}
-                  {` · VWAP ${(currentCandle.vwap ?? currentCandle.close).toFixed(2)}`}
-                </p>
-              </div>
-              <div className="practice-date-controls">
-                <label>
-                  <span>Choose date</span>
-                  <input type="date" value={accountDraft.date} onChange={(event) => updateAccountDraft("date", event.target.value)} />
-                </label>
-                <label>
-                  <span>Year</span>
-                  <input type="number" min="2018" max="2026" value={accountDraft.year} onChange={(event) => updateAccountDraft("year", event.target.value)} />
-                </label>
-                <button type="button" onClick={loadReplayFromControls}>Load</button>
-              </div>
-            </div>
-
-            <LightweightReplayChart key={replayTape.id} visibleCandles={visibleCandles} position={position} tape={replayTape} trades={simTrades} />
-
-            <div className="practice-replay-controls mt-5 grid gap-3 xl:grid-cols-[1fr_auto] xl:items-center">
-              <div className="flex flex-wrap gap-2">
-                <button disabled={Boolean(position)} type="button" onClick={() => stepReplay(-(60 / replayTape.dataSource.resolutionMinutes))}>Back 1h</button>
-                <button type="button" onClick={() => stepReplay(1)}>Step</button>
-                <button type="button" onClick={() => setPlaying((current) => !current)}>{playing ? "Pause" : "Play"}</button>
-                <button type="button" onClick={() => { setPlaying(false); resetReplayRuntime(); setPosition(null); }}>Reset tape</button>
-              </div>
-              <div className="practice-execution-controls">
-                <button className="buy" disabled={!account || Boolean(position) || !limitStatus.canOpenNewPosition} type="button" onClick={() => openPracticePosition("Long")}>Buy</button>
-                <button className="sell" disabled={!account || Boolean(position) || !limitStatus.canOpenNewPosition} type="button" onClick={() => openPracticePosition("Short")}>Sell</button>
-                <button className="close" disabled={!position} type="button" onClick={closePracticePosition}>Close position</button>
-              </div>
-            </div>
-
-            <div className="practice-ticket-row mt-4 grid gap-3 md:grid-cols-[1fr_1fr_1.2fr]">
-              <label className="practice-field compact">
-                <span>Rules followed?</span>
-                <select value={rulesFollowed} onChange={(event) => setRulesFollowed(event.target.value as "yes" | "no")}>
-                  <option value="yes">Yes</option>
-                  <option value="no">No</option>
-                </select>
-              </label>
-              <div className="practice-field compact">
-                <span>Open position</span>
-                <strong>{position ? `${position.direction} ${position.contracts} @ ${position.entryPrice.toFixed(2)}` : "Flat"}</strong>
-              </div>
-              <label className="practice-field compact">
-                <span>Mistake / leak</span>
-                <input value={mistake} onChange={(event) => setMistake(event.target.value)} placeholder="Held past invalidation" />
-              </label>
-            </div>
-          </section>
-
-          <section className="practice-readiness-panel p-6 md:p-7">
-            <div className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr] lg:items-end">
-              <div>
-                <p className="font-body text-xs uppercase tracking-[0.22em] text-[#18c887]">Practice readiness</p>
-                <h3 className={`mt-3 font-body text-4xl font-semibold tracking-[-0.05em] ${readinessClass}`}>{analysis.readiness.label}</h3>
-                <p className="mt-3 max-w-xl font-body text-sm leading-relaxed text-white/58">{analysis.readiness.summary}</p>
-              </div>
-              <div className="practice-brief-box">
-                <p className="font-body text-[10px] uppercase tracking-[0.22em] text-white/38">Next drill</p>
-                <p className="mt-2 font-body text-sm font-medium leading-relaxed text-white/82">{analysis.practiceBrief}</p>
-              </div>
-            </div>
-          </section>
-
-          <div className="practice-review-grid grid gap-6 xl:grid-cols-[1fr_0.9fr]">
-            <section className="practice-setups-panel p-6 md:p-7">
-              <div className="flex items-center gap-3">
-                <ListChecks className="h-5 w-5 text-[#18c887]" />
-                <h3 className="font-body text-xl font-semibold tracking-[-0.03em]">Setup scorecard</h3>
-              </div>
-              <div className="mt-5 grid gap-3">
-                {topSetups.map((setup) => (
-                  <div className="practice-setup-row" key={setup.setup}>
-                    <div>
-                      <strong>{setup.setup}</strong>
-                      <span>{setup.sampleSize} reps · {formatPercent(setup.ruleFollowRate)} rules followed</span>
-                    </div>
-                    <div className="text-right">
-                      <strong>{setup.avgR.toFixed(2)}R</strong>
-                      <span>{setup.leak}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            <section className="practice-recent-panel p-6 md:p-7">
-              <div className="flex items-center gap-3">
-                <CalendarDays className="h-5 w-5 text-[#18c887]" />
-                <h3 className="font-body text-xl font-semibold tracking-[-0.03em]">Practice trades</h3>
-              </div>
-              <div className="mt-5 grid gap-3">
-                {recentTrades.length ? recentTrades.map((trade) => (
-                  <div className="practice-rep-row" key={trade.id}>
-                    <div>
-                      <strong>{trade.direction} {trade.market}</strong>
-                      <span>{trade.date} · {trade.entryPrice.toFixed(2)} → {trade.exitPrice.toFixed(2)}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className={trade.pnl >= 0 ? "text-emerald-300" : "text-red-300"}>{formatMoney(trade.pnl)}</span>
-                      <strong>{trade.resultR.toFixed(2)}R</strong>
-                    </div>
-                  </div>
-                )) : (
-                  <div className="practice-empty-trades">
-                    Open the replay, hit Buy or Sell, then Close position. Cova will fill this ledger from the practice account automatically.
-                  </div>
-                )}
-              </div>
-            </section>
-          </div>
+    <div className="backtesting-lab-shell">
+      <header className="backtesting-lab-topbar">
+        <button aria-label="Back to Cova risk desk" className="backtesting-lab-back" onClick={() => go("dashboard")} type="button">
+          <ArrowLeft className="h-4 w-4" />
+          <img src="/media/wordmark-options/cova-wordmark-option-3-sleek-cropped.png" alt="Cova" />
+        </button>
+        <div className="backtesting-lab-title">
+          <span>Practice environment</span>
+          <strong>Backtesting Lab</strong>
         </div>
-      </div>
-
+      </header>
+      <div className="backtesting-lab-stage">
+        <BacktestingTerminal
+          account={account}
+          accountStats={accountStats}
+          activeSetup={activeSetup}
+          analysis={analysis}
+          chart={<LightweightReplayChart key={replayTape.id} visibleCandles={visibleCandles} position={position} tape={replayTape} trades={simTrades} />}
+          currentCandle={currentCandle}
+          limitStatus={limitStatus}
+          mistake={mistake}
+          onBackHour={() => stepReplay(-(60 / replayTape.dataSource.resolutionMinutes))}
+          onBuy={() => openPracticePosition("Long")}
+          onChangeAccount={() => setSetupOpen(true)}
+          onClosePosition={closePracticePosition}
+          onMistakeChange={setMistake}
+          onPlayToggle={() => setPlaying((current) => !current)}
+          onQuantityChange={setOrderQuantity}
+          onReset={() => { setPlaying(false); resetReplayRuntime(); setPosition(null); }}
+          onRulesFollowedChange={setRulesFollowed}
+          onSell={() => openPracticePosition("Short")}
+          onStep={() => stepReplay(1)}
+          openingRangeBarCount={openingRangeBarCount}
+          openingRangeComplete={openingRangeComplete}
+          orderQuantity={orderQuantity}
+          playing={playing}
+          position={position}
+          recentTrades={recentTrades}
+          replayTape={replayTape}
+          rulesFollowed={rulesFollowed}
+          visibleCandles={visibleCandles}
+        />
       {setupOpen && createPortal(
         <div className="practice-setup-modal" role="dialog" aria-modal="true" aria-label="Set practice account">
           <form className="practice-setup-card" onSubmit={createAccount}>
@@ -798,7 +673,8 @@ export function PracticeLab({ practiceReps, setPracticeReps }: { practiceReps: P
         </div>,
         document.body,
       )}
-    </SectionShell>
+      </div>
+    </div>
   );
 }
 

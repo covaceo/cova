@@ -36,8 +36,6 @@ type ChartState = {
   lastBarCount: number;
 };
 
-const CHART_HEIGHT = 420;
-
 export function LightweightReplayChart({ visibleCandles, position, tape, trades }: LightweightReplayChartProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartStateRef = useRef<ChartState | null>(null);
@@ -56,7 +54,7 @@ export function LightweightReplayChart({ visibleCandles, position, tape, trades 
       const createdChart = createChart(container, {
         autoSize: false,
         width: Math.max(320, container.clientWidth),
-        height: CHART_HEIGHT,
+        height: Math.max(360, container.clientHeight || 560),
         layout: {
           background: { type: ColorType.Solid, color: "#050709" },
           textColor: "rgba(226, 232, 240, 0.62)",
@@ -128,7 +126,8 @@ export function LightweightReplayChart({ visibleCandles, position, tape, trades 
 
       resizeObserver = new ResizeObserver((entries) => {
         const width = entries[0]?.contentRect.width ?? container.clientWidth;
-        if (width > 0) createdChart.applyOptions({ width, height: CHART_HEIGHT });
+        const height = entries[0]?.contentRect.height ?? container.clientHeight;
+        if (width > 0 && height > 0) createdChart.applyOptions({ width, height: Math.max(360, height) });
       });
       resizeObserver.observe(container);
     } catch {

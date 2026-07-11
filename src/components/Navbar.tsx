@@ -39,7 +39,7 @@ export function Navbar({ section, go, openAuth, mobileOpen, setMobileOpen, authS
   signOut: () => void;
 }) {
   const [scrolled, setScrolled] = useState(false);
-  const usesWorkspaceChrome = isProtectedSection(section);
+  const usesWorkspaceChrome = Boolean(authSession) && isProtectedSection(section);
   const isAppMode = Boolean(authSession) || usesWorkspaceChrome;
   const activeMarketingLabel = marketingNav.find((item) => item.action === section)?.label ?? "Product";
   const activeAppLabel = appNav.find((item) => item.id === section)?.label ?? "";
