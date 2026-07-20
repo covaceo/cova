@@ -97,9 +97,12 @@ assert.match(planSections, /currentPlan === "pro" \? \([\s\S]*?Pro active[\s\S]*
 assert.doesNotMatch(app, /maxActivePassports/, "Unused multi-Passport entitlements must not imply a management model that does not exist.");
 assert.match(marketingPages, /resource-action-card/, "Resources should provide actionable routes instead of static explainer cards.");
 assert.doesNotMatch(marketingPages, /title: "OAuth sign-in"[\s\S]*?route: "oauth"/, "Resources must not route a generic OAuth explainer into the default TopstepX API-key flow.");
-assert.match(marketingPages, /Product preview · community not open/, "Community should disclose that the network is not live.");
-assert.match(marketingPages, /What this preview proposes/, "Community should frame the feed concepts as a proposal, not active member behavior.");
-assert.doesNotMatch(marketingPages, /Request preview access/, "Generic signup must not masquerade as a community waitlist.");
+assert.match(marketingPages, /https:\/\/discord\.gg\/B83Czu3pAf/, "Community should keep the verified permanent Discord invite.");
+assert.match(marketingPages, /Join Cova on Discord/, "Community should expose a direct Discord action.");
+assert.match(marketingPages, /#trade-review/, "Community should describe the live trade-review room.");
+assert.match(marketingPages, /#risk-discipline/, "Community should describe the live risk-discipline room.");
+assert.match(marketingPages, /No live entry calls, paid signals, copy trading, account management, broker solicitation/, "Community should preserve the trading-safety boundaries.");
+assert.doesNotMatch(marketingPages, /Product preview · community not open|What this preview proposes|Join the preview/, "Community should not retain obsolete preview-only language.");
 assert.match(appRoutes, /"practice"/, "Practice/backtesting should be a real protected workspace route.");
 assert.match(workspaceShell, /Practice/, "Workspace sidebar should expose the practice route.");
 assert.match(app, /PracticeLab/, "App should render the PracticeLab route.");

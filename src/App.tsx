@@ -531,7 +531,7 @@ export default function App() {
           )}
           {section === "community" && (
             <RouteFrame key="community">
-              <CommunityPage go={go} openAuth={setAuthMode} />
+              <CommunityPage go={go} />
             </RouteFrame>
           )}
           {section === "dashboard" && (

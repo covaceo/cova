@@ -5,7 +5,7 @@ type SectionShellProps = {
   action?: ReactNode;
   backdrop?: ReactNode;
   children: ReactNode;
-  eyebrow: string;
+  eyebrow?: string;
   title: string;
   variant?: "editorial" | "workspace";
 };
@@ -25,13 +25,15 @@ export function SectionShell({
       <div className="relative z-10 mx-auto w-full max-w-[calc(100vw-2.5rem)] md:max-w-7xl">
         <div className={`grid gap-6 md:grid-cols-[minmax(0,1fr)_auto] md:items-end ${isWorkspace ? "mb-6" : "mb-8 md:mb-12"}`}>
           <div className="min-w-0">
-            <span
-              className={isWorkspace
-                ? "section-shell-kicker section-shell-kicker-workspace mb-3 inline-flex font-body text-[11px] font-medium uppercase tracking-[0.3em] text-[#18c887]/82"
-                : "section-shell-kicker section-shell-kicker-editorial mb-5 inline-block px-4 py-2 font-body text-xs uppercase tracking-[0.22em] text-[#18c887]"}
-            >
-              {eyebrow}
-            </span>
+            {eyebrow && (
+              <span
+                className={isWorkspace
+                  ? "section-shell-kicker section-shell-kicker-workspace mb-3 inline-flex font-body text-[11px] font-medium uppercase tracking-[0.3em] text-[#18c887]/82"
+                  : "section-shell-kicker section-shell-kicker-editorial mb-5 inline-block px-4 py-2 font-body text-xs uppercase tracking-[0.22em] text-[#18c887]"}
+              >
+                {eyebrow}
+              </span>
+            )}
             <h2
               className={isWorkspace
                 ? "section-shell-title section-shell-title-workspace max-w-3xl break-words font-body text-4xl font-semibold leading-[0.96] tracking-[-0.055em] text-white md:text-5xl lg:text-6xl"
