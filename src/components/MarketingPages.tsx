@@ -22,6 +22,7 @@ import { StartFreeButton } from "./StartFreeButton";
 type Section = "overview" | "features" | "pricing" | "resources" | "community" | "dashboard" | "import" | "oauth" | "rules" | "coach" | "practice" | "passport";
 type AuthMode = "login" | "signup";
 type PlanTier = "free" | "pro";
+const COVA_DISCORD_INVITE_URL = "https://discord.gg/B83Czu3pAf";
 
 export function FeaturesPage({ go, openAuth }: { go: (section: Section) => void; openAuth: (mode: AuthMode) => void }) {
   const featureGroups = [
@@ -241,29 +242,34 @@ export function ResourcesPage({ go, openAuth }: { go: (section: Section) => void
   );
 }
 
-export function CommunityPage({ go, openAuth }: { go: (section: Section) => void; openAuth: (mode: AuthMode) => void }) {
+export function CommunityPage({ go }: { go: (section: Section) => void }) {
   const communityItems = [
-    ["Review room", "Weekly prompts for checking size, drawdown, and execution quality."],
-    ["Playbooks", "Simple risk-review templates for funded account routines."],
-    ["Connector requests", "Vote on which prop firm or platform should be supported next."],
-    ["Member examples", "Share anonymized Risk Passport patterns without posting trade calls."],
+    ["#trade-review", "Completed trades, screenshots, context, execution notes, and what you would change."],
+    ["#risk-discipline", "Sizing, drawdown decisions, rule breaks, and the habits behind consistent risk."],
+    ["#passport-showcase", "Privacy-checked Cova Passports and progress worth documenting."],
+    ["#product-feedback", "Show what is not working, the outcome you expected, and the evidence behind it."],
   ];
+
+  const openDiscord = () => {
+    const discordWindow = window.open(COVA_DISCORD_INVITE_URL, "_blank", "noopener,noreferrer");
+    if (discordWindow) {
+      discordWindow.opener = null;
+    }
+  };
 
   return (
     <SectionShell
-      eyebrow="Community"
-      title="A place for traders who review before they react."
-      action={<StartFreeButton icon onClick={() => openAuth("signup")} />}
+      title="Review the decision behind the trade."
+      action={<GlassButton strong onClick={openDiscord}>Join Cova on Discord <ArrowUpRight className="h-4 w-4" /></GlassButton>}
       backdrop={<ImageAtmosphere src="/media/cova-story-frame-04.png" align="right" opacity="opacity-[0.28]" />}
     >
       <div className="grid gap-6 lg:grid-cols-[1fr_0.78fr]">
         <div className="liquid-glass-strong rounded-[32px] p-5 md:rounded-[42px] md:p-10">
-          <p className="font-body text-sm uppercase tracking-[0.22em] text-[#b9f5df]">Product preview · community not open</p>
-          <h3 className="mt-5 max-w-[13ch] font-body text-3xl font-semibold leading-[1.04] tracking-[-0.035em] text-white md:max-w-3xl md:text-6xl md:leading-[1.02]">
-            A calmer trader room is taking shape.
+          <h3 className="max-w-[16ch] font-body text-3xl font-semibold leading-[1.04] tracking-[-0.035em] text-white md:max-w-3xl md:text-6xl md:leading-[1.02]">
+            Bring the screenshot. Explain what you saw and what you did.
           </h3>
           <p className="mt-6 max-w-[31ch] font-body text-base font-light leading-relaxed text-white/62 md:max-w-2xl">
-            This is a product preview, not a live member feed. The formats below show how Cova may support traders comparing routines, risk rules, and review habits without becoming a signal room.
+            Good trade, bad trade, clean execution, rule break. The point is to understand the decision and leave with something useful for the next session.
           </p>
           <div className="mt-8 divide-y divide-white/10 border-y border-white/10 md:grid md:grid-cols-2 md:divide-x md:divide-y-0">
             {communityItems.map(([title, body]) => (
@@ -278,19 +284,25 @@ export function CommunityPage({ go, openAuth }: { go: (section: Section) => void
         <div className="grid gap-5">
           <div className="liquid-glass rounded-[30px] p-5 md:rounded-[36px] md:p-7">
             <Target className="h-9 w-9 text-[#18c887]" />
-            <h3 className="mt-6 font-body text-2xl font-semibold text-white">What this preview proposes</h3>
+            <h3 className="mt-6 font-body text-2xl font-semibold text-white">What belongs here</h3>
             <p className="mt-3 font-body text-sm font-light leading-relaxed text-white/54">
-              Risk rules, review routines, cleaned trade summaries, and lessons from losing days.
+              Completed trades, rule breaks, sizing work, Cova questions, and product feedback backed by evidence.
             </p>
           </div>
           <div className="liquid-glass rounded-[30px] p-5 md:rounded-[36px] md:p-7">
             <ShieldCheck className="h-9 w-9 text-emerald-300" />
-            <h3 className="mt-6 font-body text-2xl font-semibold text-white">What stays out</h3>
+            <h3 className="mt-6 font-body text-2xl font-semibold text-white">The boundaries</h3>
             <p className="mt-3 font-body text-sm font-light leading-relaxed text-white/54">
-              No trade alerts, no pump rooms, no payout promises, and no account access requests.
+              No live entry calls, paid signals, copy trading, account management, broker solicitation, or requests for private account information.
             </p>
           </div>
-          <GlassButton onClick={() => go("resources")}>Read resources <ArrowUpRight className="h-4 w-4" /></GlassButton>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+            <GlassButton strong onClick={openDiscord}>Open Discord <ArrowUpRight className="h-4 w-4" /></GlassButton>
+            <GlassButton onClick={() => go("resources")}>Read resources <ArrowUpRight className="h-4 w-4" /></GlassButton>
+          </div>
+          <p className="font-body text-xs leading-relaxed text-white/42">
+            The invite opens #start-here with the channel map and posting boundaries.
+          </p>
         </div>
       </div>
     </SectionShell>
