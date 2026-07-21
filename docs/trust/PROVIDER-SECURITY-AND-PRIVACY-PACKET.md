@@ -3,7 +3,7 @@
 **Product:** Cova (`covadesk.com`)
 **Contact:** support@covadesk.com
 **Prepared:** July 21, 2026
-**Status:** Release candidate. Production deployment and provider approval must be verified before this packet is represented as a certification or completed assessment.
+**Status:** Public legal and trust release deployed to `covadesk.com` on July 21, 2026 at commit `a1013b6`. Provider connectors remain beta pending provider approval, production environment validation, and verification that the included Supabase ownership migration has been applied. This packet must not be represented as a certification or independent assessment.
 
 ## 1. Service boundary
 
@@ -149,10 +149,17 @@ Release-candidate gates include:
 - legal/trust regression for public routes, affirmative signup assent, connector ownership, RLS migration text, disconnect, and deletion
 - desktop/mobile rendered route review and post-deployment verification on `covadesk.com`
 
-The packet must be updated with the merged commit and production verification date after release.
+Production verification on July 21, 2026 confirmed:
+
+- `covadesk.com` served the merged asset containing the Privacy, Terms, and Security routes;
+- CSP, HSTS, frame denial, restrictive referrer policy, and permissions policy were present;
+- `/.well-known/security.txt` served the published contact and canonical URL;
+- unauthenticated Tradovate status, ProjectX status, disconnect, and account-deletion requests returned HTTP 401;
+- the production Security route rendered without horizontal overflow, broken images, or console errors.
 
 ## 13. Open provider dependencies
 
+- The production Supabase ownership/RLS migration included at `supabase/tradovate_connector.sql` must be applied and verified before connectors are described as production-ready.
 - Tradovate must approve the application, redirect URI, and minimum permitted history scope.
 - ProjectX/TopstepX must confirm API-key and session-token terms permit this retrospective account-history use.
 - Provider-side token revocation support must be documented if available.
