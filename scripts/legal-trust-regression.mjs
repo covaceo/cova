@@ -125,7 +125,9 @@ assert.match(workspaceSections, /Cova does not host, revoke, or expire the file/
 assert.match(app, /scopedStorageKey\(STORAGE_KEY\)/, "Member journal state should use an identity-scoped key.");
 assert.match(app, /setActiveStorageIdentity/, "Verified sign-in should select the member storage namespace.");
 assert.match(storageScope, /ACTIVE_STORAGE_IDENTITY_KEY/, "The storage namespace helper should exist.");
-assert.doesNotMatch(authEnvironment, /hostname\.endsWith\("\.vercel\.app"\)/, "Vercel preview URLs must not automatically unlock Pro demo mode.");
+assert.match(authEnvironment, /hostname\.startsWith\("cova-git-preview-founder-demo-"\)/, "The dedicated founder preview alias should unlock demo access remotely.");
+assert.match(authEnvironment, /hostname\.endsWith\("-cova3\.vercel\.app"\)/, "Founder preview access should be restricted to Cova's Vercel team alias.");
+assert.doesNotMatch(authEnvironment, /hostname\.endsWith\("\.vercel\.app"\)/, "Arbitrary Vercel preview URLs must not unlock demo access.");
 assert.doesNotMatch(supabaseClient, /user_metadata\?\.plan/, "User-editable profile metadata must not grant Pro access.");
 assert.match(projectXConnect, /provider token is not scope-limited/i, "ProjectX storage should disclose that the provider token is not technically read-only.");
 assert.doesNotMatch(projectXConnect, /projectx:read:/i, "ProjectX should not persist invented read-only scopes.");
