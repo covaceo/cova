@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { requireAuthenticatedUser, sendApiError } from "../_lib/auth.js";
 import { serializeCookie } from "../_lib/cookies.js";
 import {
   pickPrimaryAccount,
@@ -16,6 +17,14 @@ export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.status(405).json({ error: "Method not allowed" });
     return;
+  }
+
+  let user;
+  try {
+    user = await requireAuthenticatedUser(req);
+    res.setHeader("Cache-Control", "private, no-store");
+  } catch (error) {
+    return sendApiError(res, error, "Member authentication is unavailable.");
   }
 
   let body;
@@ -63,16 +72,17 @@ export default async function handler(req, res) {
       expiresAt,
       provider: PROJECTX_PROVIDER,
       providerAccountId: primaryAccount?.id ?? userName,
-      tokenScope: "projectx:read:accounts projectx:read:trades",
+      tokenScope: "Cova allowlist: Account/search and Trade/search; provider token is not scope-limited",
+      userId: user.id,
     });
-  } catch (error) {
+  } catch {
     res.status(200).json({
       provider: PROJECTX_PROVIDER_NAME,
       connected: false,
       verified: true,
       status: "needs-storage",
       accounts: sanitizeAccounts(accounts),
-      message: `TopstepX verified the API key, but Cova could not save the encrypted token yet: ${error instanceof Error ? error.message : "secure storage is not configured"}.`,
+      message: "TopstepX verified the API key, but Cova could not save the encrypted token securely. Use CSV import instead.",
     });
     return;
   }
@@ -84,11 +94,10 @@ export default async function handler(req, res) {
     provider: PROJECTX_PROVIDER_NAME,
     connected: true,
     status: "connected",
-    connectionId,
     accounts: sanitizeAccounts(accounts),
     message: accounts.length
-      ? `Connected ${accounts.length} TopstepX account${accounts.length === 1 ? "" : "s"} read-only.`
-      : "Connected TopstepX read-only. No active accounts were returned yet.",
+      ? `Connected ${accounts.length} TopstepX account${accounts.length === 1 ? "" : "s"}. Cova will only call account and trade-history endpoints.`
+      : "Connected TopstepX. Cova will not call order endpoints; no active accounts were returned yet.",
   });
 }
 

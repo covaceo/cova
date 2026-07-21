@@ -15,7 +15,7 @@ export function getHostedAuthEnv(mode: AuthMode) {
 
 export function getHostedLogoutUrl() {
   const env = getViteEnv();
-  return env.VITE_AUTH_LOGOUT_URL || "";
+  return env.VITE_AUTH_LOGOUT_URL || "/api/auth/logout";
 }
 
 export function buildHostedAuthUrl(mode: AuthMode) {
@@ -40,8 +40,6 @@ export function isLocalPreview() {
 
 export function isDemoPreviewEnabled() {
   const env = getViteEnv();
-  const hostname = window.location.hostname;
   return isLocalPreview()
-    || env.VITE_ENABLE_DEMO_PREVIEW === "true"
-    || hostname.endsWith(".vercel.app");
+    || env.VITE_ENABLE_DEMO_PREVIEW === "true";
 }

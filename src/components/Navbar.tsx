@@ -1,9 +1,9 @@
 import { AnimatePresence, motion } from "motion/react";
 import { ChevronDown, Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import type { Section } from "../lib/appRoutes";
 import { StartFreeButton } from "./StartFreeButton";
 
-type Section = "overview" | "features" | "pricing" | "resources" | "community" | "dashboard" | "import" | "oauth" | "rules" | "coach" | "practice" | "passport";
 type AuthMode = "login" | "signup";
 type AuthSession = { email: string } | null;
 

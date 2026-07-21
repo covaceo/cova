@@ -276,6 +276,7 @@ export function BrokerConnectPanel({
   canRedirectToTradovate,
   checkTradovateStatus,
   connectProjectX,
+  disconnectBroker,
   entitlements,
   openFirmOAuth,
   projectXBusy,
@@ -295,6 +296,7 @@ export function BrokerConnectPanel({
   canRedirectToTradovate: () => boolean;
   checkTradovateStatus: () => void;
   connectProjectX: (credentials: ProjectXCredentials) => Promise<void> | void;
+  disconnectBroker: () => Promise<void> | void;
   entitlements: ImportEntitlements;
   openFirmOAuth: (firm: PropFirmId) => void;
   projectXBusy: boolean;
@@ -409,7 +411,9 @@ export function BrokerConnectPanel({
       setBrokerNotice("TopstepX direct sync is a Pro feature. Use CSV import on Free.");
       return;
     }
-    void connectProjectX(projectXCredentials);
+    const credentials = { ...projectXCredentials };
+    setProjectXCredentials((current) => ({ ...current, apiKey: "" }));
+    void connectProjectX(credentials);
   }
 
   return (
@@ -511,7 +515,7 @@ export function BrokerConnectPanel({
               </div>
               <h4 className="mt-4 font-body text-2xl font-semibold tracking-[-0.03em] text-white">Test TopstepX through ProjectX.</h4>
               <p className="mt-2 max-w-2xl font-body text-sm leading-relaxed text-white/56">
-                CSV upload is the default path today. If you want to test the beta connector, generate an API key in TopstepX settings and Cova validates it on the backend before importing read-only trade history.
+                CSV upload is the default path today. If you test the beta connector, Cova validates the API key on the backend, discards the raw key after authentication, and only calls account and trade-history endpoints.
               </p>
             </div>
             <div className="flex flex-wrap gap-3 lg:justify-end">
@@ -552,9 +556,9 @@ export function BrokerConnectPanel({
 
           <div className="mt-4 grid gap-3 md:grid-cols-3">
             {[
-              { icon: LockKeyhole, label: "Read-only", text: "Cova imports account history and cannot submit orders." },
+              { icon: LockKeyhole, label: "No order calls", text: "Cova's endpoint allowlist excludes order placement, changes, and cancellation." },
               { icon: BadgeCheck, label: "Encrypted", text: "The session token is encrypted before it is stored." },
-              { icon: Gauge, label: "Review-ready", text: "Synced trades feed the dashboard, limits, insights, and Passport." },
+              { icon: Gauge, label: "Provider scope", text: "The provider token may carry broader permissions. Revoke it at the provider when finished." },
             ].map(({ icon: Icon, label, text }) => (
               <div className="source-security-row p-3" key={label}>
                 <Icon className="h-4 w-4 text-[#18c887]" />
@@ -602,6 +606,7 @@ export function BrokerConnectPanel({
           {entitlements.canUseDirectSync && selectedFirm.id === "topstepx" && selectedConnected && <GlassButton onClick={syncProjectX}>{projectXSyncBusy ? "Syncing..." : "Sync trades"}</GlassButton>}
           {entitlements.canUseDirectSync && selectedFirm.id === "tradovate" && <GlassButton onClick={checkTradovateStatus}>{brokerBusy ? "Checking..." : "Check status"}</GlassButton>}
           {entitlements.canUseDirectSync && selectedFirm.id === "tradovate" && connected && <GlassButton onClick={syncTradovate}>{syncBusy ? "Syncing..." : "Sync trades"}</GlassButton>}
+          {selectedConnected && <GlassButton onClick={disconnectBroker}>Disconnect</GlassButton>}
         </div>
       </div>
 

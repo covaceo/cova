@@ -1,0 +1,5 @@
+Contact: mailto:support@covadesk.com
+Expires: 2027-07-21T23:59:59Z
+Preferred-Languages: en
+Canonical: https://covadesk.com/.well-known/security.txt
+Policy: https://covadesk.com/#security

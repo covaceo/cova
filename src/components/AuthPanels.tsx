@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowUpRight, Check, LockKeyhole, Mail, SlidersHorizontal, UserRound, X } from "lucide-react";
 import { buildHostedAuthUrl, canRedirectToHostedAuth, isDemoPreviewEnabled, isLocalPreview } from "../lib/authEnvironment";
+import { CURRENT_TERMS_VERSION } from "../lib/legal";
 import { isSupabaseConfigured, sendSupabaseMagicLink } from "../lib/supabaseClient";
 import { GlassButton } from "./GlassButton";
 import { ImageAtmosphere } from "./LayoutShell";
@@ -23,6 +24,7 @@ type AuthSheetProps = {
   mode: AuthMode | null;
   onAuthenticated: (email: string, mode: AuthMode, source?: AuthSource, plan?: PlanTier, userId?: string) => void;
   onDevPreview: () => void;
+  openLegal: (section: "privacy" | "terms") => void;
   setMode: (mode: AuthMode) => void;
 };
 
@@ -68,10 +70,11 @@ export function AuthGate({ devPreviewEmail, openAuth, onDevPreview }: AuthGatePr
   );
 }
 
-export function AuthSheet({ authIntentKey, mode, setMode, close, onAuthenticated, onDevPreview }: AuthSheetProps) {
+export function AuthSheet({ authIntentKey, mode, setMode, close, onAuthenticated, onDevPreview, openLegal }: AuthSheetProps) {
   const [email, setEmail] = useState("");
   const [notice, setNotice] = useState("");
   const [authBusy, setAuthBusy] = useState(false);
+  const [policyAccepted, setPolicyAccepted] = useState(false);
   const isSignup = mode === "signup";
   const canRedirect = mode ? canRedirectToHostedAuth(mode) : false;
   const supabaseReady = isSupabaseConfigured();
@@ -79,6 +82,9 @@ export function AuthSheet({ authIntentKey, mode, setMode, close, onAuthenticated
 
   useEffect(() => {
     setNotice("");
+    if (mode !== "signup") {
+      setPolicyAccepted(false);
+    }
   }, [mode]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -86,8 +92,14 @@ export function AuthSheet({ authIntentKey, mode, setMode, close, onAuthenticated
     if (!mode) {
       return;
     }
+    if (isSignup && !policyAccepted) {
+      setNotice("Accept the Terms of Service and Privacy Policy to create an account.");
+      return;
+    }
     setAuthBusy(true);
     const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash || "#dashboard"}`;
+    const termsAcceptedAt = isSignup ? new Date().toISOString() : undefined;
+    const termsVersion = isSignup ? CURRENT_TERMS_VERSION : undefined;
 
     localStorage.setItem(
       authIntentKey,
@@ -96,6 +108,8 @@ export function AuthSheet({ authIntentKey, mode, setMode, close, onAuthenticated
         mode,
         returnTo,
         savedAt: new Date().toISOString(),
+        termsAcceptedAt,
+        termsVersion,
       }),
     );
 
@@ -107,7 +121,10 @@ export function AuthSheet({ authIntentKey, mode, setMode, close, onAuthenticated
 
     if (supabaseReady) {
       const redirectTo = `${window.location.origin}${returnTo}`;
-      const { error } = await sendSupabaseMagicLink(email, redirectTo);
+      const { error } = await sendSupabaseMagicLink(email, redirectTo, termsAcceptedAt && termsVersion ? {
+        acceptedAt: termsAcceptedAt,
+        termsVersion,
+      } : undefined);
       if (error) {
         setNotice(error.message || "Could not send the sign-in link. Try again in a moment.");
         setAuthBusy(false);
@@ -234,7 +251,25 @@ export function AuthSheet({ authIntentKey, mode, setMode, close, onAuthenticated
                 />
               </div>
 
-              <button className="cova-button cova-button-primary mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3 font-body text-sm font-semibold disabled:cursor-wait disabled:opacity-60" disabled={authBusy} type="submit">
+              {isSignup && (
+                <label className="mt-5 flex items-start gap-3 font-body text-xs leading-5 text-white/58" aria-label="I agree to the Terms of Service and Privacy Policy">
+                  <input
+                    className="mt-0.5 h-4 w-4 shrink-0 accent-[#18c887]"
+                    checked={policyAccepted}
+                    onChange={(event) => setPolicyAccepted(event.target.checked)}
+                    required
+                    type="checkbox"
+                  />
+                  <span>
+                    I agree to the{" "}
+                    <button className="text-[#b9f5df] underline underline-offset-4" onClick={() => openLegal("terms")} type="button">Terms of Service</button>
+                    {" "}and{" "}
+                    <button className="text-[#b9f5df] underline underline-offset-4" onClick={() => openLegal("privacy")} type="button">Privacy Policy</button>.
+                  </span>
+                </label>
+              )}
+
+              <button className="cova-button cova-button-primary mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3 font-body text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60" disabled={authBusy || (isSignup && !policyAccepted)} type="submit">
                 <UserRound className="h-4 w-4" />
                 {authBusy ? "Working..." : isDemoPreviewEnabled() ? "Start demo session" : supabaseReady ? "Send secure link" : canRedirect ? "Continue securely" : "Start demo session"}
                 <ArrowUpRight className="h-4 w-4" />

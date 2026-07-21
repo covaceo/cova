@@ -23,6 +23,7 @@ import {
   Trade,
 } from "./lib/risk";
 import { getSupabaseClient, getSupabaseUserPlan } from "./lib/supabaseClient";
+import { authorizedFetch } from "./lib/apiClient";
 import { Hero } from "./components/MarketingHero";
 import { CsvExplainer } from "./components/CsvExplainer";
 import { StoryStrip } from "./components/StoryStrip";
@@ -31,6 +32,7 @@ import { CtaFooter, PlanStrip } from "./components/PlanSections";
 import { RouteFrame } from "./components/LayoutShell";
 import { AuthGate, AuthSheet } from "./components/AuthPanels";
 import { CommunityPage, FeaturesPage, PricingPage, ResourcesPage } from "./components/MarketingPages";
+import { PrivacyPage, SecurityPage, TermsPage } from "./components/LegalPages";
 import { CustomCursor } from "./components/CustomCursor";
 import { Coach, Passport, PracticeLab, RulesEngine } from "./components/WorkspaceSections";
 import { Dashboard } from "./components/DashboardView";
@@ -44,6 +46,7 @@ import { BROKER_STATUS_KEY, brokerMessageForStatus, readBrokerStatus, writeBroke
 import { PRACTICE_ACCOUNT_STORAGE_KEY, PRACTICE_TRADES_STORAGE_KEY, samplePracticeReps, type PracticeRep } from "./lib/backtesting";
 import { buildFirmConnectUrl, canRedirectToFirmProvider, csvExportGuides, getFirmProviderHost, getPropFirm, propFirmOptions, type PropFirmId } from "./lib/propFirms";
 import { isProtectedSection, sections, useHashSection, type Section } from "./lib/appRoutes";
+import { clearActiveStorageIdentity, removeScopedStorage, scopedStorageKey, setActiveStorageIdentity } from "./lib/storageScope";
 
 const STORAGE_KEY = "cova-react-risk-os-v2";
 const AUTH_SESSION_KEY = "cova-auth-session-v1";
@@ -124,9 +127,9 @@ export default function App() {
 
   useEffect(() => {
     if (isSignedIn) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ trades, rules, practiceReps }));
+      localStorage.setItem(scopedStorageKey(STORAGE_KEY), JSON.stringify({ trades, rules, practiceReps }));
     }
-  }, [isSignedIn, trades, rules, practiceReps]);
+  }, [authSession?.email, authSession?.userId, isSignedIn, trades, rules, practiceReps]);
 
   useEffect(() => {
     const refreshBrokerStatus = () => setBrokerStatus(readBrokerStatus());
@@ -148,15 +151,20 @@ export default function App() {
     let mounted = true;
     client.auth.getSession().then(({ data }) => {
       const user = data.session?.user;
-      if (!mounted || !user?.email) {
+      if (!mounted) {
+        return;
+      }
+      if (!user?.email) {
+        lockWorkspace(false);
         return;
       }
       completeAuth(user.email, "login", "supabase", normalizePlan(getSupabaseUserPlan(user)), user.id);
-    }).catch(() => undefined);
+    }).catch(() => lockWorkspace(false));
 
-    const { data } = client.auth.onAuthStateChange((_event, session) => {
+    const { data } = client.auth.onAuthStateChange((event, session) => {
       const user = session?.user;
       if (!user?.email) {
+        lockWorkspace(event === "SIGNED_OUT");
         return;
       }
       completeAuth(user.email, "login", "supabase", normalizePlan(getSupabaseUserPlan(user)), user.id);
@@ -169,6 +177,9 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (!isDemoPreviewEnabled()) {
+      return;
+    }
     const params = new URLSearchParams(window.location.search);
     const authStatus = params.get("covaAuthStatus") || params.get("authStatus");
     if (authStatus !== "authenticated" && authStatus !== "signed-in") {
@@ -201,8 +212,7 @@ export default function App() {
       updatedAt: new Date().toISOString(),
     };
 
-    localStorage.setItem(BROKER_STATUS_KEY, JSON.stringify(nextStatus));
-    window.dispatchEvent(new CustomEvent("cova:broker-status"));
+    writeBrokerStatus(nextStatus);
     setStatus(nextStatus.message);
     announce(nextStatus.message, connected ? "success" : "warning");
     window.history.replaceState(null, "", `${window.location.pathname}#import`);
@@ -305,8 +315,10 @@ export default function App() {
       subscriptionStatus: plan === "pro" ? "active" : "none",
       userId,
     };
+    setActiveStorageIdentity(userId || emailAddress);
     const saved = loadState();
     setAuthSession(session);
+    setBrokerStatus(readBrokerStatus());
     localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
     localStorage.removeItem(AUTH_INTENT_KEY);
     setTrades(saved?.trades?.length ? saved.trades : sampleTrades);
@@ -325,19 +337,17 @@ export default function App() {
     }
   }
 
-  function signOut() {
-    const client = getSupabaseClient();
-    void client?.auth.signOut().catch(() => undefined);
+  function lockWorkspace(announceChange = true) {
+    removeScopedStorage(STORAGE_KEY);
+    removeScopedStorage(BROKER_STATUS_KEY);
+    removeScopedStorage(PRACTICE_ACCOUNT_STORAGE_KEY);
+    removeScopedStorage(PRACTICE_TRADES_STORAGE_KEY);
     localStorage.removeItem(AUTH_SESSION_KEY);
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(BROKER_STATUS_KEY);
+    localStorage.removeItem(AUTH_INTENT_KEY);
     localStorage.removeItem(OAUTH_FIRM_KEY);
-    localStorage.removeItem(PRACTICE_ACCOUNT_STORAGE_KEY);
-    localStorage.removeItem(PRACTICE_TRADES_STORAGE_KEY);
-    const logoutUrl = getHostedLogoutUrl();
-    if (logoutUrl) {
-      void fetch(logoutUrl, { method: "POST", credentials: "include" }).catch(() => undefined);
-    }
+    localStorage.removeItem("cova-dashboard-focus-v1");
+    localStorage.removeItem("cova-dashboard-range-v1");
+    clearActiveStorageIdentity();
     setAuthSession(null);
     setBrokerStatus(null);
     setAuthMode(null);
@@ -346,9 +356,58 @@ export default function App() {
     setRules(defaultRules);
     setPracticeReps([]);
     setStatus("Signed out. Account stats are hidden.");
-    announce("Signed out. Account stats are hidden.", "info");
+    if (announceChange) {
+      announce("Signed out. Account stats are hidden.", "info");
+    }
     if (isProtectedSection(section)) {
       setSection("overview");
+    }
+  }
+
+  async function signOut() {
+    if (authSession?.source !== "local-preview") {
+      await authorizedFetch("/api/connectors/disconnect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: "all" }),
+      }).catch(() => undefined);
+    }
+    const client = getSupabaseClient();
+    await client?.auth.signOut().catch(() => undefined);
+    const logoutUrl = getHostedLogoutUrl();
+    if (logoutUrl) {
+      await fetch(logoutUrl, { method: "POST", credentials: "include" }).catch(() => undefined);
+    }
+    lockWorkspace(true);
+  }
+
+  async function deleteAccount() {
+    if (!authSession) {
+      return;
+    }
+    const confirmed = window.confirm("Permanently delete your Cova account, stored connector tokens, and this device's Cova data? This cannot be undone.");
+    if (!confirmed) {
+      return;
+    }
+
+    if (authSession.source === "local-preview") {
+      await signOut();
+      announce("Demo account data was removed from this device.", "success");
+      return;
+    }
+
+    try {
+      const response = await authorizedFetch("/api/account/delete", { method: "DELETE" });
+      const data = await response.json() as { deleted?: boolean; error?: string };
+      if (!response.ok || !data.deleted) {
+        throw new Error(data.error || "Account deletion could not be completed.");
+      }
+      const client = getSupabaseClient();
+      await client?.auth.signOut().catch(() => undefined);
+      lockWorkspace(false);
+      announce("Your Cova account and connector records were deleted.", "success");
+    } catch (error) {
+      announce(error instanceof Error ? error.message : "Account deletion could not be completed.", "warning");
     }
   }
 
@@ -501,7 +560,7 @@ export default function App() {
           signOut={signOut}
         />
       )}
-      <AuthSheet authIntentKey={AUTH_INTENT_KEY} mode={authMode} setMode={setAuthMode} close={() => setAuthMode(null)} onAuthenticated={completeAuth} onDevPreview={signInAsDevPreview} />
+      <AuthSheet authIntentKey={AUTH_INTENT_KEY} mode={authMode} setMode={setAuthMode} close={() => setAuthMode(null)} onAuthenticated={completeAuth} onDevPreview={signInAsDevPreview} openLegal={(legalSection) => { setAuthMode(null); go(legalSection); }} />
       <Toast toast={toast} />
 
       <main className="relative z-10">
@@ -511,7 +570,7 @@ export default function App() {
               <Hero go={go} openAuth={setAuthMode} isSignedIn={isSignedIn} />
               <StoryStrip />
               <PlanStrip currentPlan={authSession?.plan ?? null} go={go} openAuth={setAuthMode} upgradeToPro={upgradeToPro} />
-              <CtaFooter openAuth={setAuthMode} sharePassport={sharePassport} />
+              <CtaFooter go={go} openAuth={setAuthMode} sharePassport={sharePassport} />
             </RouteFrame>
           )}
           {section === "features" && (
@@ -534,39 +593,54 @@ export default function App() {
               <CommunityPage go={go} />
             </RouteFrame>
           )}
+          {section === "privacy" && (
+            <RouteFrame key="privacy">
+              <PrivacyPage go={go} />
+            </RouteFrame>
+          )}
+          {section === "terms" && (
+            <RouteFrame key="terms">
+              <TermsPage go={go} />
+            </RouteFrame>
+          )}
+          {section === "security" && (
+            <RouteFrame key="security">
+              <SecurityPage go={go} />
+            </RouteFrame>
+          )}
           {section === "dashboard" && (
             <RouteFrame key="dashboard">
-              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><Dashboard analysis={analysis} brokerStatus={brokerStatus} rules={rules} go={go} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={setAuthMode} onDevPreview={signInAsDevPreview} />}
+              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><Dashboard analysis={analysis} brokerStatus={brokerStatus} rules={rules} go={go} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={setAuthMode} onDevPreview={signInAsDevPreview} />}
             </RouteFrame>
           )}
           {section === "import" && (
             <RouteFrame key="import">
-              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><ImportDesk entitlements={entitlements} importCsv={importCsv} openFirmOAuth={openFirmOAuth} status={status} reset={() => { const demoTrades = entitlements.plan === "free" ? sampleTrades.slice(0, entitlements.maxStoredTrades) : sampleTrades; setTrades(demoTrades); setRules(defaultRules); setStatus("Demo trades restored."); announce("Demo trades restored.", "success"); }} upgradeToPro={upgradeToPro} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={setAuthMode} onDevPreview={signInAsDevPreview} />}
+              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><ImportDesk entitlements={entitlements} importCsv={importCsv} openFirmOAuth={openFirmOAuth} status={status} reset={() => { const demoTrades = entitlements.plan === "free" ? sampleTrades.slice(0, entitlements.maxStoredTrades) : sampleTrades; setTrades(demoTrades); setRules(defaultRules); setStatus("Demo trades restored."); announce("Demo trades restored.", "success"); }} upgradeToPro={upgradeToPro} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={setAuthMode} onDevPreview={signInAsDevPreview} />}
             </RouteFrame>
           )}
           {section === "oauth" && (
             <RouteFrame key="oauth">
-              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><OAuthConnectPage firmId={oauthFirmId} onApprove={completeFirmOAuth} onCancel={cancelFirmOAuth} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={setAuthMode} onDevPreview={signInAsDevPreview} />}
+              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><OAuthConnectPage firmId={oauthFirmId} onApprove={completeFirmOAuth} onCancel={cancelFirmOAuth} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={setAuthMode} onDevPreview={signInAsDevPreview} />}
             </RouteFrame>
           )}
           {section === "rules" && (
             <RouteFrame key="rules">
-              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><RulesEngine analysis={analysis} entitlements={entitlements} rules={rules} setRules={setRules} go={go} upgradeToPro={upgradeToPro} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={setAuthMode} onDevPreview={signInAsDevPreview} />}
+              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><RulesEngine analysis={analysis} entitlements={entitlements} rules={rules} setRules={setRules} go={go} upgradeToPro={upgradeToPro} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={setAuthMode} onDevPreview={signInAsDevPreview} />}
             </RouteFrame>
           )}
           {section === "coach" && (
             <RouteFrame key="coach">
-              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><Coach analysis={analysis} entitlements={entitlements} go={go} upgradeToPro={upgradeToPro} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={setAuthMode} onDevPreview={signInAsDevPreview} />}
+              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><Coach analysis={analysis} entitlements={entitlements} go={go} upgradeToPro={upgradeToPro} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={setAuthMode} onDevPreview={signInAsDevPreview} />}
             </RouteFrame>
           )}
           {section === "practice" && (
             <RouteFrame key="practice">
-              {isSignedIn ? <PracticeLab go={go} practiceReps={practiceReps} setPracticeReps={(next) => setPracticeReps(next)} /> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={setAuthMode} onDevPreview={signInAsDevPreview} />}
+              {isSignedIn ? <PracticeLab key={authSession?.userId || authSession?.email} go={go} practiceReps={practiceReps} setPracticeReps={(next) => setPracticeReps(next)} /> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={setAuthMode} onDevPreview={signInAsDevPreview} />}
             </RouteFrame>
           )}
           {section === "passport" && (
             <RouteFrame key="passport">
-              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><Passport analysis={analysis} entitlements={entitlements} isSampleReview={isSampleReview} sharePassport={sharePassport} go={go} upgradeToPro={upgradeToPro} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={setAuthMode} onDevPreview={signInAsDevPreview} />}
+              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><Passport analysis={analysis} entitlements={entitlements} isSampleReview={isSampleReview} go={go} upgradeToPro={upgradeToPro} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={setAuthMode} onDevPreview={signInAsDevPreview} />}
             </RouteFrame>
           )}
         </AnimatePresence>
@@ -584,14 +658,20 @@ function loadAuthSession(): AuthSession | null {
   try {
     const parsed = JSON.parse(localStorage.getItem(AUTH_SESSION_KEY) ?? "null");
     if (typeof parsed?.email === "string" && typeof parsed?.signedInAt === "string") {
+      const source = parsed.source === "supabase" ? "supabase" : parsed.source === "hosted" ? "hosted" : "local-preview";
+      if (source !== "local-preview" || !isDemoPreviewEnabled()) {
+        return null;
+      }
+      const userId = typeof parsed.userId === "string" ? parsed.userId : undefined;
+      setActiveStorageIdentity(userId || parsed.email);
       return {
         email: parsed.email,
         mode: parsed.mode === "signup" ? "signup" : "login",
         plan: normalizePlan(parsed.plan),
         signedInAt: parsed.signedInAt,
-        source: parsed.source === "supabase" ? "supabase" : parsed.source === "hosted" ? "hosted" : "local-preview",
+        source,
         subscriptionStatus: parsed.subscriptionStatus === "active" || parsed.subscriptionStatus === "preview" ? parsed.subscriptionStatus : "none",
-        userId: typeof parsed.userId === "string" ? parsed.userId : undefined,
+        userId,
       };
     }
   } catch {
@@ -636,7 +716,7 @@ function readAuthIntent(): { email?: string; mode?: AuthMode; returnSection?: Se
 
 function loadState(): { trades: Trade[]; rules: RiskRule[]; practiceReps: PracticeRep[] } | null {
   try {
-    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null");
+    const parsed = JSON.parse(localStorage.getItem(scopedStorageKey(STORAGE_KEY)) ?? "null");
     if (parsed?.trades && parsed?.rules) {
       return {
         trades: parsed.trades,

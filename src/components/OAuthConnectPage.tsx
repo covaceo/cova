@@ -247,7 +247,7 @@ export function OAuthConnectPage({ firmId, onApprove, onCancel }: { firmId: Prop
                         <div className="flex items-start gap-3">
                           <LockKeyhole className="mt-0.5 h-5 w-5 shrink-0 text-amber-100" />
                           <p className="font-body text-sm font-medium leading-relaxed text-white/76">
-                            Do not enter real firm credentials in this preview. Real OAuth happens on the provider domain and returns a read-only approval to Cova.
+                            Do not enter real firm credentials in this preview. Real authorization happens on the provider domain; Cova requests account history and does not call order endpoints.
                           </p>
                         </div>
                       </div>
@@ -290,7 +290,7 @@ export function OAuthConnectPage({ firmId, onApprove, onCancel }: { firmId: Prop
                     ["Account identity", "Labels which funded account the history belongs to."],
                     ["Trades, fills, and statements", "Builds your review dashboard, journal stats, and Risk Passport."],
                     ["Performance summary", "Calculates risk score, drawdown, profit factor, and limits followed."],
-                    ["Revocation path", "In production, the trader can revoke access from the provider account."],
+                    ["Revocation path", "Disconnect in Cova and revoke provider authorization separately when the provider offers that control."],
                   ].map(([label, body]) => (
                     <div className="flex gap-3 rounded-[22px] border border-white/10 bg-white/[0.025] p-4" key={label}>
                       <BadgeCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#18c887]" />
@@ -313,7 +313,7 @@ export function OAuthConnectPage({ firmId, onApprove, onCancel }: { firmId: Prop
 
                 <div className="mt-8 flex flex-wrap gap-3">
                   <GlassButton strong onClick={() => onApprove(firm.id)}>
-                    Approve read-only access <ArrowUpRight className="h-4 w-4" />
+                    Approve history review <ArrowUpRight className="h-4 w-4" />
                   </GlassButton>
                   <GlassButton onClick={() => setStep("provider")}>Back to sign in</GlassButton>
                   <GlassButton onClick={onCancel}>Back to Link account</GlassButton>

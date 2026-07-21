@@ -43,6 +43,7 @@ import {
   type PracticeRep,
   type PracticeTrade,
 } from "../lib/backtesting";
+import { removeScopedStorage, scopedStorageKey } from "../lib/storageScope";
 import { analyze, formatMoney, formatPercent, type RiskRule } from "../lib/risk";
 import { LightweightReplayChart } from "./practice/LightweightReplayChart";
 import { BacktestingTerminal } from "./practice/BacktestingTerminal";
@@ -437,12 +438,12 @@ export function PracticeLab({ go, practiceReps, setPracticeReps }: { go: (sectio
 
   useEffect(() => {
     if (account) {
-      localStorage.setItem(PRACTICE_ACCOUNT_STORAGE_KEY, JSON.stringify(account));
+      localStorage.setItem(scopedStorageKey(PRACTICE_ACCOUNT_STORAGE_KEY), JSON.stringify(account));
     }
   }, [account]);
 
   useEffect(() => {
-    localStorage.setItem(PRACTICE_TRADES_STORAGE_KEY, JSON.stringify(simTrades));
+    localStorage.setItem(scopedStorageKey(PRACTICE_TRADES_STORAGE_KEY), JSON.stringify(simTrades));
   }, [simTrades]);
 
   useEffect(() => {
@@ -500,8 +501,8 @@ export function PracticeLab({ go, practiceReps, setPracticeReps }: { go: (sectio
     const confirmed = window.confirm("Reset the practice account and clear simulated trades?");
     if (!confirmed) return;
     const simulatedIds = new Set(simTrades.map((trade) => trade.id));
-    localStorage.removeItem(PRACTICE_ACCOUNT_STORAGE_KEY);
-    localStorage.removeItem(PRACTICE_TRADES_STORAGE_KEY);
+    removeScopedStorage(PRACTICE_ACCOUNT_STORAGE_KEY);
+    removeScopedStorage(PRACTICE_TRADES_STORAGE_KEY);
     setAccount(null);
     setSimTrades([]);
     setPracticeReps(practiceReps.filter((rep) => !simulatedIds.has(rep.id)));
@@ -680,7 +681,7 @@ export function PracticeLab({ go, practiceReps, setPracticeReps }: { go: (sectio
 
 function readPracticeAccount(): PracticeAccount | null {
   try {
-    const parsed = JSON.parse(localStorage.getItem(PRACTICE_ACCOUNT_STORAGE_KEY) ?? "null");
+    const parsed = JSON.parse(localStorage.getItem(scopedStorageKey(PRACTICE_ACCOUNT_STORAGE_KEY)) ?? "null");
     if (parsed?.accountSize && parsed?.market) {
       return parsed as PracticeAccount;
     }
@@ -692,7 +693,7 @@ function readPracticeAccount(): PracticeAccount | null {
 
 function readPracticeTrades(): PracticeTrade[] {
   try {
-    const parsed = JSON.parse(localStorage.getItem(PRACTICE_TRADES_STORAGE_KEY) ?? "[]");
+    const parsed = JSON.parse(localStorage.getItem(scopedStorageKey(PRACTICE_TRADES_STORAGE_KEY)) ?? "[]");
     if (Array.isArray(parsed)) {
       return parsed.filter((trade): trade is PracticeTrade => (
         typeof trade?.id === "string" &&
@@ -771,17 +772,17 @@ const passportShareModes: PassportShareMode[] = [
   {
     id: "private",
     label: "Ghost",
-    tagline: "Clean proof with sensitive stats masked.",
-    cardSubtitle: "Private proof layer",
-    reveals: ["Verification date", "Sample quality", "Risk score range", "Rules kept"],
+    tagline: "Local export with sensitive stats omitted.",
+    cardSubtitle: "Masked export view",
+    reveals: ["Review date", "Sample quality", "Risk score range", "Rules kept"],
     hidden: ["Net P&L", "Win rate", "Trader identity"],
   },
   {
     id: "coach",
     label: "Coach",
-    tagline: "Expose leaks for accountability.",
+    tagline: "Include detected warnings for review.",
     cardSubtitle: "Coach review mode",
-    reveals: ["Top leak", "Rule breaches", "Next fix", "Risk score"],
+    reveals: ["Top warning", "Rule breaches", "Review note", "Risk score"],
     hidden: ["Shareable flex stats", "Public P&L", "Broker details"],
   },
 ];
@@ -813,9 +814,9 @@ function getPassportTier(analysis: ReturnType<typeof analyze>): PassportTier {
     return {
       badge: "D",
       rank: "Diamond",
-      skin: "Elite control",
+      skin: "High-control sample",
       headline: "Profit with restraint",
-      summary: "Top rank: meaningful profit, strong expectancy, elite rule control, and no reckless leak pattern.",
+      summary: "Top Cova rank for this reviewed sample based on positive results, expectancy, and configured-rule adherence.",
       className: "passport-tier-s",
       cardClass: "passport-card-skin-s",
     };
@@ -833,9 +834,9 @@ function getPassportTier(analysis: ReturnType<typeof analyze>): PassportTier {
     return {
       badge: "P",
       rank: "Platinum",
-      skin: "Funded-ready control",
+      skin: "Strong-control sample",
       headline: "Disciplined trader profile",
-      summary: "Profitable, controlled, and clean enough to show without hiding the risk receipt.",
+      summary: "The imported sample is profitable and mostly within the configured limits.",
       className: "passport-tier-a",
       cardClass: "passport-card-skin-a",
     };
@@ -850,9 +851,9 @@ function getPassportTier(analysis: ReturnType<typeof analyze>): PassportTier {
     return {
       badge: "G",
       rank: "Gold",
-      skin: "Profitable control",
+      skin: "Positive reviewed sample",
       headline: "Profitable, still tightening",
-      summary: "Solid rank: real profit proof is forming, but breaches still cap the flex.",
+      summary: "The imported sample is positive, while rule warnings and sample size still affect the Cova rank.",
       className: "passport-tier-b",
       cardClass: "passport-card-skin-b",
     };
@@ -861,9 +862,9 @@ function getPassportTier(analysis: ReturnType<typeof analyze>): PassportTier {
     return {
       badge: "S",
       rank: "Silver",
-      skin: "Green but unproven",
-      headline: "Green P&L, risky control",
-      summary: "The account is green, but rule proof, expectancy, or sample quality is not rank-up ready yet.",
+      skin: "Positive, limited sample",
+      headline: "Positive P&L with limited control evidence",
+      summary: "The reviewed sample is positive, but rule adherence, expectancy, or sample size is still limited.",
       className: "passport-tier-v",
       cardClass: "passport-card-skin-v",
     };
@@ -872,9 +873,9 @@ function getPassportTier(analysis: ReturnType<typeof analyze>): PassportTier {
     return {
       badge: "B",
       rank: "Bronze",
-      skin: "Rebuild phase",
-      headline: "Red sample. Reset the process.",
-      summary: "The account is down, so the card stays honest: reduce the leaks, stack clean trades, and rebuild from Bronze.",
+      skin: "Negative reviewed sample",
+      headline: "Negative P&L in the reviewed sample",
+      summary: "The imported history is negative and contains patterns that lower the Cova rank.",
       className: "passport-tier-rebuild",
       cardClass: "passport-card-skin-rebuild",
     };
@@ -885,7 +886,7 @@ function getPassportTier(analysis: ReturnType<typeof analyze>): PassportTier {
       rank: "Unranked",
       skin: "Sample pending",
       headline: "Not enough proof yet",
-      summary: "Not enough reviewed trades to assign a real rank. Build the sample before flexing the card.",
+      summary: "Not enough reviewed trades to calculate a meaningful Cova rank.",
       className: "passport-tier-u",
       cardClass: "passport-card-skin-u",
     };
@@ -895,7 +896,7 @@ function getPassportTier(analysis: ReturnType<typeof analyze>): PassportTier {
     rank: "Bronze",
     skin: "Starting rank",
     headline: "Build the proof first",
-    summary: "Enough trades to rank, but proof quality is still weak. Clean up breaches before the card becomes a flex.",
+    summary: "There are enough trades to rank, but the reviewed sample still contains significant rule warnings.",
     className: "passport-tier-r",
     cardClass: "passport-card-skin-r",
   };
@@ -1298,10 +1299,7 @@ function getPassportDiamondPreviewStats(mode: PassportShareModeId): PassportStat
   ];
 }
 
-export function Passport({ analysis, entitlements, isSampleReview, sharePassport, go, upgradeToPro }: { analysis: ReturnType<typeof analyze>; entitlements: WorkspaceEntitlements; isSampleReview: boolean; sharePassport: () => void; go: (section: Section) => void; upgradeToPro: () => void }) {
-  const [copied, setCopied] = useState(false);
-  const [visibility, setVisibility] = useState<"private" | "public">("private");
-  const [expiry, setExpiry] = useState("7 days");
+export function Passport({ analysis, entitlements, isSampleReview, go, upgradeToPro }: { analysis: ReturnType<typeof analyze>; entitlements: WorkspaceEntitlements; isSampleReview: boolean; go: (section: Section) => void; upgradeToPro: () => void }) {
   const [shareModeId, setShareModeId] = useState<PassportShareModeId>("flex");
   const [exportPresetId, setExportPresetId] = useState<PassportExportPresetId>("feed");
   const cardRef = useRef<HTMLDivElement | null>(null);
@@ -1321,8 +1319,8 @@ export function Passport({ analysis, entitlements, isSampleReview, sharePassport
   const displayScore = previewingDiamond ? 94 : analysis.score;
   const displayVerifiedRules = previewingDiamond ? 6 : verifiedRules;
   const displayRuleCount = previewingDiamond ? 6 : analysis.ruleStatuses.length;
-  const verificationId = `COVA-${analysis.latestDate.replace(/-/g, "").slice(2)}-${displayScore}${displayVerifiedRules}`;
-  const traderNumber = verificationId.replace(/\D/g, "").slice(-4).padStart(4, "0");
+  const reviewId = `COVA-${analysis.latestDate.replace(/-/g, "").slice(2)}-${displayScore}${displayVerifiedRules}`;
+  const traderNumber = reviewId.replace(/\D/g, "").slice(-4).padStart(4, "0");
   const marketLine = previewingDiamond ? "NQ / OPENING RANGE" : getPassportMarketLine(analysis);
   const setupLine = previewingDiamond ? "OPENING RANGE" : analysis.bySetup[0]?.name ?? "MIXED SETUPS";
   const moodLine = getPassportMoodLine(tier, analysis);
@@ -1338,7 +1336,7 @@ export function Passport({ analysis, entitlements, isSampleReview, sharePassport
     { label: "Open positions", visible: false },
   ];
   const ledgerHasFlags = analysis.breaches.length > 0;
-  const ledgerStatusCopy = isSampleReview ? "Sample review · demo data" : ledgerHasFlags ? "Proof checked · flags found" : "Review clean · no flags found";
+  const ledgerStatusCopy = isSampleReview ? "Sample review · demo data" : ledgerHasFlags ? "Rules calculated · flags found" : "Rules calculated · no flags found";
   const ledgerStatusClass = ledgerHasFlags || isSampleReview ? "has-flags" : "is-verified";
 
   useEffect(() => () => {
@@ -1347,11 +1345,6 @@ export function Passport({ analysis, entitlements, isSampleReview, sharePassport
     }
   }, []);
 
-  function copyPassport() {
-    sharePassport();
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 2200);
-  }
 
   function movePassportCard(event: React.PointerEvent<HTMLDivElement>) {
     const card = cardRef.current;
@@ -1420,16 +1413,13 @@ export function Passport({ analysis, entitlements, isSampleReview, sharePassport
           <div>
             <p className="passport-kicker">{isSampleReview ? "Sample review · demo data" : entitlements.plan === "free" ? "Free preview" : "Reviewed profile"}</p>
             <p className="passport-topbar-copy">
-              Pick what shows, choose a format, then post it or send it. The full journal, broker details, and private notes stay out.
+              Choose which calculated fields appear, then download a local PNG. Cova does not host, revoke, or expire the file after you share it.
             </p>
           </div>
           <div className="passport-topbar-actions">
             <button className="passport-action-button" onClick={() => go("dashboard")} type="button">Back to review</button>
-            <button className="passport-action-button" onClick={entitlements.canExportPassport ? () => void downloadPassportPng(analysis, visibility, expiry, tier, shareMode, exportPreset, isSampleReview, faceRef.current) : upgradeToPro} type="button">
+            <button className="passport-action-button passport-action-primary" onClick={entitlements.canExportPassport ? () => void downloadPassportPng(analysis, tier, shareMode, exportPreset, isSampleReview, faceRef.current) : upgradeToPro} type="button">
               <Download className="h-4 w-4" /> {entitlements.canExportPassport ? "Download PNG" : "Unlock export"}
-            </button>
-            <button className="passport-action-button passport-action-primary" onClick={copyPassport} type="button">
-              <Copy className="h-4 w-4" /> {copied ? "Copied" : "Share"}
             </button>
           </div>
         </div>
@@ -1470,7 +1460,7 @@ export function Passport({ analysis, entitlements, isSampleReview, sharePassport
                         </div>
                         <div className="passport-profile-pills">
                           <span>{shareMode.label}</span>
-                          <span>{isSampleReview ? "Demo" : visibility === "private" ? "Private" : "Public"}</span>
+                          <span>{isSampleReview ? "Demo" : "Local PNG"}</span>
                         </div>
                       </header>
 
@@ -1531,10 +1521,10 @@ export function Passport({ analysis, entitlements, isSampleReview, sharePassport
 
                       <footer className="passport-profile-footer">
                         <div>
-                          <span>{isSampleReview ? "Demo ID" : "Review ID"}</span>
-                          <code>{verificationId}</code>
+                          <span>{isSampleReview ? "Demo ref" : "Review ref"}</span>
+                          <code>{reviewId}</code>
                         </div>
-                        <p>{analysis.latestDate} · {visibility} · {expiry}</p>
+                        <p>{analysis.latestDate} · local export · user controlled</p>
                       </footer>
                     </div>
                   </div>
@@ -1546,16 +1536,7 @@ export function Passport({ analysis, entitlements, isSampleReview, sharePassport
           <aside className="passport-share-rail">
             <div className="passport-rail-section">
               <div className="passport-rail-heading">
-                <span>Share mode</span>
-                <button
-                  aria-pressed={visibility === "public"}
-                  className="passport-visibility-toggle"
-                  onClick={() => setVisibility(visibility === "private" ? "public" : "private")}
-                  type="button"
-                >
-                  {visibility === "private" ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  {visibility === "private" ? "Private" : "Public"}
-                </button>
+                <span>Export view</span>
               </div>
               <div className="passport-mode-list">
                 {passportShareModes.map((mode) => (
@@ -1592,7 +1573,7 @@ export function Passport({ analysis, entitlements, isSampleReview, sharePassport
             </div>
 
             <div className="passport-rail-section">
-              <div className="passport-rail-heading"><span>Privacy & reveal</span></div>
+              <div className="passport-rail-heading"><span>Included in PNG</span></div>
               <div className="passport-privacy-list">
                 {privacyRows.map((row) => (
                   <div className="passport-privacy-row" key={row.label}>
@@ -1606,15 +1587,6 @@ export function Passport({ analysis, entitlements, isSampleReview, sharePassport
               </div>
             </div>
 
-            <label className="passport-expiry-field">
-              <span>Expiry</span>
-              <select value={expiry} onChange={(event) => setExpiry(event.target.value)}>
-                <option>24 hours</option>
-                <option>7 days</option>
-                <option>30 days</option>
-                <option>No expiry</option>
-              </select>
-            </label>
           </aside>
         </div>
 
@@ -1754,12 +1726,12 @@ async function composePassportExport(sourceDataUrl: string, preset: PassportExpo
 
   context.fillStyle = isSampleReview ? palette.accent : "rgba(255,255,255,0.48)";
   context.font = "700 20px Arial, sans-serif";
-  const footerCopy = isSampleReview ? "DEMO DATA · NOT ACCOUNT VERIFIED" : "REVIEWED ACCOUNT HISTORY · PRIVATE DETAILS HIDDEN";
+  const footerCopy = isSampleReview ? "DEMO DATA · NOT ACCOUNT VERIFIED" : "REVIEWED IMPORT · LOCAL PNG · USER CONTROLLED";
   context.fillText(footerCopy, 64, preset.height - 48);
   return canvas.toDataURL("image/png");
 }
 
-async function downloadPassportPng(analysis: ReturnType<typeof analyze>, visibility: string, expiry: string, tier: PassportTier, shareMode: PassportShareMode, exportPreset: PassportExportPreset, isSampleReview: boolean, cardNode?: HTMLElement | null) {
+async function downloadPassportPng(analysis: ReturnType<typeof analyze>, tier: PassportTier, shareMode: PassportShareMode, exportPreset: PassportExportPreset, isSampleReview: boolean, cardNode?: HTMLElement | null) {
   const sampleSlug = isSampleReview ? "sample-" : "";
   const filename = `cova-risk-passport-${sampleSlug}${tier.rank.toLowerCase()}-${exportPreset.id}-${analysis.latestDate}.png`;
   if (cardNode) {
@@ -1798,7 +1770,7 @@ async function downloadPassportPng(analysis: ReturnType<typeof analyze>, visibil
   const exportSkin = tier.skin.toUpperCase();
   const exportHeadline = tier.headline.toUpperCase();
   const verifiedRules = analysis.ruleStatuses.length - analysis.breaches.length;
-  const verificationId = `COVA-${analysis.latestDate.replace(/-/g, "").slice(2)}-${analysis.score}${verifiedRules}`;
+  const reviewId = `COVA-${analysis.latestDate.replace(/-/g, "").slice(2)}-${analysis.score}${verifiedRules}`;
   const diamondExportFx = isDiamondExport ? `
       <path d="M82 86 H998 L1026 114 V1386 L998 1414 H82 L54 1386 V114 Z" fill="none" stroke="${palette.accent}" stroke-opacity="0.36" stroke-width="1"/>
       <path d="M132 420 L948 420 L976 536 L948 652 L132 652 L104 536 Z" fill="rgba(156,236,255,0.035)" stroke="rgba(210,248,255,0.16)"/>
@@ -1870,7 +1842,7 @@ async function downloadPassportPng(analysis: ReturnType<typeof analyze>, visibil
       <text x="252" y="1272" fill="${palette.metal}" font-family="Arial, sans-serif" font-size="${proofFontSize}" font-weight="800" letter-spacing="${proofTracking}">${escapeSvgText(proofLine)}</text>
       ${nextTargetMarkup}
       ${sampleExportWatermark}
-      <text x="92" y="1430" fill="rgba(224,236,248,0.5)" font-family="Arial, sans-serif" font-size="17" font-weight="700" letter-spacing="3">${isSampleReview ? "DEMO · NOT ACCOUNT VERIFIED · " : ""}MODE ${escapeSvgText(shareMode.label.toUpperCase())} · ${escapeSvgText(visibility.toUpperCase())} · ${escapeSvgText(expiry.toUpperCase())} · ${escapeSvgText(verificationId)}</text>
+      <text x="92" y="1430" fill="rgba(224,236,248,0.5)" font-family="Arial, sans-serif" font-size="17" font-weight="700" letter-spacing="3">${isSampleReview ? "DEMO · NOT ACCOUNT VERIFIED · " : ""}MODE ${escapeSvgText(shareMode.label.toUpperCase())} · LOCAL PNG · USER CONTROLLED · ${escapeSvgText(reviewId)}</text>
     </svg>
   `;
   const image = new Image();
