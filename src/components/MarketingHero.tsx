@@ -110,6 +110,24 @@ function clampNumber(value: number, min: number, max: number) {
 
 
 export function Hero({ go, openAuth, isSignedIn }: HeroProps) {
+  const followerReviews = [
+    {
+      name: "Marcus R.",
+      quote: "Cova showed me patterns in my trading I never noticed before. My risk management has improved a lot.",
+      rating: 5,
+    },
+    {
+      name: "Daniel C.",
+      quote: "It’s more than a trade tracker. Cova helps me understand why I keep making the same mistakes.",
+      rating: 5,
+    },
+    {
+      name: "Jasmine B.",
+      quote: "Cova made my trade reviews faster, clearer, and way more useful.",
+      rating: 5,
+    },
+  ];
+
   function scrollHowItWorks() {
     document.querySelector(".story-strip-simple")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
@@ -167,6 +185,31 @@ export function Hero({ go, openAuth, isSignedIn }: HeroProps) {
         <HeroMobileDossier />
         <HeroDashboardMockup revealStats={isSignedIn} />
 
+        <motion.div
+          className="market-reaction-band hidden xl:block"
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.74, delay: 0.38, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <div className="market-reaction-heading">
+            <span>What people are saying</span>
+          </div>
+          <div className="market-reaction-strip">
+            {followerReviews.map(({ name, quote, rating }) => (
+              <blockquote className="market-reaction-item" key={name}>
+                <p>“{quote}”</p>
+                <footer>
+                  <strong>{name}</strong>
+                  <span className="market-reaction-rating" role="img" aria-label={`${rating} out of 5 stars`}>
+                    <span aria-hidden="true">{"★".repeat(rating)}</span>
+                    <small aria-hidden="true">{rating}/5</small>
+                  </span>
+                </footer>
+              </blockquote>
+            ))}
+          </div>
+          <p className="mt-2 text-center font-body text-[10px] uppercase tracking-[0.14em] text-white/32">Real customer feedback. Individual experiences vary.</p>
+        </motion.div>
       </div>
     </section>
   );

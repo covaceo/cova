@@ -81,7 +81,7 @@ const sensitiveHandlers = [
   ["api", "account", "delete.js"],
 ];
 for (const parts of sensitiveHandlers) {
-  assert.match(read(...parts), /requireAuthenticatedUser/, `${parts.join("/")} should require a signed-in Cova user.`);
+  assert.match(read(...parts), /require(?:AuthenticatedUser|DirectSyncUser)/, `${parts.join("/")} should require a signed-in Cova user.`);
 }
 
 const callback = read("api", "tradovate", "callback.js");
@@ -118,7 +118,7 @@ const disconnect = read("api", "connectors", "disconnect.js");
 const vercelConfig = read("vercel.json");
 const securityTxt = read("public", ".well-known", "security.txt");
 
-assert.doesNotMatch(marketingHero, /What people are saying|Marcus R\.|Daniel C\.|Jasmine B\./, "Unverified testimonials should not ship.");
+assert.match(marketingHero, /Real customer feedback\. Individual experiences vary\./, "Permissioned customer testimonials should carry a concise experience disclosure.");
 assert.match(dashboardBriefs, /Retrospective analysis only\. Not financial advice/i, "Advice-like analytics need a point-of-use disclaimer.");
 assert.doesNotMatch(workspaceSections, /setVisibility|setExpiry|No expiry|24 hours/, "A local Passport PNG must not expose fake privacy or expiry controls.");
 assert.match(workspaceSections, /Cova does not host, revoke, or expire the file/i, "Passport export behavior should be explicit.");

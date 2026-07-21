@@ -52,8 +52,13 @@ assert.match(storyStrip, /What Cova caught/, "Homepage should include concrete p
 assert.match(storyStrip, /Daily loss breach/, "Homepage proof should show a specific risk issue Cova catches.");
 assert.match(storyStrip, /Passport proof/, "Homepage proof should connect review output to Passport proof.");
 assert.match(marketingHero, /HeroMobileDossier/, "Homepage should render a dedicated mobile risk-review proof instead of shrinking the desktop mockup.");
-assert.doesNotMatch(marketingHero, /What people are saying|Marcus R\.|Daniel C\.|Jasmine B\.|rating: 5/, "Homepage must not ship unverified testimonials or ratings.");
-assert.doesNotMatch(marketingHero, /market-reaction-band/, "The removed testimonial rail must not remain in the rendered hero.");
+assert.match(marketingHero, /What people are saying/i, "Homepage should retain the permissioned customer review rail.");
+assert.match(marketingHero, /Marcus R\.[\s\S]*Daniel C\.[\s\S]*Jasmine B\./, "Permissioned reviews should retain the supplied names.");
+assert.match(marketingHero, /Cova showed me patterns in my trading I never noticed before\. My risk management has improved a lot\./, "Marcus's permissioned quote should remain exact.");
+assert.match(marketingHero, /It’s more than a trade tracker\. Cova helps me understand why I keep making the same mistakes\./, "Daniel's permissioned quote should remain exact.");
+assert.match(marketingHero, /Cova made my trade reviews faster, clearer, and way more useful\./, "Jasmine's permissioned quote should remain exact.");
+assert.equal((marketingHero.match(/rating: 5,/g) ?? []).length, 3, "All three permissioned reviews should retain their five-star rating.");
+assert.match(marketingHero, /Real customer feedback\. Individual experiences vary\./, "Customer feedback should carry a concise experience disclosure.");
 assert.match(marketingHero, /Cova turns imported trade history into retrospective summaries of behavior, performance, and rule adherence\./, "Homepage hero support copy should describe retrospective analysis without personalized advice.");
 assert.match(operatorDossierCss, /\.mobile-hero-dossier\s*\{\s*display:\s*none;/, "The mobile dossier must stay hidden by default so desktop remains unchanged.");
 assert.match(operatorDossierCss, /@media \(max-width: 767px\)[\s\S]*?\.hero-dashboard-stage\s*\{[\s\S]*?display:\s*none\s*!important;[\s\S]*?\.mobile-hero-dossier\s*\{[\s\S]*?display:\s*block;/, "Phones should replace the oversized desktop hero mockup with the mobile dossier.");
