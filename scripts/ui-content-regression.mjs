@@ -65,6 +65,10 @@ assert.match(navbar, /const usesWorkspaceChrome = Boolean\(authSession\) && isPr
 assert.match(navbar, /const isAppMode = Boolean\(authSession\) \|\| usesWorkspaceChrome;/, "Signed-in mobile marketing routes should retain their existing app-navigation menu.");
 assert.match(navbar, /usesWorkspaceChrome \? "workspace-top-header"/, "Authentication alone must not hide the marketing header on Overview.");
 assert.match(navbar, /authSession && !usesWorkspaceChrome \? "marketing-header-signed-in"/, "Signed-in marketing pages should expose a compact desktop-header hook without entering workspace mode.");
+assert.match(navbar, /header-scroll-veil-scrolled/, "The header veil should expose a dedicated stronger scrolled state.");
+assert.match(navbar, /header-scroll-veil-top/, "The header veil should expose a restrained top-of-page state.");
+assert.match(operatorDossierCss, /\.header-scroll-veil\s*\{[\s\S]*?background:\s*rgba\(0,\s*0,\s*0,\s*0\.5/, "The marketing header veil should use neutral black instead of a blue-black gradient.");
+assert.match(operatorDossierCss, /\.header-scroll-veil-scrolled\s*\{[\s\S]*?backdrop-filter:\s*blur\(18px\)/, "Scrolling should strengthen the header blur.");
 assert.match(operatorDossierCss, /@media \(min-width: 901px\)[\s\S]*?\.hero-dashboard-shell\s*\{[\s\S]*?right:\s*0\s*!important;[\s\S]*?width:\s*min\(100%,\s*57\.5rem\)\s*!important;/, "Desktop hero proof should stay anchored inside its grid lane instead of overlapping the copy.");
 assert.match(operatorDossierCss, /@media \(min-width: 1280px\)[\s\S]*?\.hero-dashboard-shell\s*\{[\s\S]*?top:\s*1\.75rem\s*!important;[\s\S]*?right:\s*2\.75rem\s*!important;/, "Wide desktop should keep the dashboard intentionally down and left of its original anchor.");
 assert.match(operatorDossierCss, /\.hero-dashboard-shell::after\s*\{[\s\S]*?display:\s*block\s*!important;[\s\S]*?border:\s*1px solid rgba\(191,\s*137,\s*100,\s*0\.42\)\s*!important;/, "The desktop dashboard should retain its crisp copper outer frame.");
