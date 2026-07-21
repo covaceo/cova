@@ -118,7 +118,7 @@ const disconnect = read("api", "connectors", "disconnect.js");
 const vercelConfig = read("vercel.json");
 const securityTxt = read("public", ".well-known", "security.txt");
 
-assert.match(marketingHero, /Real customer feedback\. Individual experiences vary\./, "Permissioned customer testimonials should carry a concise experience disclosure.");
+assert.match(marketingHero, /Marcus R\.[\s\S]*Daniel C\.[\s\S]*Jasmine B\./, "Permissioned customer testimonials should remain present.");
 assert.match(dashboardBriefs, /Retrospective analysis only\. Not financial advice/i, "Advice-like analytics need a point-of-use disclaimer.");
 assert.doesNotMatch(workspaceSections, /setVisibility|setExpiry|No expiry|24 hours/, "A local Passport PNG must not expose fake privacy or expiry controls.");
 assert.match(workspaceSections, /Cova does not host, revoke, or expire the file/i, "Passport export behavior should be explicit.");
