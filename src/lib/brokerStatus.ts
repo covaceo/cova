@@ -1,3 +1,5 @@
+import { removeScopedStorage, scopedStorageKey } from "./storageScope";
+
 export const BROKER_STATUS_KEY = "cova-tradovate-status-v1";
 
 export type BrokerStatus = {
@@ -11,7 +13,7 @@ export type BrokerStatus = {
 
 export function readBrokerStatus(): BrokerStatus | null {
   try {
-    const parsed = JSON.parse(localStorage.getItem(BROKER_STATUS_KEY) ?? "null");
+    const parsed = JSON.parse(localStorage.getItem(scopedStorageKey(BROKER_STATUS_KEY)) ?? "null");
     if (typeof parsed?.provider === "string" && typeof parsed.message === "string") {
       return {
         provider: parsed.provider,
@@ -29,8 +31,13 @@ export function readBrokerStatus(): BrokerStatus | null {
 }
 
 export function writeBrokerStatus(status: BrokerStatus) {
-  localStorage.setItem(BROKER_STATUS_KEY, JSON.stringify(status));
-  window.dispatchEvent(new CustomEvent("cova:broker-status"));
+  localStorage.setItem(scopedStorageKey(BROKER_STATUS_KEY), JSON.stringify(status));
+  window.dispatchEvent(new Event("cova:broker-status"));
+}
+
+export function clearBrokerStatus() {
+  removeScopedStorage(BROKER_STATUS_KEY);
+  window.dispatchEvent(new Event("cova:broker-status"));
 }
 
 export function brokerMessageForStatus(status: string) {

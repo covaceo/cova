@@ -220,7 +220,7 @@ function HeroRiskPassportScene({ revealStats }: HeroRiskPassportSceneProps) {
         <SceneRig />
       </Canvas>
       <div className="hero-passport-three-callout hero-passport-three-callout-top">
-        <span>{revealStats ? "Risk score" : "Private"}</span>
+        <span>{revealStats ? "Risk score" : "Hidden until sign-in"}</span>
         <strong>{revealStats ? "78" : "Locked"}</strong>
       </div>
       <div className="hero-passport-three-callout hero-passport-three-callout-bottom">

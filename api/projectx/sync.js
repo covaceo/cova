@@ -1,3 +1,4 @@
+import { requireAuthenticatedUser, sendApiError } from "../_lib/auth.js";
 import { parseCookies } from "../_lib/cookies.js";
 import { decryptSecret } from "../_lib/encryption.js";
 import {
@@ -17,6 +18,14 @@ export default async function handler(req, res) {
     return;
   }
 
+  let user;
+  try {
+    user = await requireAuthenticatedUser(req);
+    res.setHeader("Cache-Control", "private, no-store");
+  } catch (error) {
+    return sendApiError(res, error, "Member authentication is unavailable.");
+  }
+
   const connectionId = parseCookies(req)[PROJECTX_COOKIE];
   if (!connectionId) {
     res.status(401).json({ error: "Connect TopstepX before syncing trades." });
@@ -25,14 +34,14 @@ export default async function handler(req, res) {
 
   let token;
   try {
-    const connection = await getBrokerConnection({ connectionId, provider: PROJECTX_PROVIDER });
+    const connection = await getBrokerConnection({ connectionId, provider: PROJECTX_PROVIDER, userId: user.id });
     if (!connection?.access_token_encrypted) {
       res.status(404).json({ error: "TopstepX connection was not found in secure storage." });
       return;
     }
     token = decryptSecret(connection.access_token_encrypted);
-  } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : "Could not load the TopstepX connection." });
+  } catch {
+    res.status(500).json({ error: "Could not load the authorized TopstepX connection." });
     return;
   }
 

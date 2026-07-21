@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
+import type { PolicyAcceptance } from "./legal";
 
 let supabaseClient: SupabaseClient | null = null;
 
@@ -34,7 +35,7 @@ export function isSupabaseConfigured() {
   return Boolean(anonKey && url);
 }
 
-export async function sendSupabaseMagicLink(email: string, redirectTo: string) {
+export async function sendSupabaseMagicLink(email: string, redirectTo: string, policyAcceptance?: PolicyAcceptance) {
   const client = getSupabaseClient();
   if (!client) {
     return { error: new Error("Supabase auth is not configured.") };
@@ -44,12 +45,14 @@ export async function sendSupabaseMagicLink(email: string, redirectTo: string) {
     email,
     options: {
       emailRedirectTo: redirectTo,
+      data: policyAcceptance ? {
+        terms_accepted_at: policyAcceptance.acceptedAt,
+        terms_version: policyAcceptance.termsVersion,
+      } : undefined,
     },
   });
 }
 
 export function getSupabaseUserPlan(user: User) {
-  const appPlan = typeof user.app_metadata?.plan === "string" ? user.app_metadata.plan : "";
-  const userPlan = typeof user.user_metadata?.plan === "string" ? user.user_metadata.plan : "";
-  return appPlan || userPlan;
+  return typeof user.app_metadata?.plan === "string" ? user.app_metadata.plan : "";
 }

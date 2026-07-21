@@ -93,19 +93,19 @@ export function NextSessionBriefCard({ analysis, go }: { analysis: ReturnType<ty
   const config = {
     locked: {
       icon: LockKeyhole,
-      label: "Pause",
+      label: "Limit crossed",
       tone: "border-red-300/22 bg-red-500/8 text-red-200",
       dot: "bg-red-300",
     },
     caution: {
       icon: Gauge,
-      label: "Caution",
+      label: "Review",
       tone: "border-amber-200/20 bg-amber-300/8 text-amber-100",
       dot: "bg-amber-200",
     },
     ready: {
       icon: ShieldCheck,
-      label: "Ready",
+      label: "Within limits",
       tone: "border-emerald-300/22 bg-emerald-400/10 text-emerald-200",
       dot: "bg-emerald-300",
     },
@@ -127,11 +127,13 @@ export function NextSessionBriefCard({ analysis, go }: { analysis: ReturnType<ty
               <span className={`h-2 w-2 rounded-full ${config.dot}`} />
               {config.label}
             </span>
-            <span className="font-body text-xs uppercase tracking-[0.22em] text-[#b9f5df]">Next session brief</span>
+            <span className="font-body text-xs uppercase tracking-[0.22em] text-[#b9f5df]">Historical risk summary</span>
           </div>
           <h3 className="mt-5 max-w-2xl font-heading text-4xl italic leading-[1.02] tracking-normal md:text-5xl">
             {brief.headline}
           </h3>
+          <p className="mt-4 max-w-2xl font-body text-sm leading-relaxed text-white/58">{brief.summary}</p>
+          <p className="mt-3 max-w-2xl font-body text-xs leading-relaxed text-white/38">Retrospective analysis only. Not financial advice, a trade signal, or a prediction of future results.</p>
           <div className="mt-6 flex flex-wrap gap-3">
             <GlassButton strong onClick={() => go("coach")}>Insights <ArrowUpRight className="h-4 w-4" /></GlassButton>
             <GlassButton onClick={() => go("rules")}>Limits</GlassButton>
@@ -142,7 +144,7 @@ export function NextSessionBriefCard({ analysis, go }: { analysis: ReturnType<ty
           <div className="rounded-[28px] border border-white/10 bg-black/24 p-4">
             <div className="flex items-center gap-3">
               <Icon className="h-5 w-5 text-[#18c887]" />
-              <p className="font-body text-xs uppercase tracking-[0.22em] text-white/42">Watch first</p>
+              <p className="font-body text-xs uppercase tracking-[0.22em] text-white/42">Detected patterns</p>
             </div>
             <div className="mt-4 space-y-2">
               {brief.watchlist.slice(0, 3).map((item) => (

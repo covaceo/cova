@@ -94,7 +94,9 @@ assert.match(host, /trade\.setup === tape\.setup/, "Execution markers must stay 
 assert.match(host, /trade\.tapeId\s*\?\s*trade\.tapeId === tape\.id/, "New execution markers must be scoped to the exact tape identity.");
 assert.match(host, /trade\.session === tape\.session/, "Legacy execution markers must not cross AM and PM sessions.");
 assert.match(host, /tape\.dataSource\.kind === "demo"/, "Legacy marker fallback must be restricted to deterministic demo tapes.");
-assert.match(app, /localStorage\.removeItem\(PRACTICE_ACCOUNT_STORAGE_KEY\)/, "Sign-out must clear the prior user's practice account from a shared browser.");
-assert.match(app, /localStorage\.removeItem\(PRACTICE_TRADES_STORAGE_KEY\)/, "Sign-out must clear the prior user's simulated trade notes from a shared browser.");
+assert.match(app, /removeScopedStorage\(PRACTICE_ACCOUNT_STORAGE_KEY\)/, "Sign-out must clear the active user's scoped practice account from a shared browser.");
+assert.match(app, /removeScopedStorage\(PRACTICE_TRADES_STORAGE_KEY\)/, "Sign-out must clear the active user's scoped simulated trade notes from a shared browser.");
+assert.match(workspace, /scopedStorageKey\(PRACTICE_ACCOUNT_STORAGE_KEY\)/, "Practice account storage must be namespaced to the verified member.");
+assert.match(workspace, /scopedStorageKey\(PRACTICE_TRADES_STORAGE_KEY\)/, "Practice trade storage must be namespaced to the verified member.");
 
 console.log("practice-architecture-regression: all checks passed");

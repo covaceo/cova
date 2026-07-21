@@ -4,6 +4,21 @@ export function getBaseUrl(req) {
   return `${proto}://${host}`;
 }
 
+export function getAppOrigin(req) {
+  const configured = process.env.APP_ORIGIN || process.env.APP_URL || process.env.PUBLIC_APP_URL || "";
+  if (configured) {
+    return configured.replace(/\/$/, "");
+  }
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  }
+  return getBaseUrl(req);
+}
+
+export function getTradovateRedirectUri(req) {
+  return process.env.TRADOVATE_REDIRECT_URI || `${getAppOrigin(req)}/api/tradovate/callback`;
+}
+
 export function getRequestUrl(req) {
   return new URL(req.url || "/", getBaseUrl(req));
 }

@@ -450,7 +450,7 @@ function buildBehaviorFlags({
       severity: isNegative ? "warning" : "info",
       summary: isNegative
         ? `${setupConcentration.name} is taking up most of the sample while producing negative R.`
-        : `${setupConcentration.name} is taking up most of the sample. Keep checking that the edge is still real.`,
+        : `${setupConcentration.name} is taking up most of the sample, so the summary is sensitive to that setup's results.`,
       evidence: [
         `${setupConcentration.count}/${sorted.length} trades (${formatPercent(setupConcentration.share)})`,
         `${setupConcentration.avgR.toFixed(2)}R average result`,
@@ -463,8 +463,8 @@ function buildBehaviorFlags({
       id: "loss-streak",
       label: "Loss streak",
       severity: "warning",
-      summary: "The account needs a pause rule after clustered losses.",
-      evidence: [`Pause after ${lossStreakLimit} losses`, `Worst streak: ${breaches.find((status) => status.rule.metric === "maxLossStreak")?.evidence[0]?.replace("Worst loss streak: ", "") ?? "review"}`],
+      summary: "The imported history crossed the configured clustered-loss threshold.",
+      evidence: [`Configured threshold: ${lossStreakLimit} losses`, `Worst streak: ${breaches.find((status) => status.rule.metric === "maxLossStreak")?.evidence[0]?.replace("Worst loss streak: ", "") ?? "review"}`],
     });
   }
 
@@ -473,7 +473,7 @@ function buildBehaviorFlags({
       id: "weak-setup",
       label: `${weakestSetup.name} needs review`,
       severity: "info",
-      summary: "This setup has enough history to inspect before you trade it again.",
+      summary: "This setup has enough imported history for its negative average result to be visible in the review.",
       evidence: [`${weakestSetup.count} trades`, `${weakestSetup.avgR.toFixed(2)}R average result`],
     });
   }
@@ -481,7 +481,7 @@ function buildBehaviorFlags({
   if (!flags.some((flag) => flag.severity === "critical" || flag.severity === "warning") && bestSetup) {
     flags.push({
       id: "stable-setup",
-      label: `${bestSetup.name} is cleanest`,
+      label: `${bestSetup.name} has the strongest reviewed sample`,
       severity: "positive",
       summary: "This setup has the strongest current sample inside the trade history.",
       evidence: [`${bestSetup.count} trades`, `${bestSetup.avgR.toFixed(2)}R average result`],
@@ -536,9 +536,9 @@ function buildNextSessionBrief({
     .map((flag) => flag.label)
     .slice(0, 3);
   const guardrails = [
-    `Stop if the day is down ${formatMoney(dailyLimit)}.`,
-    `Keep size at ${maxContracts} contract${maxContracts === 1 ? "" : "s"} or less.`,
-    `Pause after ${lossStreakLimit} losing trade${lossStreakLimit === 1 ? "" : "s"}.`,
+    `Configured daily-loss limit: ${formatMoney(dailyLimit)}.`,
+    `Configured size limit: ${maxContracts} contract${maxContracts === 1 ? "" : "s"}.`,
+    `Configured loss-streak threshold: ${lossStreakLimit} trade${lossStreakLimit === 1 ? "" : "s"}.`,
   ];
   const evidence = [
     latestSession ? `Latest session: ${formatMoney(latestSession.pnl)} across ${latestSession.trades} trade${latestSession.trades === 1 ? "" : "s"}` : "No latest session yet",
@@ -549,8 +549,8 @@ function buildNextSessionBrief({
   if (!sorted.length) {
     return {
       status: "caution",
-      headline: "Upload trades to get a session plan.",
-      summary: "Cova needs trade history before it can tell you what to watch before the next session.",
+      headline: "Upload trades to generate a historical review.",
+      summary: "Cova needs trade history before it can summarize patterns against your configured limits.",
       watchlist: ["No trade history yet"],
       guardrails,
       evidence,
@@ -560,8 +560,8 @@ function buildNextSessionBrief({
   if (hasCritical) {
     return {
       status: "locked",
-      headline: "Pause until the loss limit is reviewed.",
-      summary: "A critical rule was crossed in this sample. Treat the next session as a reset, not a place to make it back.",
+      headline: "A critical limit was crossed in the reviewed history.",
+      summary: "The imported sample contains activity beyond a configured limit. Review the underlying trades and source data before relying on this summary.",
       watchlist: watchlist.length ? watchlist : ["Critical limit warning"],
       guardrails,
       evidence: [...evidence, `${breaches.length} active limit warning${breaches.length === 1 ? "" : "s"}`],
@@ -572,10 +572,10 @@ function buildNextSessionBrief({
     const recentPressure = recentAvgR < 0 || hasRecentWarningBreach || behaviorFlags.some((flag) => flag.severity === "warning" && flag.id !== "critical-limit");
     return {
       status: "caution",
-      headline: recentPressure ? "Trade smaller until the pattern clears." : "Review old warnings before scaling up.",
+      headline: recentPressure ? "Recent history contains a recurring risk pattern." : "Older rule warnings remain in the reviewed sample.",
       summary: recentPressure
-        ? "Recent behavior needs a tighter session plan. Start slow, keep size flat, and stop quickly if the same warning repeats."
-        : "Recent trades look better, but the account still has older rule warnings. Keep size capped until the cleaner behavior holds across more sessions.",
+        ? "Cova detected the same warning across recent imported trades. This is retrospective analysis, not a recommendation for the next trade."
+        : "Recent trades differ from the older warning pattern, but the historical rule flags remain part of the account review.",
       watchlist: watchlist.length ? watchlist : ["Recent trades need review"],
       guardrails,
       evidence: [...evidence, `Recent P&L: ${formatMoney(recentPnl)}`],
@@ -584,9 +584,9 @@ function buildNextSessionBrief({
 
   return {
     status: "ready",
-    headline: "Green light, keep the rules tight.",
-    summary: "The account is inside the active limits. The next session plan is simple: trade the cleanest setup and protect the score.",
-    watchlist: behaviorFlags.length ? behaviorFlags.map((flag) => flag.label).slice(0, 3) : ["Protect the current score"],
+    headline: "The reviewed sample stayed inside the configured limits.",
+    summary: "No active limit breach was detected in the imported history. This does not predict future performance or indicate that a trade is appropriate.",
+    watchlist: behaviorFlags.length ? behaviorFlags.map((flag) => flag.label).slice(0, 3) : ["No current warning pattern detected"],
     guardrails,
     evidence,
   };

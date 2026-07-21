@@ -1,93 +1,82 @@
-import crypto from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { clearCookie, parseCookies, serializeCookie } from "../_lib/cookies.js";
+import { verifyOAuthContext } from "../_lib/oauth-context.js";
 import { saveTradovateConnection } from "../_lib/supabase.js";
-import { addBrokerResult, getBaseUrl, getRequestUrl } from "../_lib/urls.js";
+import { getAppOrigin, getTradovateRedirectUri } from "../_lib/urls.js";
 
-const DEFAULT_TOKEN_URL = "https://live.tradovateapi.com/auth/oauthtoken";
+function redirectToClient(req, res, status, message) {
+  const target = new URL(getAppOrigin(req));
+  target.hash = `import?broker=${encodeURIComponent(status)}&message=${encodeURIComponent(message)}`;
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Set-Cookie", clearCookie("cova_oauth_context"));
+  return res.redirect(302, target.toString());
+}
 
 export default async function handler(req, res) {
   if (req.method !== "GET") {
-    res.status(405).json({ error: "Method not allowed" });
-    return;
+    res.setHeader("Allow", "GET");
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const baseUrl = getBaseUrl(req);
-  const requestUrl = getRequestUrl(req);
+  const state = typeof req.query?.state === "string" ? req.query.state : "";
   const cookies = parseCookies(req);
-  const returnTo = cookies.cova_tradovate_return_to || "/#import";
-  const clearHandshakeCookies = [
-    clearCookie("cova_tradovate_oauth_state"),
-    clearCookie("cova_tradovate_return_to"),
-  ];
-
-  function redirect(status, params = {}, extraCookies = []) {
-    const target = addBrokerResult(returnTo, baseUrl, status, params);
-    res.setHeader("Set-Cookie", [...clearHandshakeCookies, ...extraCookies]);
-    res.redirect(302, `${target.pathname}${target.search}${target.hash}`);
+  const context = verifyOAuthContext(cookies.cova_oauth_context);
+  if (!context || !state || context.state !== state) {
+    return redirectToClient(req, res, "error", "OAuth state validation failed. Start the connection again from Cova.");
   }
 
-  const authError = requestUrl.searchParams.get("error");
+  const userId = context.userId;
+  const authError = typeof req.query?.error === "string" ? req.query.error : "";
   if (authError) {
-    redirect("error", { reason: authError });
-    return;
+    return redirectToClient(req, res, "denied", "Tradovate authorization was denied.");
   }
 
-  const code = requestUrl.searchParams.get("code");
-  const state = requestUrl.searchParams.get("state");
+  const code = typeof req.query?.code === "string" ? req.query.code : "";
   if (!code) {
-    redirect("token-error", { reason: "missing-code" });
-    return;
+    return redirectToClient(req, res, "error", "Tradovate did not return an authorization code.");
   }
 
-  if (!state || state !== cookies.cova_tradovate_oauth_state) {
-    redirect("state-mismatch");
-    return;
-  }
-
-  const clientId = process.env.TRADOVATE_CLIENT_ID;
-  const clientSecret = process.env.TRADOVATE_CLIENT_SECRET;
-  if (!clientId || !clientSecret) {
-    redirect("missing-env");
-    return;
-  }
-
-  const redirectUri = process.env.TRADOVATE_REDIRECT_URI || `${baseUrl}/api/tradovate/callback`;
-  const tokenUrl = process.env.TRADOVATE_TOKEN_URL || DEFAULT_TOKEN_URL;
-  const form = new URLSearchParams({
-    grant_type: "authorization_code",
-    code,
-    client_id: clientId,
-    client_secret: clientSecret,
-    redirect_uri: redirectUri,
-  });
-
-  let tokenData;
   try {
-    const response = await fetch(tokenUrl, {
+    const clientId = process.env.TRADOVATE_CLIENT_ID;
+    const clientSecret = process.env.TRADOVATE_CLIENT_SECRET;
+    if (!clientId || !clientSecret) {
+      throw new Error("Tradovate OAuth credentials are not configured.");
+    }
+
+    const tokenUrl = process.env.TRADOVATE_TOKEN_URL || "https://live.tradovateapi.com/auth/oauthtoken";
+    const body = new URLSearchParams({
+      grant_type: "authorization_code",
+      code,
+      client_id: clientId,
+      client_secret: clientSecret,
+      redirect_uri: getTradovateRedirectUri(req),
+    });
+    const tokenResponse = await fetch(tokenUrl, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: form,
+      body,
     });
-    const raw = await response.text();
-    tokenData = raw ? JSON.parse(raw) : {};
-    if (!response.ok || tokenData?.error || (!tokenData?.access_token && !tokenData?.accessToken)) {
-      redirect("token-error");
-      return;
+    if (!tokenResponse.ok) {
+      throw new Error(`Tradovate token exchange failed (${tokenResponse.status}).`);
     }
-  } catch {
-    redirect("token-error");
-    return;
-  }
 
-  const connectionId = crypto.randomUUID();
-  try {
-    await saveTradovateConnection({ connectionId, tokenData });
-  } catch {
-    redirect("needs-storage", { connectionId });
-    return;
-  }
+    const tokenData = await tokenResponse.json();
+    const accessToken = tokenData?.access_token || tokenData?.accessToken;
+    if (!accessToken) {
+      throw new Error("Tradovate did not return an access token.");
+    }
 
-  redirect("connected", { connectionId }, [
-    serializeCookie("cova_tradovate_connection", connectionId, { maxAge: 60 * 60 * 24 * 30 }),
-  ]);
+    const connectionId = randomUUID();
+    await saveTradovateConnection({ connectionId, tokenData, userId });
+    const target = new URL(getAppOrigin(req));
+    target.hash = "import?broker=connected&message=Tradovate%20connected%20read-only";
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("Set-Cookie", [
+      serializeCookie("cova_tradovate_connection", connectionId, { maxAge: 60 * 60 * 24 * 30 }),
+      clearCookie("cova_oauth_context"),
+    ]);
+    return res.redirect(302, target.toString());
+  } catch {
+    return redirectToClient(req, res, "error", "Tradovate could not complete a secure connection. Try again or use CSV import.");
+  }
 }

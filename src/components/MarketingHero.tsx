@@ -110,24 +110,6 @@ function clampNumber(value: number, min: number, max: number) {
 
 
 export function Hero({ go, openAuth, isSignedIn }: HeroProps) {
-  const followerReviews = [
-    {
-      name: "Marcus R.",
-      quote: "Cova showed me patterns in my trading I never noticed before. My risk management has improved a lot.",
-      rating: 5,
-    },
-    {
-      name: "Daniel C.",
-      quote: "It’s more than a trade tracker. Cova helps me understand why I keep making the same mistakes.",
-      rating: 5,
-    },
-    {
-      name: "Jasmine B.",
-      quote: "Cova made my trade reviews faster, clearer, and way more useful.",
-      rating: 5,
-    },
-  ];
-
   function scrollHowItWorks() {
     document.querySelector(".story-strip-simple")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
@@ -149,16 +131,16 @@ export function Hero({ go, openAuth, isSignedIn }: HeroProps) {
           transition={{ duration: 0.82, ease: [0.16, 1, 0.3, 1] }}
         >
           <p className="market-hero-eyebrow font-body text-xs font-medium uppercase tracking-[0.28em] text-[#18c887] md:text-sm">
-            See what keeps going wrong
+            Review what keeps happening
           </p>
 
           <h1 className="market-hero-title mt-5 text-[4.35rem] font-semibold leading-[0.92] text-white md:text-[4.95rem] lg:text-[5.45rem]">
-            See the <span className="market-hero-signal">rule</span><br />
-            <span className="market-hero-editorial">costing you payouts.</span>
+            See the <span className="market-hero-signal">patterns</span><br />
+            <span className="market-hero-editorial">behind your risk.</span>
           </h1>
 
           <p className="market-hero-subline mt-7 font-body text-lg font-light leading-relaxed text-white/72 md:text-xl">
-            Cova reviews your trade history, finds the habits hurting your results, and shows you what to fix next.
+            Cova turns imported trade history into retrospective summaries of behavior, performance, and rule adherence.
           </p>
 
           <div className="mt-8 flex flex-wrap items-center gap-5">
@@ -185,30 +167,6 @@ export function Hero({ go, openAuth, isSignedIn }: HeroProps) {
         <HeroMobileDossier />
         <HeroDashboardMockup revealStats={isSignedIn} />
 
-        <motion.div
-          className="market-reaction-band hidden xl:block"
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.74, delay: 0.38, ease: [0.16, 1, 0.3, 1] }}
-        >
-          <div className="market-reaction-heading">
-            <span>What people are saying</span>
-          </div>
-          <div className="market-reaction-strip">
-            {followerReviews.map(({ name, quote, rating }) => (
-              <blockquote className="market-reaction-item" key={name}>
-                <p>“{quote}”</p>
-                <footer>
-                  <strong>{name}</strong>
-                  <span className="market-reaction-rating" role="img" aria-label={`${rating} out of 5 stars`}>
-                    <span aria-hidden="true">{"★".repeat(rating)}</span>
-                    <small aria-hidden="true">{rating}/5</small>
-                  </span>
-                </footer>
-              </blockquote>
-            ))}
-          </div>
-        </motion.div>
       </div>
     </section>
   );
@@ -248,8 +206,8 @@ function HeroMobileDossier() {
 
       <div className="mobile-hero-next-action">
         <div>
-          <span>Next review action</span>
-          <strong>Cap size at 2 contracts.</strong>
+          <span>Configured review limit</span>
+          <strong>Size cap: 2 contracts.</strong>
         </div>
         <ArrowUpRight className="h-4 w-4" />
       </div>

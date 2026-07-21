@@ -51,7 +51,7 @@ export function Dashboard({ analysis, brokerStatus, rules, go }: { analysis: Ret
   return (
     <SectionShell
       eyebrow="Risk desk"
-      title="Know what to fix before you trade."
+      title="Review what your trade history shows."
       variant="workspace"
       action={<GlassButton onClick={() => go("rules")}>Set rules <ArrowUpRight className="h-4 w-4" /></GlassButton>}
       backdrop={<ImageAtmosphere src="/media/cova-dashboard-plate.jpg" />}

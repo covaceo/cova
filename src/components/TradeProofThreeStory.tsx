@@ -125,7 +125,7 @@ function TradeProofThreeStory({ progress }: TradeProofThreeStoryProps) {
             <span>COVA</span>
             <strong>Risk Passport</strong>
           </div>
-          <p>Verified review</p>
+          <p>Cova review</p>
         </header>
         <div className="proof-passport-score">
           <strong>78</strong>

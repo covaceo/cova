@@ -1,3 +1,4 @@
+import { requireAuthenticatedUser, sendApiError } from "../_lib/auth.js";
 import { parseCookies } from "../_lib/cookies.js";
 import { decryptSecret } from "../_lib/encryption.js";
 import { getTradovateConnection } from "../_lib/supabase.js";
@@ -34,6 +35,14 @@ export default async function handler(req, res) {
     return;
   }
 
+  let user;
+  try {
+    user = await requireAuthenticatedUser(req);
+    res.setHeader("Cache-Control", "no-store");
+  } catch (error) {
+    return sendApiError(res, error, "Tradovate authentication is unavailable.");
+  }
+
   const connectionId = parseCookies(req).cova_tradovate_connection;
   if (!connectionId) {
     res.status(401).json({ error: "Connect Tradovate before syncing trades." });
@@ -42,14 +51,14 @@ export default async function handler(req, res) {
 
   let accessToken;
   try {
-    const connection = await getTradovateConnection(connectionId);
+    const connection = await getTradovateConnection(connectionId, user.id);
     if (!connection?.access_token_encrypted) {
       res.status(404).json({ error: "Tradovate connection was not found in Supabase." });
       return;
     }
     accessToken = decryptSecret(connection.access_token_encrypted);
-  } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : "Could not load Tradovate connection." });
+  } catch {
+    res.status(500).json({ error: "Could not load the authorized Tradovate connection." });
     return;
   }
 

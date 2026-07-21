@@ -5,6 +5,7 @@ import { StartFreeButton } from "./StartFreeButton";
 
 type PlanTier = "free" | "pro";
 type PlanRoute = "dashboard" | "import" | "passport";
+type FooterRoute = "overview" | "privacy" | "terms" | "security";
 type AuthMode = "signup";
 
 const planOptions = [
@@ -159,7 +160,7 @@ export function PlanStrip({ compact = false, currentPlan, go, openAuth, upgradeT
   );
 }
 
-export function CtaFooter({ openAuth, sharePassport }: { openAuth: (mode: AuthMode) => void; sharePassport: () => void }) {
+export function CtaFooter({ go, openAuth, sharePassport }: { go: (section: FooterRoute) => void; openAuth: (mode: AuthMode) => void; sharePassport: () => void }) {
   return (
     <section className="deferred-paint-section relative overflow-hidden px-5 py-32 md:px-12 lg:px-20">
       <img src="/media/cova-dashboard-plate.jpg" alt="" className="absolute inset-0 h-full w-full object-cover opacity-[0.18] grayscale" loading="lazy" />
@@ -178,7 +179,12 @@ export function CtaFooter({ openAuth, sharePassport }: { openAuth: (mode: AuthMo
       </div>
       <footer className="relative mx-auto mt-28 flex max-w-7xl flex-col gap-5 border-t border-white/10 pt-7 font-body text-xs text-white/38 md:flex-row md:items-center md:justify-between">
         <span>© 2026 Cova. Built for risk review, not trade signals.</span>
-        <span>Trade history · Risk limits · Shareable Passport</span>
+        <nav className="flex flex-wrap gap-x-5 gap-y-3" aria-label="Legal and trust">
+          <button className="transition hover:text-white" onClick={() => go("privacy")} type="button">Privacy</button>
+          <button className="transition hover:text-white" onClick={() => go("terms")} type="button">Terms</button>
+          <button className="transition hover:text-white" onClick={() => go("security")} type="button">Security</button>
+          <a className="transition hover:text-white" href="mailto:support@covadesk.com">Support</a>
+        </nav>
       </footer>
     </section>
   );

@@ -1,4 +1,4 @@
-import { Activity, BarChart3, FileUp, Gauge, LogOut, Network, ShieldCheck, Target } from "lucide-react";
+import { Activity, BarChart3, FileUp, Gauge, LogOut, Network, ShieldCheck, Target, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
 import type { Section } from "../lib/appRoutes";
 
@@ -44,6 +44,7 @@ const workspaceNav = [
 type WorkspaceShellProps = {
   brokerLabel: string;
   children: ReactNode;
+  deleteAccount: () => void;
   email?: string;
   go: (section: Section) => void;
   riskScore: number;
@@ -51,7 +52,7 @@ type WorkspaceShellProps = {
   signOut: () => void;
 };
 
-export function WorkspaceShell({ brokerLabel, children, email, go, riskScore, section, signOut }: WorkspaceShellProps) {
+export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go, riskScore, section, signOut }: WorkspaceShellProps) {
   return (
     <div className="workspace-shell operator-workspace" data-workspace-section={section}>
       <aside className="workspace-sidebar" aria-label="Cova workspace navigation">
@@ -95,9 +96,14 @@ export function WorkspaceShell({ brokerLabel, children, email, go, riskScore, se
             <span>Signed in</span>
             <strong>{email || "Cova user"}</strong>
           </div>
-          <button onClick={signOut} type="button" aria-label="Sign out">
-            <LogOut className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={deleteAccount} type="button" aria-label="Delete account" title="Delete account">
+              <Trash2 className="h-4 w-4" />
+            </button>
+            <button onClick={signOut} type="button" aria-label="Sign out" title="Sign out">
+              <LogOut className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         <div className="workspace-sidebar-watermark">

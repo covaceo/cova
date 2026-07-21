@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { parseCsvDetailed } from "../lib/risk";
 import { type PropFirmId } from "../lib/propFirms";
-import { BROKER_STATUS_KEY, readBrokerStatus, writeBrokerStatus, type BrokerStatus } from "../lib/brokerStatus";
-import { buildTradovateConnectUrl, canRedirectToTradovate } from "../lib/tradovateConnect";
+import { BROKER_STATUS_KEY, clearBrokerStatus, readBrokerStatus, writeBrokerStatus, type BrokerStatus } from "../lib/brokerStatus";
+import { canRedirectToTradovate } from "../lib/tradovateConnect";
+import { authorizedFetch } from "../lib/apiClient";
 import { ImageAtmosphere, SectionShell } from "./LayoutShell";
 import { BrokerConnectPanel, CsvExportGuide, CsvPreview, CsvUploadPanel, ImportNextSteps } from "./ImportPanels";
 
@@ -55,7 +56,7 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
     setSyncBusy(true);
     setBrokerNotice("");
     try {
-      const response = await fetch("/api/tradovate/sync", { credentials: "include" });
+      const response = await authorizedFetch("/api/tradovate/sync");
       const contentType = response.headers.get("content-type") ?? "";
       if (!contentType.includes("application/json")) {
         throw new Error("Broker sync is not reachable from this preview.");
@@ -82,10 +83,9 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
     setProjectXBusy(true);
     setBrokerNotice("");
     try {
-      const response = await fetch("/api/projectx/connect", {
+      const response = await authorizedFetch("/api/projectx/connect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify(credentials),
       });
       const contentType = response.headers.get("content-type") ?? "";
@@ -102,7 +102,7 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
         status: data.connected ? "connected" : (data.status as BrokerStatus["status"] || "needs-storage"),
         connected: Boolean(data.connected),
         connectionId: data.connectionId,
-        message: data.message || (data.connected ? "TopstepX connected read-only." : "TopstepX verified the key, but secure storage is not configured yet."),
+        message: data.message || (data.connected ? "TopstepX connected. Cova will only request account and trade-history endpoints." : "TopstepX validated the key, but secure storage is not configured yet."),
         updatedAt: new Date().toISOString(),
       };
       writeBrokerStatus(nextStatus);
@@ -131,7 +131,7 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
     setProjectXSyncBusy(true);
     setBrokerNotice("");
     try {
-      const response = await fetch("/api/projectx/sync", { credentials: "include" });
+      const response = await authorizedFetch("/api/projectx/sync");
       const contentType = response.headers.get("content-type") ?? "";
       if (!contentType.includes("application/json")) {
         throw new Error("TopstepX sync backend is not reachable from this preview.");
@@ -154,20 +154,56 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
     }
   }
 
-  function startTradovateConnect() {
+  async function startTradovateConnect() {
     if (!canRedirectToTradovate()) {
       setBrokerNotice("Tradovate secure sync is not available in this preview. Upload a Tradovate export below to review the account today.");
       return;
     }
 
-    window.location.assign(buildTradovateConnectUrl());
+    try {
+      const response = await authorizedFetch("/api/tradovate/connect", { method: "POST" });
+      const data = await response.json() as { authorizationUrl?: string; error?: string };
+      if (!response.ok || !data.authorizationUrl) {
+        throw new Error(data.error || "Tradovate authorization could not start.");
+      }
+      window.location.assign(data.authorizationUrl);
+    } catch (error) {
+      setBrokerNotice(`${error instanceof Error ? error.message : "Tradovate authorization is unavailable."} Use CSV import while direct access is unavailable.`);
+    }
+  }
+
+  async function disconnectBroker() {
+    if (!brokerStatus?.connected) {
+      return;
+    }
+    const provider = brokerStatus.provider === "Tradovate" ? "tradovate" : "projectx";
+    setBrokerBusy(true);
+    setBrokerNotice("");
+    try {
+      const response = await authorizedFetch("/api/connectors/disconnect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider }),
+      });
+      const data = await response.json() as { error?: string; provider?: string };
+      if (!response.ok) {
+        throw new Error(data.error || "The connection could not be removed.");
+      }
+      clearBrokerStatus();
+      setBrokerStatus(null);
+      setBrokerNotice(`${data.provider || brokerStatus.provider} disconnected and its stored token was deleted.`);
+    } catch (error) {
+      setBrokerNotice(error instanceof Error ? error.message : "The connection could not be removed securely.");
+    } finally {
+      setBrokerBusy(false);
+    }
   }
 
   async function checkTradovateStatus() {
     setBrokerBusy(true);
     setBrokerNotice("");
     try {
-      const response = await fetch("/api/tradovate/status", { credentials: "include" });
+      const response = await authorizedFetch("/api/tradovate/status");
       const contentType = response.headers.get("content-type") ?? "";
       if (!contentType.includes("application/json")) {
         throw new Error("Broker status is not reachable from this preview.");
@@ -214,6 +250,7 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
           brokerStatus={brokerStatus}
           checkTradovateStatus={checkTradovateStatus}
           connectProjectX={connectProjectX}
+          disconnectBroker={disconnectBroker}
           entitlements={entitlements}
           openFirmOAuth={openFirmOAuth}
           projectXBusy={projectXBusy}
