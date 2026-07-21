@@ -74,8 +74,8 @@ export function Navbar({ section, go, openAuth, mobileOpen, setMobileOpen, authS
       transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
     >
       <div
-        className={`pointer-events-none absolute left-1/2 top-[1.16rem] -z-10 h-[4.1rem] w-[calc(100%-2rem)] max-w-[1370px] -translate-x-1/2 transition duration-500 ${
-          scrolled ? "header-scroll-veil opacity-90" : "header-scroll-veil opacity-60"
+        className={`header-scroll-veil pointer-events-none absolute left-1/2 top-[1.16rem] -z-10 h-[4.1rem] w-[calc(100%-2rem)] max-w-[1370px] -translate-x-1/2 ${
+          scrolled ? "header-scroll-veil-scrolled" : "header-scroll-veil-top"
         }`}
       />
       <div className="header-layout-row mx-auto flex w-full max-w-[1400px] items-center justify-between md:justify-center">
