@@ -208,7 +208,6 @@ export function Hero({ go, openAuth, isSignedIn }: HeroProps) {
               </blockquote>
             ))}
           </div>
-          <p className="mt-2 text-center font-body text-[10px] uppercase tracking-[0.14em] text-white/32">Real customer feedback. Individual experiences vary.</p>
         </motion.div>
       </div>
     </section>
