@@ -7,21 +7,12 @@
       name="description"
       content="Cova helps funded futures traders review risk, set limits, and share proof of discipline."
     />
-    <script>
-      if (window.location.protocol === "file:") {
-        const hash = window.location.hash || "#overview";
-        window.location.replace(`http://127.0.0.1:5173/${hash}`);
-      }
-    </script>
     <title>Cova</title>
     <link rel="icon" href="/cova-logo-minimal-white.svg" type="image/svg+xml" />
   </head>
   <body>
     <div id="root"></div>
-    <noscript>
-      Cova runs through the local Vite server:
-      http://127.0.0.1:5173/#overview
-    </noscript>
+    <noscript>Cova requires JavaScript to run.</noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
