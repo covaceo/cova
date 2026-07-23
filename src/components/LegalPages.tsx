@@ -2,7 +2,7 @@ import { ArrowUpRight, LockKeyhole, Scale, ShieldCheck } from "lucide-react";
 import type { ReactNode } from "react";
 import type { Section } from "../lib/appRoutes";
 
-const EFFECTIVE_DATE = "July 21, 2026";
+const EFFECTIVE_DATE = "July 22, 2026";
 const SUPPORT_EMAIL = "support@covadesk.com";
 
 type LegalRoute = "privacy" | "terms" | "security";
@@ -120,41 +120,41 @@ export function PrivacyPage({ go }: LegalPageProps) {
   const sections: LegalSection[] = [
     {
       title: "Scope and operator",
-      body: <><p>This Privacy Policy explains how the Cova service, website, applications, and support channels collect, use, disclose, and protect personal information. Cova is offered under the Cova trade name and is operated by its owner. This Policy applies when you visit covadesk.com, create an account, import trade history, connect a supported provider, use Practice or Risk Passport features, contact support, or otherwise use Cova.</p><p className="mt-4">Cova is intended for adults and is not directed to anyone under 18.</p></>,
+      body: <><p>This Privacy Policy explains how the Cova service, website, applications, and support channels collect, use, disclose, and protect personal information. Cova is operated by Rafael Lino, Founder and CEO of Cova, as an unincorporated product based in Manhattan, New York, USA. This Policy applies when you visit covadesk.com, import trade history, use Practice or Risk Passport features, contact support, or use an account or supported provider feature when one is available.</p><p className="mt-4">Cova is intended for adults and is not directed to anyone under 18.</p></>,
     },
     {
       title: "Information we collect",
       body: <><p>The information Cova processes depends on the features you use:</p><LegalList>
         <li><strong className="font-medium text-white/82">Account and contact data:</strong> email address, authentication identifier, account plan, signup and policy-acceptance records, support messages, and account preferences.</li>
         <li><strong className="font-medium text-white/82">Trading and journal data:</strong> CSV contents, trade dates, instruments, direction, quantity, entry and exit values, profit and loss, risk values, setup labels, notes, limits, review results, Passport settings, and simulated Practice activity.</li>
-        <li><strong className="font-medium text-white/82">Connected-account data:</strong> provider username or account label, provider account identifiers, balances, fills, trades, statements, session tokens, provider-granted scope, and expiration information. Cova does not ask for or store broker passwords. ProjectX or TopstepX users may submit a user-generated API key for backend validation. Cova discards that raw key after authentication and only calls account and trade-history endpoints, although the resulting provider token may carry broader provider permissions.</li>
+        <li><strong className="font-medium text-white/82">Connected-account data, when a provider connection is enabled:</strong> provider username or account label, provider account identifiers, balances, fills, trades, statements, session tokens, provider-granted scope, and expiration information. Cova does not ask for broker passwords. Direct provider synchronization is not currently active in production; provider approval, production Supabase setup, and connector verification remain pending.</li>
         <li><strong className="font-medium text-white/82">Technical data:</strong> IP address, request time, browser and device information, security events, cookie identifiers, and server logs generated when the service is requested.</li>
         <li><strong className="font-medium text-white/82">Billing data:</strong> plan and subscription status. When checkout is enabled, payment-card and billing details are collected by Stripe, not stored by Cova.</li>
       </LegalList></>,
     },
     {
       title: "How information is collected",
-      body: <p>Cova receives information directly from you, from files you choose to import, from providers you authorize or supply a user-generated key for, from authentication and payment providers, and automatically from the browser and hosting infrastructure needed to deliver and secure the service. Cova currently does not use advertising trackers or behavioral advertising analytics.</p>,
+      body: <p>Cova receives information directly from you, from files you choose to import, from service providers needed to deliver requested features, and automatically from the browser and hosting infrastructure needed to deliver and secure the service. If a direct provider connection is enabled after approval and production verification, Cova will also receive the account and completed trade-history data you authorize. Cova currently does not use advertising trackers or behavioral advertising analytics.</p>,
     },
     {
       title: "How we use information",
-      body: <><p>Cova uses information to provide authentication, import and normalize trade history, calculate review metrics, display limits and retrospective insights, operate Practice and Passport features, synchronize supported provider data, process subscriptions when paid checkout is enabled, provide support, prevent abuse, debug failures, secure accounts, comply with law, and improve service reliability.</p><p className="mt-4">Cova does not use connected-account access to place, modify, or cancel trades, withdraw funds, or manage brokerage settings.</p></>,
+      body: <><p>Cova uses information to import and normalize trade history, calculate review metrics, display limits and retrospective insights, operate Practice and Passport features, provide support, prevent abuse, debug failures, secure the service, comply with law, and improve reliability. Authentication, direct provider synchronization, and paid checkout are used only when those features are configured and available.</p><p className="mt-4">Cova does not use connected-account access to place, modify, or cancel trades, withdraw funds, or manage brokerage settings.</p></>,
     },
     {
       title: "How we share information",
-      body: <><p>Cova shares information only as needed to operate requested features, secure the service, or comply with law. Service providers may include Vercel for hosting and request delivery, Supabase for authentication and encrypted connector records, Stripe for checkout, Google Workspace for support email, and trading providers you choose to connect. Discord processes information separately when you join the Cova community.</p><p className="mt-4">Cova does not sell personal information and does not share personal information for cross-context behavioral advertising. Cova may disclose information if required by law, to protect users or the service, or as part of a business transfer subject to appropriate safeguards and notice.</p></>,
+      body: <><p>Cova shares information only as needed to operate requested features, secure the service, or comply with law. Current service providers include Vercel for hosting and request delivery and Google Workspace for support email. Stripe may process checkout if paid billing is enabled. Supabase is planned for authentication and encrypted connector records, but Supabase production setup is pending and direct provider synchronization is not active. Discord and any trading provider you separately choose to use process information under their own terms.</p><p className="mt-4">Cova does not sell personal information and does not share personal information for cross-context behavioral advertising. Cova may disclose information if required by law, to protect users or the service, or as part of a business transfer subject to appropriate safeguards and notice.</p></>,
     },
     {
       title: "Browser storage, cookies, and similar technology",
-      body: <><p>Cova uses essential authentication storage and first-party browser storage to keep you signed in, preserve imported trades, rules, Practice activity, display preferences, and connector status on the device you use. Connector cookies are Secure, HttpOnly, and SameSite cookies used to recognize an authorized connection. These technologies are necessary to provide requested features, not for advertising.</p><p className="mt-4">You can clear local browser data through Cova’s account controls or your browser. Clearing storage may permanently remove locally stored journal and Practice information that has not been exported.</p></>,
+      body: <><p>Cova uses first-party browser storage to preserve imported trades, rules, Practice activity, and display preferences on the device you use. When authenticated account or connector features are enabled, essential authentication storage and Secure, HttpOnly, SameSite connector cookies may also be used. These technologies support requested features, not advertising.</p><p className="mt-4">You can clear local browser data through Cova’s controls or your browser. Clearing storage may permanently remove locally stored journal and Practice information that has not been exported.</p></>,
     },
     {
       title: "Data retention",
-      body: <><p>Locally stored trade, rule, Passport, and Practice data remains on the device until you remove it, sign out using Cova’s controls, delete the account, or clear browser storage. Authentication records are retained while the account is active and for limited periods needed for security, fraud prevention, backup, and legal obligations.</p><p className="mt-4">Encrypted broker tokens and connection records are retained until the connection is disconnected, the account is deleted, the token expires and is cleaned up, or retention is otherwise required by law. Operational logs are retained according to configured security needs and the retention controls of Cova’s infrastructure providers. Cova keeps information only as long as reasonably necessary for the purposes described here.</p></>,
+      body: <><p>Locally stored trade, rule, Passport, and Practice data remains on the device until you remove it or clear browser storage. Account, authentication, and connector records will be retained only when those production features are enabled and for the periods needed to provide the feature, maintain security, satisfy legal obligations, or complete a verified deletion request.</p><p className="mt-4">Operational logs are retained according to configured security needs and the controls of Cova’s infrastructure providers. Cova keeps information only as long as reasonably necessary for the purposes described here.</p></>,
     },
     {
       title: "Security",
-      body: <p>Cova uses HTTPS, access controls, encrypted token storage, secure cookies, least-privilege provider requests, and operational safeguards designed to protect information. No online service can guarantee absolute security. Report suspected unauthorized access immediately to <ContactLink />. More detail is available on the Security & Data Handling page.</p>,
+      body: <p>Cova currently uses HTTPS, restricted server-side configuration, first-party browser storage, and operational safeguards designed to protect information. The reviewed connector candidate adds encrypted token storage, owner-bound records, secure cookies, and an endpoint allowlist after production Supabase setup and provider approval. No online service can guarantee absolute security. Report suspected unauthorized access immediately to <ContactLink />. More detail is available on the Security & Data Handling page.</p>,
     },
     {
       title: "Your privacy rights",
@@ -181,7 +181,7 @@ export function TermsPage({ go }: LegalPageProps) {
   const sections: LegalSection[] = [
     {
       title: "Agreement and operator",
-      body: <p>These Terms of Service form a binding agreement between you and the operator of Cova under the Cova trade name. By creating an account, checking the acceptance box, purchasing a plan, connecting an account, or using Cova, you agree to these Terms and the Privacy Policy. If you do not agree, do not use the service.</p>,
+      body: <p>These Terms of Service form a binding agreement between you and Rafael Lino, Founder and CEO of Cova, who currently operates Cova as an unincorporated product based in Manhattan, New York, USA. By creating an account, checking the acceptance box, purchasing a plan, connecting an account, or using Cova, you agree to these Terms and the Privacy Policy. If you do not agree, do not use the service.</p>,
     },
     {
       title: "Eligibility and accounts",
@@ -264,11 +264,11 @@ export function SecurityPage({ go }: LegalPageProps) {
     },
     {
       title: "Authentication and transport",
-      body: <p>Production member access uses Supabase passwordless magic links. Network traffic to Cova and configured service providers is protected with HTTPS/TLS. Cova does not store member passwords. Authentication tokens are managed by the authentication provider and the browser session needed to keep a member signed in.</p>,
+      body: <p>Network traffic to Cova and configured service providers is protected with HTTPS/TLS. The current public product does not have production Supabase authentication configured. The reviewed release candidate uses Supabase passwordless magic links and provider-managed authentication tokens after owner setup, migration, and deployment verification. Cova does not store member passwords.</p>,
     },
     {
       title: "Broker connections",
-      body: <><p>Supported broker and platform connections are bound to the authenticated Cova user. Cova’s connector code calls account identity and trade-history endpoints needed for review and contains no order-placement, withdrawal, or account-management calls. Some provider-issued tokens, including ProjectX tokens, may nevertheless carry broader provider permissions.</p><p className="mt-4">Provider access tokens are encrypted before database storage using AES-256-GCM. The browser receives an opaque connection identifier in a Secure, HttpOnly, SameSite cookie, not the provider token. Disconnect, sign-out, and account-deletion controls remove active Cova connection records and clear connector cookies. Users should separately revoke provider authorization or API keys when the provider offers that control.</p></>,
+      body: <><p>Direct broker and platform synchronization is not currently active in production. Provider approval, production Supabase setup, migrations, and end-to-end connector verification remain pending. The reviewed connector code is limited to account identity and trade-history endpoints and contains no order-placement, withdrawal, or account-management calls. Some provider-issued tokens, including ProjectX tokens, may nevertheless carry broader provider permissions.</p><p className="mt-4">The reviewed release candidate is designed to encrypt provider tokens with AES-256-GCM, bind connection records to the authenticated owner, and give the browser only an opaque Secure, HttpOnly, SameSite connection cookie. Those controls are not described as active production safeguards until the database and deployment are configured and verified.</p></>,
     },
     {
       title: "Local journal storage",
@@ -276,15 +276,15 @@ export function SecurityPage({ go }: LegalPageProps) {
     },
     {
       title: "Infrastructure and access",
-      body: <p>Cova uses Vercel for application hosting and request delivery and Supabase for authentication and encrypted connector records. Production secrets are kept in server-side environment configuration. Database row-level security and server authorization checks restrict connector records to the authenticated owner. Administrative credentials are not shipped to browser code.</p>,
+      body: <p>Cova currently uses Vercel for application hosting and request delivery. Supabase production setup is pending. The reviewed release candidate is designed to keep connector secrets in server-side configuration, enforce owner-bound records with database row-level security and server authorization checks, and keep administrative credentials out of browser code. Those database controls require migration and production verification before activation.</p>,
     },
     {
       title: "Payments and third parties",
-      body: <p>When paid checkout is enabled, Stripe handles payment-card information on its systems. Cova does not store full payment-card numbers. Trading providers, Discord, Stripe, Vercel, Supabase, and email providers maintain separate security programs and terms.</p>,
+      body: <p>When paid checkout is enabled, Stripe handles payment-card information on its systems. Cova does not store full payment-card numbers. Trading providers, Discord, Stripe, Vercel, planned Supabase services, and email providers maintain separate security programs and terms.</p>,
     },
     {
       title: "Data lifecycle",
-      body: <p>Cova minimizes connection data, stores provider tokens only when needed for a requested connection, and supports disconnect and account deletion. Security and legal records may be retained for limited periods when required to investigate abuse, satisfy law, or protect users. Backups and infrastructure logs age out according to configured provider controls.</p>,
+      body: <p>Cova minimizes current data collection and stores imported journal information primarily in first-party browser storage. If direct connections are activated after approval and production verification, the reviewed lifecycle retains provider tokens only for a requested connection and includes disconnect and account-deletion controls. Security and legal records may be retained for limited periods when required to investigate abuse, satisfy law, or protect users.</p>,
     },
     {
       title: "Your security responsibilities",

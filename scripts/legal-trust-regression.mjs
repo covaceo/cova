@@ -40,6 +40,11 @@ for (const heading of [
 }
 
 assert.match(legalPages, /support@covadesk\.com/g, "Legal pages should publish the verified support contact.");
+assert.match(legalPages, /Rafael Lino, Founder and CEO of Cova/i, "Legal pages should identify the owner-confirmed operator.");
+assert.match(legalPages, /Supabase production setup is pending/i, "Legal and security copy should disclose that Supabase is not active in production.");
+assert.doesNotMatch(legalPages, /Production member access uses Supabase/i, "Security copy must not describe unconfigured Supabase authentication as production behavior.");
+assert.doesNotMatch(legalPages, /Provider access tokens are encrypted before database storage/i, "Security copy must not describe pending token storage as active production behavior.");
+assert.doesNotMatch(legalPages, /Cova uses Vercel for application hosting and request delivery and Supabase for authentication/i, "Security copy must separate current hosting from pending Supabase setup.");
 assert.match(legalPages, /18 years of age|at least 18/i, "Terms should require adult users.");
 assert.match(legalPages, /do not sell|does not sell/i, "Privacy Policy should state Cova's sale position.");
 
