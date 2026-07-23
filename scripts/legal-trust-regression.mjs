@@ -60,6 +60,7 @@ assert.match(authPanels, /termsVersion/, "Signup should record the accepted poli
 assert.match(supabaseClient, /terms_accepted_at/, "Supabase signup metadata should record acceptance time.");
 assert.match(supabaseClient, /terms_version/, "Supabase signup metadata should record the accepted version.");
 assert.doesNotMatch(indexHtml, /fonts\.googleapis\.com|fonts\.gstatic\.com/, "Visitors should not contact Google merely to render typography.");
+assert.doesNotMatch(indexHtml, /<script(?![^>]*\bsrc=)[^>]*>[\s\S]*?<\/script>/i, "The production document should not ship inline executable scripts that its CSP blocks.");
 assert.match(mainTsx, /@fontsource\//, "Cova should bundle the fonts used by the interface.");
 assert.match(packageJson, /"test:legal"\s*:\s*"node scripts\/legal-trust-regression\.mjs"/, "The legal trust gate should be part of package scripts.");
 assert.match(packageJson, /test:legal/, "The canonical test command should run the legal trust gate.");
