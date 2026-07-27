@@ -522,6 +522,15 @@ export default function App() {
     go("dashboard");
   }
 
+  function openPassport() {
+    if (!isSignedIn) {
+      go("passport");
+      setAuthMode("login");
+      announce("Sign in to open your Risk Passport.", "info");
+      return;
+    }
+    go("passport");
+  }
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -551,7 +560,7 @@ export default function App() {
               <Hero go={go} openAuth={setAuthMode} isSignedIn={isSignedIn} />
               <StoryStrip />
               <PlanStrip currentPlan={authSession?.plan ?? null} go={go} openAuth={setAuthMode} upgradeToPro={upgradeToPro} />
-              <CtaFooter go={go} isSignedIn={isSignedIn} openAuth={setAuthMode} />
+              <CtaFooter go={go} isSignedIn={isSignedIn} openAuth={setAuthMode} openPassport={openPassport} />
             </RouteFrame>
           )}
           {section === "features" && (

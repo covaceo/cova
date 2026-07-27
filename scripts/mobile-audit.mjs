@@ -225,28 +225,33 @@ async function main() {
         await cdp.send("Runtime.evaluate", {
           expression: `(() => {
             document.documentElement.style.setProperty('scroll-behavior', 'auto', 'important');
-            document.querySelector('.cta-footer-evidence-room')?.scrollIntoView({ block: 'start', behavior: 'instant' });
+            document.querySelector('.cova-closing-section')?.scrollIntoView({ block: 'center', behavior: 'instant' });
+            window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' });
           })()`,
         });
         await sleep(600);
         const footerResult = await cdp.send("Runtime.evaluate", {
           returnByValue: true,
           expression: `(() => {
-            const element = document.querySelector('.cta-footer-evidence-room');
-            const title = document.querySelector('.cta-footer-copy h2');
-            const dashboard = document.querySelector('.footer-performance-proof');
-            const primary = document.querySelector('.cta-footer-actions .native-start-button');
-            const secondary = document.querySelector('.cta-footer-passport-action');
+            const element = document.querySelector('.cova-closing-section');
+            const siteFooter = document.querySelector('.cova-site-footer');
+            const title = document.querySelector('.cova-closing-title');
+            const primary = document.querySelector('.cova-closing-primary');
+            const secondary = document.querySelector('.cova-closing-secondary');
             const rect = (target) => target ? (() => {
               const value = target.getBoundingClientRect();
               return { top: value.top, right: value.right, bottom: value.bottom, left: value.left, width: value.width, height: value.height };
             })() : null;
             return element ? {
               title: title?.textContent?.trim() ?? '',
-              backgroundImage: getComputedStyle(element).backgroundImage,
+              backgroundColor: getComputedStyle(element).backgroundColor,
               overflow: element.scrollWidth - element.clientWidth,
               rect: rect(element),
-              dashboardRect: rect(dashboard),
+              footerRect: rect(siteFooter),
+              footerSeparate: Boolean(siteFooter) && !element.contains(siteFooter) && (siteFooter?.getBoundingClientRect().top ?? 0) >= element.getBoundingClientRect().bottom - 1,
+              dashboardInside: Boolean(element.querySelector('.footer-performance-proof, .cta-footer-dashboard, img')),
+              reviewsInside: /what people are saying|marcus r\.|daniel c\.|jasmine b\./i.test(element.innerText),
+              legalLabels: [...(siteFooter?.querySelectorAll('nav[aria-label="Legal and support"] button, nav[aria-label="Legal and support"] a') ?? [])].map((item) => item.textContent?.trim() ?? ''),
               primaryText: primary?.textContent?.trim() ?? '',
               secondaryText: secondary?.textContent?.trim() ?? '',
             } : null;
@@ -257,11 +262,14 @@ async function main() {
         footerScreenshot = join(outDir, `${route.name}-footer-${viewportWidth}x${viewportHeight}.png`);
         await writeFile(footerScreenshot, Buffer.from(footerCapture.data, "base64"));
 
-        await cdp.send("Runtime.evaluate", { expression: `document.querySelector('.cta-footer-actions .native-start-button')?.click();` });
+        await cdp.send("Runtime.evaluate", { expression: `document.querySelector('.cova-closing-primary')?.click();` });
         await sleep(700);
         const primaryOutcome = await cdp.send("Runtime.evaluate", {
           returnByValue: true,
-          expression: `({ hash: location.hash, hasAuthDialog: Boolean(document.querySelector('[role="dialog"][aria-modal="true"]')) })`,
+          expression: `(() => {
+            const dialog = document.querySelector('[role="dialog"][aria-modal="true"]');
+            return { hash: location.hash, hasAuthDialog: Boolean(dialog), dialogLabel: dialog?.getAttribute('aria-label') ?? null };
+          })()`,
         });
         footerPrimaryOutcome = primaryOutcome.result.value;
 
@@ -270,14 +278,18 @@ async function main() {
         await cdp.send("Runtime.evaluate", {
           expression: `(() => {
             document.documentElement.style.setProperty('scroll-behavior', 'auto', 'important');
-            document.querySelector('.cta-footer-evidence-room')?.scrollIntoView({ block: 'start', behavior: 'instant' });
-            document.querySelector('.cta-footer-passport-action')?.click();
+            document.querySelector('.cova-closing-section')?.scrollIntoView({ block: 'center', behavior: 'instant' });
+            window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' });
+            document.querySelector('.cova-closing-secondary')?.click();
           })()`,
         });
         await sleep(900);
         const secondaryOutcome = await cdp.send("Runtime.evaluate", {
           returnByValue: true,
-          expression: `({ hash: location.hash, hasAuthDialog: Boolean(document.querySelector('[role="dialog"][aria-modal="true"]')), storyTop: document.querySelector('.story-strip-simple')?.getBoundingClientRect().top ?? null })`,
+          expression: `(() => {
+            const dialog = document.querySelector('[role="dialog"][aria-modal="true"]');
+            return { hash: location.hash, hasAuthDialog: Boolean(dialog), dialogLabel: dialog?.getAttribute('aria-label') ?? null };
+          })()`,
         });
         footerSecondaryOutcome = secondaryOutcome.result.value;
       }
@@ -297,16 +309,18 @@ async function main() {
       ...(result.name === "overview-auth" && (result.actionOutcome?.hasAuthDialog || result.actionOutcome?.hash !== "#import") ? ["overview-auth: signed-in secondary CTA did not preserve Import routing"] : []),
       ...(result.name.startsWith("overview") && viewportHeight <= 760 && result.hero?.actionsBottom > viewportHeight ? [`${result.name}: hero actions fall below the short desktop fold`] : []),
       ...(result.name.startsWith("overview") && result.hero?.reactionTop !== null && result.hero?.actionsBottom > result.hero?.reactionTop ? [`${result.name}: hero actions collide with the testimonial rail`] : []),
-      ...(result.name === "overview" && !result.footer ? ["overview: footer evidence room missing"] : []),
-      ...(result.name === "overview" && result.footer && !result.footer.backgroundImage.includes("239, 184, 141") ? ["overview: footer apricot background missing"] : []),
+      ...(result.name === "overview" && !result.footer ? ["overview: approved closing CTA missing"] : []),
+      ...(result.name === "overview" && result.footer && result.footer.backgroundColor !== "rgb(240, 187, 145)" ? ["overview: approved peach background missing"] : []),
       ...(result.name === "overview" && result.footer?.title !== "Stop repeating the trade that keeps costing you." ? ["overview: footer headline mismatch"] : []),
       ...(result.name === "overview" && (result.footer?.overflow ?? 0) > 1 ? [`overview: footer overflow ${result.footer.overflow}px`] : []),
-      ...(result.name === "overview" && !result.footer?.dashboardRect ? ["overview: distinct footer performance proof missing"] : []),
-      ...(result.name === "overview" && result.footer?.dashboardRect && (result.footer.dashboardRect.left < -1 || result.footer.dashboardRect.right > result.width + 1) ? ["overview: footer dashboard escapes viewport"] : []),
+      ...(result.name === "overview" && result.footer?.dashboardInside ? ["overview: dashboard duplicated inside closing CTA"] : []),
+      ...(result.name === "overview" && result.footer?.reviewsInside ? ["overview: reviews duplicated inside closing CTA"] : []),
+      ...(result.name === "overview" && !result.footer?.footerSeparate ? ["overview: normal footer is not separate from closing CTA"] : []),
+      ...(result.name === "overview" && result.footer?.legalLabels?.join('|') !== "Privacy|Terms|Security|Support" ? ["overview: public legal or support footer links are missing"] : []),
       ...(result.name === "overview" && result.footer?.primaryText !== "Start for free" ? ["overview: signed-out footer primary label mismatch"] : []),
-      ...(result.name === "overview" && !result.footerPrimaryOutcome?.hasAuthDialog ? ["overview: signed-out footer primary did not open signup"] : []),
+      ...(result.name === "overview" && (!result.footerPrimaryOutcome?.hasAuthDialog || result.footerPrimaryOutcome?.dialogLabel !== "Create Cova account") ? ["overview: signed-out footer primary did not open the signup dialog"] : []),
       ...(result.name === "overview" && result.footer?.secondaryText !== "Explore Risk Passport" ? ["overview: signed-out footer Passport label mismatch"] : []),
-      ...(result.name === "overview" && (result.footerSecondaryOutcome?.hasAuthDialog || result.footerSecondaryOutcome?.hash !== "#overview" || result.footerSecondaryOutcome?.storyTop > result.height) ? ["overview: signed-out footer Passport action did not expose public proof"] : []),
+      ...(result.name === "overview" && (!result.footerSecondaryOutcome?.hasAuthDialog || result.footerSecondaryOutcome?.dialogLabel !== "Log in to Cova" || result.footerSecondaryOutcome?.hash !== "#passport") ? ["overview: signed-out footer Passport action did not open login with the Passport destination"] : []),
       ...(result.name === "overview-auth" && result.footer?.primaryText !== "Open dashboard" ? ["overview-auth: signed-in footer primary label mismatch"] : []),
       ...(result.name === "overview-auth" && (result.footerPrimaryOutcome?.hasAuthDialog || result.footerPrimaryOutcome?.hash !== "#dashboard") ? ["overview-auth: signed-in footer primary did not open dashboard"] : []),
       ...(result.name === "overview-auth" && result.footer?.secondaryText !== "Open Risk Passport" ? ["overview-auth: signed-in footer Passport label mismatch"] : []),

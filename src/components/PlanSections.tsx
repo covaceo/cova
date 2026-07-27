@@ -1,12 +1,11 @@
 import { motion } from "motion/react";
 import { ArrowUpRight, Check, X } from "lucide-react";
-import { FooterPerformanceProof } from "./FooterPerformanceProof";
 import { GlassButton } from "./GlassButton";
 import { StartFreeButton } from "./StartFreeButton";
 
 type PlanTier = "free" | "pro";
 type PlanRoute = "dashboard" | "import" | "passport";
-type FooterRoute = "overview" | "dashboard" | "passport" | "privacy" | "terms" | "security";
+type FooterRoute = PlanRoute | "privacy" | "terms" | "security";
 type AuthMode = "signup";
 
 const planOptions = [
@@ -53,24 +52,6 @@ const planOptions = [
       "No payout guarantee",
       "No financial advice",
     ],
-  },
-] as const;
-
-const footerReviews = [
-  {
-    name: "Marcus R.",
-    quote: "Cova showed me patterns in my trading I never noticed before. My risk management has improved a lot.",
-    rating: 5,
-  },
-  {
-    name: "Daniel C.",
-    quote: "It’s more than a trade tracker. Cova helps me understand why I keep making the same mistakes.",
-    rating: 5,
-  },
-  {
-    name: "Jasmine B.",
-    quote: "Cova made my trade reviews faster, clearer, and way more useful.",
-    rating: 5,
   },
 ] as const;
 
@@ -185,72 +166,42 @@ export function PlanStrip({ compact = false, currentPlan, go, openAuth, upgradeT
   );
 }
 
-export function CtaFooter({ go, isSignedIn, openAuth }: { go: (section: FooterRoute) => void; isSignedIn: boolean; openAuth: (mode: AuthMode) => void }) {
-  function explorePassportProof() {
-    document.querySelector(".story-strip-simple")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-
+export function CtaFooter({ go, isSignedIn, openAuth, openPassport }: { go: (section: FooterRoute) => void; isSignedIn: boolean; openAuth: (mode: AuthMode) => void; openPassport: () => void }) {
   return (
-    <section className="cta-footer-evidence-room deferred-paint-section relative overflow-hidden">
-      <div aria-hidden="true" className="cta-footer-grid" />
-      <div aria-hidden="true" className="cta-footer-risk-orbit" />
-      <div className="cta-footer-main">
-        <motion.div
-          className="cta-footer-copy"
-          initial={{ opacity: 0, y: 24 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.24 }}
-          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-        >
-          <p className="cta-footer-kicker">One better decision at a time</p>
-          <h2>Stop repeating the trade that keeps costing you.</h2>
-          <p className="cta-footer-support">Review behavior. Tighten limits. Build proof of discipline.</p>
-          <div className="cta-footer-actions">
-            {isSignedIn ? (
-              <StartFreeButton icon onClick={() => go("dashboard")}>Open dashboard</StartFreeButton>
-            ) : (
-              <StartFreeButton icon onClick={() => openAuth("signup")} />
-            )}
-            <button className="cta-footer-passport-action" onClick={isSignedIn ? () => go("passport") : explorePassportProof} type="button">
-              {isSignedIn ? "Open Risk Passport" : "Explore Risk Passport"} <ArrowUpRight aria-hidden="true" className="h-4 w-4" />
+    <>
+      <section aria-labelledby="cova-closing-title" className="cova-closing-section">
+        <div className="cova-closing-content">
+          <p className="cova-closing-label"><span aria-hidden="true" />One better decision at a time</p>
+          <h2 className="cova-closing-title" id="cova-closing-title">
+            <span>Stop repeating the trade</span>{" "}
+            <span>that keeps costing you.</span>
+          </h2>
+          <p className="cova-closing-summary">Review behavior. Tighten limits. Build proof of discipline.</p>
+          <div className="cova-closing-actions">
+            <StartFreeButton className="cova-closing-primary" icon onClick={isSignedIn ? () => go("dashboard") : () => openAuth("signup")}>
+              {isSignedIn ? "Open dashboard" : "Start for free"}
+            </StartFreeButton>
+            <button className="cova-closing-secondary" onClick={openPassport} type="button">
+              {isSignedIn ? "Open Risk Passport" : "Explore Risk Passport"} <ArrowUpRight aria-hidden="true" className="h-3.5 w-3.5" />
             </button>
           </div>
-          <p className="cta-footer-proof"><span /> No credit card required.</p>
-        </motion.div>
-
-        <div className="cta-footer-dashboard" aria-label="Sample Cova performance screen" role="img">
-          <FooterPerformanceProof />
         </div>
-      </div>
-
-      <div className="cta-footer-reviews">
-        <p className="cta-footer-reviews-heading">What people are saying</p>
-        <div className="cta-footer-reviews-grid">
-          {footerReviews.map(({ name, quote, rating }) => (
-            <blockquote key={name}>
-              <p>“{quote}”</p>
-              <footer>
-                <strong>{name}</strong>
-                <span aria-label={`${rating} out of 5 stars`} role="img">
-                  <span aria-hidden="true">{"★".repeat(rating)}</span>
-                  <small aria-hidden="true">{rating}/5</small>
-                </span>
-              </footer>
-            </blockquote>
-          ))}
+      </section>
+      <footer className="cova-site-footer">
+        <div className="cova-site-footer-inner">
+          <span>© 2026 Cova. Built for risk review, not trade signals.</span>
+          <div className="cova-site-footer-meta">
+            <span>Trade history · Risk limits · Shareable Passport</span>
+            <nav aria-label="Legal and support">
+              <button onClick={() => go("privacy")} type="button">Privacy</button>
+              <button onClick={() => go("terms")} type="button">Terms</button>
+              <button onClick={() => go("security")} type="button">Security</button>
+              <a href="mailto:support@covadesk.com">Support</a>
+            </nav>
+          </div>
         </div>
-      </div>
-
-      <footer className="cta-footer-legal">
-        <span>© 2026 Cova. Built for risk review, not trade signals.</span>
-        <nav className="flex flex-wrap gap-x-5 gap-y-3" aria-label="Legal and trust">
-          <button className="transition hover:text-white" onClick={() => go("privacy")} type="button">Privacy</button>
-          <button className="transition hover:text-white" onClick={() => go("terms")} type="button">Terms</button>
-          <button className="transition hover:text-white" onClick={() => go("security")} type="button">Security</button>
-          <a className="transition hover:text-white" href="mailto:support@covadesk.com">Support</a>
-        </nav>
       </footer>
-    </section>
+    </>
   );
 }
 
