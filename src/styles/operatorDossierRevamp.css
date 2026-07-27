@@ -91,68 +91,6 @@ body::after {
   }
 }
 
-.plan-card-pro {
-  overflow: visible !important;
-  border-color: rgba(239, 184, 141, 0.26) !important;
-  background:
-    radial-gradient(circle at 88% 8%, rgba(239, 184, 141, 0.11), transparent 16rem),
-    linear-gradient(180deg, rgba(238, 231, 220, 0.03), transparent 38%),
-    var(--cova-surface-2) !important;
-}
-
-.plan-recommendation-tab {
-  position: absolute !important;
-  top: -0.76rem;
-  right: 1.5rem !important;
-  left: auto !important;
-  z-index: 8;
-  display: inline-flex;
-  min-height: 1.72rem;
-  align-items: center;
-  gap: 0.42rem;
-  max-width: calc(100% - 2rem);
-  padding: 0.42rem 0.72rem;
-  border: 1px solid rgba(255, 225, 202, 0.6);
-  border-radius: 3px;
-  color: #24170f;
-  background: #efb88d;
-  box-shadow:
-    0 0 0 1px rgba(83, 46, 25, 0.12),
-    0 0 26px rgba(239, 184, 141, 0.26),
-    0 8px 24px rgba(0, 0, 0, 0.28);
-  font-family: "JetBrains Mono", monospace;
-  font-size: 0.54rem;
-  font-weight: 600;
-  letter-spacing: 0.09em;
-  line-height: 1;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.plan-recommendation-dot {
-  width: 0.28rem;
-  height: 0.28rem;
-  flex: 0 0 auto;
-  border-radius: 50%;
-  background: #332117;
-  box-shadow: 0 0 0 2px rgba(51, 33, 23, 0.09);
-}
-
-@media (max-width: 767px) {
-  .plan-card-pro {
-    margin-top: 0.5rem;
-  }
-
-  .plan-recommendation-tab {
-    top: -0.72rem;
-    right: 0.8rem !important;
-    max-width: calc(100% - 1.6rem);
-    padding-inline: 0.58rem;
-    font-size: 0.52rem;
-    letter-spacing: 0.065em;
-  }
-}
-
 .deferred-paint-section [class*="rounded-["]:not(.passport-card-face):not(.passport-card-hitbox):not(.passport-card-scene) {
   border-radius: 8px !important;
 }
@@ -317,26 +255,16 @@ textarea {
   color: var(--cova-paper) !important;
 }
 
-/* Hero: approved warm evidence-room field with a dark product anchor. */
+/* Hero: editorial conviction over ambient glow. */
 .market-hero {
-  color: #17110d;
-  background: #efb88d !important;
+  background: #050505 !important;
 }
 
-.market-hero-atmosphere {
+.market-hero > div:first-child {
   background:
-    radial-gradient(circle at 34% 38%, rgba(255, 232, 211, 0.24), transparent 32rem),
-    linear-gradient(180deg, #efb88d 0%, #edb489 76%, #d69d74 100%) !important;
-}
-
-.market-hero-vignette {
-  background:
-    linear-gradient(90deg, rgba(255, 241, 226, 0.08), transparent 34%, rgba(50, 29, 17, 0.035)),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 68%) !important;
-}
-
-.market-hero-transition {
-  background: linear-gradient(180deg, rgba(239, 184, 141, 0) 0%, rgba(30, 20, 14, 0.28) 42%, #000 100%);
+    radial-gradient(ellipse at 76% 42%, rgba(82, 201, 157, 0.055), transparent 36%),
+    radial-gradient(ellipse at 28% 24%, rgba(191, 137, 100, 0.055), transparent 30%),
+    linear-gradient(180deg, #050505 0%, #080807 58%, #050505 100%) !important;
 }
 
 .market-hero::before,
@@ -350,130 +278,84 @@ textarea {
 }
 
 .market-hero-grid {
-  opacity: 0.68 !important;
+  opacity: 0.52 !important;
   background-image:
-    linear-gradient(rgba(49, 34, 25, 0.065) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(49, 34, 25, 0.06) 1px, transparent 1px) !important;
-  background-size: 72px 72px !important;
-  mask-image: linear-gradient(90deg, transparent 1%, #000 16%, #000 88%, transparent 100%) !important;
-}
-
-.market-hero-risk-orbit {
-  position: absolute;
-  top: clamp(8.5rem, 14vh, 10.5rem);
-  left: clamp(-7rem, 8vw, 7.5rem);
-  z-index: 3;
-  width: clamp(28rem, 43vw, 43rem);
-  aspect-ratio: 1;
-  border: 1px solid rgba(49, 34, 25, 0.13);
-  border-radius: 50%;
-  pointer-events: none;
-}
-
-.market-hero-risk-orbit::before,
-.market-hero-risk-orbit::after {
-  position: absolute;
-  content: "";
-  pointer-events: none;
-}
-
-.market-hero-risk-orbit::before {
-  inset: 10%;
-  border: 1px solid rgba(49, 34, 25, 0.045);
-  border-radius: 50%;
-}
-
-.market-hero-risk-orbit::after {
-  top: 50%;
-  right: -9%;
-  left: -9%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(49, 34, 25, 0.1) 14%, rgba(49, 34, 25, 0.1) 86%, transparent);
+    linear-gradient(rgba(232, 224, 211, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(232, 224, 211, 0.03) 1px, transparent 1px) !important;
+  background-size: 80px 80px !important;
+  mask-image: linear-gradient(90deg, transparent 2%, rgba(0,0,0,0.42) 34%, #000 72%, transparent 100%) !important;
 }
 
 .market-hero-layout {
-  grid-template-columns: minmax(420px, 0.88fr) minmax(0, 1.12fr) !important;
+  grid-template-columns: minmax(390px, 0.82fr) minmax(0, 1.18fr) !important;
   max-width: 1460px;
 }
 
 .market-hero-copy {
-  max-width: 43rem !important;
+  max-width: 38rem !important;
 }
 
 .market-hero-eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.8rem;
-  color: rgba(34, 23, 17, 0.72) !important;
+  color: var(--cova-copper) !important;
   font-family: "JetBrains Mono", monospace !important;
-  font-size: 0.66rem !important;
+  font-size: 0.68rem !important;
   letter-spacing: 0.24em !important;
   text-shadow: none !important;
 }
 
-.market-hero-eyebrow::before {
-  width: 1.8rem;
-  height: 1px;
-  content: "";
-  background: rgba(34, 23, 17, 0.52);
-}
-
-.market-hero-title,
-.market-hero-title span {
-  max-width: 11.5ch;
-  color: #11100f !important;
+.market-hero-title {
+  color: var(--cova-paper) !important;
   font-family: "Space Grotesk", "Inter", sans-serif !important;
-  font-style: normal !important;
-  font-weight: 600 !important;
-  letter-spacing: -0.075em !important;
-  line-height: 0.91 !important;
+  letter-spacing: -0.07em !important;
   text-shadow: none !important;
   text-wrap: balance;
 }
 
+.market-hero-title .market-hero-signal {
+  color: var(--cova-copper) !important;
+  text-shadow: none !important;
+}
+
+.market-hero-title .market-hero-editorial {
+  display: inline-block;
+  margin-top: 0.08em;
+  color: var(--cova-paper) !important;
+  font-family: var(--font-editorial) !important;
+  font-size: 0.91em;
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: -0.035em;
+  line-height: 0.88;
+  text-shadow: none !important;
+}
+
 .market-hero-subline {
-  width: min(100%, 34rem) !important;
-  max-width: 34rem !important;
-  color: #453126 !important;
-  font-size: 1rem !important;
-  font-weight: 450 !important;
-  line-height: 1.62 !important;
+  color: rgba(232, 224, 211, 0.64) !important;
+  font-size: 1.05rem !important;
+  line-height: 1.72 !important;
 }
 
-.market-hero .hero-primary-cta-wrap .native-start-button {
-  min-width: 11.35rem;
-  color: #f3dfcc !important;
-  border-color: #171411 !important;
-  background: #171411 !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    4px 5px 0 rgba(81, 48, 29, 0.12) !important;
+.market-play-dot {
+  width: 2.9rem !important;
+  height: 2.9rem !important;
+  border: 1px solid rgba(191, 137, 100, 0.38) !important;
+  border-radius: 3px !important;
+  color: var(--cova-copper) !important;
+  background: var(--cova-copper-soft) !important;
+  box-shadow: none !important;
 }
 
-.market-hero .hero-primary-cta-wrap .native-start-button:hover {
-  color: #fff2e6 !important;
-  border-color: #000 !important;
-  background: #050505 !important;
+.market-play-dot svg {
+  color: var(--cova-copper) !important;
+  fill: var(--cova-copper) !important;
 }
 
 .market-hero-action {
-  color: rgba(31, 21, 15, 0.76) !important;
-}
-
-.market-hero-action:hover {
-  color: #0d0b09 !important;
-}
-
-.market-hero-action svg {
-  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.market-hero-action:hover svg {
-  transform: translate(2px, -2px);
+  color: rgba(232, 224, 211, 0.64) !important;
 }
 
 .market-hero-proof {
-  color: #3b2a21 !important;
+  color: rgba(232, 224, 211, 0.62) !important;
   font-family: "JetBrains Mono", monospace !important;
   font-size: 0.68rem !important;
   letter-spacing: 0.04em !important;
@@ -482,7 +364,7 @@ textarea {
 
 .market-hero-proof span {
   border-radius: 0 !important;
-  background: #433027 !important;
+  background: var(--cova-accent) !important;
   box-shadow: none !important;
 }
 
@@ -1059,6 +941,9 @@ textarea {
     font-size: clamp(3.6rem, 17vw, 4.7rem) !important;
   }
 
+  .market-hero-title .market-hero-editorial {
+    max-width: 9ch;
+  }
 
   .market-hero-subline {
     max-width: 31rem !important;
@@ -1129,6 +1014,12 @@ textarea {
     line-height: 0.91 !important;
   }
 
+  .market-hero-title .market-hero-editorial {
+    max-width: 10ch;
+    margin-top: 0.14em;
+    font-size: 0.87em;
+    line-height: 0.9;
+  }
 
   .market-hero-subline {
     width: 100% !important;
@@ -1138,7 +1029,7 @@ textarea {
     line-height: 1.62 !important;
   }
 
-  .market-hero-actions {
+  .market-hero-copy > div[class*="mt-8"] {
     margin-top: 1.6rem !important;
     gap: 0.75rem !important;
   }
@@ -1151,16 +1042,6 @@ textarea {
   .market-hero-copy .hero-primary-cta-wrap .native-start-button {
     width: 100%;
     min-width: 0;
-  }
-
-  .market-hero-action {
-    width: 100%;
-    min-height: 2.75rem;
-    justify-content: flex-start;
-  }
-
-  .market-hero-action-label {
-    display: inline;
   }
 
   .market-hero-proof {
@@ -1377,6 +1258,17 @@ textarea {
 }
 
 @media (min-width: 901px) {
+  .market-hero-title .market-hero-editorial {
+    max-width: 9.5ch;
+    color: rgba(232, 224, 211, 0.88) !important;
+    font-family: "Space Grotesk", "Inter", sans-serif !important;
+    font-size: 0.84em;
+    font-style: normal;
+    font-weight: 600;
+    letter-spacing: -0.075em;
+    line-height: 0.94;
+  }
+
   .hero-dashboard-shell {
     right: 0 !important;
     width: min(100%, 57.5rem) !important;
@@ -1543,39 +1435,5 @@ textarea {
   .market-reaction-item {
     min-height: 5.55rem;
     padding: 0.82rem 1.15rem;
-  }
-}
-
-@media (min-width: 901px) and (max-height: 760px) {
-  .market-hero-layout {
-    padding-top: 6.65rem !important;
-    padding-bottom: 3rem !important;
-  }
-
-  .market-hero-title {
-    max-width: 12.5ch;
-    font-size: clamp(3.15rem, 5vw, 3.9rem) !important;
-  }
-
-  .market-hero-subline {
-    margin-top: 1rem !important;
-    line-height: 1.45 !important;
-  }
-
-  .market-hero-actions {
-    margin-top: 1.2rem !important;
-  }
-
-  .market-hero-proof {
-    margin-top: 0.7rem !important;
-  }
-
-  .market-reaction-band {
-    position: relative;
-    right: auto;
-    bottom: auto;
-    left: auto;
-    grid-column: 1 / -1;
-    margin-top: 1.5rem;
   }
 }
