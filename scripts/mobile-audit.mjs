@@ -9,7 +9,7 @@ const outDir = resolve("sketches/mobile-audit-2026-07-08");
 const viewportWidth = Number(process.env.COVA_VIEWPORT_WIDTH || 390);
 const viewportHeight = Number(process.env.COVA_VIEWPORT_HEIGHT || 1200);
 const routes = [
-  { name: "overview", hash: "overview", needsAuth: false, requiredText: ["What Cova caught", "Daily loss breach"] },
+  { name: "overview", hash: "overview", needsAuth: false, requiredText: ["See the patterns", "behind your risk.", "What Cova caught", "Daily loss breach"] },
   { name: "overview-auth", hash: "overview", needsAuth: true, requiredText: ["Link account", "Daily loss breach"] },
   { name: "pricing", hash: "pricing", needsAuth: false, requiredText: ["MOST CHOSEN BY ACTIVE TRADERS", "Cova Pro"] },
   { name: "import", hash: "import", needsAuth: true, requiredText: ["Upload CSV first", "Beta connector"] },
@@ -170,6 +170,7 @@ async function main() {
             route: location.hash,
             width: innerWidth,
             height: innerHeight,
+            visualViewportWidth: visualViewport?.width ?? null,
             documentOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
             worstOverflow: worst,
             required: ${JSON.stringify(route.requiredText)}.map((text) => ({ text, present: body.toLowerCase().includes(text.toLowerCase()) })),
@@ -213,7 +214,74 @@ async function main() {
         });
         actionOutcome = outcome.result.value;
       }
-      results.push({ name: route.name, screenshot: screenshotPath, actionOutcome, ...audit.result.value });
+      let footer = null;
+      let footerScreenshot = null;
+      let footerPrimaryOutcome = null;
+      let footerSecondaryOutcome = null;
+      if (route.name === "overview" || route.name === "overview-auth") {
+        const footerUrl = `${origin}/?mobileAudit=${Date.now()}-${route.name}-footer#overview`;
+        await cdp.send("Page.navigate", { url: footerUrl });
+        await sleep(route.needsAuth ? 1200 : 900);
+        await cdp.send("Runtime.evaluate", {
+          expression: `(() => {
+            document.documentElement.style.setProperty('scroll-behavior', 'auto', 'important');
+            document.querySelector('.cta-footer-evidence-room')?.scrollIntoView({ block: 'start', behavior: 'instant' });
+          })()`,
+        });
+        await sleep(600);
+        const footerResult = await cdp.send("Runtime.evaluate", {
+          returnByValue: true,
+          expression: `(() => {
+            const element = document.querySelector('.cta-footer-evidence-room');
+            const title = document.querySelector('.cta-footer-copy h2');
+            const dashboard = document.querySelector('.cta-footer-dashboard .hero-dashboard-shell');
+            const primary = document.querySelector('.cta-footer-actions .native-start-button');
+            const secondary = document.querySelector('.cta-footer-passport-action');
+            const rect = (target) => target ? (() => {
+              const value = target.getBoundingClientRect();
+              return { top: value.top, right: value.right, bottom: value.bottom, left: value.left, width: value.width, height: value.height };
+            })() : null;
+            return element ? {
+              title: title?.textContent?.trim() ?? '',
+              backgroundImage: getComputedStyle(element).backgroundImage,
+              overflow: element.scrollWidth - element.clientWidth,
+              rect: rect(element),
+              dashboardRect: rect(dashboard),
+              primaryText: primary?.textContent?.trim() ?? '',
+              secondaryText: secondary?.textContent?.trim() ?? '',
+            } : null;
+          })()`,
+        });
+        footer = footerResult.result.value;
+        const footerCapture = await cdp.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false, fromSurface: true });
+        footerScreenshot = join(outDir, `${route.name}-footer-${viewportWidth}x${viewportHeight}.png`);
+        await writeFile(footerScreenshot, Buffer.from(footerCapture.data, "base64"));
+
+        await cdp.send("Runtime.evaluate", { expression: `document.querySelector('.cta-footer-actions .native-start-button')?.click();` });
+        await sleep(700);
+        const primaryOutcome = await cdp.send("Runtime.evaluate", {
+          returnByValue: true,
+          expression: `({ hash: location.hash, hasAuthDialog: Boolean(document.querySelector('[role="dialog"][aria-modal="true"]')) })`,
+        });
+        footerPrimaryOutcome = primaryOutcome.result.value;
+
+        await cdp.send("Page.navigate", { url: `${origin}/?mobileAudit=${Date.now()}-${route.name}-secondary#overview` });
+        await sleep(route.needsAuth ? 1200 : 900);
+        await cdp.send("Runtime.evaluate", {
+          expression: `(() => {
+            document.documentElement.style.setProperty('scroll-behavior', 'auto', 'important');
+            document.querySelector('.cta-footer-evidence-room')?.scrollIntoView({ block: 'start', behavior: 'instant' });
+            document.querySelector('.cta-footer-passport-action')?.click();
+          })()`,
+        });
+        await sleep(900);
+        const secondaryOutcome = await cdp.send("Runtime.evaluate", {
+          returnByValue: true,
+          expression: `({ hash: location.hash, hasAuthDialog: Boolean(document.querySelector('[role="dialog"][aria-modal="true"]')), storyTop: document.querySelector('.story-strip-simple')?.getBoundingClientRect().top ?? null })`,
+        });
+        footerSecondaryOutcome = secondaryOutcome.result.value;
+      }
+      results.push({ name: route.name, screenshot: screenshotPath, footerScreenshot, actionOutcome, footer, footerPrimaryOutcome, footerSecondaryOutcome, ...audit.result.value });
     }
 
     cdp.close();
@@ -222,13 +290,26 @@ async function main() {
       ...(result.hasAuthDialog ? [`${result.name}: unexpected auth dialog`] : []),
       ...(result.name === "pricing" && result.recommendation?.position !== "absolute" ? ["pricing: recommendation tab is not absolutely attached"] : []),
       ...(result.name === "pricing" && result.recommendation?.cardOverflow !== "visible" ? ["pricing: recommendation tab is clipped by the Pro card"] : []),
-      ...(result.name === "pricing" && (!result.recommendation?.fullyInViewport || !result.recommendation?.verticallyVisible || Math.abs(result.recommendation.rightDelta - 13) > 6) ? ["pricing: recommendation tab is not visibly aligned inside the Pro card's upper-right edge"] : []),
-      ...(result.name === "overview" && result.hero?.secondary.text !== "Explore Risk Passport" ? ["overview: Risk Passport CTA label is not visible on mobile"] : []),
-      ...(result.name === "overview" && (result.hero?.secondary.left < 0 || result.hero?.secondary.right > result.width) ? ["overview: Risk Passport CTA overflows the mobile viewport"] : []),
-      ...(result.name === "overview" && (result.actionOutcome?.hasAuthDialog || result.actionOutcome?.hash !== "#overview" || result.actionOutcome?.storyTop > result.height) ? ["overview: signed-out Passport CTA did not scroll to public proof"] : []),
+      ...(result.name === "pricing" && (!result.recommendation?.fullyInViewport || !result.recommendation?.verticallyVisible || Math.abs(result.recommendation.rightDelta - (viewportWidth < 768 ? 14 : 24)) > 6) ? ["pricing: recommendation tab is not visibly aligned inside the Pro card's upper-right edge"] : []),
+      ...(result.name === "overview" && result.hero?.secondary.text !== "See how it works" ? ["overview: original secondary CTA label is not visible"] : []),
+      ...(result.name === "overview" && (result.hero?.secondary.left < 0 || result.hero?.secondary.right > result.width) ? ["overview: secondary CTA overflows the viewport"] : []),
+      ...(result.name === "overview" && (result.actionOutcome?.hasAuthDialog || result.actionOutcome?.hash !== "#overview" || result.actionOutcome?.storyTop > result.height) ? ["overview: signed-out secondary CTA did not scroll to public proof"] : []),
       ...(result.name === "overview-auth" && (result.actionOutcome?.hasAuthDialog || result.actionOutcome?.hash !== "#import") ? ["overview-auth: signed-in secondary CTA did not preserve Import routing"] : []),
       ...(result.name.startsWith("overview") && viewportHeight <= 760 && result.hero?.actionsBottom > viewportHeight ? [`${result.name}: hero actions fall below the short desktop fold`] : []),
       ...(result.name.startsWith("overview") && result.hero?.reactionTop !== null && result.hero?.actionsBottom > result.hero?.reactionTop ? [`${result.name}: hero actions collide with the testimonial rail`] : []),
+      ...(result.name === "overview" && !result.footer ? ["overview: footer evidence room missing"] : []),
+      ...(result.name === "overview" && result.footer && !result.footer.backgroundImage.includes("239, 184, 141") ? ["overview: footer apricot background missing"] : []),
+      ...(result.name === "overview" && result.footer?.title !== "Stop repeating the trade that keeps costing you." ? ["overview: footer headline mismatch"] : []),
+      ...(result.name === "overview" && (result.footer?.overflow ?? 0) > 1 ? [`overview: footer overflow ${result.footer.overflow}px`] : []),
+      ...(result.name === "overview" && result.footer?.dashboardRect && (result.footer.dashboardRect.left < -1 || result.footer.dashboardRect.right > result.width + 1) ? ["overview: footer dashboard escapes viewport"] : []),
+      ...(result.name === "overview" && result.footer?.primaryText !== "Start for free" ? ["overview: signed-out footer primary label mismatch"] : []),
+      ...(result.name === "overview" && !result.footerPrimaryOutcome?.hasAuthDialog ? ["overview: signed-out footer primary did not open signup"] : []),
+      ...(result.name === "overview" && result.footer?.secondaryText !== "Explore Risk Passport" ? ["overview: signed-out footer Passport label mismatch"] : []),
+      ...(result.name === "overview" && (result.footerSecondaryOutcome?.hasAuthDialog || result.footerSecondaryOutcome?.hash !== "#overview" || result.footerSecondaryOutcome?.storyTop > result.height) ? ["overview: signed-out footer Passport action did not expose public proof"] : []),
+      ...(result.name === "overview-auth" && result.footer?.primaryText !== "Open dashboard" ? ["overview-auth: signed-in footer primary label mismatch"] : []),
+      ...(result.name === "overview-auth" && (result.footerPrimaryOutcome?.hasAuthDialog || result.footerPrimaryOutcome?.hash !== "#dashboard") ? ["overview-auth: signed-in footer primary did not open dashboard"] : []),
+      ...(result.name === "overview-auth" && result.footer?.secondaryText !== "Open Risk Passport" ? ["overview-auth: signed-in footer Passport label mismatch"] : []),
+      ...(result.name === "overview-auth" && (result.footerSecondaryOutcome?.hasAuthDialog || result.footerSecondaryOutcome?.hash !== "#passport") ? ["overview-auth: signed-in footer Passport action did not open Passport"] : []),
       ...result.required.filter((check) => !check.present).map((check) => `${result.name}: missing “${check.text}”`),
     ]);
     console.log(JSON.stringify({ outDir, results, failures }, null, 2));

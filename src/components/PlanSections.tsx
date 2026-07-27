@@ -1,11 +1,12 @@
 import { motion } from "motion/react";
 import { ArrowUpRight, Check, X } from "lucide-react";
 import { GlassButton } from "./GlassButton";
+import { MarketingDashboardProof } from "./MarketingHero";
 import { StartFreeButton } from "./StartFreeButton";
 
 type PlanTier = "free" | "pro";
 type PlanRoute = "dashboard" | "import" | "passport";
-type FooterRoute = "overview" | "privacy" | "terms" | "security";
+type FooterRoute = "overview" | "dashboard" | "passport" | "privacy" | "terms" | "security";
 type AuthMode = "signup";
 
 const planOptions = [
@@ -52,6 +53,24 @@ const planOptions = [
       "No payout guarantee",
       "No financial advice",
     ],
+  },
+] as const;
+
+const footerReviews = [
+  {
+    name: "Marcus R.",
+    quote: "Cova showed me patterns in my trading I never noticed before. My risk management has improved a lot.",
+    rating: 5,
+  },
+  {
+    name: "Daniel C.",
+    quote: "It’s more than a trade tracker. Cova helps me understand why I keep making the same mistakes.",
+    rating: 5,
+  },
+  {
+    name: "Jasmine B.",
+    quote: "Cova made my trade reviews faster, clearer, and way more useful.",
+    rating: 5,
   },
 ] as const;
 
@@ -166,24 +185,63 @@ export function PlanStrip({ compact = false, currentPlan, go, openAuth, upgradeT
   );
 }
 
-export function CtaFooter({ go, openAuth, sharePassport }: { go: (section: FooterRoute) => void; openAuth: (mode: AuthMode) => void; sharePassport: () => void }) {
+export function CtaFooter({ go, isSignedIn, openAuth }: { go: (section: FooterRoute) => void; isSignedIn: boolean; openAuth: (mode: AuthMode) => void }) {
+  function explorePassportProof() {
+    document.querySelector(".story-strip-simple")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   return (
-    <section className="deferred-paint-section relative overflow-hidden px-5 py-32 md:px-12 lg:px-20">
-      <img src="/media/cova-dashboard-plate.jpg" alt="" className="absolute inset-0 h-full w-full object-cover opacity-[0.18] grayscale" loading="lazy" />
-      <div className="absolute inset-0 bg-[linear-gradient(90deg,#000_0%,rgba(0,0,0,0.86)_52%,#000_100%)]" />
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-96 bg-[linear-gradient(180deg,#000_0%,rgba(0,0,0,0.88)_28%,rgba(0,0,0,0)_100%)]" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[1] h-64 bg-[linear-gradient(180deg,rgba(0,0,0,0)_0%,#000_100%)]" />
-      <div className="relative z-10 mx-auto flex max-w-7xl flex-col gap-12 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h2 className="max-w-5xl font-heading text-6xl italic leading-[1.08] tracking-[0.012em] [word-spacing:0.16em] md:text-7xl lg:text-8xl">Stop repeating the trade that keeps costing you.</h2>
-          <p className="mt-6 max-w-lg font-body font-light leading-relaxed text-white/58">Cova helps funded futures traders review behavior, tighten limits, and share proof of discipline without pretending to predict the market.</p>
-        </div>
-        <div className="flex flex-wrap gap-3">
-          <StartFreeButton onClick={() => openAuth("signup")} />
-          <GlassButton onClick={sharePassport}>Share Risk Passport</GlassButton>
+    <section className="cta-footer-evidence-room deferred-paint-section relative overflow-hidden">
+      <div aria-hidden="true" className="cta-footer-grid" />
+      <div aria-hidden="true" className="cta-footer-risk-orbit" />
+      <div className="cta-footer-main">
+        <motion.div
+          className="cta-footer-copy"
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.24 }}
+          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <p className="cta-footer-kicker">One better decision at a time</p>
+          <h2>Stop repeating the trade that keeps costing you.</h2>
+          <p className="cta-footer-support">Review behavior. Tighten limits. Build proof of discipline.</p>
+          <div className="cta-footer-actions">
+            {isSignedIn ? (
+              <StartFreeButton icon onClick={() => go("dashboard")}>Open dashboard</StartFreeButton>
+            ) : (
+              <StartFreeButton icon onClick={() => openAuth("signup")} />
+            )}
+            <button className="cta-footer-passport-action" onClick={isSignedIn ? () => go("passport") : explorePassportProof} type="button">
+              {isSignedIn ? "Open Risk Passport" : "Explore Risk Passport"} <ArrowUpRight aria-hidden="true" className="h-4 w-4" />
+            </button>
+          </div>
+          <p className="cta-footer-proof"><span /> No credit card required.</p>
+        </motion.div>
+
+        <div className="cta-footer-dashboard" aria-label="Sample Cova dashboard" role="img">
+          <MarketingDashboardProof revealStats={false} />
         </div>
       </div>
-      <footer className="relative mx-auto mt-28 flex max-w-7xl flex-col gap-5 border-t border-white/10 pt-7 font-body text-xs text-white/38 md:flex-row md:items-center md:justify-between">
+
+      <div className="cta-footer-reviews">
+        <p className="cta-footer-reviews-heading">What people are saying</p>
+        <div className="cta-footer-reviews-grid">
+          {footerReviews.map(({ name, quote, rating }) => (
+            <blockquote key={name}>
+              <p>“{quote}”</p>
+              <footer>
+                <strong>{name}</strong>
+                <span aria-label={`${rating} out of 5 stars`} role="img">
+                  <span aria-hidden="true">{"★".repeat(rating)}</span>
+                  <small aria-hidden="true">{rating}/5</small>
+                </span>
+              </footer>
+            </blockquote>
+          ))}
+        </div>
+      </div>
+
+      <footer className="cta-footer-legal">
         <span>© 2026 Cova. Built for risk review, not trade signals.</span>
         <nav className="flex flex-wrap gap-x-5 gap-y-3" aria-label="Legal and trust">
           <button className="transition hover:text-white" onClick={() => go("privacy")} type="button">Privacy</button>
