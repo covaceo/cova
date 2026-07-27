@@ -234,7 +234,7 @@ async function main() {
           expression: `(() => {
             const element = document.querySelector('.cta-footer-evidence-room');
             const title = document.querySelector('.cta-footer-copy h2');
-            const dashboard = document.querySelector('.cta-footer-dashboard .hero-dashboard-shell');
+            const dashboard = document.querySelector('.footer-performance-proof');
             const primary = document.querySelector('.cta-footer-actions .native-start-button');
             const secondary = document.querySelector('.cta-footer-passport-action');
             const rect = (target) => target ? (() => {
@@ -301,6 +301,7 @@ async function main() {
       ...(result.name === "overview" && result.footer && !result.footer.backgroundImage.includes("239, 184, 141") ? ["overview: footer apricot background missing"] : []),
       ...(result.name === "overview" && result.footer?.title !== "Stop repeating the trade that keeps costing you." ? ["overview: footer headline mismatch"] : []),
       ...(result.name === "overview" && (result.footer?.overflow ?? 0) > 1 ? [`overview: footer overflow ${result.footer.overflow}px`] : []),
+      ...(result.name === "overview" && !result.footer?.dashboardRect ? ["overview: distinct footer performance proof missing"] : []),
       ...(result.name === "overview" && result.footer?.dashboardRect && (result.footer.dashboardRect.left < -1 || result.footer.dashboardRect.right > result.width + 1) ? ["overview: footer dashboard escapes viewport"] : []),
       ...(result.name === "overview" && result.footer?.primaryText !== "Start for free" ? ["overview: signed-out footer primary label mismatch"] : []),
       ...(result.name === "overview" && !result.footerPrimaryOutcome?.hasAuthDialog ? ["overview: signed-out footer primary did not open signup"] : []),

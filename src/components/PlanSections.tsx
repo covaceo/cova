@@ -1,7 +1,7 @@
 import { motion } from "motion/react";
 import { ArrowUpRight, Check, X } from "lucide-react";
+import { FooterPerformanceProof } from "./FooterPerformanceProof";
 import { GlassButton } from "./GlassButton";
-import { MarketingDashboardProof } from "./MarketingHero";
 import { StartFreeButton } from "./StartFreeButton";
 
 type PlanTier = "free" | "pro";
@@ -218,8 +218,8 @@ export function CtaFooter({ go, isSignedIn, openAuth }: { go: (section: FooterRo
           <p className="cta-footer-proof"><span /> No credit card required.</p>
         </motion.div>
 
-        <div className="cta-footer-dashboard" aria-label="Sample Cova dashboard" role="img">
-          <MarketingDashboardProof revealStats={false} />
+        <div className="cta-footer-dashboard" aria-label="Sample Cova performance screen" role="img">
+          <FooterPerformanceProof />
         </div>
       </div>
 
