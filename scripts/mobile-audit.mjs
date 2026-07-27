@@ -14,7 +14,7 @@ const routes = [
   { name: "pricing", hash: "pricing", needsAuth: false, requiredText: ["MOST CHOSEN BY ACTIVE TRADERS", "Cova Pro"] },
   { name: "import", hash: "import", needsAuth: true, requiredText: ["Upload CSV first", "Beta connector"] },
   { name: "insights", hash: "coach", needsAuth: true, requiredText: ["Current risk review", "Review note"] },
-  { name: "practice", hash: "practice", needsAuth: true, requiredText: ["Practice replay", "Replay chart", "Practice account", "Practice readiness"] },
+  { name: "practice", hash: "practice", needsAuth: true, requiredText: ["Build the replay account first.", "Set practice account", "Enter replay simulator"] },
   { name: "passport", hash: "passport", needsAuth: true, requiredText: ["Sample review · demo data", "Feed 4:5", "Review receipt"] },
 ];
 const selectedRouteNames = new Set((process.env.COVA_ROUTES ?? "").split(",").map((name) => name.trim()).filter(Boolean));
@@ -214,6 +214,56 @@ async function main() {
         });
         actionOutcome = outcome.result.value;
       }
+      let practiceOutcome = null;
+      let practiceScreenshot = null;
+      if (route.name === "practice") {
+        await cdp.send("Runtime.evaluate", { expression: `document.querySelector('.practice-setup-card')?.requestSubmit();` });
+        await sleep(1200);
+        const practiceResult = await cdp.send("Runtime.evaluate", {
+          returnByValue: true,
+          expression: `(() => {
+            const command = document.querySelector('.backtesting-command-strip');
+            const root = document.documentElement;
+            const terminal = document.querySelector('.backtesting-terminal');
+            const chart = document.querySelector('.backtesting-chart-viewport');
+            const orderRail = document.querySelector('.backtesting-order-rail');
+            const inspectVisibility = (element) => {
+              if (!element) return { present: false, rendered: false, inViewport: false, rect: null };
+              const style = getComputedStyle(element);
+              const value = element.getBoundingClientRect();
+              const rendered = style.display !== 'none' && style.visibility !== 'hidden' && style.visibility !== 'collapse' && Number.parseFloat(style.opacity || '1') > 0 && value.width > 0 && value.height > 0;
+              const inViewport = rendered && value.bottom > 0 && value.top < innerHeight && value.right > 0 && value.left < innerWidth;
+              return {
+                present: true,
+                rendered,
+                inViewport,
+                rect: { top: value.top, right: value.right, bottom: value.bottom, left: value.left, width: value.width, height: value.height },
+              };
+            };
+            const terminalState = inspectVisibility(terminal);
+            const chartState = inspectVisibility(chart);
+            const orderRailState = inspectVisibility(orderRail);
+            return {
+              setupOpen: Boolean(document.querySelector('.practice-setup-modal')),
+              terminalVisible: terminalState.inViewport,
+              chartVisible: chartState.inViewport,
+              orderRailVisible: orderRailState.inViewport,
+              terminalState,
+              chartState,
+              orderRailState,
+              orderTicketPresent: orderRail?.innerText.toLowerCase().includes('order ticket') ?? false,
+              practiceLimitsPresent: orderRail?.innerText.toLowerCase().includes('within practice limits') ?? false,
+              documentOverflow: root.scrollWidth - root.clientWidth,
+              commandOverflow: command ? command.scrollWidth - command.clientWidth : null,
+              commandOverflowX: command ? getComputedStyle(command).overflowX : null,
+            };
+          })()`,
+        });
+        practiceOutcome = practiceResult.result.value;
+        const practiceCapture = await cdp.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false, fromSurface: true });
+        practiceScreenshot = join(outDir, `${route.name}-terminal-${viewportWidth}x${viewportHeight}.png`);
+        await writeFile(practiceScreenshot, Buffer.from(practiceCapture.data, "base64"));
+      }
       let footer = null;
       let footerScreenshot = null;
       let footerPrimaryOutcome = null;
@@ -225,28 +275,33 @@ async function main() {
         await cdp.send("Runtime.evaluate", {
           expression: `(() => {
             document.documentElement.style.setProperty('scroll-behavior', 'auto', 'important');
-            document.querySelector('.cta-footer-evidence-room')?.scrollIntoView({ block: 'start', behavior: 'instant' });
+            document.querySelector('.cova-closing-section')?.scrollIntoView({ block: 'center', behavior: 'instant' });
+            window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' });
           })()`,
         });
         await sleep(600);
         const footerResult = await cdp.send("Runtime.evaluate", {
           returnByValue: true,
           expression: `(() => {
-            const element = document.querySelector('.cta-footer-evidence-room');
-            const title = document.querySelector('.cta-footer-copy h2');
-            const dashboard = document.querySelector('.footer-performance-proof');
-            const primary = document.querySelector('.cta-footer-actions .native-start-button');
-            const secondary = document.querySelector('.cta-footer-passport-action');
+            const element = document.querySelector('.cova-closing-section');
+            const siteFooter = document.querySelector('.cova-site-footer');
+            const title = document.querySelector('.cova-closing-title');
+            const primary = document.querySelector('.cova-closing-primary');
+            const secondary = document.querySelector('.cova-closing-secondary');
             const rect = (target) => target ? (() => {
               const value = target.getBoundingClientRect();
               return { top: value.top, right: value.right, bottom: value.bottom, left: value.left, width: value.width, height: value.height };
             })() : null;
             return element ? {
               title: title?.textContent?.trim() ?? '',
-              backgroundImage: getComputedStyle(element).backgroundImage,
+              backgroundColor: getComputedStyle(element).backgroundColor,
               overflow: element.scrollWidth - element.clientWidth,
               rect: rect(element),
-              dashboardRect: rect(dashboard),
+              footerRect: rect(siteFooter),
+              footerSeparate: Boolean(siteFooter) && !element.contains(siteFooter) && (siteFooter?.getBoundingClientRect().top ?? 0) >= element.getBoundingClientRect().bottom - 1,
+              dashboardInside: Boolean(element.querySelector('.footer-performance-proof, .cta-footer-dashboard, img')),
+              reviewsInside: /what people are saying|marcus r\.|daniel c\.|jasmine b\./i.test(element.innerText),
+              legalLabels: [...(siteFooter?.querySelectorAll('nav[aria-label="Legal and support"] button, nav[aria-label="Legal and support"] a') ?? [])].map((item) => item.textContent?.trim() ?? ''),
               primaryText: primary?.textContent?.trim() ?? '',
               secondaryText: secondary?.textContent?.trim() ?? '',
             } : null;
@@ -257,11 +312,14 @@ async function main() {
         footerScreenshot = join(outDir, `${route.name}-footer-${viewportWidth}x${viewportHeight}.png`);
         await writeFile(footerScreenshot, Buffer.from(footerCapture.data, "base64"));
 
-        await cdp.send("Runtime.evaluate", { expression: `document.querySelector('.cta-footer-actions .native-start-button')?.click();` });
+        await cdp.send("Runtime.evaluate", { expression: `document.querySelector('.cova-closing-primary')?.click();` });
         await sleep(700);
         const primaryOutcome = await cdp.send("Runtime.evaluate", {
           returnByValue: true,
-          expression: `({ hash: location.hash, hasAuthDialog: Boolean(document.querySelector('[role="dialog"][aria-modal="true"]')) })`,
+          expression: `(() => {
+            const dialog = document.querySelector('[role="dialog"][aria-modal="true"]');
+            return { hash: location.hash, hasAuthDialog: Boolean(dialog), dialogLabel: dialog?.getAttribute('aria-label') ?? null };
+          })()`,
         });
         footerPrimaryOutcome = primaryOutcome.result.value;
 
@@ -270,18 +328,22 @@ async function main() {
         await cdp.send("Runtime.evaluate", {
           expression: `(() => {
             document.documentElement.style.setProperty('scroll-behavior', 'auto', 'important');
-            document.querySelector('.cta-footer-evidence-room')?.scrollIntoView({ block: 'start', behavior: 'instant' });
-            document.querySelector('.cta-footer-passport-action')?.click();
+            document.querySelector('.cova-closing-section')?.scrollIntoView({ block: 'center', behavior: 'instant' });
+            window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' });
+            document.querySelector('.cova-closing-secondary')?.click();
           })()`,
         });
         await sleep(900);
         const secondaryOutcome = await cdp.send("Runtime.evaluate", {
           returnByValue: true,
-          expression: `({ hash: location.hash, hasAuthDialog: Boolean(document.querySelector('[role="dialog"][aria-modal="true"]')), storyTop: document.querySelector('.story-strip-simple')?.getBoundingClientRect().top ?? null })`,
+          expression: `(() => {
+            const dialog = document.querySelector('[role="dialog"][aria-modal="true"]');
+            return { hash: location.hash, hasAuthDialog: Boolean(dialog), dialogLabel: dialog?.getAttribute('aria-label') ?? null };
+          })()`,
         });
         footerSecondaryOutcome = secondaryOutcome.result.value;
       }
-      results.push({ name: route.name, screenshot: screenshotPath, footerScreenshot, actionOutcome, footer, footerPrimaryOutcome, footerSecondaryOutcome, ...audit.result.value });
+      results.push({ name: route.name, screenshot: screenshotPath, practiceScreenshot, footerScreenshot, actionOutcome, practiceOutcome, footer, footerPrimaryOutcome, footerSecondaryOutcome, ...audit.result.value });
     }
 
     cdp.close();
@@ -297,20 +359,25 @@ async function main() {
       ...(result.name === "overview-auth" && (result.actionOutcome?.hasAuthDialog || result.actionOutcome?.hash !== "#import") ? ["overview-auth: signed-in secondary CTA did not preserve Import routing"] : []),
       ...(result.name.startsWith("overview") && viewportHeight <= 760 && result.hero?.actionsBottom > viewportHeight ? [`${result.name}: hero actions fall below the short desktop fold`] : []),
       ...(result.name.startsWith("overview") && result.hero?.reactionTop !== null && result.hero?.actionsBottom > result.hero?.reactionTop ? [`${result.name}: hero actions collide with the testimonial rail`] : []),
-      ...(result.name === "overview" && !result.footer ? ["overview: footer evidence room missing"] : []),
-      ...(result.name === "overview" && result.footer && !result.footer.backgroundImage.includes("239, 184, 141") ? ["overview: footer apricot background missing"] : []),
+      ...(result.name === "overview" && !result.footer ? ["overview: approved closing CTA missing"] : []),
+      ...(result.name === "overview" && result.footer && result.footer.backgroundColor !== "rgb(240, 187, 145)" ? ["overview: approved peach background missing"] : []),
       ...(result.name === "overview" && result.footer?.title !== "Stop repeating the trade that keeps costing you." ? ["overview: footer headline mismatch"] : []),
       ...(result.name === "overview" && (result.footer?.overflow ?? 0) > 1 ? [`overview: footer overflow ${result.footer.overflow}px`] : []),
-      ...(result.name === "overview" && !result.footer?.dashboardRect ? ["overview: distinct footer performance proof missing"] : []),
-      ...(result.name === "overview" && result.footer?.dashboardRect && (result.footer.dashboardRect.left < -1 || result.footer.dashboardRect.right > result.width + 1) ? ["overview: footer dashboard escapes viewport"] : []),
+      ...(result.name === "overview" && result.footer?.dashboardInside ? ["overview: dashboard duplicated inside closing CTA"] : []),
+      ...(result.name === "overview" && result.footer?.reviewsInside ? ["overview: reviews duplicated inside closing CTA"] : []),
+      ...(result.name === "overview" && !result.footer?.footerSeparate ? ["overview: normal footer is not separate from closing CTA"] : []),
+      ...(result.name === "overview" && result.footer?.legalLabels?.join('|') !== "Privacy|Terms|Security|Support" ? ["overview: public legal or support footer links are missing"] : []),
       ...(result.name === "overview" && result.footer?.primaryText !== "Start for free" ? ["overview: signed-out footer primary label mismatch"] : []),
-      ...(result.name === "overview" && !result.footerPrimaryOutcome?.hasAuthDialog ? ["overview: signed-out footer primary did not open signup"] : []),
+      ...(result.name === "overview" && (!result.footerPrimaryOutcome?.hasAuthDialog || result.footerPrimaryOutcome?.dialogLabel !== "Create Cova account") ? ["overview: signed-out footer primary did not open the signup dialog"] : []),
       ...(result.name === "overview" && result.footer?.secondaryText !== "Explore Risk Passport" ? ["overview: signed-out footer Passport label mismatch"] : []),
-      ...(result.name === "overview" && (result.footerSecondaryOutcome?.hasAuthDialog || result.footerSecondaryOutcome?.hash !== "#overview" || result.footerSecondaryOutcome?.storyTop > result.height) ? ["overview: signed-out footer Passport action did not expose public proof"] : []),
+      ...(result.name === "overview" && (!result.footerSecondaryOutcome?.hasAuthDialog || result.footerSecondaryOutcome?.dialogLabel !== "Log in to Cova" || result.footerSecondaryOutcome?.hash !== "#passport") ? ["overview: signed-out footer Passport action did not open login with the Passport destination"] : []),
       ...(result.name === "overview-auth" && result.footer?.primaryText !== "Open dashboard" ? ["overview-auth: signed-in footer primary label mismatch"] : []),
       ...(result.name === "overview-auth" && (result.footerPrimaryOutcome?.hasAuthDialog || result.footerPrimaryOutcome?.hash !== "#dashboard") ? ["overview-auth: signed-in footer primary did not open dashboard"] : []),
       ...(result.name === "overview-auth" && result.footer?.secondaryText !== "Open Risk Passport" ? ["overview-auth: signed-in footer Passport label mismatch"] : []),
       ...(result.name === "overview-auth" && (result.footerSecondaryOutcome?.hasAuthDialog || result.footerSecondaryOutcome?.hash !== "#passport") ? ["overview-auth: signed-in footer Passport action did not open Passport"] : []),
+      ...(result.name === "practice" && (!result.practiceOutcome || result.practiceOutcome.setupOpen || !result.practiceOutcome.terminalVisible || !result.practiceOutcome.chartVisible || !result.practiceOutcome.orderRailVisible || !result.practiceOutcome.orderTicketPresent || !result.practiceOutcome.practiceLimitsPresent) ? ["practice: simulator terminal did not open completely after setup"] : []),
+      ...(result.name === "practice" && (result.practiceOutcome?.documentOverflow ?? 0) > 1 ? [`practice: terminal introduced document overflow ${result.practiceOutcome.documentOverflow}px`] : []),
+      ...(result.name === "practice" && viewportWidth < 768 && (result.practiceOutcome?.commandOverflow ?? 0) > 0 && result.practiceOutcome?.commandOverflowX !== "auto" ? ["practice: mobile command strip overflows without an intentional horizontal scroll owner"] : []),
       ...result.required.filter((check) => !check.present).map((check) => `${result.name}: missing “${check.text}”`),
     ]);
     console.log(JSON.stringify({ outDir, results, failures }, null, 2));
