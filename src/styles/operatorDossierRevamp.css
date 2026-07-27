@@ -1437,3 +1437,458 @@ textarea {
     padding: 0.82rem 1.15rem;
   }
 }
+
+@media (min-width: 901px) and (max-height: 760px) {
+  .market-hero-layout {
+    padding-top: 6.25rem !important;
+  }
+
+  .market-hero-title {
+    margin-top: 0.75rem !important;
+    font-size: 4.45rem !important;
+    line-height: 0.89 !important;
+  }
+
+  .market-hero-subline {
+    margin-top: 1rem !important;
+    font-size: 0.92rem !important;
+    line-height: 1.48 !important;
+  }
+
+  .market-hero-actions {
+    gap: 0.75rem !important;
+    margin-top: 1rem !important;
+  }
+
+  .market-hero-proof {
+    margin-top: 0.65rem !important;
+  }
+}
+
+/* Footer conversion scene: the apricot Sites treatment belongs here, not in the hero. */
+.cta-footer-evidence-room {
+  isolation: isolate;
+  min-height: 58rem;
+  color: #11100f;
+  background-color: #efb88d !important;
+  background-image: linear-gradient(180deg, #050505 0%, #8d6650 5%, #efb88d 14%, #eeb78c 72%, #5a4031 90%, #050505 100%) !important;
+}
+
+.cta-footer-evidence-room::before {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  content: "";
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 22% 48%, rgba(255, 230, 209, 0.34), transparent 26rem),
+    linear-gradient(90deg, rgba(255, 245, 235, 0.08), transparent 42%, rgba(62, 35, 21, 0.08));
+}
+
+.cta-footer-grid {
+  position: absolute;
+  inset: 5rem 0 8rem;
+  z-index: 1;
+  opacity: 0.44;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(56, 37, 25, 0.09) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56, 37, 25, 0.09) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: linear-gradient(180deg, transparent, #000 14%, #000 78%, transparent);
+}
+
+.cta-footer-risk-orbit {
+  position: absolute;
+  top: 11.5rem;
+  left: clamp(-9rem, 4vw, 3rem);
+  z-index: 1;
+  width: clamp(29rem, 43vw, 43rem);
+  aspect-ratio: 1;
+  pointer-events: none;
+  border: 1px solid rgba(49, 34, 25, 0.13);
+  border-radius: 50%;
+}
+
+.cta-footer-risk-orbit::before,
+.cta-footer-risk-orbit::after {
+  position: absolute;
+  content: "";
+  background: rgba(49, 34, 25, 0.1);
+}
+
+.cta-footer-risk-orbit::before {
+  top: -9%;
+  bottom: -9%;
+  left: 50%;
+  width: 1px;
+}
+
+.cta-footer-risk-orbit::after {
+  top: 50%;
+  right: -9%;
+  left: -9%;
+  height: 1px;
+}
+
+.cta-footer-main {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  width: min(calc(100% - 4rem), 92rem);
+  min-height: 42rem;
+  align-items: center;
+  gap: clamp(2.5rem, 5vw, 6rem);
+  margin: 0 auto;
+  padding-top: 8.5rem;
+  grid-template-columns: minmax(24rem, 0.86fr) minmax(0, 1.14fr);
+}
+
+.cta-footer-copy {
+  position: relative;
+  z-index: 2;
+  max-width: 42rem;
+}
+
+.cta-footer-kicker {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  color: rgba(34, 23, 17, 0.72);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.64rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+
+.cta-footer-kicker::before {
+  width: 1.8rem;
+  height: 1px;
+  content: "";
+  background: rgba(34, 23, 17, 0.52);
+}
+
+.cta-footer-copy h2 {
+  max-width: 9.4ch;
+  margin-top: 1.35rem;
+  color: #11100f;
+  font-family: "Space Grotesk", "Inter", sans-serif;
+  font-size: clamp(4.3rem, 6vw, 6.6rem);
+  font-weight: 600;
+  letter-spacing: -0.075em;
+  line-height: 0.91;
+  text-wrap: balance;
+}
+
+.cta-footer-support {
+  margin-top: 1.65rem;
+  color: #453126;
+  font-family: "Inter", sans-serif;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.cta-footer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.2rem;
+  margin-top: 1.65rem;
+}
+
+.cta-footer-evidence-room .cta-footer-actions .native-start-button {
+  color: #f3dfcc !important;
+  border-color: #171411 !important;
+  background: #171411 !important;
+  box-shadow: 4px 5px 0 rgba(81, 48, 29, 0.14) !important;
+}
+
+.cta-footer-passport-action {
+  display: inline-flex;
+  min-height: 2.85rem;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 0.2rem;
+  color: #2e2018;
+  font-family: "Inter", sans-serif;
+  font-size: 0.92rem;
+  font-weight: 560;
+}
+
+.cta-footer-passport-action:hover {
+  color: #080706;
+}
+
+.cta-footer-proof {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.85rem;
+  color: #3b2a21;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.cta-footer-proof span {
+  width: 0.25rem;
+  height: 0.25rem;
+  background: #433027;
+}
+
+.cta-footer-dashboard {
+  position: relative;
+  min-width: 0;
+  min-height: 34rem;
+}
+
+.cta-footer-dashboard .hero-dashboard-stage {
+  display: block !important;
+  min-height: 34rem !important;
+  margin: 0 !important;
+}
+
+.cta-footer-dashboard .hero-dashboard-shell {
+  top: 50% !important;
+  right: auto !important;
+  left: 50% !important;
+  width: min(100%, 50rem) !important;
+  border-color: rgba(232, 224, 211, 0.36) !important;
+  border-radius: 8px !important;
+  background: #0a0a09 !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 0 0 1px rgba(191, 137, 100, 0.14),
+    0 38px 90px rgba(0, 0, 0, 0.5) !important;
+  transform: translate(-50%, -50%) perspective(1400px) rotateY(-3deg) rotateZ(-1.25deg) !important;
+}
+
+.cta-footer-reviews {
+  position: relative;
+  z-index: 4;
+  width: min(calc(100% - 4rem), 82rem);
+  margin: 1.25rem auto 0;
+}
+
+.cta-footer-reviews-heading {
+  margin-bottom: 0.75rem;
+  color: rgba(250, 238, 227, 0.82);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.61rem;
+  letter-spacing: 0.16em;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+.cta-footer-reviews-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid rgba(239, 184, 141, 0.18);
+}
+
+.cta-footer-reviews blockquote {
+  display: grid;
+  min-height: 6.4rem;
+  align-content: space-between;
+  gap: 0.9rem;
+  padding: 1rem 1.15rem;
+  color: #eee5da;
+  background: rgba(7, 6, 5, 0.9);
+}
+
+.cta-footer-reviews blockquote + blockquote {
+  border-left: 1px solid rgba(239, 184, 141, 0.18);
+}
+
+.cta-footer-reviews blockquote > p {
+  font-family: "Space Grotesk", "Inter", sans-serif;
+  font-size: 0.86rem;
+  font-weight: 560;
+  line-height: 1.35;
+}
+
+.cta-footer-reviews blockquote footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.56rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.cta-footer-reviews blockquote footer > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #efb88d;
+}
+
+.cta-footer-reviews blockquote small {
+  color: rgba(238, 229, 218, 0.58);
+}
+
+.cta-footer-legal {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  width: min(calc(100% - 4rem), 82rem);
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  margin: 3.5rem auto 0;
+  padding: 2rem 0 2.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.4);
+  font-family: "Inter", sans-serif;
+  font-size: 0.72rem;
+}
+
+.plan-card-pro {
+  overflow: visible !important;
+  border-color: rgba(239, 184, 141, 0.26) !important;
+}
+
+.plan-recommendation-tab {
+  position: absolute !important;
+  top: -0.76rem;
+  right: 1.5rem !important;
+  left: auto !important;
+  z-index: 8;
+  display: inline-flex;
+  min-height: 1.72rem;
+  align-items: center;
+  gap: 0.42rem;
+  max-width: calc(100% - 2rem);
+  padding: 0.42rem 0.72rem;
+  border: 1px solid rgba(255, 225, 202, 0.6);
+  border-radius: 3px;
+  color: #24170f;
+  background: #efb88d;
+  box-shadow: 0 0 0 1px rgba(83, 46, 25, 0.12), 0 0 26px rgba(239, 184, 141, 0.26), 0 8px 24px rgba(0, 0, 0, 0.28);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.54rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.plan-recommendation-dot {
+  width: 0.28rem;
+  height: 0.28rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #332117;
+}
+
+@media (max-width: 900px) {
+  .cta-footer-main {
+    width: min(calc(100% - 2rem), 48rem);
+    min-height: auto;
+    padding-top: 8rem;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cta-footer-copy h2 {
+    max-width: 10ch;
+    font-size: clamp(3.15rem, 11vw, 5rem);
+  }
+
+  .cta-footer-dashboard {
+    min-height: 30rem;
+  }
+
+  .cta-footer-dashboard .hero-dashboard-stage {
+    min-height: 30rem !important;
+  }
+
+  .cta-footer-reviews,
+  .cta-footer-legal {
+    width: min(calc(100% - 2rem), 48rem);
+  }
+
+  .cta-footer-reviews-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cta-footer-reviews blockquote + blockquote {
+    border-top: 1px solid rgba(239, 184, 141, 0.18);
+    border-left: 0;
+  }
+
+  .cta-footer-legal {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 767px) {
+  .market-hero-action-label {
+    display: inline;
+  }
+
+  .cta-footer-evidence-room {
+    min-height: auto;
+  }
+
+  .cta-footer-risk-orbit {
+    top: 8rem;
+    left: -9rem;
+    width: 30rem;
+  }
+
+  .cta-footer-main {
+    padding-top: 7rem;
+  }
+
+  .cta-footer-copy h2 {
+    margin-top: 1.1rem;
+    font-size: clamp(3rem, 14vw, 4rem);
+  }
+
+  .cta-footer-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .cta-footer-actions .native-start-button,
+  .cta-footer-passport-action {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .cta-footer-dashboard,
+  .cta-footer-dashboard .hero-dashboard-stage {
+    min-height: 21rem !important;
+  }
+
+  .cta-footer-dashboard .hero-dashboard-shell {
+    width: 46rem !important;
+    transform: translate(-50%, -50%) scale(0.47) rotateZ(-1.25deg) !important;
+  }
+
+  .cta-footer-reviews {
+    margin-top: 0;
+  }
+
+  .cta-footer-reviews-heading {
+    text-align: left;
+  }
+
+  .plan-card-pro {
+    margin-top: 0.5rem;
+  }
+
+  .plan-recommendation-tab {
+    top: -0.72rem;
+    right: 0.8rem !important;
+    max-width: calc(100% - 1.6rem);
+    padding-inline: 0.58rem;
+    font-size: 0.52rem;
+    letter-spacing: 0.065em;
+  }
+}

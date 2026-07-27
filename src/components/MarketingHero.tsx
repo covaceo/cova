@@ -161,7 +161,7 @@ export function Hero({ go, openAuth, isSignedIn }: HeroProps) {
             Cova turns imported trade history into retrospective summaries of behavior, performance, and rule adherence.
           </p>
 
-          <div className="mt-8 flex flex-wrap items-center gap-5">
+          <div className="market-hero-actions mt-8 flex flex-wrap items-center gap-5">
             <span className="hero-primary-cta-wrap">
               {isSignedIn ? (
                 <StartFreeButton icon onClick={() => go("dashboard")}>Open dashboard</StartFreeButton>
@@ -183,7 +183,7 @@ export function Hero({ go, openAuth, isSignedIn }: HeroProps) {
         </motion.div>
 
         <HeroMobileDossier />
-        <HeroDashboardMockup revealStats={isSignedIn} />
+        <MarketingDashboardProof revealStats={isSignedIn} />
 
         <motion.div
           className="market-reaction-band hidden xl:block"
@@ -257,7 +257,7 @@ function HeroMobileDossier() {
   );
 }
 
-function HeroDashboardMockup({ revealStats }: { revealStats: boolean }) {
+export function MarketingDashboardProof({ revealStats }: { revealStats: boolean }) {
   const heroDashboardNav = [
     { label: "Overview", Icon: FileText },
     { label: "Trades", Icon: Repeat2 },
