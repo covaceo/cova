@@ -64,8 +64,13 @@ assert.doesNotMatch(marketingHero, /market-hero-evidence-room/, "The apricot evi
 assert.match(planSections, /cta-footer-evidence-room/, "The approved evidence-room treatment belongs in the bottom conversion footer.");
 assert.match(planSections, /Stop repeating the trade[\s\S]*that keeps costing you\./, "The footer should carry the approved pain-first headline.");
 assert.match(planSections, /Review behavior\. Tighten limits\. Build proof of discipline\./, "The footer should keep the approved three-part product bridge.");
-assert.match(planSections, /Explore Risk Passport/, "The footer should expose the approved Passport action.");
+assert.match(planSections, /Explore Risk Passport/, "The signed-out footer should expose the approved public Passport proof action.");
+assert.match(planSections, /isSignedIn \? "Open Risk Passport" : "Explore Risk Passport"/, "The footer Passport label should match its authenticated or public outcome.");
+assert.match(planSections, /isSignedIn[\s\S]*?go\("dashboard"\)[\s\S]*?openAuth\("signup"\)/, "The footer primary CTA should open the dashboard when signed in and signup only when signed out.");
+assert.match(app, /<CtaFooter[\s\S]*?isSignedIn=\{isSignedIn\}/, "App should pass authentication state into the footer CTA matrix.");
 assert.match(planSections, /MarketingDashboardProof/, "The footer should include the dark dashboard proof surface.");
+assert.match(planSections, /cta-footer-dashboard[\s\S]*?role="img"[\s\S]*?MarketingDashboardProof/, "The labeled dashboard proof should expose an image role instead of an unlabeled generic group.");
+assert.match(operatorDossierCss, /\.cta-footer-legal\s*\{[\s\S]*?color:\s*rgba\(255,\s*255,\s*255,\s*0\.62\)/, "Footer legal and trust links should meet normal-text contrast on the dark endpoint.");
 assert.match(planSections, /What people are saying/, "The footer should include the permissioned review rail from the supplied reference.");
 assert.match(operatorDossierCss, /\.cta-footer-evidence-room\s*\{[\s\S]*?#efb88d/, "Only the footer evidence-room should use the warm apricot field.");
 assert.match(planSections, /MOST CHOSEN BY ACTIVE TRADERS/, "The Pro plan should retain the exact approved recommendation copy.");

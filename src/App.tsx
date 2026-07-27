@@ -522,25 +522,6 @@ export default function App() {
     go("dashboard");
   }
 
-  function sharePassport() {
-    if (!isSignedIn) {
-      setAuthMode("login");
-      announce("Sign in before viewing or sharing a Risk Passport.", "warning");
-      return;
-    }
-    const url = `${window.location.origin}${window.location.pathname}#passport`;
-    navigator.clipboard?.writeText(url).then(
-      () => {
-        setStatus("Risk Passport link copied.");
-        announce("Risk Passport link copied.", "success");
-      },
-      () => {
-        setStatus("Risk Passport link ready in the address bar.");
-        announce("Risk Passport link ready in the address bar.", "info");
-      },
-    );
-    go("passport");
-  }
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -570,7 +551,7 @@ export default function App() {
               <Hero go={go} openAuth={setAuthMode} isSignedIn={isSignedIn} />
               <StoryStrip />
               <PlanStrip currentPlan={authSession?.plan ?? null} go={go} openAuth={setAuthMode} upgradeToPro={upgradeToPro} />
-              <CtaFooter go={go} openAuth={setAuthMode} sharePassport={sharePassport} />
+              <CtaFooter go={go} isSignedIn={isSignedIn} openAuth={setAuthMode} />
             </RouteFrame>
           )}
           {section === "features" && (

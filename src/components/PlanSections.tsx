@@ -6,7 +6,7 @@ import { StartFreeButton } from "./StartFreeButton";
 
 type PlanTier = "free" | "pro";
 type PlanRoute = "dashboard" | "import" | "passport";
-type FooterRoute = "overview" | "privacy" | "terms" | "security";
+type FooterRoute = "overview" | "dashboard" | "passport" | "privacy" | "terms" | "security";
 type AuthMode = "signup";
 
 const planOptions = [
@@ -185,7 +185,11 @@ export function PlanStrip({ compact = false, currentPlan, go, openAuth, upgradeT
   );
 }
 
-export function CtaFooter({ go, openAuth, sharePassport }: { go: (section: FooterRoute) => void; openAuth: (mode: AuthMode) => void; sharePassport: () => void }) {
+export function CtaFooter({ go, isSignedIn, openAuth }: { go: (section: FooterRoute) => void; isSignedIn: boolean; openAuth: (mode: AuthMode) => void }) {
+  function explorePassportProof() {
+    document.querySelector(".story-strip-simple")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   return (
     <section className="cta-footer-evidence-room deferred-paint-section relative overflow-hidden">
       <div aria-hidden="true" className="cta-footer-grid" />
@@ -202,15 +206,19 @@ export function CtaFooter({ go, openAuth, sharePassport }: { go: (section: Foote
           <h2>Stop repeating the trade that keeps costing you.</h2>
           <p className="cta-footer-support">Review behavior. Tighten limits. Build proof of discipline.</p>
           <div className="cta-footer-actions">
-            <StartFreeButton icon onClick={() => openAuth("signup")} />
-            <button className="cta-footer-passport-action" onClick={sharePassport} type="button">
-              Explore Risk Passport <ArrowUpRight aria-hidden="true" className="h-4 w-4" />
+            {isSignedIn ? (
+              <StartFreeButton icon onClick={() => go("dashboard")}>Open dashboard</StartFreeButton>
+            ) : (
+              <StartFreeButton icon onClick={() => openAuth("signup")} />
+            )}
+            <button className="cta-footer-passport-action" onClick={isSignedIn ? () => go("passport") : explorePassportProof} type="button">
+              {isSignedIn ? "Open Risk Passport" : "Explore Risk Passport"} <ArrowUpRight aria-hidden="true" className="h-4 w-4" />
             </button>
           </div>
           <p className="cta-footer-proof"><span /> No credit card required.</p>
         </motion.div>
 
-        <div className="cta-footer-dashboard" aria-label="Sample Cova dashboard">
+        <div className="cta-footer-dashboard" aria-label="Sample Cova dashboard" role="img">
           <MarketingDashboardProof revealStats={false} />
         </div>
       </div>

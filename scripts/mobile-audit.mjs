@@ -216,7 +216,12 @@ async function main() {
       }
       let footer = null;
       let footerScreenshot = null;
-      if (route.name === "overview") {
+      let footerPrimaryOutcome = null;
+      let footerSecondaryOutcome = null;
+      if (route.name === "overview" || route.name === "overview-auth") {
+        const footerUrl = `${origin}/?mobileAudit=${Date.now()}-${route.name}-footer#overview`;
+        await cdp.send("Page.navigate", { url: footerUrl });
+        await sleep(route.needsAuth ? 1200 : 900);
         await cdp.send("Runtime.evaluate", {
           expression: `(() => {
             document.documentElement.style.setProperty('scroll-behavior', 'auto', 'important');
@@ -230,6 +235,8 @@ async function main() {
             const element = document.querySelector('.cta-footer-evidence-room');
             const title = document.querySelector('.cta-footer-copy h2');
             const dashboard = document.querySelector('.cta-footer-dashboard .hero-dashboard-shell');
+            const primary = document.querySelector('.cta-footer-actions .native-start-button');
+            const secondary = document.querySelector('.cta-footer-passport-action');
             const rect = (target) => target ? (() => {
               const value = target.getBoundingClientRect();
               return { top: value.top, right: value.right, bottom: value.bottom, left: value.left, width: value.width, height: value.height };
@@ -240,6 +247,8 @@ async function main() {
               overflow: element.scrollWidth - element.clientWidth,
               rect: rect(element),
               dashboardRect: rect(dashboard),
+              primaryText: primary?.textContent?.trim() ?? '',
+              secondaryText: secondary?.textContent?.trim() ?? '',
             } : null;
           })()`,
         });
@@ -247,8 +256,32 @@ async function main() {
         const footerCapture = await cdp.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false, fromSurface: true });
         footerScreenshot = join(outDir, `${route.name}-footer-${viewportWidth}x${viewportHeight}.png`);
         await writeFile(footerScreenshot, Buffer.from(footerCapture.data, "base64"));
+
+        await cdp.send("Runtime.evaluate", { expression: `document.querySelector('.cta-footer-actions .native-start-button')?.click();` });
+        await sleep(700);
+        const primaryOutcome = await cdp.send("Runtime.evaluate", {
+          returnByValue: true,
+          expression: `({ hash: location.hash, hasAuthDialog: Boolean(document.querySelector('[role="dialog"][aria-modal="true"]')) })`,
+        });
+        footerPrimaryOutcome = primaryOutcome.result.value;
+
+        await cdp.send("Page.navigate", { url: `${origin}/?mobileAudit=${Date.now()}-${route.name}-secondary#overview` });
+        await sleep(route.needsAuth ? 1200 : 900);
+        await cdp.send("Runtime.evaluate", {
+          expression: `(() => {
+            document.documentElement.style.setProperty('scroll-behavior', 'auto', 'important');
+            document.querySelector('.cta-footer-evidence-room')?.scrollIntoView({ block: 'start', behavior: 'instant' });
+            document.querySelector('.cta-footer-passport-action')?.click();
+          })()`,
+        });
+        await sleep(900);
+        const secondaryOutcome = await cdp.send("Runtime.evaluate", {
+          returnByValue: true,
+          expression: `({ hash: location.hash, hasAuthDialog: Boolean(document.querySelector('[role="dialog"][aria-modal="true"]')), storyTop: document.querySelector('.story-strip-simple')?.getBoundingClientRect().top ?? null })`,
+        });
+        footerSecondaryOutcome = secondaryOutcome.result.value;
       }
-      results.push({ name: route.name, screenshot: screenshotPath, footerScreenshot, actionOutcome, footer, ...audit.result.value });
+      results.push({ name: route.name, screenshot: screenshotPath, footerScreenshot, actionOutcome, footer, footerPrimaryOutcome, footerSecondaryOutcome, ...audit.result.value });
     }
 
     cdp.close();
@@ -269,6 +302,14 @@ async function main() {
       ...(result.name === "overview" && result.footer?.title !== "Stop repeating the trade that keeps costing you." ? ["overview: footer headline mismatch"] : []),
       ...(result.name === "overview" && (result.footer?.overflow ?? 0) > 1 ? [`overview: footer overflow ${result.footer.overflow}px`] : []),
       ...(result.name === "overview" && result.footer?.dashboardRect && (result.footer.dashboardRect.left < -1 || result.footer.dashboardRect.right > result.width + 1) ? ["overview: footer dashboard escapes viewport"] : []),
+      ...(result.name === "overview" && result.footer?.primaryText !== "Start for free" ? ["overview: signed-out footer primary label mismatch"] : []),
+      ...(result.name === "overview" && !result.footerPrimaryOutcome?.hasAuthDialog ? ["overview: signed-out footer primary did not open signup"] : []),
+      ...(result.name === "overview" && result.footer?.secondaryText !== "Explore Risk Passport" ? ["overview: signed-out footer Passport label mismatch"] : []),
+      ...(result.name === "overview" && (result.footerSecondaryOutcome?.hasAuthDialog || result.footerSecondaryOutcome?.hash !== "#overview" || result.footerSecondaryOutcome?.storyTop > result.height) ? ["overview: signed-out footer Passport action did not expose public proof"] : []),
+      ...(result.name === "overview-auth" && result.footer?.primaryText !== "Open dashboard" ? ["overview-auth: signed-in footer primary label mismatch"] : []),
+      ...(result.name === "overview-auth" && (result.footerPrimaryOutcome?.hasAuthDialog || result.footerPrimaryOutcome?.hash !== "#dashboard") ? ["overview-auth: signed-in footer primary did not open dashboard"] : []),
+      ...(result.name === "overview-auth" && result.footer?.secondaryText !== "Open Risk Passport" ? ["overview-auth: signed-in footer Passport label mismatch"] : []),
+      ...(result.name === "overview-auth" && (result.footerSecondaryOutcome?.hasAuthDialog || result.footerSecondaryOutcome?.hash !== "#passport") ? ["overview-auth: signed-in footer Passport action did not open Passport"] : []),
       ...result.required.filter((check) => !check.present).map((check) => `${result.name}: missing “${check.text}”`),
     ]);
     console.log(JSON.stringify({ outDir, results, failures }, null, 2));
