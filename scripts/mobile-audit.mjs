@@ -14,7 +14,7 @@ const routes = [
   { name: "pricing", hash: "pricing", needsAuth: false, requiredText: ["MOST CHOSEN BY ACTIVE TRADERS", "Cova Pro"] },
   { name: "import", hash: "import", needsAuth: true, requiredText: ["Upload CSV first", "Beta connector"] },
   { name: "insights", hash: "coach", needsAuth: true, requiredText: ["Current risk review", "Review note"] },
-  { name: "practice", hash: "practice", needsAuth: true, requiredText: ["Practice replay", "Replay chart", "Practice account", "Practice readiness"] },
+  { name: "practice", hash: "practice", needsAuth: true, requiredText: ["Build the replay account first.", "Set practice account", "Enter replay simulator"] },
   { name: "passport", hash: "passport", needsAuth: true, requiredText: ["Sample review · demo data", "Feed 4:5", "Review receipt"] },
 ];
 const selectedRouteNames = new Set((process.env.COVA_ROUTES ?? "").split(",").map((name) => name.trim()).filter(Boolean));
@@ -214,6 +214,56 @@ async function main() {
         });
         actionOutcome = outcome.result.value;
       }
+      let practiceOutcome = null;
+      let practiceScreenshot = null;
+      if (route.name === "practice") {
+        await cdp.send("Runtime.evaluate", { expression: `document.querySelector('.practice-setup-card')?.requestSubmit();` });
+        await sleep(1200);
+        const practiceResult = await cdp.send("Runtime.evaluate", {
+          returnByValue: true,
+          expression: `(() => {
+            const command = document.querySelector('.backtesting-command-strip');
+            const root = document.documentElement;
+            const terminal = document.querySelector('.backtesting-terminal');
+            const chart = document.querySelector('.backtesting-chart-viewport');
+            const orderRail = document.querySelector('.backtesting-order-rail');
+            const inspectVisibility = (element) => {
+              if (!element) return { present: false, rendered: false, inViewport: false, rect: null };
+              const style = getComputedStyle(element);
+              const value = element.getBoundingClientRect();
+              const rendered = style.display !== 'none' && style.visibility !== 'hidden' && style.visibility !== 'collapse' && Number.parseFloat(style.opacity || '1') > 0 && value.width > 0 && value.height > 0;
+              const inViewport = rendered && value.bottom > 0 && value.top < innerHeight && value.right > 0 && value.left < innerWidth;
+              return {
+                present: true,
+                rendered,
+                inViewport,
+                rect: { top: value.top, right: value.right, bottom: value.bottom, left: value.left, width: value.width, height: value.height },
+              };
+            };
+            const terminalState = inspectVisibility(terminal);
+            const chartState = inspectVisibility(chart);
+            const orderRailState = inspectVisibility(orderRail);
+            return {
+              setupOpen: Boolean(document.querySelector('.practice-setup-modal')),
+              terminalVisible: terminalState.inViewport,
+              chartVisible: chartState.inViewport,
+              orderRailVisible: orderRailState.inViewport,
+              terminalState,
+              chartState,
+              orderRailState,
+              orderTicketPresent: orderRail?.innerText.toLowerCase().includes('order ticket') ?? false,
+              practiceLimitsPresent: orderRail?.innerText.toLowerCase().includes('within practice limits') ?? false,
+              documentOverflow: root.scrollWidth - root.clientWidth,
+              commandOverflow: command ? command.scrollWidth - command.clientWidth : null,
+              commandOverflowX: command ? getComputedStyle(command).overflowX : null,
+            };
+          })()`,
+        });
+        practiceOutcome = practiceResult.result.value;
+        const practiceCapture = await cdp.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false, fromSurface: true });
+        practiceScreenshot = join(outDir, `${route.name}-terminal-${viewportWidth}x${viewportHeight}.png`);
+        await writeFile(practiceScreenshot, Buffer.from(practiceCapture.data, "base64"));
+      }
       let footer = null;
       let footerScreenshot = null;
       let footerPrimaryOutcome = null;
@@ -293,7 +343,7 @@ async function main() {
         });
         footerSecondaryOutcome = secondaryOutcome.result.value;
       }
-      results.push({ name: route.name, screenshot: screenshotPath, footerScreenshot, actionOutcome, footer, footerPrimaryOutcome, footerSecondaryOutcome, ...audit.result.value });
+      results.push({ name: route.name, screenshot: screenshotPath, practiceScreenshot, footerScreenshot, actionOutcome, practiceOutcome, footer, footerPrimaryOutcome, footerSecondaryOutcome, ...audit.result.value });
     }
 
     cdp.close();
@@ -325,6 +375,9 @@ async function main() {
       ...(result.name === "overview-auth" && (result.footerPrimaryOutcome?.hasAuthDialog || result.footerPrimaryOutcome?.hash !== "#dashboard") ? ["overview-auth: signed-in footer primary did not open dashboard"] : []),
       ...(result.name === "overview-auth" && result.footer?.secondaryText !== "Open Risk Passport" ? ["overview-auth: signed-in footer Passport label mismatch"] : []),
       ...(result.name === "overview-auth" && (result.footerSecondaryOutcome?.hasAuthDialog || result.footerSecondaryOutcome?.hash !== "#passport") ? ["overview-auth: signed-in footer Passport action did not open Passport"] : []),
+      ...(result.name === "practice" && (!result.practiceOutcome || result.practiceOutcome.setupOpen || !result.practiceOutcome.terminalVisible || !result.practiceOutcome.chartVisible || !result.practiceOutcome.orderRailVisible || !result.practiceOutcome.orderTicketPresent || !result.practiceOutcome.practiceLimitsPresent) ? ["practice: simulator terminal did not open completely after setup"] : []),
+      ...(result.name === "practice" && (result.practiceOutcome?.documentOverflow ?? 0) > 1 ? [`practice: terminal introduced document overflow ${result.practiceOutcome.documentOverflow}px`] : []),
+      ...(result.name === "practice" && viewportWidth < 768 && (result.practiceOutcome?.commandOverflow ?? 0) > 0 && result.practiceOutcome?.commandOverflowX !== "auto" ? ["practice: mobile command strip overflows without an intentional horizontal scroll owner"] : []),
       ...result.required.filter((check) => !check.present).map((check) => `${result.name}: missing “${check.text}”`),
     ]);
     console.log(JSON.stringify({ outDir, results, failures }, null, 2));
