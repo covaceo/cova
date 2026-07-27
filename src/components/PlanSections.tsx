@@ -84,13 +84,19 @@ export function PlanStrip({ compact = false, currentPlan, go, openAuth, upgradeT
             const isCurrentPlan = currentPlan === plan.id;
             return (
               <motion.article
-                className={`${isPro ? "liquid-glass-strong" : "liquid-glass"} rounded-[28px] p-5 md:rounded-[40px] md:p-8`}
+                className={`plan-card ${isPro ? "plan-card-pro liquid-glass-strong" : "liquid-glass"} relative rounded-[28px] p-5 md:rounded-[40px] md:p-8`}
                 key={plan.name}
                 initial={compact ? { opacity: 1, y: 0, filter: "blur(0px)" } : { opacity: 0, y: 30, filter: "blur(10px)" }}
                 whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.58, ease: [0.16, 1, 0.3, 1] }}
               >
+                {isPro && (
+                  <span className="plan-recommendation-tab">
+                    <span aria-hidden="true" className="plan-recommendation-dot" />
+                    MOST CHOSEN BY ACTIVE TRADERS
+                  </span>
+                )}
                 <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
                   <div>
                     <span className={`rounded-full px-3 py-1 font-body text-xs uppercase tracking-[0.2em] ${isPro ? "bg-[#18c887]/18 text-[#b9f5df]" : "bg-white/8 text-white/50"}`}>
