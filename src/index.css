@@ -6367,18 +6367,33 @@ body {
 }
 
 .cova-closing-section {
+  --cova-dock-depth: 1.5rem;
+  --cova-dock-width: 17rem;
+  --cova-dock-half: 8.5rem;
+  --cova-dock-chamfer: 0.7rem;
   position: relative;
+  z-index: 1;
   isolation: isolate;
   display: grid;
   min-height: 34rem;
   place-items: center;
   overflow: hidden;
+  margin-top: -1.5rem;
   padding: 7rem 1.5rem 6.75rem;
-  border-top: 1px solid rgba(22, 16, 12, 0.26);
   border-bottom: 1px solid rgba(22, 16, 12, 0.3);
   background:
     radial-gradient(circle at 50% 48%, rgba(198, 126, 76, 0.16), transparent 31rem),
     #f0bb91;
+  clip-path: polygon(
+    0 var(--cova-dock-depth),
+    calc(50% - var(--cova-dock-half)) var(--cova-dock-depth),
+    calc(50% - var(--cova-dock-half) + var(--cova-dock-chamfer)) 0,
+    calc(50% + var(--cova-dock-half) - var(--cova-dock-chamfer)) 0,
+    calc(50% + var(--cova-dock-half)) var(--cova-dock-depth),
+    100% var(--cova-dock-depth),
+    100% 100%,
+    0 100%
+  );
   color: #090a0a;
 }
 
@@ -6414,24 +6429,56 @@ body {
   text-align: center;
 }
 
-.cova-closing-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.8rem;
-  margin-bottom: 1.65rem;
-  font-family: var(--font-dashboard-ui);
-  font-size: 0.52rem;
-  font-weight: 600;
-  letter-spacing: 0.24em;
-  line-height: 1;
-  text-transform: uppercase;
+.cova-closing-dock {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  right: 0;
+  left: 0;
+  display: grid;
+  height: var(--cova-dock-depth);
+  align-items: end;
+  grid-template-columns: minmax(0, 1fr) var(--cova-dock-width) minmax(0, 1fr);
+  pointer-events: none;
 }
 
-.cova-closing-label span {
-  width: 1.55rem;
+.cova-closing-dock-line {
   height: 1px;
-  background: currentColor;
-  opacity: 0.64;
+  background: rgba(84, 51, 32, 0.4);
+}
+
+.cova-closing-dock-tab {
+  height: 100%;
+  padding: 1px 1px 0;
+  background: rgba(84, 51, 32, 0.48);
+  clip-path: polygon(
+    var(--cova-dock-chamfer) 0,
+    calc(100% - var(--cova-dock-chamfer)) 0,
+    100% 100%,
+    0 100%
+  );
+}
+
+.cova-closing-label {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  background: #f0bb91;
+  clip-path: polygon(
+    var(--cova-dock-chamfer) 0,
+    calc(100% - var(--cova-dock-chamfer)) 0,
+    100% 100%,
+    0 100%
+  );
+  color: rgba(24, 17, 13, 0.72);
+  font-family: var(--font-dashboard-ui);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  text-transform: uppercase;
 }
 
 .cova-closing-title {
@@ -6585,7 +6632,12 @@ body {
 
 @media (max-width: 700px) {
   .cova-closing-section {
+    --cova-dock-depth: 1.25rem;
+    --cova-dock-width: 12.5rem;
+    --cova-dock-half: 6.25rem;
+    --cova-dock-chamfer: 0.55rem;
     min-height: 34rem;
+    margin-top: -1.25rem;
     padding: 6rem 1.2rem 5.5rem;
   }
 
@@ -6599,14 +6651,8 @@ body {
   }
 
   .cova-closing-label {
-    gap: 0.62rem;
-    margin-bottom: 1.5rem;
-    font-size: 0.52rem;
-    letter-spacing: 0.21em;
-  }
-
-  .cova-closing-label span {
-    width: 1.1rem;
+    font-size: 0.55rem;
+    letter-spacing: 0.13em;
   }
 
   .cova-closing-title {
