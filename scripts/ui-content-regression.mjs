@@ -65,6 +65,7 @@ assert.match(marketingHero, /See the[\s\S]*patterns[\s\S]*behind your risk\./, "
 assert.doesNotMatch(marketingHero, /market-hero-evidence-room/, "The apricot evidence-room treatment must not replace the homepage hero.");
 assert.match(ctaFooter, /cova-closing-section/, "The homepage must end with the dedicated peach closing CTA instead of a second product hero.");
 assert.match(ctaFooter, /One better decision at a time/, "The closing CTA must retain the approved decision-focused label.");
+assert.match(ctaFooter, /cova-closing-dock[\s\S]*cova-closing-dock-line[\s\S]*cova-closing-dock-tab[\s\S]*cova-closing-label/, "The closing CTA transition must use the approved engineered docking seam.");
 assert.match(ctaFooter, /Stop repeating the trade[\s\S]*that keeps costing you\./, "The closing CTA must retain the approved pain-first headline.");
 assert.match(ctaFooter, /Review behavior\. Tighten limits\. Build proof of discipline\./, "The closing CTA must keep its concise product summary.");
 assert.match(ctaFooter, /Start for free[\s\S]*Explore Risk Passport/, "The closing CTA must expose the approved primary and secondary actions.");
@@ -79,6 +80,8 @@ assert.match(app, /function openPassport\(\)[\s\S]*if \(!isSignedIn\)[\s\S]*go\(
 assert.match(app, /<CtaFooter[\s\S]*?openPassport=\{openPassport\}/, "App must pass the real Passport flow into the closing CTA.");
 assert.match(app, /<CtaFooter[\s\S]*?isSignedIn=\{isSignedIn\}/, "App must pass authentication state into the closing CTA.");
 assert.match(indexCss, /\.cova-closing-section\s*\{[\s\S]*?#f0bb91/, "The approved closing CTA must retain its peach field.");
+assert.match(indexCss, /\.cova-closing-section\s*\{[\s\S]*?--cova-dock-depth:[\s\S]*?clip-path:\s*polygon/, "The closing CTA must interlock with the dark section through a clipped dock joint.");
+assert.match(indexCss, /\.cova-closing-dock-line\s*\{[\s\S]*?height:\s*1px[\s\S]*?background:/, "The dock joint must retain its restrained one-pixel registration keyline.");
 assert.match(indexCss, /\.cova-closing-section \.cova-closing-primary\.native-start-button\s*\{[\s\S]*?font-size:\s*0\.68rem/, "The desktop primary CTA label must remain readable without losing its restrained technical scale.");
 assert.match(indexCss, /\.cova-closing-secondary\s*\{[\s\S]*?font-size:\s*0\.7rem/, "The desktop Passport CTA label must remain readable without overpowering the primary action.");
 assert.match(mobileAudit, /\.cova-closing-section[\s\S]*\.cova-closing-primary[\s\S]*\.cova-closing-secondary/, "The compiled browser audit must target the approved CTA surface and actions.");

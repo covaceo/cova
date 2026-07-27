@@ -170,8 +170,14 @@ export function CtaFooter({ go, isSignedIn, openAuth, openPassport }: { go: (sec
   return (
     <>
       <section aria-labelledby="cova-closing-title" className="cova-closing-section">
+        <div className="cova-closing-dock">
+          <span aria-hidden="true" className="cova-closing-dock-line" />
+          <div className="cova-closing-dock-tab">
+            <p className="cova-closing-label">One better decision at a time</p>
+          </div>
+          <span aria-hidden="true" className="cova-closing-dock-line" />
+        </div>
         <div className="cova-closing-content">
-          <p className="cova-closing-label"><span aria-hidden="true" />One better decision at a time</p>
           <h2 className="cova-closing-title" id="cova-closing-title">
             <span>Stop repeating the trade</span>{" "}
             <span>that keeps costing you.</span>
