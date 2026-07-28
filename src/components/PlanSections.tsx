@@ -13,9 +13,10 @@ const planOptions = [
     id: "free",
     name: "Free",
     price: "$0",
-    priceNote: "limited account",
+    priceNote: ["limited", "account"],
     badge: "Limited",
-    description: "For trying Cova with a small sample before you commit to a real review workflow.",
+    index: "DEMO / 01",
+    description: "For testing Cova with a small sample before committing to a review workflow.",
     included: [
       "1 workspace",
       "25 stored trades total",
@@ -33,10 +34,11 @@ const planOptions = [
   {
     id: "pro",
     name: "Cova Pro",
-    price: "$29/mo",
-    priceNote: "founding price",
+    price: "$29",
+    priceNote: ["month", "founding price"],
     badge: "Active trader",
-    description: "For funded traders who want a larger review workspace, export tools, and configurable risk checks.",
+    index: "COVA / 02",
+    description: "For funded traders who want deeper reviews, export tools, and configurable limits.",
     included: [
       "Unlimited trade imports",
       "Unlimited reviewed trades",
@@ -57,34 +59,24 @@ const planOptions = [
 
 export function PlanStrip({ compact = false, currentPlan, go, openAuth, upgradeToPro }: { compact?: boolean; currentPlan: PlanTier | null; go: (section: PlanRoute) => void; openAuth: (mode: AuthMode) => void; upgradeToPro: () => void }) {
   return (
-    <section className={`deferred-paint-section plans-section relative overflow-hidden px-5 md:px-12 lg:px-20 ${compact ? "pb-8 pt-28 md:pb-10 md:pt-36" : "py-28"}`}>
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-64 bg-[linear-gradient(180deg,#000_0%,rgba(0,0,0,0.8)_34%,rgba(0,0,0,0)_100%)]" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-72 bg-[linear-gradient(180deg,rgba(0,0,0,0)_0%,rgba(0,0,0,0.74)_64%,#000_100%)]" />
-      <div className="relative z-10 mx-auto w-full max-w-[calc(100vw-2.5rem)] md:max-w-7xl">
-        <div className={`${compact ? "mb-7 max-w-3xl" : "mb-10 max-w-4xl"}`}>
-          <span className="liquid-glass mb-5 inline-flex rounded-full px-4 py-2 font-body text-xs uppercase tracking-[0.22em] text-[#18c887]">Plans</span>
-          <h2 className={`max-w-[12ch] break-words font-heading italic leading-[1.05] tracking-[0.012em] [word-spacing:0.04em] md:max-w-none md:[word-spacing:0.14em] ${compact ? "text-[40px] md:text-7xl" : "text-[48px] md:text-8xl"}`}>Try the review flow before you pay.</h2>
-          <p className="mt-6 max-w-[31ch] font-body font-light leading-relaxed text-white/58 md:max-w-2xl">
-            The free account is intentionally small: enough to see whether Cova helps you review risk.
-            Upgrade for a larger trade workspace, Passport image export, advanced limit editing, configured direct sync, and the full current brief.
+    <section className={`deferred-paint-section plans-section pricing-showcase ${compact ? "pricing-showcase-compact" : ""}`}>
+      <div aria-hidden="true" className="pricing-showcase-top-fade" />
+      <div aria-hidden="true" className="pricing-showcase-bottom-fade" />
+      <div className="pricing-showcase-inner">
+        <div className="pricing-showcase-header">
+          <h2 className="pricing-showcase-title">Try the review flow before you pay.</h2>
+          <p className="pricing-showcase-summary">
+            Start small enough to prove the workflow. Upgrade when Cova becomes part of every session review.
           </p>
-          <div className="pricing-quick-actions mt-7 flex flex-wrap items-center gap-3">
-            {currentPlan ? (
-              <GlassButton strong onClick={() => go("import")}>Open your workspace <ArrowUpRight className="h-4 w-4" /></GlassButton>
-            ) : (
-              <StartFreeButton icon onClick={() => openAuth("signup")}>Start free</StartFreeButton>
-            )}
-            <span className="font-body text-xs leading-relaxed text-white/42">Free includes 25 stored trades, 25 trades per CSV import, the current Passport view, and 2 current insight notes. No card required.</span>
-          </div>
         </div>
 
-        <div className="grid gap-5 lg:grid-cols-2">
+        <div className="pricing-plan-grid">
           {planOptions.map((plan) => {
             const isPro = plan.id === "pro";
             const isCurrentPlan = currentPlan === plan.id;
             return (
               <motion.article
-                className={`plan-card ${isPro ? "plan-card-pro liquid-glass-strong" : "liquid-glass"} relative rounded-[28px] p-5 md:rounded-[40px] md:p-8`}
+                className={`plan-card ${isPro ? "plan-card-pro" : "plan-card-free"}`}
                 key={plan.name}
                 initial={compact ? { opacity: 1, y: 0, filter: "blur(0px)" } : { opacity: 0, y: 30, filter: "blur(10px)" }}
                 whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
@@ -97,66 +89,68 @@ export function PlanStrip({ compact = false, currentPlan, go, openAuth, upgradeT
                     MOST CHOSEN BY ACTIVE TRADERS
                   </span>
                 )}
-                <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
-                  <div>
-                    <span className={`rounded-full px-3 py-1 font-body text-xs uppercase tracking-[0.2em] ${isPro ? "bg-[#18c887]/18 text-[#b9f5df]" : "bg-white/8 text-white/50"}`}>
-                      {isCurrentPlan ? "Current plan" : plan.badge}
-                    </span>
-                    <h3 className="mt-6 font-body text-3xl font-medium text-white">{plan.name}</h3>
-                    <p className="mt-3 max-w-[28ch] font-body text-sm font-light leading-relaxed text-white/55 md:max-w-md">{plan.description}</p>
-                  </div>
-                  <div className="shrink-0 text-left md:text-right">
-                    <p className="font-mono text-4xl leading-none text-white md:text-5xl">{plan.price}</p>
-                    <p className="mt-2 max-w-[120px] font-body text-xs uppercase tracking-[0.18em] text-white/38 md:ml-auto">
-                      {plan.priceNote}
-                    </p>
-                  </div>
+                <div className="plan-card-heading">
+                  <span className="plan-card-badge">{isCurrentPlan ? "Current plan" : plan.badge}</span>
+                  <span aria-hidden="true" className="plan-card-index">{plan.index}</span>
+                </div>
+                <h3 className="plan-card-name">{plan.name}</h3>
+                <div className="plan-card-rule" />
+                <p className="plan-card-description">{plan.description}</p>
+
+                <div className="plan-price-row">
+                  <p className="plan-price">{plan.price}</p>
+                  <p className="plan-price-note">
+                    {plan.priceNote.map((line) => <span key={line}>{line}</span>)}
+                  </p>
                 </div>
 
-                <div className="my-7 h-px bg-white/10" />
+                {isPro ? currentPlan === "pro" ? (
+                  <span className="plan-primary-action plan-primary-status" role="status">Pro active</span>
+                ) : (
+                  <button className="plan-primary-action" onClick={upgradeToPro} type="button">
+                    <span>Upgrade to Pro</span><ArrowUpRight aria-hidden="true" />
+                  </button>
+                ) : currentPlan ? (
+                  <button className="plan-primary-action plan-primary-action-free" onClick={() => go("import")} type="button">
+                    <span>Open trade import</span><ArrowUpRight aria-hidden="true" />
+                  </button>
+                ) : (
+                  <button className="plan-primary-action plan-primary-action-free" onClick={() => openAuth("signup")} type="button">
+                    <span>Start free</span><ArrowUpRight aria-hidden="true" />
+                  </button>
+                )}
 
-                <div className="grid gap-6 xl:grid-cols-2">
-                  <div>
-                    <p className="mb-3 font-body text-xs uppercase tracking-[0.22em] text-[#18c887]">Comes with</p>
-                    <div className="grid gap-3">
+                <div className="plan-card-rule plan-card-rule-after-action" />
+
+                <div className="plan-feature-ledger">
+                  <div className="plan-feature-group">
+                    <p className="plan-feature-label">{isPro ? "Everything in Free, plus" : "What's included"}</p>
+                    <div className="plan-feature-list">
                       {plan.included.map((feature) => (
-                        <div className="flex items-center gap-3 font-body text-sm text-white/72" key={feature}>
-                          <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full border ${isPro ? "border-[#18c887]/35 bg-[#18c887]/10 text-[#b9f5df]" : "border-white/12 bg-white/5 text-white/58"}`}>
-                            <Check className="h-3.5 w-3.5" />
-                          </span>
-                          {feature}
+                        <div className="plan-feature-row" key={feature}>
+                          <span className={`plan-feature-icon ${isPro ? "plan-feature-icon-pro" : ""}`}><Check /></span>
+                          <span>{feature}</span>
                         </div>
                       ))}
                     </div>
                   </div>
 
-                  <div>
-                    <p className="mb-3 font-body text-xs uppercase tracking-[0.22em] text-white/34">Doesn't include</p>
-                    <div className="grid gap-3">
+                  <div className="plan-feature-group plan-feature-exclusions">
+                    <p className="plan-feature-label">Doesn't include</p>
+                    <div className="plan-feature-list">
                       {plan.notIncluded.map((feature) => (
-                        <div className="flex items-center gap-3 font-body text-sm text-white/46" key={feature}>
-                          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-white/10 bg-black/20 text-white/34">
-                            <X className="h-3.5 w-3.5" />
-                          </span>
-                          {feature}
+                        <div className="plan-feature-row plan-feature-row-muted" key={feature}>
+                          <span className="plan-feature-icon plan-feature-icon-muted"><X /></span>
+                          <span>{feature}</span>
                         </div>
                       ))}
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-8 flex flex-wrap gap-3">
-                  {isPro ? currentPlan === "pro" ? (
-                    <span className="inline-flex min-h-11 items-center border border-[#18c887]/28 bg-[#18c887]/10 px-5 font-body text-sm font-medium text-[#b9f5df]" role="status">Pro active</span>
-                  ) : (
-                    <GlassButton strong onClick={upgradeToPro}>Upgrade to Pro <ArrowUpRight className="h-4 w-4" /></GlassButton>
-                  ) : currentPlan ? (
-                    <GlassButton strong onClick={() => go("import")}>Open trade import <ArrowUpRight className="h-4 w-4" /></GlassButton>
-                  ) : (
-                    <StartFreeButton icon onClick={() => openAuth("signup")}>Start free</StartFreeButton>
-                  )}
-                  <GlassButton onClick={() => go(isPro ? "passport" : "dashboard")}>{isPro ? "See Passport" : "Review Account"}</GlassButton>
-                </div>
+                <button className="plan-secondary-action" onClick={() => go(isPro ? "passport" : "dashboard")} type="button">
+                  {isPro ? "See Passport" : "Review Account"}<ArrowUpRight aria-hidden="true" />
+                </button>
               </motion.article>
             );
           })}
