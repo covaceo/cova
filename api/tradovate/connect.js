@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { requireAuthenticatedUser, sendApiError } from "../_lib/auth.js";
+import { requireAuthenticatedUser, requireProEntitlement, sendApiError } from "../_lib/auth.js";
 import { serializeCookie } from "../_lib/cookies.js";
 import { createOAuthContext } from "../_lib/oauth-context.js";
 import { getTradovateRedirectUri } from "../_lib/urls.js";
@@ -10,8 +10,10 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
+  res.setHeader("Cache-Control", "private, no-store");
+
   try {
-    const user = await requireAuthenticatedUser(req);
+    const user = requireProEntitlement(await requireAuthenticatedUser(req));
     const clientId = process.env.TRADOVATE_CLIENT_ID;
     if (!clientId) {
       return res.status(500).json({ error: "Tradovate access is not configured yet." });
@@ -29,7 +31,6 @@ export default async function handler(req, res) {
       url.searchParams.set("scope", process.env.TRADOVATE_SCOPE);
     }
 
-    res.setHeader("Cache-Control", "no-store");
     res.setHeader("Set-Cookie", serializeCookie("cova_oauth_context", context, { maxAge: 600 }));
     return res.status(200).json({ authorizationUrl: url.toString() });
   } catch (error) {

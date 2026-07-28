@@ -9,6 +9,7 @@ export default function handler(req, res) {
   res.setHeader("Set-Cookie", [
     clearCookie("cova_projectx_connection"),
     clearCookie("cova_tradovate_connection"),
+    clearCookie("cova_oauth_context"),
     clearCookie("cova_tradovate_oauth_state"),
     clearCookie("cova_tradovate_return_to"),
   ]);

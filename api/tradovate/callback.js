@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { requireProUserById } from "../_lib/auth.js";
 import { clearCookie, parseCookies, serializeCookie } from "../_lib/cookies.js";
 import { verifyOAuthContext } from "../_lib/oauth-context.js";
 import { saveTradovateConnection } from "../_lib/supabase.js";
@@ -26,6 +27,15 @@ export default async function handler(req, res) {
   }
 
   const userId = context.userId;
+  try {
+    await requireProUserById(userId);
+  } catch (error) {
+    const message = error?.statusCode === 403
+      ? error.message
+      : "Cova could not verify your current Pro access. Start the connection again.";
+    return redirectToClient(req, res, "upgrade", message);
+  }
+
   const authError = typeof req.query?.error === "string" ? req.query.error : "";
   if (authError) {
     return redirectToClient(req, res, "denied", "Tradovate authorization was denied.");
