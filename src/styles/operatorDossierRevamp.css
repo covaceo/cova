@@ -2166,7 +2166,7 @@ textarea {
 }
 
 .plan-card-badge {
-  color: rgba(239, 184, 141, 0.48);
+  color: rgba(239, 184, 141, 0.6);
 }
 
 .plan-card-index {
@@ -2219,7 +2219,7 @@ textarea {
   display: grid;
   gap: 0.08rem;
   padding-bottom: 0.2rem;
-  color: rgba(237, 234, 227, 0.2);
+  color: rgba(237, 234, 227, 0.52);
   font-size: 0.36rem;
   font-weight: 500;
   letter-spacing: 0.09em;
@@ -2292,7 +2292,7 @@ textarea {
 
 .plan-feature-label {
   margin-bottom: 0.65rem;
-  color: rgba(237, 234, 227, 0.13);
+  color: rgba(237, 234, 227, 0.52);
   font-size: 0.39rem;
   font-weight: 520;
   letter-spacing: 0.09em;

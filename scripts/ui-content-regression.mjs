@@ -124,6 +124,9 @@ assert.match(operatorDossierCss, /\.pricing-plan-grid\s*\{[\s\S]*?grid-template-
 assert.match(operatorDossierCss, /\.plan-card\s*\{[\s\S]*?border-radius:\s*0\.5rem;/, "Pricing cards should retain the restrained eight-pixel corners from the approved reference.");
 assert.match(operatorDossierCss, /\.pricing-showcase-summary\s*\{[\s\S]*?color:\s*rgba\(237,\s*234,\s*227,\s*0\.52\);/, "Pricing support copy should retain readable contrast.");
 assert.match(operatorDossierCss, /\.plan-card-description\s*\{[\s\S]*?color:\s*rgba\(237,\s*234,\s*227,\s*0\.52\);/, "Plan descriptions should retain readable contrast.");
+assert.match(operatorDossierCss, /\.plan-card-badge\s*\{[\s\S]*?color:\s*rgba\(239,\s*184,\s*141,\s*0\.6\);/, "Plan status badges should retain readable contrast.");
+assert.match(operatorDossierCss, /\.plan-price-note\s*\{[\s\S]*?color:\s*rgba\(237,\s*234,\s*227,\s*0\.52\);/, "Price qualifiers should retain readable contrast.");
+assert.match(operatorDossierCss, /\.plan-feature-label\s*\{[\s\S]*?color:\s*rgba\(237,\s*234,\s*227,\s*0\.52\);/, "Plan feature labels should retain readable contrast.");
 assert.match(operatorDossierCss, /\.plan-feature-row\s*\{[\s\S]*?color:\s*rgba\(237,\s*234,\s*227,\s*0\.52\);/, "Included plan details should retain readable contrast.");
 assert.match(operatorDossierCss, /\.plan-secondary-action\s*\{[\s\S]*?color:\s*rgba\(237,\s*234,\s*227,\s*0\.52\);/, "Secondary plan actions should retain readable contrast.");
 assert.match(operatorDossierCss, /@media \(max-width:\s*900px\)[\s\S]*?\.plan-primary-action,[\s\S]*?\.plan-secondary-action\s*\{[\s\S]*?min-height:\s*2\.75rem;/, "Mobile pricing actions should retain a 44px minimum touch target.");
