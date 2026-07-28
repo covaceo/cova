@@ -1,0 +1,42 @@
+/* Loaded by TradingView via custom_css_url: /trading_view/cova-practice.css */
+:root {
+  --cova-bg: #050709;
+  --cova-panel: #070b0d;
+  --cova-border: rgba(148, 163, 184, 0.16);
+  --cova-green: #18c887;
+  --cova-text: rgba(255, 255, 255, 0.86);
+}
+
+html,
+body,
+.chart-page,
+.chart-container {
+  background: var(--cova-bg) !important;
+  color: var(--cova-text) !important;
+}
+
+.layout__area--top,
+.toolbar-2n2cwgp5,
+.group-wWM3zP_M,
+.chart-toolbar {
+  background: linear-gradient(180deg, rgba(9, 13, 15, 0.96), rgba(5, 7, 9, 0.92)) !important;
+  border-color: var(--cova-border) !important;
+}
+
+.button-2ioYhFEY.isInteractive-20uLObIc,
+.apply-common-tooltip,
+.tv-button {
+  color: var(--cova-text) !important;
+}
+
+.pane-legend,
+.pane-legend-line {
+  color: rgba(255, 255, 255, 0.62) !important;
+}
+
+.tv-floating-toolbar,
+.drawing-toolbar {
+  background: rgba(5, 7, 9, 0.94) !important;
+  border: 1px solid rgba(24, 200, 135, 0.18) !important;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.42) !important;
+}

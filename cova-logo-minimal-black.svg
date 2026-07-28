@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title desc">
+  <title id="title">Cova minimal mark</title>
+  <desc id="desc">A minimal C-shaped risk mark with integrated candlestick bars.</desc>
+  <path d="M70 23.5A35 35 0 1 0 70 72.5" fill="none" stroke="#000" stroke-width="10" stroke-linecap="round"/>
+  <path d="M35 39v23" stroke="#000" stroke-width="4" stroke-linecap="round"/>
+  <rect x="30.75" y="45.5" width="8.5" height="11.5" rx="1.5" fill="#000"/>
+  <path d="M48 30v36" stroke="#000" stroke-width="4" stroke-linecap="round"/>
+  <rect x="43.75" y="39" width="8.5" height="18" rx="1.5" fill="#000"/>
+  <path d="M61 36v25" stroke="#000" stroke-width="4" stroke-linecap="round"/>
+  <rect x="56.75" y="43" width="8.5" height="12.5" rx="1.5" fill="#000"/>
+</svg>
