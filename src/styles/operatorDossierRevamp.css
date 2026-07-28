@@ -2405,6 +2405,166 @@ textarea {
   background: #332117;
 }
 
+@media (min-width: 1440px) {
+  .pricing-showcase-inner {
+    max-width: 80rem;
+  }
+
+  .pricing-showcase-header {
+    grid-template-columns: minmax(0, 1fr) 22rem;
+    gap: 3rem;
+  }
+
+  .pricing-showcase-title {
+    font-size: 4rem;
+  }
+
+  .pricing-showcase-summary {
+    margin-top: 5rem;
+    font-size: 0.78rem;
+    line-height: 1.7;
+  }
+
+  .pricing-plan-grid {
+    gap: 0.875rem;
+    margin-top: 3.75rem;
+  }
+
+  .plan-card {
+    min-height: 48rem;
+    padding: 2.6rem 2rem 2.4rem;
+  }
+
+  .plan-card-badge,
+  .plan-card-index {
+    font-size: 0.48rem;
+  }
+
+  .plan-card-name {
+    margin-top: 1.25rem;
+    font-size: 1.8rem;
+  }
+
+  .plan-card-description {
+    font-size: 0.7rem;
+  }
+
+  .plan-price-row {
+    margin-top: 3rem;
+  }
+
+  .plan-price {
+    font-size: 4rem;
+  }
+
+  .plan-price-note {
+    font-size: 0.46rem;
+  }
+
+  .plan-primary-action {
+    min-height: 3rem;
+    margin-top: 1.35rem;
+    padding-inline: 1.05rem;
+    font-size: 0.58rem;
+  }
+
+  .plan-primary-action svg {
+    width: 0.88rem;
+    height: 0.88rem;
+  }
+
+  .plan-card-rule-after-action {
+    margin-top: 1.85rem;
+  }
+
+  .plan-feature-ledger {
+    margin-top: 1.3rem;
+  }
+
+  .plan-feature-label {
+    margin-bottom: 0.8rem;
+    font-size: 0.48rem;
+  }
+
+  .plan-feature-list {
+    gap: 0.65rem;
+  }
+
+  .plan-feature-row {
+    gap: 0.6rem;
+    font-size: 0.68rem;
+  }
+
+  .plan-feature-icon {
+    width: 1rem;
+    height: 1rem;
+    flex-basis: 1rem;
+  }
+
+  .plan-feature-icon svg {
+    width: 0.56rem;
+    height: 0.56rem;
+  }
+
+  .plan-feature-exclusions {
+    margin-top: 2rem;
+  }
+
+  .plan-secondary-action {
+    margin-top: 2rem;
+    font-size: 0.54rem;
+  }
+
+  .plan-recommendation-tab {
+    top: 1rem;
+    right: 1.6rem !important;
+    padding: 0.48rem 0.72rem;
+    font-size: 0.4rem;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) and (min-width: 901px) {
+  .plan-card {
+    transition:
+      translate 240ms cubic-bezier(0.16, 1, 0.3, 1),
+      scale 240ms cubic-bezier(0.16, 1, 0.3, 1),
+      border-color 240ms ease,
+      box-shadow 240ms ease;
+    will-change: translate, scale;
+  }
+
+  .plan-card:hover {
+    translate: 0 -0.45rem;
+    scale: 1.008;
+    border-color: rgba(239, 184, 141, 0.3);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.035),
+      0 20px 46px rgba(0, 0, 0, 0.36),
+      0 0 34px rgba(118, 71, 41, 0.06);
+  }
+
+  .plan-card-pro:hover {
+    border-color: rgba(239, 184, 141, 0.44) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.045),
+      0 22px 52px rgba(0, 0, 0, 0.4),
+      0 0 58px rgba(118, 71, 41, 0.12);
+  }
+
+  .plan-card:hover .plan-card-rule {
+    background: rgba(239, 184, 141, 0.18);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plan-card,
+  .plan-card:hover {
+    transition: none;
+    translate: none;
+    scale: none;
+  }
+}
+
 @media (max-width: 900px) {
   .pricing-showcase {
     padding: 6rem 1.25rem 5rem;
