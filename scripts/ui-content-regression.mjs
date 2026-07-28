@@ -119,7 +119,10 @@ assert.match(planSections, /pricing-showcase-header/, "Pricing should use the ap
 assert.match(planSections, /Start small enough to prove the workflow\. Upgrade when Cova becomes part of every session review\./, "Pricing should retain the approved concise support copy.");
 assert.doesNotMatch(planSections, /pricing-quick-actions/, "Pricing should not restore the detached CTA row that is absent from the approved reference.");
 assert.match(planSections, /plan-primary-action/, "Each plan card should expose its primary decision action above the feature ledger.");
-assert.match(operatorDossierCss, /\.pricing-showcase-inner\s*\{[\s\S]*?max-width:\s*58\.75rem;/, "Desktop pricing geometry should retain the approved 940px content rail.");
+assert.match(operatorDossierCss, /\.pricing-showcase-inner\s*\{[\s\S]*?max-width:\s*58\.75rem;/, "Standard desktop pricing geometry should retain the approved 940px content rail.");
+assert.match(operatorDossierCss, /@media \(min-width:\s*1440px\)[\s\S]*?\.pricing-showcase-inner\s*\{[\s\S]*?max-width:\s*80rem;[\s\S]*?\.pricing-showcase-title\s*\{[\s\S]*?font-size:\s*4rem;[\s\S]*?\.plan-feature-row\s*\{[\s\S]*?font-size:\s*0\.68rem;/, "Wide desktop pricing should grow to the surrounding 1280px rail with readable internal type.");
+assert.match(operatorDossierCss, /@media \(hover:\s*hover\) and \(pointer:\s*fine\) and \(min-width:\s*901px\)[\s\S]*?\.plan-card:hover\s*\{[\s\S]*?translate:\s*0 -0\.45rem;[\s\S]*?scale:\s*1\.008;/, "Desktop plan cards should expose restrained lift feedback on hover.");
+assert.match(operatorDossierCss, /@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.plan-card[\s\S]*?translate:\s*none;[\s\S]*?scale:\s*none;/, "Pricing hover motion should disable cleanly for reduced-motion users.");
 assert.match(operatorDossierCss, /\.pricing-plan-grid\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*0\.82fr\)\s*minmax\(0,\s*1fr\);/, "Desktop pricing cards should retain the approved asymmetric 0.82/1 split.");
 assert.match(operatorDossierCss, /\.plan-card\s*\{[\s\S]*?border-radius:\s*0\.5rem;/, "Pricing cards should retain the restrained eight-pixel corners from the approved reference.");
 assert.match(operatorDossierCss, /\.pricing-showcase-summary\s*\{[\s\S]*?color:\s*rgba\(237,\s*234,\s*227,\s*0\.52\);/, "Pricing support copy should retain readable contrast.");
