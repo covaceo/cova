@@ -21,16 +21,17 @@ import "@fontsource/space-grotesk/latin-600.css";
 import "@fontsource/jetbrains-mono/latin-400.css";
 import "@fontsource/jetbrains-mono/latin-500.css";
 import "@fontsource/jetbrains-mono/latin-600.css";
-import App from "./App";
 import "./index.css";
 import "./styles/riskDeskVisualSystem.css";
 import "./styles/workspaceRouteRefinement.css";
 import "./styles/operatorDossierRevamp.css";
 import "./styles/customCursor.css";
 import "./styles/backtestingLab.css";
+import RiskReplayPreview from "./components/RiskReplayPreview";
+import "./styles/riskReplayPreview.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <App />
+    <RiskReplayPreview />
   </React.StrictMode>,
 );
