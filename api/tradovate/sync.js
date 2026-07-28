@@ -1,4 +1,4 @@
-import { requireAuthenticatedUser, sendApiError } from "../_lib/auth.js";
+import { requireAuthenticatedUser, requireProEntitlement, sendApiError } from "../_lib/auth.js";
 import { parseCookies } from "../_lib/cookies.js";
 import { decryptSecret } from "../_lib/encryption.js";
 import { getTradovateConnection } from "../_lib/supabase.js";
@@ -35,10 +35,11 @@ export default async function handler(req, res) {
     return;
   }
 
+  res.setHeader("Cache-Control", "private, no-store");
+
   let user;
   try {
-    user = await requireAuthenticatedUser(req);
-    res.setHeader("Cache-Control", "no-store");
+    user = requireProEntitlement(await requireAuthenticatedUser(req));
   } catch (error) {
     return sendApiError(res, error, "Tradovate authentication is unavailable.");
   }

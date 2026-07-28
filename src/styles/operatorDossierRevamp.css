@@ -2039,43 +2039,457 @@ textarea {
   font-size: 0.72rem;
 }
 
+.pricing-showcase {
+  position: relative;
+  overflow: hidden;
+  padding: 7rem 1.25rem 6.5rem;
+}
+
+.pricing-showcase-compact {
+  padding-top: 9rem;
+  padding-bottom: 2.5rem;
+}
+
+.pricing-showcase-top-fade,
+.pricing-showcase-bottom-fade {
+  position: absolute;
+  z-index: 0;
+  right: 0;
+  left: 0;
+  height: 12rem;
+  pointer-events: none;
+}
+
+.pricing-showcase-top-fade {
+  top: 0;
+  background: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, 0.82) 32%, rgba(0, 0, 0, 0) 100%);
+}
+
+.pricing-showcase-bottom-fade {
+  bottom: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.76) 68%, #000 100%);
+}
+
+.pricing-showcase-inner {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 58.75rem;
+  margin: 0 auto;
+}
+
+.pricing-showcase-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 16.75rem;
+  gap: 1.875rem;
+  align-items: start;
+}
+
+.pricing-showcase-title {
+  max-width: 100%;
+  color: #edeae3;
+  font-family: "Inter", "Manrope", system-ui, sans-serif;
+  font-size: 3.25rem;
+  font-style: normal;
+  font-weight: 480;
+  letter-spacing: -0.062em;
+  line-height: 1.0346;
+  transform: translateY(-0.25rem) scaleX(0.922);
+  transform-origin: left top;
+}
+
+.pricing-showcase-summary {
+  margin-top: 4.2rem;
+  color: rgba(237, 234, 227, 0.52);
+  font-family: "Inter", "Manrope", system-ui, sans-serif;
+  font-size: 0.625rem;
+  font-weight: 420;
+  line-height: 1.65;
+}
+
+.pricing-plan-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.82fr) minmax(0, 1fr);
+  gap: 0.625rem;
+  align-items: start;
+  margin-top: 3rem;
+}
+
+.plan-card {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  min-height: 43rem;
+  padding: 2.05rem 1.5rem 2rem;
+  border: 1px solid rgba(227, 224, 215, 0.12);
+  border-radius: 0.5rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.012), rgba(255, 255, 255, 0.002) 44%, rgba(0, 0, 0, 0.18)),
+    rgba(5, 6, 5, 0.72);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.018);
+}
+
 .plan-card-pro {
+  margin-top: -0.65rem;
   overflow: visible !important;
-  border-color: rgba(239, 184, 141, 0.26) !important;
+  border-color: rgba(239, 184, 141, 0.25) !important;
+  background:
+    radial-gradient(circle at 94% 2%, rgba(172, 109, 65, 0.22), transparent 35%),
+    linear-gradient(150deg, rgba(239, 184, 141, 0.035), rgba(255, 255, 255, 0.008) 42%, rgba(0, 0, 0, 0.2)),
+    rgba(7, 7, 6, 0.78);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.025),
+    0 0 58px rgba(118, 71, 41, 0.055);
+}
+
+.plan-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.plan-card-badge,
+.plan-card-index,
+.plan-feature-label,
+.plan-price-note {
+  font-family: "JetBrains Mono", monospace;
+  text-transform: uppercase;
+}
+
+.plan-card-badge,
+.plan-card-index {
+  font-size: 0.39rem;
+  font-weight: 520;
+  letter-spacing: 0.12em;
+  line-height: 1;
+}
+
+.plan-card-badge {
+  color: rgba(239, 184, 141, 0.6);
+}
+
+.plan-card-index {
+  color: rgba(237, 234, 227, 0.095);
+}
+
+.plan-card-name {
+  margin-top: 1.05rem;
+  color: #efede7;
+  font-family: "Inter", "Manrope", system-ui, sans-serif;
+  font-size: 1.48rem;
+  font-weight: 500;
+  letter-spacing: -0.045em;
+  line-height: 1;
+}
+
+.plan-card-rule {
+  width: 100%;
+  height: 1px;
+  margin-top: 1.35rem;
+  background: rgba(237, 234, 227, 0.1);
+}
+
+.plan-card-description {
+  margin-top: 0.95rem;
+  color: rgba(237, 234, 227, 0.52);
+  font-family: "Inter", "Manrope", system-ui, sans-serif;
+  font-size: 0.57rem;
+  font-weight: 420;
+  line-height: 1.5;
+}
+
+.plan-price-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.45rem;
+  margin-top: 2.675rem;
+}
+
+.plan-price {
+  color: #efede7;
+  font-family: "Inter", "Manrope", system-ui, sans-serif;
+  font-size: 3.25rem;
+  font-weight: 430;
+  letter-spacing: -0.065em;
+  line-height: 0.88;
+}
+
+.plan-price-note {
+  display: grid;
+  gap: 0.08rem;
+  padding-bottom: 0.2rem;
+  color: rgba(237, 234, 227, 0.52);
+  font-size: 0.36rem;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  line-height: 1.05;
+}
+
+.plan-primary-action {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-height: 2.45rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 1.15rem;
+  padding: 0 0.85rem;
+  border: 1px solid rgba(212, 255, 235, 0.52);
+  border-radius: 0.34rem;
+  color: #102219;
+  background: #a8efd3;
+  box-shadow: 0 4px 0 rgba(239, 184, 141, 0.14), 0 7px 22px rgba(0, 0, 0, 0.22);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.46rem;
+  font-weight: 650;
+  letter-spacing: 0.09em;
+  line-height: 1;
+  text-align: left;
+  text-transform: uppercase;
+  transition: background-color 180ms ease, transform 180ms ease;
+}
+
+.plan-primary-action:hover {
+  background: #b9f5df;
+  transform: translateY(-1px);
+}
+
+.plan-primary-action:focus-visible,
+.plan-secondary-action:focus-visible {
+  outline: 2px solid rgba(185, 245, 223, 0.85);
+  outline-offset: 3px;
+}
+
+.plan-primary-action svg {
+  width: 0.72rem;
+  height: 0.72rem;
+  stroke-width: 1.7;
+}
+
+.plan-primary-action-free {
+  border-color: rgba(237, 234, 227, 0.2);
+  color: rgba(237, 234, 227, 0.82);
+  background: rgba(237, 234, 227, 0.015);
+  box-shadow: none;
+}
+
+.plan-primary-action-free:hover {
+  background: rgba(237, 234, 227, 0.055);
+}
+
+.plan-primary-status {
+  color: #102219;
+}
+
+.plan-card-rule-after-action {
+  margin-top: 1.55rem;
+}
+
+.plan-feature-ledger {
+  margin-top: 1rem;
+}
+
+.plan-feature-label {
+  margin-bottom: 0.65rem;
+  color: rgba(237, 234, 227, 0.52);
+  font-size: 0.39rem;
+  font-weight: 520;
+  letter-spacing: 0.09em;
+  line-height: 1;
+}
+
+.plan-feature-list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.plan-feature-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: rgba(237, 234, 227, 0.52);
+  font-family: "Inter", "Manrope", system-ui, sans-serif;
+  font-size: 0.56rem;
+  font-weight: 430;
+  line-height: 1.25;
+}
+
+.plan-feature-icon {
+  display: grid;
+  width: 0.8rem;
+  height: 0.8rem;
+  flex: 0 0 0.8rem;
+  place-items: center;
+  border: 1px solid rgba(237, 234, 227, 0.13);
+  border-radius: 50%;
+  color: rgba(237, 234, 227, 0.42);
+  background: rgba(237, 234, 227, 0.015);
+}
+
+.plan-feature-icon svg {
+  width: 0.45rem;
+  height: 0.45rem;
+  stroke-width: 1.6;
+}
+
+.plan-feature-icon-pro {
+  border-color: rgba(24, 200, 135, 0.24);
+  color: rgba(89, 231, 178, 0.6);
+  background: rgba(24, 200, 135, 0.045);
+}
+
+.plan-feature-exclusions {
+  margin-top: 1.75rem;
+}
+
+.plan-feature-row-muted {
+  color: rgba(237, 234, 227, 0.52);
+}
+
+.plan-feature-icon-muted {
+  color: rgba(237, 234, 227, 0.25);
+}
+
+.plan-secondary-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 1.7rem;
+  border-bottom: 1px solid rgba(237, 234, 227, 0.18);
+  color: rgba(237, 234, 227, 0.52);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.44rem;
+  font-weight: 560;
+  letter-spacing: 0.08em;
+  line-height: 1.8;
+  text-transform: uppercase;
+}
+
+.plan-secondary-action svg {
+  width: 0.62rem;
+  height: 0.62rem;
 }
 
 .plan-recommendation-tab {
   position: absolute !important;
-  top: -0.76rem;
+  top: 0;
   right: 1.5rem !important;
   left: auto !important;
   z-index: 8;
   display: inline-flex;
-  min-height: 1.72rem;
+  min-height: 1.25rem;
   align-items: center;
-  gap: 0.42rem;
+  gap: 0.28rem;
   max-width: calc(100% - 2rem);
-  padding: 0.42rem 0.72rem;
-  border: 1px solid rgba(255, 225, 202, 0.6);
-  border-radius: 3px;
+  padding: 0.34rem 0.5rem;
+  border: 1px solid rgba(255, 225, 202, 0.54);
+  border-radius: 2px;
   color: #24170f;
   background: #efb88d;
-  box-shadow: 0 0 0 1px rgba(83, 46, 25, 0.12), 0 0 26px rgba(239, 184, 141, 0.26), 0 8px 24px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 0 0 1px rgba(83, 46, 25, 0.1), 0 0 22px rgba(239, 184, 141, 0.18);
   font-family: "JetBrains Mono", monospace;
-  font-size: 0.54rem;
-  font-weight: 600;
-  letter-spacing: 0.09em;
+  font-size: 0.3rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
   line-height: 1;
   text-transform: uppercase;
   white-space: nowrap;
 }
 
 .plan-recommendation-dot {
-  width: 0.28rem;
-  height: 0.28rem;
+  width: 0.22rem;
+  height: 0.22rem;
   flex: 0 0 auto;
   border-radius: 50%;
   background: #332117;
+}
+
+@media (max-width: 900px) {
+  .pricing-showcase {
+    padding: 6rem 1.25rem 5rem;
+  }
+
+  .pricing-showcase-compact {
+    padding-top: 7.5rem;
+    padding-bottom: 2.5rem;
+  }
+
+  .pricing-showcase-header {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.5rem;
+  }
+
+  .pricing-showcase-title {
+    max-width: 11ch;
+    font-size: clamp(2.75rem, 8vw, 3.5rem);
+    transform: none;
+  }
+
+  .pricing-showcase-summary {
+    max-width: 34rem;
+    margin-top: 0;
+    font-size: 0.78rem;
+  }
+
+  .pricing-plan-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.25rem;
+    margin-top: 2.75rem;
+  }
+
+  .plan-card {
+    min-height: 0;
+  }
+
+  .plan-primary-action,
+  .plan-secondary-action {
+    min-height: 2.75rem;
+  }
+
+  .plan-card-pro {
+    transform: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .pricing-showcase {
+    padding-right: 1rem;
+    padding-left: 1rem;
+  }
+
+  .pricing-showcase-title {
+    font-size: clamp(2.45rem, 12vw, 3.2rem);
+  }
+
+  .plan-card {
+    padding: 1.85rem 1.2rem 1.6rem;
+  }
+
+  .plan-card-badge,
+  .plan-card-index,
+  .plan-feature-label {
+    font-size: 0.48rem;
+  }
+
+  .plan-card-name {
+    font-size: 1.65rem;
+  }
+
+  .plan-card-description,
+  .plan-feature-row {
+    font-size: 0.72rem;
+  }
+
+  .plan-price {
+    font-size: 3.4rem;
+  }
+
+  .plan-price-note,
+  .plan-primary-action,
+  .plan-secondary-action {
+    font-size: 0.53rem;
+  }
 }
 
 @media (max-width: 900px) {
@@ -2170,14 +2584,15 @@ textarea {
 
   .plan-card-pro {
     margin-top: 0.5rem;
+    transform: none;
   }
 
   .plan-recommendation-tab {
-    top: -0.72rem;
+    top: 0;
     right: 0.8rem !important;
     max-width: calc(100% - 1.6rem);
     padding-inline: 0.58rem;
-    font-size: 0.52rem;
+    font-size: 0.48rem;
     letter-spacing: 0.065em;
   }
 }

@@ -28,6 +28,7 @@ export default async function handler(req, res) {
       res.setHeader("Set-Cookie", [
         clearCookie(providers.projectx.cookie),
         clearCookie(providers.tradovate.cookie),
+        clearCookie("cova_oauth_context"),
       ]);
       return res.status(200).json({ disconnected: true, provider: "All Cova connectors" });
     }
@@ -38,7 +39,10 @@ export default async function handler(req, res) {
     }
 
     res.setHeader("Cache-Control", "no-store");
-    res.setHeader("Set-Cookie", clearCookie(config.cookie));
+    res.setHeader("Set-Cookie", [
+      clearCookie(config.cookie),
+      clearCookie("cova_oauth_context"),
+    ]);
     return res.status(200).json({ disconnected: true, provider: config.label });
   } catch (error) {
     return sendApiError(res, error, "The connection could not be removed securely.");

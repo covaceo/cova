@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { requireAuthenticatedUser, sendApiError } from "../_lib/auth.js";
+import { requireAuthenticatedUser, requireProEntitlement, sendApiError } from "../_lib/auth.js";
 import { serializeCookie } from "../_lib/cookies.js";
 import {
   pickPrimaryAccount,
@@ -19,10 +19,11 @@ export default async function handler(req, res) {
     return;
   }
 
+  res.setHeader("Cache-Control", "private, no-store");
+
   let user;
   try {
-    user = await requireAuthenticatedUser(req);
-    res.setHeader("Cache-Control", "private, no-store");
+    user = requireProEntitlement(await requireAuthenticatedUser(req));
   } catch (error) {
     return sendApiError(res, error, "Member authentication is unavailable.");
   }

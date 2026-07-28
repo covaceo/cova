@@ -43,7 +43,45 @@ export async function requireAuthenticatedUser(req) {
   return {
     id: String(user.id),
     email: typeof user.email === "string" ? user.email : "",
+    plan: user.app_metadata?.plan === "pro" ? "pro" : "free",
   };
+}
+
+export function requireProEntitlement(user) {
+  if (user?.plan !== "pro") {
+    throw new ApiError(403, "Cova Pro is required for direct sync.");
+  }
+  return user;
+}
+
+export async function requireProUserById(userId) {
+  const supabaseUrl = String(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "").replace(/\/$/, "");
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new ApiError(503, "Member entitlement verification is not configured.");
+  }
+
+  const response = await fetch(`${supabaseUrl}/auth/v1/admin/users/${encodeURIComponent(String(userId || ""))}`, {
+    headers: {
+      apikey: serviceRoleKey,
+      Authorization: `Bearer ${serviceRoleKey}`,
+    },
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status === 404 ? 403 : 503, "Cova could not verify your current Pro access.");
+  }
+
+  const payload = await response.json();
+  const user = payload?.user || payload;
+  if (!user?.id || String(user.id) !== String(userId)) {
+    throw new ApiError(403, "Cova could not verify your current Pro access.");
+  }
+
+  return requireProEntitlement({
+    id: String(user.id),
+    email: typeof user.email === "string" ? user.email : "",
+    plan: user.app_metadata?.plan === "pro" ? "pro" : "free",
+  });
 }
 
 export function sendApiError(res, error, fallbackMessage) {

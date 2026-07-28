@@ -153,6 +153,10 @@ async function main() {
           const recommendationCard = document.querySelector('.plan-card-pro');
           const recommendationRect = recommendationTab?.getBoundingClientRect();
           const recommendationCardRect = recommendationCard?.getBoundingClientRect();
+          const pricingActions = [...document.querySelectorAll('.plan-primary-action, .plan-secondary-action')].map((element) => {
+            const rect = element.getBoundingClientRect();
+            return { label: element.textContent?.trim() ?? '', height: rect.height };
+          });
           const hero = document.querySelector('.market-hero');
           const heroActions = document.querySelector('.market-hero-actions');
           const heroPrimary = document.querySelector('.market-hero .native-start-button');
@@ -176,6 +180,7 @@ async function main() {
             required: ${JSON.stringify(route.requiredText)}.map((text) => ({ text, present: body.toLowerCase().includes(text.toLowerCase()) })),
             hasAuthDialog: body.includes('Enter dev preview') || body.includes('Log in to Cova'),
             title: document.querySelector('h1,h2')?.textContent?.trim() ?? '',
+            pricingActions,
             recommendation: recommendationTab && recommendationCard && recommendationRect && recommendationCardRect ? {
               position: getComputedStyle(recommendationTab).position,
               cardOverflow: getComputedStyle(recommendationCard).overflow,
@@ -353,6 +358,7 @@ async function main() {
       ...(result.name === "pricing" && result.recommendation?.position !== "absolute" ? ["pricing: recommendation tab is not absolutely attached"] : []),
       ...(result.name === "pricing" && result.recommendation?.cardOverflow !== "visible" ? ["pricing: recommendation tab is clipped by the Pro card"] : []),
       ...(result.name === "pricing" && (!result.recommendation?.fullyInViewport || !result.recommendation?.verticallyVisible || Math.abs(result.recommendation.rightDelta - (viewportWidth < 768 ? 14 : 24)) > 6) ? ["pricing: recommendation tab is not visibly aligned inside the Pro card's upper-right edge"] : []),
+      ...(result.name === "pricing" && viewportWidth < 768 ? result.pricingActions.filter((action) => action.height < 44).map((action) => `pricing: “${action.label}” touch target is ${action.height.toFixed(2)}px tall`) : []),
       ...(result.name === "overview" && result.hero?.secondary.text !== "See how it works" ? ["overview: original secondary CTA label is not visible"] : []),
       ...(result.name === "overview" && (result.hero?.secondary.left < 0 || result.hero?.secondary.right > result.width) ? ["overview: secondary CTA overflows the viewport"] : []),
       ...(result.name === "overview" && (result.actionOutcome?.hasAuthDialog || result.actionOutcome?.hash !== "#overview" || result.actionOutcome?.storyTop > result.height) ? ["overview: signed-out secondary CTA did not scroll to public proof"] : []),
