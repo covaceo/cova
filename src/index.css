@@ -6397,31 +6397,52 @@ body {
   color: #090a0a;
 }
 
-.cova-closing-section::before {
+.cova-closing-grid {
   position: absolute;
   inset: 0;
-  z-index: -2;
+  z-index: -3;
   content: "";
-  background-image:
-    linear-gradient(rgba(31, 23, 18, 0.075) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(31, 23, 18, 0.075) 1px, transparent 1px);
+  background-image: radial-gradient(circle, rgba(43, 27, 18, 0.16) 0 0.8px, transparent 1px);
   background-position: center;
-  background-size: 40px 40px;
-  mask-image: linear-gradient(90deg, transparent, #000 19%, #000 81%, transparent);
-  opacity: 0.52;
+  background-size: 18px 18px;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.16) 10%, rgba(0, 0, 0, 0.68) 24%, #000 39%, #000 61%, rgba(0, 0, 0, 0.68) 76%, rgba(0, 0, 0, 0.16) 90%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.16) 10%, rgba(0, 0, 0, 0.68) 24%, #000 39%, #000 61%, rgba(0, 0, 0, 0.68) 76%, rgba(0, 0, 0, 0.16) 90%, transparent 100%);
+  opacity: 0.62;
+  pointer-events: none;
+}
+
+.cova-closing-section::before {
+  position: absolute;
+  z-index: -2;
+  width: min(31rem, 76vw);
+  aspect-ratio: 1;
+  content: "";
+  background:
+    radial-gradient(circle at 27% 20%, rgba(255, 226, 204, 0.4) 0 5%, rgba(255, 217, 189, 0.1) 17%, transparent 39%),
+    linear-gradient(138deg, rgba(255, 226, 205, 0.19), rgba(255, 243, 233, 0.025) 46%, rgba(77, 43, 27, 0.22));
+  -webkit-mask: url("/cova-logo-minimal-black.svg") center / contain no-repeat;
+  mask: url("/cova-logo-minimal-black.svg") center / contain no-repeat;
+  opacity: 0.3;
+  filter:
+    drop-shadow(0 -1px 0 rgba(255, 225, 203, 0.22))
+    drop-shadow(0 16px 25px rgba(84, 48, 29, 0.16));
 }
 
 .cova-closing-section::after {
   position: absolute;
   z-index: -1;
-  width: min(26rem, 68vw);
+  width: min(31rem, 76vw);
   aspect-ratio: 1;
-  border: 1px solid rgba(35, 25, 19, 0.1);
-  border-radius: 50%;
   content: "";
-  box-shadow:
-    0 0 0 9rem rgba(239, 177, 132, 0.09),
-    inset 0 0 8rem rgba(217, 143, 91, 0.07);
+  background: linear-gradient(145deg, rgba(119, 67, 41, 0.08), rgba(111, 62, 37, 0.06) 45%, rgba(66, 37, 23, 0.16));
+  -webkit-mask: url("/cova-logo-minimal-black.svg") center / contain no-repeat;
+  mask: url("/cova-logo-minimal-black.svg") center / contain no-repeat;
+  opacity: 0.72;
+  backdrop-filter: blur(11px) saturate(1.08);
+  -webkit-backdrop-filter: blur(11px) saturate(1.08);
+  filter:
+    drop-shadow(0 1px 0 rgba(72, 39, 24, 0.2))
+    drop-shadow(0 -1px 0 rgba(255, 225, 203, 0.18));
 }
 
 .cova-closing-content {
@@ -6641,11 +6662,13 @@ body {
     padding: 6rem 1.2rem 5.5rem;
   }
 
-  .cova-closing-section::before {
-    background-size: 34px 34px;
-    mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  .cova-closing-grid {
+    background-size: 16px 16px;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
   }
 
+  .cova-closing-section::before,
   .cova-closing-section::after {
     width: calc(100% - 1.5rem);
   }
