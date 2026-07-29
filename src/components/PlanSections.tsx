@@ -164,6 +164,7 @@ export function CtaFooter({ go, isSignedIn, openAuth, openPassport }: { go: (sec
   return (
     <>
       <section aria-labelledby="cova-closing-title" className="cova-closing-section">
+        <span aria-hidden="true" className="cova-closing-grid" />
         <div className="cova-closing-dock">
           <span aria-hidden="true" className="cova-closing-dock-line" />
           <div className="cova-closing-dock-tab">
