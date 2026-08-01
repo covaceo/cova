@@ -7,6 +7,7 @@ const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 3;
 const CLOCK_SKEW_SECONDS = 60;
 const PASSWORD_MIN_LENGTH = 16;
 const PASSWORD_MAX_LENGTH = 512;
+const UNLOCK_BODY_MAX_BYTES = 16 * 1024;
 
 function constantTimeEqual(left: string, right: string) {
   const length = Math.max(left.length, right.length);
@@ -93,6 +94,50 @@ function readCookie(request: Request, name: string) {
     }
   }
   return "";
+}
+
+async function readUnlockForm(request: Request) {
+  const contentType = request.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase();
+  if (contentType !== "application/x-www-form-urlencoded" || !request.body) {
+    return { status: "invalid" as const };
+  }
+
+  const contentLength = request.headers.get("content-length");
+  if (contentLength) {
+    if (!/^\d+$/u.test(contentLength) || Number(contentLength) > UNLOCK_BODY_MAX_BYTES) {
+      return { status: "too-large" as const };
+    }
+  }
+
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let byteLength = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    byteLength += value.byteLength;
+    if (byteLength > UNLOCK_BODY_MAX_BYTES) {
+      await reader.cancel();
+      return { status: "too-large" as const };
+    }
+    chunks.push(value);
+  }
+
+  const body = new Uint8Array(byteLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    body.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+
+  try {
+    return {
+      status: "ok" as const,
+      form: new URLSearchParams(new TextDecoder("utf-8", { fatal: true }).decode(body)),
+    };
+  } catch {
+    return { status: "invalid" as const };
+  }
 }
 
 function sanitizeReturnTo(value: FormDataEntryValue | null) {
@@ -193,7 +238,7 @@ function renderLockPage(errorMessage = "", returnTo = "/") {
       background: linear-gradient(145deg, rgba(255,255,255,.045), rgba(255,255,255,.012) 45%, rgba(215,151,110,.035)), rgba(4,4,4,.96);
       box-shadow: 0 38px 120px rgba(0,0,0,.62), inset 0 1px rgba(255,255,255,.12);
     }
-    .panel-index { display: flex; align-items: center; justify-content: space-between; padding-bottom: 26px; border-bottom: 1px solid var(--line); color: #74706d; font: 700 10px/1 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .16em; text-transform: uppercase; }
+    .panel-index { display: flex; align-items: center; justify-content: space-between; padding-bottom: 26px; border-bottom: 1px solid var(--line); color: #8d8985; font: 700 10px/1 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .16em; text-transform: uppercase; }
     .panel-index strong { color: var(--mint); font-weight: 700; }
     h2 { margin-top: 30px; font-size: clamp(28px, 3vw, 42px); letter-spacing: -.045em; }
     .panel-copy { margin-top: 10px; color: #918d89; font-size: 14px; line-height: 1.55; }
@@ -202,13 +247,13 @@ function renderLockPage(errorMessage = "", returnTo = "/") {
     .field { display: grid; grid-template-columns: 1fr auto; border: 1px solid rgba(255,255,255,.18); border-radius: 6px; background: rgba(255,255,255,.025); transition: border-color .2s, box-shadow .2s; }
     .field:focus-within { border-color: rgba(215,151,110,.76); box-shadow: 0 0 0 3px rgba(215,151,110,.10); }
     input { width: 100%; min-width: 0; border: 0; outline: 0; padding: 17px 16px; background: transparent; color: #fff; font: 500 16px/1 Arial, Helvetica, sans-serif; }
-    input::placeholder { color: #615e5b; }
+    input::placeholder { color: #8d8985; }
     button { min-width: 118px; margin: 4px; border: 1px solid rgba(242,199,168,.4); border-radius: 4px; background: #d8a07b; color: #111; cursor: pointer; font: 800 11px/1 Arial, Helvetica, sans-serif; letter-spacing: .1em; text-transform: uppercase; transition: background .2s, transform .2s; }
     button:hover { background: #e8b38f; transform: translateY(-1px); }
     button:focus-visible { outline: 2px solid var(--paper); outline-offset: 3px; }
-    .privacy { margin-top: 17px; color: #696561; font: 600 10px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .08em; text-transform: uppercase; }
+    .privacy { margin-top: 17px; color: #8d8985; font: 600 10px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .08em; text-transform: uppercase; }
     .error { margin-top: 14px; padding: 11px 12px; border-left: 2px solid #d7976e; background: rgba(215,151,110,.08); color: #e5b797; font-size: 13px; line-height: 1.45; }
-    footer { display: flex; width: calc(100% - 48px); max-width: 1400px; margin: 0 auto; justify-content: space-between; padding: 20px 0 24px; border-top: 1px solid rgba(255,255,255,.08); color: #65615e; font: 600 10px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .1em; text-transform: uppercase; }
+    footer { display: flex; width: calc(100% - 48px); max-width: 1400px; margin: 0 auto; justify-content: space-between; padding: 20px 0 24px; border-top: 1px solid rgba(255,255,255,.08); color: #8d8985; font: 600 10px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .1em; text-transform: uppercase; }
     @media (max-width: 840px) {
       header { width: calc(100% - 28px); margin-top: 14px; }
       main { width: min(620px, calc(100% - 32px)); grid-template-columns: 1fr; gap: 56px; padding: 72px 0 64px; }
@@ -279,7 +324,7 @@ function lockedHtmlResponse(body: string, status: number) {
       "Cache-Control": "private, no-store, max-age=0",
       "Content-Security-Policy": "default-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; style-src 'unsafe-inline'",
       "Content-Type": "text/html; charset=utf-8",
-      "Referrer-Policy": "no-referrer",
+      "Referrer-Policy": "strict-origin",
       "X-Content-Type-Options": "nosniff",
       "X-Frame-Options": "DENY",
       "X-Robots-Tag": "noindex, nofollow, noarchive",
@@ -327,14 +372,15 @@ export default async function middleware(request: Request) {
       return lockedHtmlResponse(renderLockPage("This unlock request wasn’t accepted. Reload the page and try again."), 403);
     }
 
-    let form: FormData;
-    try {
-      form = await request.formData();
-    } catch {
+    const unlockBody = await readUnlockForm(request);
+    if (unlockBody.status === "too-large") {
+      return lockedHtmlResponse(renderLockPage("This unlock request was too large. Reload the page and try again."), 413);
+    }
+    if (unlockBody.status !== "ok") {
       return lockedHtmlResponse(renderLockPage(), 401);
     }
 
-    const submittedPassword = form.get("password");
+    const submittedPassword = unlockBody.form.get("password");
     const submittedValue = typeof submittedPassword === "string" && submittedPassword.length <= 512
       ? submittedPassword
       : "";
@@ -343,11 +389,12 @@ export default async function middleware(request: Request) {
       signValue(password, secret),
     ]);
 
+    const returnTo = sanitizeReturnTo(unlockBody.form.get("returnTo"));
     if (constantTimeEqual(submittedDigest, expectedDigest)) {
       const unlockToken = await createUnlockToken(password, secret);
       const headers = new Headers({
         "Cache-Control": "private, no-store, max-age=0",
-        Location: sanitizeReturnTo(form.get("returnTo")),
+        Location: returnTo,
       });
       headers.append(
         "Set-Cookie",
@@ -357,7 +404,7 @@ export default async function middleware(request: Request) {
     }
 
     return lockedHtmlResponse(
-      renderLockPage("Password didn’t match. Check it and try again.", sanitizeReturnTo(form.get("returnTo"))),
+      renderLockPage("Password didn’t match. Check it and try again.", returnTo),
       401,
     );
   }

@@ -144,6 +144,29 @@ async function snapshot() {
         height: bounds.height,
       };
     };
+    const parseColor = (value) => {
+      const match = value.match(/rgba?\\(\\s*([\\d.]+)[, ]+\\s*([\\d.]+)[, ]+\\s*([\\d.]+)/i);
+      return match ? match.slice(1, 4).map(Number) : null;
+    };
+    const luminance = (color) => {
+      const channels = color.map((value) => {
+        const channel = value / 255;
+        return channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4;
+      });
+      return .2126 * channels[0] + .7152 * channels[1] + .0722 * channels[2];
+    };
+    const contrast = (selector, backgroundSelector, pseudo = null) => {
+      const element = document.querySelector(selector);
+      const background = document.querySelector(backgroundSelector);
+      if (!element || !background) return null;
+      const foregroundColor = parseColor(getComputedStyle(element, pseudo).color);
+      const backgroundColor = parseColor(getComputedStyle(background).backgroundColor);
+      if (!foregroundColor || !backgroundColor) return null;
+      const foregroundLuminance = luminance(foregroundColor);
+      const backgroundLuminance = luminance(backgroundColor);
+      return (Math.max(foregroundLuminance, backgroundLuminance) + .05)
+        / (Math.min(foregroundLuminance, backgroundLuminance) + .05);
+    };
     return {
       innerWidth,
       innerHeight,
@@ -157,6 +180,12 @@ async function snapshot() {
       button: rect('button[type="submit"]'),
       heading: document.querySelector('h1')?.textContent?.trim() ?? null,
       unlockHeading: document.querySelector('#unlock-title')?.textContent?.trim() ?? null,
+      contrast: {
+        privacy: contrast('.privacy', '.panel'),
+        panelIndex: contrast('.panel-index', '.panel'),
+        footer: contrast('footer', 'body'),
+        placeholder: contrast('#password', '.panel', '::placeholder'),
+      },
     };
   })()`);
 }
@@ -183,6 +212,10 @@ try {
   const { default: middleware } = await import(`${pathToFileURL(compiledPath).href}?v=${Date.now()}`);
   const response = await middleware(new Request("https://covadesk.com/?siteLockAudit=1"));
   assert.ok(response instanceof Response, "Enabled middleware must render the gate");
+  const gateCsp = response.headers.get("Content-Security-Policy");
+  assert.ok(gateCsp, "Enabled middleware must return its gate CSP");
+  const gateReferrerPolicy = response.headers.get("Referrer-Policy");
+  assert.ok(gateReferrerPolicy, "Enabled middleware must return its gate referrer policy");
   const gateHtml = await response.text();
 
   if (originalEnvironment.enabled === undefined) delete process.env.COVA_SITE_LOCK_ENABLED;
@@ -192,10 +225,25 @@ try {
   if (originalEnvironment.secret === undefined) delete process.env.COVA_SITE_LOCK_SECRET;
   else process.env.COVA_SITE_LOCK_SECRET = originalEnvironment.secret;
 
+  let unlockRequestOrigin = null;
   httpServer = createHttpServer((request, serverResponse) => {
+    if (request.method === "POST" && request.url?.startsWith("/_cova/unlock")) {
+      unlockRequestOrigin = request.headers.origin ?? null;
+      request.resume();
+      request.once("end", () => {
+        serverResponse.writeHead(200, {
+          "Cache-Control": "no-store",
+          "Content-Type": "text/html; charset=utf-8",
+        });
+        serverResponse.end("<!doctype html><title>Unlocked</title><h1 id=unlocked>Unlocked</h1>");
+      });
+      return;
+    }
     serverResponse.writeHead(401, {
       "Cache-Control": "no-store",
+      "Content-Security-Policy": gateCsp,
       "Content-Type": "text/html; charset=utf-8",
+      "Referrer-Policy": gateReferrerPolicy,
     });
     serverResponse.end(gateHtml);
   });
@@ -263,6 +311,21 @@ try {
   assert.ok(desktop.panel && desktop.hero && desktop.password && desktop.button, "Desktop gate must retain both-column content");
   assert.ok(desktop.hero.left < desktop.panel.left, "Desktop must preserve the approved hero-left, access-right composition");
   assert.ok(desktop.password.bottom <= desktop.innerHeight && desktop.button.bottom <= desktop.innerHeight, "Desktop controls must remain above fold");
+  for (const [label, ratio] of Object.entries(desktop.contrast)) {
+    assert.ok(ratio >= 4.5, `${label} text must meet WCAG AA contrast; measured ${ratio}`);
+  }
+
+  const submitted = await evaluate(`(() => {
+    const input = document.querySelector('#password');
+    const form = document.querySelector('form');
+    if (!(input instanceof HTMLInputElement) || !(form instanceof HTMLFormElement)) return false;
+    input.value = 'browser-audit-password';
+    form.requestSubmit();
+    return true;
+  })()`);
+  assert.equal(submitted, true, "Browser audit must submit the real unlock form");
+  await sleep(500);
+  assert.equal(unlockRequestOrigin, baseUrl, "Native browser unlock POST must retain the exact same origin");
 
   console.log(JSON.stringify({
     status: "site lock browser regression passed",

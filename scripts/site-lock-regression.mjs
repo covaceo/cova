@@ -36,6 +36,7 @@ try {
   assert.ok(response instanceof Response, "locked requests must receive a response");
   assert.equal(response.status, 401, "locked requests must be unauthorized");
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/);
+  assert.equal(response.headers.get("referrer-policy"), "strict-origin", "gate policy must preserve an exact Origin on native same-origin form posts");
 
   const body = await response.text();
   assert.match(body, /Cova/i, "gate must identify Cova");
@@ -90,6 +91,17 @@ try {
 
   process.env.COVA_SITE_PASSWORD = "correct-horse-battery-staple";
   process.env.COVA_SITE_LOCK_SECRET = "test-signing-secret-that-is-long-enough";
+  const oversizedUnlockResponse = await middleware(new Request("https://covadesk.com/_cova/unlock", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Origin: "https://covadesk.com",
+    },
+    body: new URLSearchParams({ password: "x".repeat(20_000), returnTo: "/" }),
+  }));
+  assert.ok(oversizedUnlockResponse instanceof Response);
+  assert.equal(oversizedUnlockResponse.status, 413, "unlock request bodies above the bounded limit must be rejected before password verification");
+
   let now = 1_800_000_000_000;
   Date.now = () => now;
   const unlockResponse = await middleware(new Request("https://covadesk.com/_cova/unlock", {
