@@ -36,6 +36,15 @@ test("claims an atomic non-upserting object in a private Supabase Storage bucket
   assert.equal(requests[0].url, "https://example.supabase.co/storage/v1/bucket/cova-rithmic-nonces");
   assert.equal(requests[2].init.headers.get("x-upsert"), "false");
   assert.match(requests[2].url, new RegExp(`/cova-rithmic-nonces/\\d{4}-\\d{2}-\\d{2}/${body.requestId}$`));
+
+  await assert.rejects(
+    () => claimRithmicNonceInStorage({
+      env: { SUPABASE_URL: "https://example.supabase.co", SUPABASE_SERVICE_ROLE_KEY: "r".repeat(48) },
+      fetchImpl: async () => { throw new Error("network details stay private"); },
+      ...body,
+    }),
+    /nonce_bucket_transport_failed/,
+  );
 });
 
 test("rejects unsigned calls and reports atomically rejected replays", async () => {

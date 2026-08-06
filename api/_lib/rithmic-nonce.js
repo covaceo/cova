@@ -58,16 +58,24 @@ function isAlreadyExists(response, payload) {
   return /duplicate|already exists|resource exists/i.test(detail);
 }
 
+async function fetchOrThrow(fetchImpl, url, init, code) {
+  try {
+    return await fetchImpl(url, init);
+  } catch {
+    throw new Error(code);
+  }
+}
+
 async function ensureNonceBucket({ fetchImpl, serviceRoleKey, supabaseUrl }) {
   const bucketUrl = `${supabaseUrl}/storage/v1/bucket/${BUCKET_NAME}`;
-  const existing = await fetchImpl(bucketUrl, {
+  const existing = await fetchOrThrow(fetchImpl, bucketUrl, {
     headers: serviceHeaders(serviceRoleKey),
     method: "GET",
-  });
+  }, "nonce_bucket_transport_failed");
   if (existing.ok) return;
   if (existing.status !== 404) throw new Error("nonce_bucket_probe_failed");
 
-  const created = await fetchImpl(`${supabaseUrl}/storage/v1/bucket`, {
+  const created = await fetchOrThrow(fetchImpl, `${supabaseUrl}/storage/v1/bucket`, {
     body: JSON.stringify({
       allowed_mime_types: ["application/octet-stream"],
       file_size_limit: 1,
@@ -77,7 +85,7 @@ async function ensureNonceBucket({ fetchImpl, serviceRoleKey, supabaseUrl }) {
     }),
     headers: serviceHeaders(serviceRoleKey, { "Content-Type": "application/json" }),
     method: "POST",
-  });
+  }, "nonce_bucket_transport_failed");
   if (created.ok) return;
   const payload = await responsePayload(created);
   if (!isAlreadyExists(created, payload)) throw new Error("nonce_bucket_create_failed");
@@ -92,14 +100,14 @@ export async function claimRithmicNonceInStorage({ env = process.env, fetchImpl 
 
   const day = new Date(Number(signedAt) * 1000).toISOString().slice(0, 10);
   const objectUrl = `${supabaseUrl}/storage/v1/object/${BUCKET_NAME}/${day}/${requestId}`;
-  const response = await fetchImpl(objectUrl, {
+  const response = await fetchOrThrow(fetchImpl, objectUrl, {
     body: Buffer.from([1]),
     headers: serviceHeaders(serviceRoleKey, {
       "Content-Type": "application/octet-stream",
       "x-upsert": "false",
     }),
     method: "POST",
-  });
+  }, "nonce_object_transport_failed");
   if (response.ok) return true;
   const payload = await responsePayload(response);
   if (isAlreadyExists(response, payload)) return false;
