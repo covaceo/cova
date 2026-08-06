@@ -4,6 +4,7 @@ import { ArrowUpRight, BadgeCheck, ChevronDown, CircleDot, ClipboardCheck, FileU
 import { type CsvParseResult, formatMoney } from "../lib/risk";
 import { buildFirmConnectUrl, canRedirectToFirmProvider, csvExportGuides, propFirmOptions, type PropFirmId } from "../lib/propFirms";
 import { GlassButton } from "./GlassButton";
+import { RithmicAttribution } from "./RithmicAttribution";
 
 type ImportMode = "append" | "replace";
 type ImportEntitlements = {
@@ -16,13 +17,25 @@ type BrokerStatus = {
   provider: string;
   status: string;
   connected: boolean;
+  mode?: "linked" | "ephemeral";
   connectionId?: string;
   message: string;
   updatedAt: string;
 };
+type CredentialText = `${string}`;
 type ProjectXCredentials = {
   userName: string;
-  apiKey: string;
+  apiKey: CredentialText;
+};
+type RithmicCredentials = {
+  username: string;
+  password: CredentialText;
+  accountId?: string;
+  lookbackDays: 30 | 90 | 180 | 365;
+};
+type RithmicSyncResult = {
+  selectionRequired?: boolean;
+  accounts?: { accountId?: string; accountName?: string }[];
 };
 
 export function CsvUploadPanel({
@@ -281,12 +294,16 @@ export function BrokerConnectPanel({
   openFirmOAuth,
   projectXBusy,
   projectXSyncBusy,
+  rithmicAvailable,
+  rithmicBusy,
+  rithmicStatusChecked,
   selectedFirmId,
   setBrokerNotice,
   setSelectedFirmId,
   startTradovateConnect,
   syncBusy,
   syncProjectX,
+  syncRithmic,
   syncTradovate,
   upgradeToPro,
 }: {
@@ -301,12 +318,16 @@ export function BrokerConnectPanel({
   openFirmOAuth: (firm: PropFirmId) => void;
   projectXBusy: boolean;
   projectXSyncBusy: boolean;
+  rithmicAvailable: boolean;
+  rithmicBusy: boolean;
+  rithmicStatusChecked: boolean;
   selectedFirmId: PropFirmId;
   setBrokerNotice: (notice: string) => void;
   setSelectedFirmId: (firm: PropFirmId) => void;
   startTradovateConnect: () => void;
   syncBusy: boolean;
   syncProjectX: () => Promise<void> | void;
+  syncRithmic: (credentials: RithmicCredentials) => Promise<RithmicSyncResult | void> | RithmicSyncResult | void;
   syncTradovate: () => void;
   upgradeToPro: () => void;
 }) {
@@ -316,7 +337,11 @@ export function BrokerConnectPanel({
   const isTopstepX = selectedFirm.id === "topstepx";
   const selectedProviderName = isTopstepX ? "TopstepX" : selectedFirm.name;
   const selectedConnected = connected && brokerStatus?.provider === selectedProviderName;
+  const selectedImported = brokerStatus?.mode === "ephemeral" && brokerStatus.provider === selectedProviderName;
+  const selectedDirectSyncAvailable = entitlements.canUseDirectSync && (selectedFirm.id !== "rithmic" || rithmicAvailable);
   const [projectXCredentials, setProjectXCredentials] = useState<ProjectXCredentials>({ userName: "", apiKey: "" });
+  const [rithmicCredentials, setRithmicCredentials] = useState<RithmicCredentials>({ username: "", password: "", lookbackDays: 90 });
+  const [rithmicAccounts, setRithmicAccounts] = useState<{ accountId?: string; accountName?: string }[]>([]);
 
   function selectFirm(firm: (typeof propFirmOptions)[number]) {
     setSelectedFirmId(firm.id);
@@ -338,6 +363,15 @@ export function BrokerConnectPanel({
 
     if (firm.id === "topstepx") {
       setBrokerNotice("TopstepX beta connector: paste your username/API key below, or upload CSV first if you just want the review flow.");
+      return;
+    }
+
+    if (firm.id === "rithmic") {
+      setBrokerNotice(!rithmicStatusChecked
+        ? "Checking the private Rithmic Test connector."
+        : rithmicAvailable
+          ? "Rithmic Test connector: enter the Test login below. Cova uses it for one read-only sync, logs out, and discards it."
+          : "Rithmic Test connector is not active in this environment yet. Use CSV export until the private service passes release checks.");
       return;
     }
 
@@ -375,6 +409,15 @@ export function BrokerConnectPanel({
 
     if (isTopstepX) {
       setBrokerNotice("TopstepX beta connector is available here. CSV upload is still the fastest review path if you do not want to test API access yet.");
+      return;
+    }
+
+    if (selectedFirm.id === "rithmic") {
+      setBrokerNotice(!rithmicStatusChecked
+        ? "Checking the private Rithmic Test connector."
+        : rithmicAvailable
+          ? "Rithmic Test connector is ready below. The login stays in memory only for the request and is discarded when it finishes."
+          : "Rithmic Test connector is not active in this environment yet. Use CSV export until the private service passes release checks.");
       return;
     }
 
@@ -416,6 +459,24 @@ export function BrokerConnectPanel({
     void connectProjectX(credentials);
   }
 
+  async function submitRithmic(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!entitlements.canUseDirectSync) {
+      setBrokerNotice("Rithmic direct sync is a Pro feature. Use CSV import on Free.");
+      return;
+    }
+    const credentials = { ...rithmicCredentials };
+    try {
+      const result = await syncRithmic(credentials);
+      if (result?.selectionRequired && result.accounts?.length) {
+        setRithmicAccounts(result.accounts);
+        setRithmicCredentials((current) => ({ ...current, accountId: result.accounts?.[0]?.accountId }));
+      }
+    } finally {
+      setRithmicCredentials((current) => ({ ...current, username: "", password: "" }));
+    }
+  }
+
   return (
     <div className="broker-connect-panel source-ledger-panel p-5 md:p-6">
       <div className="source-primary-choice" data-csv-primary>
@@ -441,10 +502,16 @@ export function BrokerConnectPanel({
             <span className="terminal-tab-label inline-flex rounded-full px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.24em] text-[#b9f5df]">Secure link</span>
             <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 font-body text-xs ${selectedConnected ? "border-emerald-300/24 bg-emerald-400/10 text-emerald-200" : "border-white/12 bg-white/[0.035] text-white/52"}`}>
               <span className={`h-2 w-2 rounded-full ${selectedConnected ? "bg-emerald-300" : "bg-white/30"}`} />
-              {selectedConnected ? `${selectedProviderName} connected` : "CSV ready today"}
+              {selectedConnected ? `${selectedProviderName} connected` : selectedImported ? `${selectedProviderName} imported` : "CSV ready today"}
             </span>
-            <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 font-body text-xs ${entitlements.canUseDirectSync ? "border-[#18c887]/24 bg-[#18c887]/10 text-[#b9f5df]" : "border-white/12 bg-white/[0.035] text-white/48"}`}>
-              {entitlements.canUseDirectSync ? (isTopstepX ? "Pro beta connector" : "Pro sync enabled") : "Pro sync locked · CSV available"}
+            <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 font-body text-xs ${selectedDirectSyncAvailable ? "border-[#18c887]/24 bg-[#18c887]/10 text-[#b9f5df]" : "border-white/12 bg-white/[0.035] text-white/48"}`}>
+              {!entitlements.canUseDirectSync
+                ? "Pro sync locked · CSV available"
+                : isTopstepX
+                  ? "Pro beta connector"
+                  : rithmicAvailable
+                    ? "Pro sync enabled"
+                    : "Private sync unavailable"}
             </span>
           </div>
           <h3 className="mt-6 font-body text-3xl font-semibold leading-[0.98] tracking-[-0.05em] md:text-5xl">Pick the source.</h3>
@@ -493,7 +560,7 @@ export function BrokerConnectPanel({
               <p className="mt-3 font-body text-sm leading-relaxed text-white/54">{firm.summary}</p>
               {active && firm.id !== "other" && (
                 <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.2em] text-[#b9f5df]/80">
-                  {firm.id === "topstepx" ? "Beta connector below" : "Use export guide today"}
+                  {firm.id === "topstepx" ? "Beta connector below" : firm.id === "rithmic" ? "Test connector below" : "Use export guide today"}
                 </p>
               )}
             </motion.button>
@@ -570,6 +637,99 @@ export function BrokerConnectPanel({
         </form>
       )}
 
+      {selectedFirm.id === "rithmic" && entitlements.canUseDirectSync && (!rithmicStatusChecked || !rithmicAvailable) && (
+        <div className="mt-6 rounded-[24px] border border-white/12 bg-white/[0.025] p-5" data-rithmic-unavailable>
+          <p className="font-body text-xs uppercase tracking-[0.2em] text-amber-100/80">Private Test connector</p>
+          <h4 className="mt-3 font-body text-xl font-semibold text-white">{rithmicStatusChecked ? "Not active in this environment." : "Checking connector availability..."}</h4>
+          <p className="mt-2 max-w-2xl font-body text-sm leading-relaxed text-white/58">
+            {rithmicStatusChecked ? "Cova keeps the credential form disabled until the signed private service and atomic nonce store are reachable. CSV import remains available below." : "Cova is verifying the signed private service before showing any credential fields."}
+          </p>
+        </div>
+      )}
+
+      {selectedFirm.id === "rithmic" && entitlements.canUseDirectSync && rithmicStatusChecked && rithmicAvailable && (
+        <form
+          className="mt-6 rounded-[24px] border border-white/12 bg-[linear-gradient(135deg,rgba(255,255,255,0.055),rgba(0,0,0,0.22)_52%,rgba(24,200,135,0.055))] p-5"
+          data-rithmic-connect
+          onSubmit={submitRithmic}
+        >
+          <div className="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-end">
+            <div>
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="rounded-full border border-amber-200/18 bg-amber-300/8 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-amber-100">Rithmic Test</span>
+                <span className="rounded-full border border-emerald-200/16 bg-emerald-300/8 px-3 py-1.5 font-body text-xs text-[#b9f5df]">Read-only · on demand</span>
+              </div>
+              <h4 className="mt-4 font-body text-2xl font-semibold tracking-[-0.03em] text-white">Import completed Rithmic fills.</h4>
+              <p className="mt-2 max-w-2xl font-body text-sm leading-relaxed text-white/56">
+                Rithmic Test only. Your username and password are used only for this request and discarded by Cova when it finishes. Cova requests accounts, completed fills, and contract values, then logs out. It never sends order requests. Imported P&amp;L is gross before commissions.
+              </p>
+            </div>
+            <GlassButton onClick={showExportGuide}>Need export steps?</GlassButton>
+          </div>
+
+          <div className={`mt-5 grid gap-3 md:items-end ${rithmicAccounts.length > 0 ? "md:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_180px_auto]" : "md:grid-cols-[1fr_1fr_180px_auto]"}`}>
+            <label className="block">
+              <span className="font-body text-xs uppercase tracking-[0.18em] text-white/42">Rithmic Test username</span>
+              <input
+                autoComplete="username"
+                className="mt-2 h-12 w-full rounded-[16px] border border-white/10 bg-black/34 px-4 font-body text-sm text-white outline-none transition placeholder:text-white/24 focus:border-emerald-200/32 focus:bg-black/44"
+                onChange={(event) => setRithmicCredentials((current) => ({ ...current, username: event.target.value }))}
+                placeholder="Test username"
+                required
+                type="text"
+                value={rithmicCredentials.username}
+              />
+            </label>
+            <label className="block">
+              <span className="font-body text-xs uppercase tracking-[0.18em] text-white/42">Password</span>
+              <input
+                autoComplete="current-password"
+                className="mt-2 h-12 w-full rounded-[16px] border border-white/10 bg-black/34 px-4 font-body text-sm text-white outline-none transition placeholder:text-white/24 focus:border-emerald-200/32 focus:bg-black/44"
+                onChange={(event) => setRithmicCredentials((current) => ({ ...current, password: event.target.value }))}
+                placeholder="Test password"
+                required
+                type="password"
+                value={rithmicCredentials.password}
+              />
+            </label>
+            {rithmicAccounts.length > 0 && (
+              <label className="block">
+                <span className="font-body text-xs uppercase tracking-[0.18em] text-white/42">Account</span>
+                <select
+                  className="mt-2 h-12 w-full rounded-[16px] border border-white/10 bg-[#111] px-4 font-body text-sm text-white outline-none transition focus:border-emerald-200/32"
+                  onChange={(event) => setRithmicCredentials((current) => ({ ...current, accountId: event.target.value }))}
+                  value={rithmicCredentials.accountId || ""}
+                >
+                  {rithmicAccounts.map((account) => (
+                    <option key={account.accountId} value={account.accountId}>{account.accountName || account.accountId}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <label className="block">
+              <span className="font-body text-xs uppercase tracking-[0.18em] text-white/42">History range</span>
+              <select
+                className="mt-2 h-12 w-full rounded-[16px] border border-white/10 bg-[#111] px-4 font-body text-sm text-white outline-none transition focus:border-emerald-200/32"
+                onChange={(event) => setRithmicCredentials((current) => ({ ...current, lookbackDays: Number(event.target.value) as RithmicCredentials["lookbackDays"] }))}
+                value={rithmicCredentials.lookbackDays}
+              >
+                <option value={30}>30 days</option>
+                <option value={90}>90 days</option>
+                <option value={180}>180 days</option>
+                <option value={365}>365 days</option>
+              </select>
+            </label>
+            <GlassButton disabled={rithmicBusy} strong type="submit">
+              {rithmicBusy ? "Syncing..." : "Sync history"} <ArrowUpRight className="h-4 w-4" />
+            </GlassButton>
+          </div>
+
+          <div className="mt-5">
+            <RithmicAttribution />
+          </div>
+        </form>
+      )}
+
       <div className="mt-6 grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center">
         <div className="source-route-ledger p-5">
           <div className="grid gap-4 md:grid-cols-[auto_1fr] md:items-start">
@@ -606,7 +766,7 @@ export function BrokerConnectPanel({
           {entitlements.canUseDirectSync && selectedFirm.id === "topstepx" && selectedConnected && <GlassButton onClick={syncProjectX}>{projectXSyncBusy ? "Syncing..." : "Sync trades"}</GlassButton>}
           {entitlements.canUseDirectSync && selectedFirm.id === "tradovate" && <GlassButton onClick={checkTradovateStatus}>{brokerBusy ? "Checking..." : "Check status"}</GlassButton>}
           {entitlements.canUseDirectSync && selectedFirm.id === "tradovate" && connected && <GlassButton onClick={syncTradovate}>{syncBusy ? "Syncing..." : "Sync trades"}</GlassButton>}
-          {selectedConnected && <GlassButton onClick={disconnectBroker}>Disconnect</GlassButton>}
+          {selectedConnected && connected && <GlassButton onClick={disconnectBroker}>Disconnect</GlassButton>}
         </div>
       </div>
 

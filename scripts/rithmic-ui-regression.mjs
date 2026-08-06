@@ -1,0 +1,55 @@
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const read = (...parts) => readFileSync(path.join(root, ...parts), "utf8");
+const hash = (...parts) => createHash("sha256").update(readFileSync(path.join(root, ...parts))).digest("hex");
+
+const app = read("src", "App.tsx");
+const propFirms = read("src", "lib", "propFirms.ts");
+const importDesk = read("src", "components", "ImportDesk.tsx");
+const importPanels = read("src", "components", "ImportPanels.tsx");
+const dashboard = read("src", "components", "DashboardView.tsx");
+const attribution = read("src", "components", "RithmicAttribution.tsx");
+const endpoint = read("api", "rithmic", "sync.js");
+const statusEndpoint = read("api", "rithmic", "status.js");
+
+assert.doesNotMatch(app, /Powered by Rithmic/i, "The approved homepage must not gain a powered-by section.");
+assert.match(propFirms, /Rithmic Test connector/, "The provider selector must state the connector is still in Test.");
+assert.doesNotMatch(propFirms, /Rithmic direct sync is planned/, "Rithmic must no longer be left as a planned-only CSV route.");
+assert.match(importPanels, /autoComplete="username"/, "The Rithmic form must label the username field for password managers.");
+assert.match(importPanels, /autoComplete="current-password"/, "The Rithmic password field must be explicit and masked.");
+assert.match(importPanels, /discarded by Cova when it finishes/i, "The credentials lifecycle must be stated beside the form.");
+assert.match(importPanels, /gross before commissions/i, "Rithmic-imported P&L must not be presented as net P&L.");
+assert.match(importPanels, /RithmicAttribution/, "The provider form must display required Rithmic and OMNE attribution.");
+assert.match(importDesk, /authorizedFetch\("\/api\/rithmic\/sync"/, "Rithmic sync must use the authenticated same-origin API.");
+assert.match(importDesk, /authorizedFetch\("\/api\/rithmic\/status"/, "The login form must be gated by the private connector capability check.");
+assert.match(importPanels, /data-rithmic-unavailable/, "Unavailable environments must show a truthful gate instead of credential fields.");
+assert.match(importPanels, /Private sync unavailable/, "Unavailable private sync must not render an enabled-status claim.");
+assert.match(importPanels, /disabled=\{rithmicBusy\}/, "The Rithmic submit control must block duplicate in-flight syncs.");
+assert.match(importPanels, /username: "", password: ""/, "The frontend must clear both Rithmic fields after a sync attempt.");
+assert.match(importPanels, /rithmicAccounts\.map/, "Multiple Rithmic accounts must render an explicit selector.");
+assert.match(importDesk, /mode: "ephemeral"/, "Rithmic history must be labeled imported, not persistently linked.");
+assert.match(app, /mode === "replace" && brokerStatus\?\.mode === "ephemeral"[\s\S]*clearBrokerStatus\(\)/, "Only a replacement CSV import may clear the last Rithmic import status.");
+assert.match(dashboard, /trade\.source\?\.provider === "Rithmic"/, "Rithmic attribution must follow the imported trades, including mixed datasets.");
+assert.match(attribution, /Trading Platform by Rithmic™ is a trademark of Rithmic, LLC/, "The required Rithmic trademark notice must be present.");
+assert.match(attribution, /The R \| Protocol API™ software is Copyright © 2026 by Rithmic, LLC/, "The required protocol copyright notice must be present.");
+assert.match(attribution, /The OMNE™ software is Copyright © 2026 by Omnesys, LLC and Omnesys Technologies, Inc\./, "The required OMNE copyright notice must be present.");
+assert.match(attribution, /The Powered by OMNE artwork is a trademark of Omnesys, LLC and Omnesys Technologies, Inc\. All Rights Reserved\./, "The required OMNE artwork notice must be present verbatim.");
+assert.match(endpoint, /requireAuthenticatedUser/);
+assert.match(endpoint, /requireProEntitlement/);
+assert.match(statusEndpoint, /requireAuthenticatedUser/);
+assert.match(statusEndpoint, /requireProEntitlement/);
+assert.doesNotMatch(endpoint, /console\.(log|info|debug)/, "The credential-handling endpoint must not log request data.");
+assert.doesNotMatch(endpoint, /broker_connections|serviceSupabase|access_token_encrypted|refresh_token_encrypted/, "Rithmic credentials must not be persisted by the public endpoint.");
+
+const rithmicLogo = ["public", "media", "rithmic", "trading-platform-by-rithmic.png"];
+const omneLogo = ["public", "media", "rithmic", "powered-by-omne.png"];
+assert.ok(existsSync(path.join(root, ...rithmicLogo)) && existsSync(path.join(root, ...omneLogo)), "Official provider artwork must be checked in.");
+assert.equal(hash(...rithmicLogo), "187febae74c28fc370fe27a8196ba81ccc89af1150b1f641ad6b25ea5fa48cd8", "Rithmic artwork must remain byte-identical to the provider file.");
+assert.equal(hash(...omneLogo), "7af9acab16c4d75ddc11efd0e1011230a8cb33ffe1ea01e362706f6c70957994", "OMNE artwork must remain byte-identical to the provider file.");
+
+console.log("rithmic ui/security regression: passed");

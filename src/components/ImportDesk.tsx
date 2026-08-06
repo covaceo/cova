@@ -18,6 +18,11 @@ type ProjectXCredentials = {
   userName: string;
   apiKey: string;
 };
+type RithmicCredentials = {
+  username: string;
+  password: string;
+  lookbackDays: 30 | 90 | 180 | 365;
+};
 
 export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, reset, upgradeToPro }: { entitlements: ImportEntitlements; importCsv: (text: string, mode?: ImportMode) => void; openFirmOAuth: (firm: PropFirmId) => void; status: string; reset: () => void; upgradeToPro: () => void }) {
   const [text, setText] = useState("date,market,side,contracts,entry,exit,pnl,risk,setup,notes\n2026-05-06,NQ,Long,1,18900,18915,300,250,Opening range,Smoke row");
@@ -28,6 +33,8 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
   const [syncBusy, setSyncBusy] = useState(false);
   const [projectXBusy, setProjectXBusy] = useState(false);
   const [projectXSyncBusy, setProjectXSyncBusy] = useState(false);
+  const [rithmicBusy, setRithmicBusy] = useState(false);
+  const [rithmicCapability, setRithmicCapability] = useState({ available: false, checked: false });
   const [brokerNotice, setBrokerNotice] = useState("");
   const [brokerStatus, setBrokerStatus] = useState<BrokerStatus | null>(() => readBrokerStatus());
   const [selectedFirmId, setSelectedFirmId] = useState<PropFirmId>("topstepx");
@@ -42,6 +49,19 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
       window.removeEventListener("cova:broker-status", refreshBrokerStatus);
       window.removeEventListener("storage", refreshBrokerStatus);
     };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    authorizedFetch("/api/rithmic/status")
+      .then(async (response) => {
+        const data = await response.json().catch(() => ({}));
+        if (!cancelled) setRithmicCapability({ available: response.ok && data?.available === true, checked: true });
+      })
+      .catch(() => {
+        if (!cancelled) setRithmicCapability({ available: false, checked: true });
+      });
+    return () => { cancelled = true; };
   }, []);
 
   async function readFile(file?: File) {
@@ -154,6 +174,60 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
     }
   }
 
+  async function syncRithmic(credentials: RithmicCredentials) {
+    setRithmicBusy(true);
+    setBrokerNotice("");
+    try {
+      const response = await authorizedFetch("/api/rithmic/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(credentials),
+      });
+      const contentType = response.headers.get("content-type") ?? "";
+      if (!contentType.includes("application/json")) {
+        throw new Error("Rithmic sync is not reachable from this preview.");
+      }
+      const data = await response.json() as {
+        account?: { accountName?: string };
+        accounts?: { accountId?: string; accountName?: string }[];
+        csv?: string;
+        counts?: { trades?: number; rawFills?: number };
+        credentialsStored?: boolean;
+        selectionRequired?: boolean;
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(data.error || "Rithmic sync failed.");
+      }
+      if (data.selectionRequired && data.accounts && data.accounts.length > 1) {
+        setBrokerNotice(`Rithmic returned ${data.accounts.length} accounts. Choose one below, re-enter the Test password, and sync again.`);
+        return data;
+      }
+      const tradeCount = data.counts?.trades ?? 0;
+      if (!data.csv || tradeCount <= 0) {
+        setBrokerNotice("Rithmic Test login verified. The Test environment returned no fill history, and the login was discarded.");
+        return data;
+      }
+      const nextStatus: BrokerStatus = {
+        provider: "Rithmic",
+        status: "imported",
+        connected: false,
+        mode: "ephemeral",
+        message: `Imported ${tradeCount} Rithmic trade${tradeCount === 1 ? "" : "s"}. The login was discarded after sync. P&L is gross before commissions.`,
+        updatedAt: new Date().toISOString(),
+      };
+      importCsv(data.csv, "replace");
+      writeBrokerStatus(nextStatus);
+      setBrokerStatus(nextStatus);
+      setBrokerNotice(nextStatus.message);
+      return data;
+    } catch (error) {
+      setBrokerNotice(`${error instanceof Error ? error.message : "Rithmic sync is unavailable right now."} The login was not stored. Use the Rithmic export guide if needed.`);
+    } finally {
+      setRithmicBusy(false);
+    }
+  }
+
   async function startTradovateConnect() {
     if (!canRedirectToTradovate()) {
       setBrokerNotice("Tradovate secure sync is not available in this preview. Upload a Tradovate export below to review the account today.");
@@ -255,12 +329,16 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
           openFirmOAuth={openFirmOAuth}
           projectXBusy={projectXBusy}
           projectXSyncBusy={projectXSyncBusy}
+          rithmicAvailable={rithmicCapability.available}
+          rithmicBusy={rithmicBusy}
+          rithmicStatusChecked={rithmicCapability.checked}
           selectedFirmId={selectedFirmId}
           setBrokerNotice={setBrokerNotice}
           setSelectedFirmId={setSelectedFirmId}
           startTradovateConnect={startTradovateConnect}
           syncBusy={syncBusy}
           syncProjectX={syncProjectX}
+          syncRithmic={syncRithmic}
           syncTradovate={syncTradovate}
           upgradeToPro={upgradeToPro}
         />

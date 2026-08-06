@@ -10,6 +10,10 @@ export type Trade = {
   risk: number;
   setup: string;
   notes: string;
+  source?: {
+    provider: "Rithmic";
+    accountId: string;
+  };
 };
 
 export type RiskRule = {
@@ -938,6 +942,10 @@ export function parseCsvDetailed(text: string): CsvParseResult {
     const exitRaw = valueFrom(record, ["exit", "exitprice", "avgexit", "averageexit", "exitavg", "sellprice", "closeprice", "close", "exitfillprice"]);
     const market = valueFrom(record, ["market", "symbol", "instrument", "instrumentname", "contract", "contractname", "product", "ticker"]).trim().toUpperCase();
     const date = parseDateValue(valueFrom(record, ["date", "tradedate", "closedate", "exitdate", "timestamp", "datetime", "time", "filltime", "executiontime", "closetime", "opentime"]));
+    const sourceProvider = valueFrom(record, ["sourceprovider"]).trim();
+    const sourceAccountId = valueFrom(record, ["sourceaccountid"]).trim();
+    const sourceTradeId = valueFrom(record, ["sourcetradeid"]).trim();
+    const isRithmic = sourceProvider.toLowerCase() === "rithmic";
     const pnl = parseNumber(pnlRaw);
     const contracts = parseNumber(contractsRaw || "1");
     const entry = parseNumber(entryRaw);
@@ -949,6 +957,8 @@ export function parseCsvDetailed(text: string): CsvParseResult {
       !pnlRaw ? "missing P&L" : "",
       pnlRaw && !Number.isFinite(pnl) ? "invalid P&L" : "",
       !Number.isFinite(contracts) || contracts <= 0 ? "invalid contracts" : "",
+      isRithmic && !sourceAccountId ? "missing Rithmic source account" : "",
+      isRithmic && !/^rithmic-[a-z0-9-]{1,72}$/i.test(sourceTradeId) ? "invalid Rithmic source trade id" : "",
     ].filter(Boolean);
 
     if (rowIssues.length) {
@@ -956,10 +966,10 @@ export function parseCsvDetailed(text: string): CsvParseResult {
       return;
     }
 
-    const risk = Math.max(1, parseNumber(valueFrom(record, ["risk", "plannedrisk", "initialrisk", "maxrisk", "r", "rmultiplebase", "riskamount", "plannedloss"])) || Math.abs(pnl) || 500);
+    const risk = isRithmic ? 0 : Math.max(1, parseNumber(valueFrom(record, ["risk", "plannedrisk", "initialrisk", "maxrisk", "r", "rmultiplebase", "riskamount", "plannedloss"])) || Math.abs(pnl) || 500);
     const side = parseSide(valueFrom(record, ["side", "direction", "buysell", "action", "position", "tradeaction"]));
     trades.push({
-      id: `csv-${now}-${index}`,
+      id: isRithmic ? sourceTradeId : `csv-${now}-${index}`,
       date,
       market,
       side,
@@ -970,6 +980,7 @@ export function parseCsvDetailed(text: string): CsvParseResult {
       risk,
       setup: valueFrom(record, ["setup", "strategy", "playbook", "tag", "label", "tradetype", "category"]) || "Imported",
       notes: valueFrom(record, ["notes", "note", "comment", "comments", "journal", "description"]),
+      ...(isRithmic ? { source: { provider: "Rithmic" as const, accountId: sourceAccountId } } : {}),
     });
   });
 

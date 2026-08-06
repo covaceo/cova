@@ -42,7 +42,7 @@ import { OAuthConnectPage } from "./components/OAuthConnectPage";
 import { Toast } from "./components/Toast";
 import { WorkspaceShell } from "./components/WorkspaceShell";
 import { getHostedLogoutUrl, isDemoPreviewEnabled } from "./lib/authEnvironment";
-import { BROKER_STATUS_KEY, brokerMessageForStatus, readBrokerStatus, writeBrokerStatus, type BrokerStatus } from "./lib/brokerStatus";
+import { BROKER_STATUS_KEY, brokerMessageForStatus, clearBrokerStatus, readBrokerStatus, writeBrokerStatus, type BrokerStatus } from "./lib/brokerStatus";
 import { PRACTICE_ACCOUNT_STORAGE_KEY, PRACTICE_TRADES_STORAGE_KEY, samplePracticeReps, type PracticeRep } from "./lib/backtesting";
 import { buildFirmConnectUrl, canRedirectToFirmProvider, csvExportGuides, getFirmProviderHost, getPropFirm, propFirmOptions, type PropFirmId } from "./lib/propFirms";
 import { isProtectedSection, sections, useHashSection, type Section } from "./lib/appRoutes";
@@ -119,7 +119,9 @@ export default function App() {
   const isSampleReview = hasSampleTrades;
   const brokerLabel = brokerStatus?.connected
     ? `${brokerStatus.provider} linked`
-    : hasSampleTrades
+    : brokerStatus?.mode === "ephemeral"
+      ? `${brokerStatus.provider} history imported`
+      : hasSampleTrades
       ? hasReviewedTrades ? "Sample + CSV review" : "Sample funded review"
       : trades.length
         ? "CSV trade review"
@@ -515,6 +517,10 @@ export default function App() {
 
     const acceptedTrades = imported.slice(0, allowedCount);
     setTrades((current) => mode === "replace" ? acceptedTrades : [...current, ...acceptedTrades]);
+    if (mode === "replace" && brokerStatus?.mode === "ephemeral") {
+      clearBrokerStatus();
+      setBrokerStatus(null);
+    }
 
     const limited = acceptedTrades.length < imported.length;
     setStatus(`${mode === "replace" ? "Replaced trade history with" : "Imported"} ${acceptedTrades.length} trade${acceptedTrades.length === 1 ? "" : "s"}${limited ? " for the free preview" : ""}.`);

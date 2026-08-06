@@ -68,6 +68,13 @@ assert.equal(parsed.trades[0].pnl, -520.5, "Parser should treat parenthesized P&
 assert.equal(parsed.trades[1].pnl, -120, "Parser should treat trailing-minus P&L as negative.");
 assert.equal(parsed.trades[2].side, "Long", "Parser should default buy rows to long.");
 
+const rithmicParsed = parseCsvDetailed(`date,market,side,contracts,entry,exit,pnl,risk,setup,notes,source_provider,source_account_id,source_trade_id
+2026-08-01,NQU6,Long,1,100,101,20,0,Rithmic import,Gross P&L before commissions,Rithmic,A-1,rithmic-trade-1`);
+assert.equal(rithmicParsed.issues.length, 0, `Rithmic provenance CSV should parse cleanly: ${JSON.stringify(rithmicParsed.issues)}`);
+assert.deepEqual(rithmicParsed.trades[0].source, { provider: "Rithmic", accountId: "A-1" }, "Rithmic provenance must survive the CSV importer.");
+assert.equal(rithmicParsed.trades[0].id, "rithmic-trade-1", "Rithmic deterministic trade ids must survive import.");
+assert.equal(rithmicParsed.trades[0].risk, 0, "Rithmic imports must not invent a risk amount.");
+
 const propStyleParsed = parseCsvDetailed(`Execution Time;Instrument Name;Filled Qty;Avg Entry;Avg Exit;Net Profit/Loss;Trade Action;Strategy
 2026-05-09 09:45:11;NQ;3;18990.25;19020.50;$1,210.00;BOT;Opening drive
 2026-05-09 10:12:44;NQ;2;19012.00;18986.00;($1,040.00);SLD;Failed breakout`);

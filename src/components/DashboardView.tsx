@@ -5,6 +5,7 @@ import { analyze, formatMoney, formatPercent, type RiskRule, type Trade } from "
 import { EquityCurve, FlagStack, MetricDock, ScoreCard } from "./DashboardCards";
 import { NextSessionBriefCard } from "./DashboardBriefs";
 import { GlassButton } from "./GlassButton";
+import { RithmicAttribution } from "./RithmicAttribution";
 import { ImageAtmosphere, SectionShell } from "./LayoutShell";
 
 const DASHBOARD_FOCUS_KEY = "cova-dashboard-focus-v1";
@@ -16,6 +17,7 @@ type TimeRange = "today" | "week" | "all";
 type BrokerStatus = {
   provider: string;
   connected: boolean;
+  mode?: "linked" | "ephemeral";
   updatedAt: string;
 };
 
@@ -24,6 +26,7 @@ export function Dashboard({ analysis, brokerStatus, rules, go }: { analysis: Ret
   const [focus, setFocus] = useState<DashboardFocus>(() => readDashboardFocus());
   const scopedTrades = useMemo(() => filterTradesByRange(analysis.trades, range), [analysis.trades, range]);
   const scopedAnalysis = useMemo(() => analyze(scopedTrades, rules), [scopedTrades, rules]);
+  const hasRithmicTrades = analysis.trades.some((trade) => trade.source?.provider === "Rithmic");
   const rangeLabel = range === "today" ? `Latest session, ${analysis.latestDate}` : range === "week" ? "Last 7 calendar days" : "All trades";
   const focusLabel = {
     health: "Account health",
@@ -59,8 +62,14 @@ export function Dashboard({ analysis, brokerStatus, rules, go }: { analysis: Ret
       <DashboardCommandCenter
         analysis={scopedAnalysis}
         brokerStatus={brokerStatus}
+        hasRithmicTrades={hasRithmicTrades}
         go={go}
       />
+      {hasRithmicTrades && (
+        <div className="mb-6">
+          <RithmicAttribution compact />
+        </div>
+      )}
       <div className="dashboard-simple-grid">
         <motion.div
           className="risk-chart-panel risk-os-panel motion-surface p-5 md:p-7"
@@ -93,26 +102,29 @@ export function Dashboard({ analysis, brokerStatus, rules, go }: { analysis: Ret
 function DashboardCommandCenter({
   analysis,
   brokerStatus,
+  hasRithmicTrades,
   go,
 }: {
   analysis: ReturnType<typeof analyze>;
   brokerStatus: BrokerStatus | null;
+  hasRithmicTrades: boolean;
   go: (section: Section) => void;
 }) {
   const connected = Boolean(brokerStatus?.connected);
-  const provider = brokerStatus?.provider || "Trade history";
+  const imported = hasRithmicTrades;
+  const provider = imported ? "Rithmic" : brokerStatus?.provider || "Trade history";
   const updated = brokerStatus?.updatedAt
     ? new Date(brokerStatus.updatedAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
     : "Not connected";
   const hasSampleTrades = analysis.trades.some((trade) => trade.id.startsWith("demo-"));
   const hasReviewedTrades = analysis.trades.some((trade) => !trade.id.startsWith("demo-"));
-  const sourceLabel = connected ? `${provider} linked` : hasSampleTrades ? hasReviewedTrades ? "Sample + CSV review" : "Sample funded review" : analysis.trades.length ? "CSV trade review" : "No trade history";
+  const sourceLabel = connected ? `${provider} linked` : imported ? `${provider} history imported` : hasSampleTrades ? hasReviewedTrades ? "Sample + CSV review" : "Sample funded review" : analysis.trades.length ? "CSV trade review" : "No trade history";
   const quickMetrics = [
     ["P&L", formatMoney(analysis.totalPnl), analysis.totalPnl >= 0 ? "text-emerald-300" : "text-red-300"],
     ["Biggest dip", formatMoney(-analysis.maxDrawdown), analysis.maxDrawdown > 0 ? "text-red-300" : "text-white"],
     ["Warnings", String(analysis.breaches.length), analysis.breaches.length ? "text-red-300" : "text-emerald-300"],
   ];
-  const sourceReady = connected || analysis.trades.length > 0;
+  const sourceReady = connected || imported || analysis.trades.length > 0;
   const nextAction = !sourceReady
     ? {
       label: "Add trade history",
@@ -145,9 +157,9 @@ function DashboardCommandCenter({
       <div className="risk-command-primary-grid grid gap-4 xl:items-center">
         <div>
           <div className="flex flex-wrap items-center gap-3">
-            <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 font-body text-xs ${connected ? "border-emerald-300/24 bg-emerald-400/10 text-emerald-200" : "border-white/12 bg-white/[0.035] text-white/52"}`}>
-              <span className={`h-2 w-2 rounded-full ${connected ? "bg-emerald-300" : "bg-white/30"}`} />
-              {connected ? "Connected" : "Not linked"}
+            <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 font-body text-xs ${connected ? "border-emerald-300/24 bg-emerald-400/10 text-emerald-200" : imported ? "border-amber-200/20 bg-amber-300/8 text-amber-100" : "border-white/12 bg-white/[0.035] text-white/52"}`}>
+              <span className={`h-2 w-2 rounded-full ${connected ? "bg-emerald-300" : imported ? "bg-amber-200" : "bg-white/30"}`} />
+              {connected ? "Connected" : imported ? "Imported" : "Not linked"}
             </span>
             <span className="font-mono text-xs uppercase tracking-[0.18em] text-white/34">{updated}</span>
           </div>
@@ -156,7 +168,7 @@ function DashboardCommandCenter({
           </h3>
           <div className="mt-4 flex flex-wrap gap-3">
             <GlassButton strong onClick={() => go("import")}>
-              {connected ? "Manage link" : "Link account"} <ArrowUpRight className="h-4 w-4" />
+              {connected ? "Manage link" : imported ? "Sync again" : "Link account"} <ArrowUpRight className="h-4 w-4" />
             </GlassButton>
             <GlassButton onClick={() => go("passport")}>Passport</GlassButton>
           </div>
