@@ -5,7 +5,8 @@ Status: sandbox implementation, not a production availability claim.
 ## Topology
 
 - `api/rithmic/sync.js` is the authenticated Cova Pro endpoint.
-- `api/rithmic/status.js` keeps credential fields hidden unless the signed private service and nonce store are reachable.
+- `api/rithmic/status.js` keeps credential fields hidden unless the signed private service and durable nonce claim are reachable.
+- `api/rithmic/nonce.js` is an HMAC-authenticated server-only callback. It atomically claims each request ID with Redis `SET NX` and a ten-minute TTL. The existing private Supabase Storage path remains a fail-closed fallback.
 - It validates the browser payload, fixes the target to `Rithmic Test`, and signs the exact JSON request with HMAC-SHA256.
 - `api/_lib/rithmic-service.js` calls an explicitly configured HTTPS service and only returns a bounded allowlisted response shape.
 - The licensed R | Protocol API implementation and protocol definitions stay in a separate private service repository. They must never be copied into this public repository.
@@ -19,6 +20,8 @@ Required server-only variables:
 ```text
 RITHMIC_CONNECTOR_URL=https://<private-service>/api/sync
 COVA_RITHMIC_SERVICE_SECRET=<32+ random bytes>
+KV_REST_API_URL=https://<nonce-store>.upstash.io
+KV_REST_API_TOKEN=<server-only token>
 ```
 
 Never prefix either value with `VITE_`.
@@ -50,7 +53,7 @@ Production remains blocked until:
 
 - the private service is placed in a private GitHub repository and deployed
 - production secrets are generated and configured on both server boundaries
-- the atomic request-nonce migration is reviewed, backed up, and applied
+- the free, non-auto-upgrading Redis nonce store is connected and a signed replay is rejected atomically
 - provider agreements are accepted if presented
 - a real non-Test account returns history and mapping is verified against its source records
 - Rithmic conformance screenshots and required proof are submitted and accepted
