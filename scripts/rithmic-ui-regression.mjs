@@ -17,6 +17,8 @@ const attribution = read("src", "components", "RithmicAttribution.tsx");
 const endpoint = read("api", "rithmic", "sync.js");
 const statusEndpoint = read("api", "rithmic", "status.js");
 const limiter = read("api", "_lib", "rithmic-limit.js");
+const bridge = read("api", "_lib", "rithmic-service.js");
+const vercel = read("vercel.json");
 
 assert.doesNotMatch(app, /Powered by Rithmic/i, "The approved homepage must not gain a powered-by section.");
 assert.match(propFirms, /Rithmic Test connector/, "The provider selector must state the connector is still in Test.");
@@ -44,6 +46,8 @@ assert.match(importPanels, /rithmicAccounts\.map/, "Multiple Rithmic accounts mu
 assert.match(importPanels, /accountKey/, "Duplicate provider account ids must be selected with an opaque composite key.");
 assert.doesNotMatch(importPanels, /<option value=\{365\}>/, "The UI must not offer history ranges outside the bounded serverless runtime budget.");
 assert.match(endpoint, /new Set\(\[30, 90, 180\]\)/, "The public boundary must enforce the bounded history range.");
+assert.match(bridge, /AbortSignal\.timeout\(250_000\)/, "The bridge must retain cleanup and response margin inside Vercel's 300-second limit.");
+assert.match(vercel, /"api\/rithmic\/status\.js"\s*:\s*\{\s*"maxDuration"\s*:\s*30\s*\}/, "The signed status check must retain margin for authentication and the private capability request.");
 assert.match(importDesk, /mode: "ephemeral"/, "Rithmic history must be labeled imported, not persistently linked.");
 assert.match(app, /mode === "replace" && brokerStatus\?\.mode === "ephemeral"[\s\S]*clearBrokerStatus\(\)/, "Only a replacement CSV import may clear the last Rithmic import status.");
 assert.match(app, /reset=\{\(\) => \{[\s\S]*clearBrokerStatus\(\)[\s\S]*cova:broker-status/, "Resetting the demo must clear ephemeral Rithmic status too.");

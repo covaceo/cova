@@ -12,7 +12,7 @@ function getBearerToken(req) {
   return match?.[1]?.trim() || "";
 }
 
-export async function requireAuthenticatedUser(req) {
+export async function requireAuthenticatedUser(req, { fetchImpl = fetch, timeoutMs = 5_000 } = {}) {
   const token = getBearerToken(req);
   if (!token) {
     throw new ApiError(401, "Sign in to continue.");
@@ -24,12 +24,18 @@ export async function requireAuthenticatedUser(req) {
     throw new ApiError(503, "Member authentication is not configured.");
   }
 
-  const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
-    headers: {
-      apikey: apiKey,
-      Authorization: `Bearer ${token}`,
-    },
-  });
+  let response;
+  try {
+    response = await fetchImpl(`${supabaseUrl}/auth/v1/user`, {
+      headers: {
+        apikey: apiKey,
+        Authorization: `Bearer ${token}`,
+      },
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch {
+    throw new ApiError(503, "Member authentication is temporarily unavailable.");
+  }
 
   if (!response.ok) {
     throw new ApiError(401, "Your Cova session is invalid or expired. Sign in again.");
@@ -54,19 +60,25 @@ export function requireProEntitlement(user) {
   return user;
 }
 
-export async function requireProUserById(userId) {
+export async function requireProUserById(userId, { fetchImpl = fetch, timeoutMs = 5_000 } = {}) {
   const supabaseUrl = String(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "").replace(/\/$/, "");
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
   if (!supabaseUrl || !serviceRoleKey) {
     throw new ApiError(503, "Member entitlement verification is not configured.");
   }
 
-  const response = await fetch(`${supabaseUrl}/auth/v1/admin/users/${encodeURIComponent(String(userId || ""))}`, {
-    headers: {
-      apikey: serviceRoleKey,
-      Authorization: `Bearer ${serviceRoleKey}`,
-    },
-  });
+  let response;
+  try {
+    response = await fetchImpl(`${supabaseUrl}/auth/v1/admin/users/${encodeURIComponent(String(userId || ""))}`, {
+      headers: {
+        apikey: serviceRoleKey,
+        Authorization: `Bearer ${serviceRoleKey}`,
+      },
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch {
+    throw new ApiError(503, "Member entitlement verification is temporarily unavailable.");
+  }
   if (!response.ok) {
     throw new ApiError(response.status === 404 ? 403 : 503, "Cova could not verify your current Pro access.");
   }

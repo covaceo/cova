@@ -25,7 +25,7 @@ function configuredUrl(value, { allowLocal = process.env.NODE_ENV !== "productio
 }
 
 function cleanString(value, max = 256) {
-  return typeof value === "string" ? value.slice(0, max) : "";
+  return typeof value === "string" && value.length <= max ? value : null;
 }
 
 function finiteNumber(value) {
@@ -47,12 +47,13 @@ function cleanAccount(value) {
   if (!value || typeof value !== "object") return null;
   const accountKey = cleanString(value.accountKey, 64);
   const accountId = cleanString(value.accountId, 128);
+  const accountName = cleanString(value.accountName, 128);
   const currency = cleanString(value.currency, 16);
-  if (!/^[A-Za-z0-9_-]{20,64}$/.test(accountKey) || !accountId || !currency) return null;
+  if (!/^[A-Za-z0-9_-]{20,64}$/.test(accountKey || "") || !accountId || accountName === null || !currency) return null;
   return {
     accountKey,
     accountId,
-    accountName: cleanString(value.accountName, 128),
+    accountName,
     currency,
   };
 }
@@ -72,7 +73,9 @@ function cleanTrade(value, account) {
   const contracts = finiteNumber(value.contracts);
   const pnl = finiteNumber(value.pnl);
   const risk = finiteNumber(value.risk);
-  if (!id || !validDate(date) || !market || !side
+  const setup = cleanString(value.setup, 120);
+  const notes = cleanString(value.notes, 500);
+  if (!id || !validDate(date) || !market || !side || setup === null || notes === null
     || !Number.isSafeInteger(contracts) || contracts <= 0
     || entry === null || entry <= 0 || exit === null || exit <= 0
     || pnl === null || risk === null || risk < 0
@@ -91,9 +94,9 @@ function cleanTrade(value, account) {
     contracts,
     pnl,
     currency,
-    setup: cleanString(value.setup, 120),
+    setup,
     risk,
-    notes: cleanString(value.notes, 500),
+    notes,
     source: { provider: "Rithmic", accountKey, accountId, currency },
   };
 }
@@ -242,7 +245,7 @@ export async function requestRithmicSync(payload, options = {}) {
       headers: signed.headers,
       body: signed.body,
       redirect: "error",
-      signal: options.signal || AbortSignal.timeout(280_000),
+      signal: options.signal || AbortSignal.timeout(250_000),
     });
   } catch {
     throw new Error("Rithmic sync is temporarily unavailable.");

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import test from "node:test";
 import { acquireRithmicSyncPermit } from "../api/_lib/rithmic-limit.js";
+import { requireAuthenticatedUser } from "../api/_lib/auth.js";
 import { createRithmicServiceRequest, requestRithmicStatus, requestRithmicSync } from "../api/_lib/rithmic-service.js";
 
 const SECRET = "k".repeat(48);
@@ -134,8 +135,27 @@ test("returns only a strict bounded account-matched ledger", async () => {
   assert.equal(JSON.stringify(result).includes("not-real"), false);
 });
 
+test("accepts a complete multi-account selection inventory across the public sanitizer", async () => {
+  const ledger = safeLedger();
+  ledger.data.selectionRequired = true;
+  ledger.data.account = null;
+  ledger.data.accounts.push({ accountKey: "b".repeat(32), accountId: "A-2", accountName: "Second", currency: "USD" });
+  ledger.data.trades = [];
+  ledger.data.counts = { accounts: 2, rawFills: 0, uniqueFills: 0, trades: 0, historyWindows: 0 };
+  const result = await requestRithmicSync(payload, {
+    connectorUrl: "https://rithmic.internal.example/api/sync",
+    secret: SECRET,
+    fetchImpl: async () => jsonResponse(ledger),
+  });
+  assert.equal(result.selectionRequired, true);
+  assert.equal(result.account, null);
+  assert.deepEqual(result.accounts.map((account) => account.accountId), ["A-1", "A-2"]);
+});
+
 test("rejects malformed, duplicate, and cross-account upstream trades", async () => {
   const cases = [
+    (ledger) => { ledger.data.trades[0].id = "x".repeat(81); },
+    (ledger) => { ledger.data.trades[0].market = "N".repeat(81); },
     (ledger) => { ledger.data.trades[0].date = "2026-99-99"; },
     (ledger) => { delete ledger.data.trades[0].entry; },
     (ledger) => { ledger.data.trades[0].contracts = 0; },
@@ -159,6 +179,11 @@ test("rejects malformed, duplicate, and cross-account upstream trades", async ()
 
 test("rejects duplicate account keys and selected accounts absent from inventory", async () => {
   const cases = [
+    (ledger) => {
+      ledger.data.account.accountId = "X".repeat(129);
+      ledger.data.accounts[0].accountId = "X".repeat(129);
+      ledger.data.trades[0].source.accountId = "X".repeat(129);
+    },
     (ledger) => {
       ledger.data.accounts.push({ accountKey: ACCOUNT_KEY, accountId: "A-2", accountName: "Duplicate", currency: "USD" });
       ledger.data.counts.accounts = 2;
@@ -190,6 +215,36 @@ test("rejects declared and streamed oversized connector responses before JSON pa
     secret: SECRET,
     fetchImpl: async () => new Response(new ReadableStream({ start(controller) { controller.enqueue(chunk); controller.close(); } })),
   }), /temporarily unavailable/);
+});
+
+test("bounds member authentication before starting credential work", async () => {
+  const priorUrl = process.env.SUPABASE_URL;
+  const priorKey = process.env.SUPABASE_ANON_KEY;
+  process.env.SUPABASE_URL = "https://cova-auth.example";
+  process.env.SUPABASE_ANON_KEY = "test-key";
+  let sawSignal = false;
+  try {
+    await assert.rejects(() => requireAuthenticatedUser(
+      { headers: { authorization: "Bearer member-token" } },
+      {
+        timeoutMs: 20,
+        fetchImpl: async (_url, init) => {
+          sawSignal = Boolean(init.signal);
+          return new Promise((_resolve, reject) => {
+            const keepAlive = setTimeout(() => reject(new Error("authentication timeout did not fire")), 250);
+            init.signal.addEventListener("abort", () => {
+              clearTimeout(keepAlive);
+              reject(init.signal.reason);
+            }, { once: true });
+          });
+        },
+      },
+    ), /authentication is temporarily unavailable/i);
+    assert.equal(sawSignal, true);
+  } finally {
+    if (priorUrl === undefined) delete process.env.SUPABASE_URL; else process.env.SUPABASE_URL = priorUrl;
+    if (priorKey === undefined) delete process.env.SUPABASE_ANON_KEY; else process.env.SUPABASE_ANON_KEY = priorKey;
+  }
 });
 
 test("rate-limits attempts and concurrent private connector calls in Redis", async () => {
