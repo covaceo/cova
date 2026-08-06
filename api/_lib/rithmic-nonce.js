@@ -1,0 +1,120 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
+
+const BUCKET_NAME = "cova-rithmic-nonces";
+const MAX_CLOCK_SKEW_SECONDS = 300;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function serviceHeaders(serviceRoleKey, extra = {}) {
+  return new Headers({
+    apikey: serviceRoleKey,
+    Authorization: `Bearer ${serviceRoleKey}`,
+    ...extra,
+  });
+}
+
+function nonceMessage(body, timestamp) {
+  return `${timestamp}.${body.requestId}.${body.signedAt}`;
+}
+
+export function createRithmicNonceSignature(body, { secret, timestamp }) {
+  const digest = createHmac("sha256", secret).update(nonceMessage(body, timestamp)).digest("hex");
+  return `v1=${digest}`;
+}
+
+export function verifyRithmicNonceSignature(body, { secret, signature, timestamp }) {
+  const match = /^v1=([a-f0-9]{64})$/i.exec(String(signature || ""));
+  if (!match || String(secret || "").length < 32) return false;
+  const expected = Buffer.from(createRithmicNonceSignature(body, { secret, timestamp }).slice(3), "hex");
+  const received = Buffer.from(match[1], "hex");
+  return received.length === expected.length && timingSafeEqual(received, expected);
+}
+
+function configuredSupabase(env) {
+  const supabaseUrl = String(env.SUPABASE_URL || "").replace(/\/$/, "");
+  const serviceRoleKey = String(env.SUPABASE_SERVICE_ROLE_KEY || "");
+  let url;
+  try {
+    url = new URL(supabaseUrl);
+  } catch {
+    throw new Error("nonce_store_not_configured");
+  }
+  if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash || serviceRoleKey.length < 32) {
+    throw new Error("nonce_store_not_configured");
+  }
+  return { serviceRoleKey, supabaseUrl };
+}
+
+async function responsePayload(response) {
+  try {
+    return await response.json();
+  } catch {
+    return {};
+  }
+}
+
+function isAlreadyExists(response, payload) {
+  if (![400, 409].includes(response.status)) return false;
+  const detail = `${payload?.code || ""} ${payload?.error || ""} ${payload?.message || ""}`;
+  return /duplicate|already exists|resource exists/i.test(detail);
+}
+
+async function ensureNonceBucket({ fetchImpl, serviceRoleKey, supabaseUrl }) {
+  const bucketUrl = `${supabaseUrl}/storage/v1/bucket/${BUCKET_NAME}`;
+  const existing = await fetchImpl(bucketUrl, {
+    headers: serviceHeaders(serviceRoleKey),
+    method: "GET",
+  });
+  if (existing.ok) return;
+  if (existing.status !== 404) throw new Error("nonce_store_unavailable");
+
+  const created = await fetchImpl(`${supabaseUrl}/storage/v1/bucket`, {
+    body: JSON.stringify({
+      allowed_mime_types: ["application/octet-stream"],
+      file_size_limit: 1,
+      id: BUCKET_NAME,
+      name: BUCKET_NAME,
+      public: false,
+    }),
+    headers: serviceHeaders(serviceRoleKey, { "Content-Type": "application/json" }),
+    method: "POST",
+  });
+  if (created.ok) return;
+  const payload = await responsePayload(created);
+  if (!isAlreadyExists(created, payload)) throw new Error("nonce_store_unavailable");
+}
+
+export async function claimRithmicNonceInStorage({ env = process.env, fetchImpl = fetch, requestId, signedAt }) {
+  if (!UUID_PATTERN.test(String(requestId || "")) || !Number.isSafeInteger(Number(signedAt))) {
+    throw new Error("invalid_nonce");
+  }
+  const { serviceRoleKey, supabaseUrl } = configuredSupabase(env);
+  await ensureNonceBucket({ fetchImpl, serviceRoleKey, supabaseUrl });
+
+  const day = new Date(Number(signedAt) * 1000).toISOString().slice(0, 10);
+  const objectUrl = `${supabaseUrl}/storage/v1/object/${BUCKET_NAME}/${day}/${requestId}`;
+  const response = await fetchImpl(objectUrl, {
+    body: Buffer.from([1]),
+    headers: serviceHeaders(serviceRoleKey, {
+      "Content-Type": "application/octet-stream",
+      "x-upsert": "false",
+    }),
+    method: "POST",
+  });
+  if (response.ok) return true;
+  const payload = await responsePayload(response);
+  if (isAlreadyExists(response, payload)) return false;
+  throw new Error("nonce_store_unavailable");
+}
+
+export function validateRithmicNonceRequest(body, { now, secret, signature, timestamp }) {
+  const requestId = String(body?.requestId || "");
+  const signedAt = Number(body?.signedAt);
+  return Boolean(
+    UUID_PATTERN.test(requestId)
+    && Number.isSafeInteger(signedAt)
+    && Number.isSafeInteger(timestamp)
+    && Math.abs(now - timestamp) <= MAX_CLOCK_SKEW_SECONDS
+    && Math.abs(now - signedAt) <= MAX_CLOCK_SKEW_SECONDS
+    && verifyRithmicNonceSignature({ requestId, signedAt }, { secret, signature, timestamp })
+  );
+}
