@@ -64,4 +64,21 @@ test("rejects unsigned calls and reports atomically rejected replays", async () 
   });
   assert.equal(signed.statusCode, 409);
   assert.deepEqual(signed.body, { claimed: false, code: "replayed_request" });
+
+  const unavailable = responseHarness();
+  await nonceHandler({
+    body,
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-cova-nonce-signature": createRithmicNonceSignature(body, { secret: SECRET, timestamp }),
+      "x-cova-nonce-timestamp": String(timestamp),
+    },
+  }, unavailable, {
+    claimNonce: async () => { throw new Error("nonce_store_not_configured"); },
+    env: { COVA_RITHMIC_SERVICE_SECRET: SECRET },
+    now: () => timestamp,
+  });
+  assert.equal(unavailable.statusCode, 503);
+  assert.deepEqual(unavailable.body, { claimed: false, code: "nonce_store_not_configured" });
 });

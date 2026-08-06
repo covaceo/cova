@@ -42,7 +42,14 @@ export default async function handler(req, res, options = {}) {
     });
     if (!claimed) return send(res, 409, { claimed: false, code: "replayed_request" });
     return send(res, 200, { claimed: true });
-  } catch {
-    return send(res, 503, { claimed: false, code: "nonce_store_unavailable" });
+  } catch (error) {
+    const allowedCodes = new Set([
+      "nonce_store_not_configured",
+      "nonce_bucket_probe_failed",
+      "nonce_bucket_create_failed",
+      "nonce_object_claim_failed",
+    ]);
+    const code = allowedCodes.has(error?.message) ? error.message : "nonce_store_unavailable";
+    return send(res, 503, { claimed: false, code });
   }
 }

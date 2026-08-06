@@ -65,7 +65,7 @@ async function ensureNonceBucket({ fetchImpl, serviceRoleKey, supabaseUrl }) {
     method: "GET",
   });
   if (existing.ok) return;
-  if (existing.status !== 404) throw new Error("nonce_store_unavailable");
+  if (existing.status !== 404) throw new Error("nonce_bucket_probe_failed");
 
   const created = await fetchImpl(`${supabaseUrl}/storage/v1/bucket`, {
     body: JSON.stringify({
@@ -80,7 +80,7 @@ async function ensureNonceBucket({ fetchImpl, serviceRoleKey, supabaseUrl }) {
   });
   if (created.ok) return;
   const payload = await responsePayload(created);
-  if (!isAlreadyExists(created, payload)) throw new Error("nonce_store_unavailable");
+  if (!isAlreadyExists(created, payload)) throw new Error("nonce_bucket_create_failed");
 }
 
 export async function claimRithmicNonceInStorage({ env = process.env, fetchImpl = fetch, requestId, signedAt }) {
@@ -103,7 +103,7 @@ export async function claimRithmicNonceInStorage({ env = process.env, fetchImpl 
   if (response.ok) return true;
   const payload = await responsePayload(response);
   if (isAlreadyExists(response, payload)) return false;
-  throw new Error("nonce_store_unavailable");
+  throw new Error("nonce_object_claim_failed");
 }
 
 export function validateRithmicNonceRequest(body, { now, secret, signature, timestamp }) {
