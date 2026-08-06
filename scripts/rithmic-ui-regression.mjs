@@ -42,6 +42,8 @@ assert.match(importPanels, /disabled=\{rithmicBusy\}/, "The Rithmic submit contr
 assert.match(importPanels, /username: "", password: ""/, "The frontend must clear both Rithmic fields after a sync attempt.");
 assert.match(importPanels, /rithmicAccounts\.map/, "Multiple Rithmic accounts must render an explicit selector.");
 assert.match(importPanels, /accountKey/, "Duplicate provider account ids must be selected with an opaque composite key.");
+assert.doesNotMatch(importPanels, /<option value=\{365\}>/, "The UI must not offer history ranges outside the bounded serverless runtime budget.");
+assert.match(endpoint, /new Set\(\[30, 90, 180\]\)/, "The public boundary must enforce the bounded history range.");
 assert.match(importDesk, /mode: "ephemeral"/, "Rithmic history must be labeled imported, not persistently linked.");
 assert.match(app, /mode === "replace" && brokerStatus\?\.mode === "ephemeral"[\s\S]*clearBrokerStatus\(\)/, "Only a replacement CSV import may clear the last Rithmic import status.");
 assert.match(app, /reset=\{\(\) => \{[\s\S]*clearBrokerStatus\(\)[\s\S]*cova:broker-status/, "Resetting the demo must clear ephemeral Rithmic status too.");

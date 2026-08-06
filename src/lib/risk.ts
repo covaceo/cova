@@ -12,7 +12,9 @@ export type Trade = {
   notes: string;
   source?: {
     provider: "Rithmic";
+    accountKey: string;
     accountId: string;
+    currency: string;
   };
 };
 
@@ -943,7 +945,9 @@ export function parseCsvDetailed(text: string): CsvParseResult {
     const market = valueFrom(record, ["market", "symbol", "instrument", "instrumentname", "contract", "contractname", "product", "ticker"]).trim().toUpperCase();
     const date = parseDateValue(valueFrom(record, ["date", "tradedate", "closedate", "exitdate", "timestamp", "datetime", "time", "filltime", "executiontime", "closetime", "opentime"]));
     const sourceProvider = valueFrom(record, ["sourceprovider"]).trim();
+    const sourceAccountKey = valueFrom(record, ["sourceaccountkey"]).trim();
     const sourceAccountId = valueFrom(record, ["sourceaccountid"]).trim();
+    const sourceCurrency = valueFrom(record, ["sourcecurrency"]).trim();
     const sourceTradeId = valueFrom(record, ["sourcetradeid"]).trim();
     const isRithmic = sourceProvider.toLowerCase() === "rithmic";
     const pnl = parseNumber(pnlRaw);
@@ -957,7 +961,9 @@ export function parseCsvDetailed(text: string): CsvParseResult {
       !pnlRaw ? "missing P&L" : "",
       pnlRaw && !Number.isFinite(pnl) ? "invalid P&L" : "",
       !Number.isFinite(contracts) || contracts <= 0 ? "invalid contracts" : "",
+      isRithmic && !/^[A-Za-z0-9_-]{20,64}$/.test(sourceAccountKey) ? "invalid Rithmic source account key" : "",
       isRithmic && !sourceAccountId ? "missing Rithmic source account" : "",
+      isRithmic && !sourceCurrency ? "missing Rithmic source currency" : "",
       isRithmic && !/^rithmic-[a-z0-9-]{1,72}$/i.test(sourceTradeId) ? "invalid Rithmic source trade id" : "",
     ].filter(Boolean);
 
@@ -980,7 +986,7 @@ export function parseCsvDetailed(text: string): CsvParseResult {
       risk,
       setup: valueFrom(record, ["setup", "strategy", "playbook", "tag", "label", "tradetype", "category"]) || "Imported",
       notes: valueFrom(record, ["notes", "note", "comment", "comments", "journal", "description"]),
-      ...(isRithmic ? { source: { provider: "Rithmic" as const, accountId: sourceAccountId } } : {}),
+      ...(isRithmic ? { source: { provider: "Rithmic" as const, accountKey: sourceAccountKey, accountId: sourceAccountId, currency: sourceCurrency } } : {}),
     });
   });
 

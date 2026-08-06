@@ -31,7 +31,7 @@ type RithmicCredentials = {
   username: string;
   password: CredentialText;
   accountKey?: string;
-  lookbackDays: 30 | 90 | 180 | 365;
+  lookbackDays: 30 | 90 | 180;
 };
 type RithmicSyncResult = {
   selectionRequired?: boolean;
@@ -621,7 +621,6 @@ export function BrokerConnectPanel({
                 <option value={30}>30 days</option>
                 <option value={90}>90 days</option>
                 <option value={180}>180 days</option>
-                <option value={365}>365 days</option>
               </select>
             </label>
             <GlassButton disabled={rithmicBusy} strong type="submit">

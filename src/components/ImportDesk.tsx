@@ -22,7 +22,7 @@ type RithmicCredentials = {
   username: string;
   password: string;
   accountKey?: string;
-  lookbackDays: 30 | 90 | 180 | 365;
+  lookbackDays: 30 | 90 | 180;
 };
 
 export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, reset, upgradeToPro }: { entitlements: ImportEntitlements; importCsv: (text: string, mode?: ImportMode) => void; openFirmOAuth: (firm: PropFirmId) => void; status: string; reset: () => void; upgradeToPro: () => void }) {

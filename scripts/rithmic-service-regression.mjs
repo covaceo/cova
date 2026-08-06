@@ -83,6 +83,13 @@ test("the real public handlers reject unauthenticated requests before connector 
   assert.equal(statusResponse.statusCode, 401);
 });
 
+test("derives a validated client IP before rate limiting credential attempts", async () => {
+  const { rithmicClientIp } = await import("../api/rithmic/sync.js");
+  assert.equal(rithmicClientIp({ headers: { "x-forwarded-for": "203.0.113.7, 10.0.0.1" } }), "203.0.113.7");
+  assert.equal(rithmicClientIp({ headers: { "x-forwarded-for": "2001:db8::7" } }), "2001:db8::7");
+  assert.throws(() => rithmicClientIp({ headers: { "x-forwarded-for": "not-an-ip" } }), /protection is temporarily unavailable/i);
+});
+
 test("signs the exact JSON body sent to the private connector", () => {
   const timestamp = 1_785_000_000;
   const request = createRithmicServiceRequest(payload, { secret: SECRET, timestamp });
@@ -121,7 +128,7 @@ test("returns only a strict bounded account-matched ledger", async () => {
   assert.equal(captured.url, "https://rithmic.internal.example/api/sync");
   assert.equal(captured.init.method, "POST");
   assert.deepEqual(result.trades[0]?.source, { provider: "Rithmic", accountKey: ACCOUNT_KEY, accountId: "A-1", currency: "USD" });
-  assert.match(result.csv, /source_provider,source_account_id/);
+  assert.match(result.csv, /source_provider,source_account_key,source_account_id,source_currency/);
   assert.equal("uniqueUserId" in result, false);
   assert.equal("injected" in result, false);
   assert.equal(JSON.stringify(result).includes("not-real"), false);
@@ -132,8 +139,33 @@ test("rejects malformed, duplicate, and cross-account upstream trades", async ()
     (ledger) => { ledger.data.trades[0].date = "2026-99-99"; },
     (ledger) => { delete ledger.data.trades[0].entry; },
     (ledger) => { ledger.data.trades[0].contracts = 0; },
+    (ledger) => { ledger.data.trades[0].pnl = null; },
+    (ledger) => { ledger.data.trades[0].pnl = ""; },
+    (ledger) => { ledger.data.trades[0].risk = null; },
+    (ledger) => { ledger.data.trades[0].risk = ""; },
     (ledger) => { ledger.data.trades[0].source.accountId = "A-2"; },
     (ledger) => { ledger.data.trades.push({ ...ledger.data.trades[0] }); ledger.data.counts.trades = 2; },
+  ];
+  for (const mutate of cases) {
+    const ledger = safeLedger();
+    mutate(ledger);
+    await assert.rejects(() => requestRithmicSync(payload, {
+      connectorUrl: "https://rithmic.internal.example/api/sync",
+      secret: SECRET,
+      fetchImpl: async () => jsonResponse(ledger),
+    }), /temporarily unavailable/);
+  }
+});
+
+test("rejects duplicate account keys and selected accounts absent from inventory", async () => {
+  const cases = [
+    (ledger) => {
+      ledger.data.accounts.push({ accountKey: ACCOUNT_KEY, accountId: "A-2", accountName: "Duplicate", currency: "USD" });
+      ledger.data.counts.accounts = 2;
+    },
+    (ledger) => {
+      ledger.data.accounts = [{ accountKey: "b".repeat(32), accountId: "A-2", accountName: "Other", currency: "USD" }];
+    },
   ];
   for (const mutate of cases) {
     const ledger = safeLedger();
@@ -162,10 +194,11 @@ test("rejects declared and streamed oversized connector responses before JSON pa
 
 test("rate-limits attempts and concurrent private connector calls in Redis", async () => {
   const env = { KV_REST_API_URL: "https://cova-rithmic.upstash.io", KV_REST_API_TOKEN: "t".repeat(48) };
-  const results = [1, "OK", 1];
+  const results = [[1, 1], "OK", 1];
   const calls = [];
   const permit = await acquireRithmicSyncPermit({
     actorId: "user-1",
+    ipAddress: "203.0.113.7",
     env,
     lockId: "lock-1",
     fetchImpl: async (_url, init) => {
@@ -181,20 +214,47 @@ test("rate-limits attempts and concurrent private connector calls in Redis", asy
 
   const blocked = await acquireRithmicSyncPermit({
     actorId: "user-1",
+    ipAddress: "203.0.113.7",
     env,
     lockId: "lock-2",
-    fetchImpl: async (_url, init) => jsonResponse({ result: JSON.parse(init.body)[0] === "SET" ? null : 1 }),
+    fetchImpl: async (_url, init) => jsonResponse({ result: JSON.parse(init.body)[0] === "SET" ? null : [1, 1] }),
   });
   assert.equal(blocked.allowed, false);
   assert.equal(blocked.retryAfterSeconds, 10);
 
   const throttled = await acquireRithmicSyncPermit({
     actorId: "user-1",
+    ipAddress: "203.0.113.7",
     env,
-    fetchImpl: async () => jsonResponse({ result: 6 }),
+    fetchImpl: async () => jsonResponse({ result: [1, 6] }),
   });
   assert.equal(throttled.allowed, false);
   assert.equal(throttled.retryAfterSeconds, 60);
+
+  await assert.rejects(() => acquireRithmicSyncPermit({
+    actorId: "user-1",
+    ipAddress: "203.0.113.7",
+    env,
+    fetchImpl: async (_url, init) => jsonResponse({ result: JSON.parse(init.body)[0] === "EVAL" ? [null, null] : "OK" }),
+  }), /unavailable/i);
+});
+
+test("shares an aggregate attempt budget across users from one IP", async () => {
+  const env = { KV_REST_API_URL: "https://cova-rithmic.upstash.io", KV_REST_API_TOKEN: "t".repeat(48) };
+  let setCalled = false;
+  const permit = await acquireRithmicSyncPermit({
+    actorId: "user-2",
+    ipAddress: "203.0.113.7",
+    env,
+    fetchImpl: async (_url, init) => {
+      const redisCommand = JSON.parse(init.body);
+      if (redisCommand[0] === "SET") setCalled = true;
+      return jsonResponse({ result: redisCommand[0] === "EVAL" ? [1, 6] : "OK" });
+    },
+  });
+  assert.equal(permit.allowed, false);
+  assert.equal(permit.retryAfterSeconds, 60);
+  assert.equal(setCalled, false);
 });
 
 test("fails closed on insecure URLs and upstream errors", async () => {
