@@ -30,12 +30,12 @@ type ProjectXCredentials = {
 type RithmicCredentials = {
   username: string;
   password: CredentialText;
-  accountId?: string;
+  accountKey?: string;
   lookbackDays: 30 | 90 | 180 | 365;
 };
 type RithmicSyncResult = {
   selectionRequired?: boolean;
-  accounts?: { accountId?: string; accountName?: string }[];
+  accounts?: { accountKey?: string; accountId?: string; accountName?: string }[];
 };
 
 const providerStatus: Record<PropFirmId, string> = {
@@ -348,7 +348,7 @@ export function BrokerConnectPanel({
   const selectedConnected = connected && brokerStatus?.provider === selectedProviderName;
   const [projectXCredentials, setProjectXCredentials] = useState<ProjectXCredentials>({ userName: "", apiKey: "" });
   const [rithmicCredentials, setRithmicCredentials] = useState<RithmicCredentials>({ username: "", password: "", lookbackDays: 90 });
-  const [rithmicAccounts, setRithmicAccounts] = useState<{ accountId?: string; accountName?: string }[]>([]);
+  const [rithmicAccounts, setRithmicAccounts] = useState<{ accountKey?: string; accountId?: string; accountName?: string }[]>([]);
 
   function selectFirm(firm: (typeof propFirmOptions)[number]) {
     setSelectedFirmId(firm.id);
@@ -428,7 +428,7 @@ export function BrokerConnectPanel({
       const result = await syncRithmic(credentials);
       if (result?.selectionRequired && result.accounts?.length) {
         setRithmicAccounts(result.accounts);
-        setRithmicCredentials((current) => ({ ...current, accountId: result.accounts?.[0]?.accountId }));
+        setRithmicCredentials((current) => ({ ...current, accountKey: result.accounts?.[0]?.accountKey }));
       }
     } finally {
       setRithmicCredentials((current) => ({ ...current, username: "", password: "" }));
@@ -602,11 +602,11 @@ export function BrokerConnectPanel({
                 <span className="font-body text-xs uppercase tracking-[0.18em] text-white/42">Account</span>
                 <select
                   className="mt-2 h-12 w-full rounded-[16px] border border-white/10 bg-[#111] px-4 font-body text-sm text-white outline-none transition focus:border-emerald-200/32"
-                  onChange={(event) => setRithmicCredentials((current) => ({ ...current, accountId: event.target.value }))}
-                  value={rithmicCredentials.accountId || ""}
+                  onChange={(event) => setRithmicCredentials((current) => ({ ...current, accountKey: event.target.value }))}
+                  value={rithmicCredentials.accountKey || ""}
                 >
                   {rithmicAccounts.map((account) => (
-                    <option key={account.accountId} value={account.accountId}>{account.accountName || account.accountId}</option>
+                    <option key={account.accountKey} value={account.accountKey}>{account.accountName || account.accountId}</option>
                   ))}
                 </select>
               </label>

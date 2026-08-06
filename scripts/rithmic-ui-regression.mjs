@@ -16,6 +16,7 @@ const dashboard = read("src", "components", "DashboardView.tsx");
 const attribution = read("src", "components", "RithmicAttribution.tsx");
 const endpoint = read("api", "rithmic", "sync.js");
 const statusEndpoint = read("api", "rithmic", "status.js");
+const limiter = read("api", "_lib", "rithmic-limit.js");
 
 assert.doesNotMatch(app, /Powered by Rithmic/i, "The approved homepage must not gain a powered-by section.");
 assert.match(propFirms, /Rithmic Test connector/, "The provider selector must state the connector is still in Test.");
@@ -40,8 +41,10 @@ assert.match(importPanels, /Private sync unavailable/, "Unavailable private sync
 assert.match(importPanels, /disabled=\{rithmicBusy\}/, "The Rithmic submit control must block duplicate in-flight syncs.");
 assert.match(importPanels, /username: "", password: ""/, "The frontend must clear both Rithmic fields after a sync attempt.");
 assert.match(importPanels, /rithmicAccounts\.map/, "Multiple Rithmic accounts must render an explicit selector.");
+assert.match(importPanels, /accountKey/, "Duplicate provider account ids must be selected with an opaque composite key.");
 assert.match(importDesk, /mode: "ephemeral"/, "Rithmic history must be labeled imported, not persistently linked.");
 assert.match(app, /mode === "replace" && brokerStatus\?\.mode === "ephemeral"[\s\S]*clearBrokerStatus\(\)/, "Only a replacement CSV import may clear the last Rithmic import status.");
+assert.match(app, /reset=\{\(\) => \{[\s\S]*clearBrokerStatus\(\)[\s\S]*cova:broker-status/, "Resetting the demo must clear ephemeral Rithmic status too.");
 assert.match(dashboard, /trade\.source\?\.provider === "Rithmic"/, "Rithmic attribution must follow the imported trades, including mixed datasets.");
 assert.match(attribution, /Trading Platform by Rithmic™ is a trademark of Rithmic, LLC/, "The required Rithmic trademark notice must be present.");
 assert.match(attribution, /The R \| Protocol API™ software is Copyright © 2026 by Rithmic, LLC/, "The required protocol copyright notice must be present.");
@@ -49,6 +52,8 @@ assert.match(attribution, /The OMNE™ software is Copyright © 2026 by Omnesys,
 assert.match(attribution, /The Powered by OMNE artwork is a trademark of Omnesys, LLC and Omnesys Technologies, Inc\. All Rights Reserved\./, "The required OMNE artwork notice must be present verbatim.");
 assert.match(endpoint, /requireAuthenticatedUser/);
 assert.match(endpoint, /requireProEntitlement/);
+assert.match(endpoint, /acquireRithmicSyncPermit/, "The public sync route must rate-limit before calling the private connector.");
+assert.match(limiter, /\["SET", lockKey, lockId, "NX", "EX", LOCK_SECONDS\]/, "Concurrent syncs must be blocked atomically.");
 assert.match(statusEndpoint, /requireAuthenticatedUser/);
 assert.match(statusEndpoint, /requireProEntitlement/);
 assert.doesNotMatch(endpoint, /console\.(log|info|debug)/, "The credential-handling endpoint must not log request data.");

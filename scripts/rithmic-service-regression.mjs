@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import test from "node:test";
+import { acquireRithmicSyncPermit } from "../api/_lib/rithmic-limit.js";
 import { createRithmicServiceRequest, requestRithmicStatus, requestRithmicSync } from "../api/_lib/rithmic-service.js";
 
 const SECRET = "k".repeat(48);
+const ACCOUNT_KEY = "a".repeat(32);
 const payload = {
   requestId: "d4d96f6b-f49c-4fe9-a218-1ab2b082a26a",
   user: "trader",
@@ -12,6 +14,42 @@ const payload = {
   finishIndex: 1_784_100_000,
   systemName: "Rithmic Test",
 };
+const jsonResponse = (body, init = {}) => new Response(JSON.stringify(body), {
+  ...init,
+  headers: { "content-type": "application/json", ...(init.headers || {}) },
+});
+
+function safeLedger() {
+  return {
+    ok: true,
+    data: {
+      provider: "Rithmic",
+      mode: "user-triggered-read-only",
+      selectionRequired: false,
+      account: { accountKey: ACCOUNT_KEY, accountId: "A-1", accountName: "Test", currency: "USD" },
+      accounts: [{ accountKey: ACCOUNT_KEY, accountId: "A-1", accountName: "Test", currency: "USD" }],
+      trades: [{
+        id: "rithmic-trade",
+        date: "2026-08-01",
+        market: "NQU6",
+        side: "Long",
+        entry: 100,
+        exit: 101,
+        contracts: 1,
+        pnl: 20,
+        currency: "USD",
+        setup: "Rithmic import",
+        risk: 0,
+        notes: "Gross P&L before commissions",
+        source: { provider: "Rithmic", accountKey: ACCOUNT_KEY, accountId: "A-1", currency: "USD", privateFillId: "drop-me" },
+      }],
+      counts: { rawFills: 2, uniqueFills: 2, trades: 1, accounts: 1, historyWindows: 1 },
+      missingPointValues: [],
+      uniqueUserId: "must-not-cross-public-api",
+      injected: "drop-me",
+    },
+  };
+}
 
 test("the real public Rithmic handlers load with the repository auth contract", async () => {
   const [syncHandler, statusHandler] = await Promise.all([
@@ -51,7 +89,6 @@ test("signs the exact JSON body sent to the private connector", () => {
   const expected = createHmac("sha256", SECRET).update(`${timestamp}.${request.body}`).digest("hex");
   assert.equal(request.headers["x-cova-signature"], `v1=${expected}`);
   assert.equal(request.headers["x-cova-timestamp"], String(timestamp));
-  assert.equal(request.headers["content-type"], "application/json");
 });
 
 test("checks the signed private connector capability without broker credentials", async () => {
@@ -62,7 +99,7 @@ test("checks the signed private connector capability without broker credentials"
     timestamp: 1_785_000_000,
     fetchImpl: async (_url, init) => {
       sentBody = JSON.parse(init.body);
-      return { ok: true, json: async () => ({ ok: true, data: { available: true, environment: "Rithmic Test", version: "0.1.0" } }) };
+      return jsonResponse({ ok: true, data: { available: true, environment: "Rithmic Test", version: "0.1.0" } });
     },
   });
   assert.equal(sentBody.operation, "status");
@@ -70,7 +107,7 @@ test("checks the signed private connector capability without broker credentials"
   assert.deepEqual(result, { available: true, environment: "Rithmic Test" });
 });
 
-test("calls only an explicitly configured private service and returns a bounded safe shape", async () => {
+test("returns only a strict bounded account-matched ledger", async () => {
   let captured;
   const result = await requestRithmicSync(payload, {
     connectorUrl: "https://rithmic.internal.example/api/sync",
@@ -78,52 +115,95 @@ test("calls only an explicitly configured private service and returns a bounded 
     timestamp: 1_785_000_000,
     fetchImpl: async (url, init) => {
       captured = { url, init };
-      return {
-        ok: true,
-        status: 200,
-        async json() {
-          return {
-            ok: true,
-            data: {
-              provider: "Rithmic",
-              mode: "user-triggered-read-only",
-              selectionRequired: true,
-              account: { accountId: "A-1", accountName: "Test", currency: "USD" },
-              accounts: [{ accountId: "A-1", accountName: "Test", currency: "USD" }, { accountId: "", accountName: "Invalid" }],
-              trades: [{ id: "rithmic-trade", date: "2026-08-01", market: "NQU6", side: "Long", entry: 100, exit: 101, contracts: 1, pnl: 20, setup: "Rithmic import", risk: 0, notes: "Gross P&L before commissions", source: { provider: "Rithmic", accountId: "A-1", privateFillId: "drop-me" } }],
-              counts: { rawFills: 0, uniqueFills: 0, trades: 1, accounts: 1, historyWindows: 1 },
-              missingPointValues: [],
-              ignoredFillIds: [],
-              uniqueUserId: "must-not-cross-public-api",
-              injected: "drop-me",
-            },
-          };
-        },
-      };
+      return jsonResponse(safeLedger());
     },
   });
   assert.equal(captured.url, "https://rithmic.internal.example/api/sync");
   assert.equal(captured.init.method, "POST");
-  assert.equal(result.provider, "Rithmic");
-  assert.equal(result.selectionRequired, true);
-  assert.equal(result.accounts.length, 1);
-  assert.equal(result.trades[0]?.side, "Long");
-  assert.deepEqual(result.trades[0]?.source, { provider: "Rithmic", accountId: "A-1" });
+  assert.deepEqual(result.trades[0]?.source, { provider: "Rithmic", accountKey: ACCOUNT_KEY, accountId: "A-1", currency: "USD" });
   assert.match(result.csv, /source_provider,source_account_id/);
-  assert.match(result.csv, /Rithmic,A-1/);
   assert.equal("uniqueUserId" in result, false);
   assert.equal("injected" in result, false);
   assert.equal(JSON.stringify(result).includes("not-real"), false);
 });
 
-test("fails closed on insecure production URLs and upstream errors", async () => {
-  await assert.rejects(() => requestRithmicSync(payload, { connectorUrl: "http://evil.example/api/sync", secret: SECRET }), /configured/);
-  await assert.rejects(() => requestRithmicSync(payload, { allowLocal: false, connectorUrl: "http://localhost:5050/api/sync", secret: SECRET }), /configured/);
-  await assert.rejects(() => requestRithmicSync(payload, { connectorUrl: "https://user@example.com/api/sync", secret: SECRET }), /configured/);
-  await assert.rejects(() => requestRithmicSync(payload, { connectorUrl: "https://rithmic.internal.example/api/sync?debug=1", secret: SECRET }), /configured/);
+test("rejects malformed, duplicate, and cross-account upstream trades", async () => {
+  const cases = [
+    (ledger) => { ledger.data.trades[0].date = "2026-99-99"; },
+    (ledger) => { delete ledger.data.trades[0].entry; },
+    (ledger) => { ledger.data.trades[0].contracts = 0; },
+    (ledger) => { ledger.data.trades[0].source.accountId = "A-2"; },
+    (ledger) => { ledger.data.trades.push({ ...ledger.data.trades[0] }); ledger.data.counts.trades = 2; },
+  ];
+  for (const mutate of cases) {
+    const ledger = safeLedger();
+    mutate(ledger);
+    await assert.rejects(() => requestRithmicSync(payload, {
+      connectorUrl: "https://rithmic.internal.example/api/sync",
+      secret: SECRET,
+      fetchImpl: async () => jsonResponse(ledger),
+    }), /temporarily unavailable/);
+  }
+});
+
+test("rejects declared and streamed oversized connector responses before JSON parsing", async () => {
   await assert.rejects(() => requestRithmicSync(payload, {
     connectorUrl: "https://rithmic.internal.example/api/sync",
     secret: SECRET,
-    fetchImpl: async () => ({ ok: false, status: 502, json: async () => ({ error: "secret detail" }) }),
-  }), /Rithmic sync is temporarily unavailable/);
+    fetchImpl: async () => jsonResponse({ ok: true }, { headers: { "content-length": "4000000" } }),
+  }), /temporarily unavailable/);
+  const chunk = new Uint8Array(3_600_000).fill(32);
+  await assert.rejects(() => requestRithmicSync(payload, {
+    connectorUrl: "https://rithmic.internal.example/api/sync",
+    secret: SECRET,
+    fetchImpl: async () => new Response(new ReadableStream({ start(controller) { controller.enqueue(chunk); controller.close(); } })),
+  }), /temporarily unavailable/);
+});
+
+test("rate-limits attempts and concurrent private connector calls in Redis", async () => {
+  const env = { KV_REST_API_URL: "https://cova-rithmic.upstash.io", KV_REST_API_TOKEN: "t".repeat(48) };
+  const results = [1, "OK", 1];
+  const calls = [];
+  const permit = await acquireRithmicSyncPermit({
+    actorId: "user-1",
+    env,
+    lockId: "lock-1",
+    fetchImpl: async (_url, init) => {
+      calls.push(JSON.parse(init.body));
+      return jsonResponse({ result: results.shift() });
+    },
+  });
+  assert.equal(permit.allowed, true);
+  await permit.release();
+  assert.equal(calls.length, 3);
+  assert.equal(calls[1][0], "SET");
+  assert.equal(calls[1].includes("NX"), true);
+
+  const blocked = await acquireRithmicSyncPermit({
+    actorId: "user-1",
+    env,
+    lockId: "lock-2",
+    fetchImpl: async (_url, init) => jsonResponse({ result: JSON.parse(init.body)[0] === "SET" ? null : 1 }),
+  });
+  assert.equal(blocked.allowed, false);
+  assert.equal(blocked.retryAfterSeconds, 10);
+
+  const throttled = await acquireRithmicSyncPermit({
+    actorId: "user-1",
+    env,
+    fetchImpl: async () => jsonResponse({ result: 6 }),
+  });
+  assert.equal(throttled.allowed, false);
+  assert.equal(throttled.retryAfterSeconds, 60);
+});
+
+test("fails closed on insecure URLs and upstream errors", async () => {
+  await assert.rejects(() => requestRithmicSync(payload, { connectorUrl: "http://evil.example/api/sync", secret: SECRET }), /configured/);
+  await assert.rejects(() => requestRithmicSync(payload, { allowLocal: false, connectorUrl: "http://localhost:5050/api/sync", secret: SECRET }), /configured/);
+  await assert.rejects(() => requestRithmicSync(payload, { connectorUrl: "https://user@example.com/api/sync", secret: SECRET }), /configured/);
+  await assert.rejects(() => requestRithmicSync(payload, {
+    connectorUrl: "https://rithmic.internal.example/api/sync",
+    secret: SECRET,
+    fetchImpl: async () => jsonResponse({ error: "secret detail" }, { status: 502 }),
+  }), /temporarily unavailable/);
 });

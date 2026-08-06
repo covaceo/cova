@@ -21,6 +21,7 @@ type ProjectXCredentials = {
 type RithmicCredentials = {
   username: string;
   password: string;
+  accountKey?: string;
   lookbackDays: 30 | 90 | 180 | 365;
 };
 
@@ -188,8 +189,8 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
         throw new Error("Rithmic sync is not reachable from this preview.");
       }
       const data = await response.json() as {
-        account?: { accountName?: string };
-        accounts?: { accountId?: string; accountName?: string }[];
+        account?: { accountKey?: string; accountName?: string };
+        accounts?: { accountKey?: string; accountId?: string; accountName?: string }[];
         csv?: string;
         counts?: { trades?: number; rawFills?: number };
         credentialsStored?: boolean;
@@ -207,6 +208,10 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
       if (!data.csv || tradeCount <= 0) {
         setBrokerNotice("Rithmic Test login verified. The Test environment returned no fill history, and the login was discarded.");
         return data;
+      }
+      const verified = parseCsvDetailed(data.csv);
+      if (verified.issues.length || verified.trades.length !== tradeCount) {
+        throw new Error("Rithmic returned an inconsistent trade ledger, so Cova did not import it.");
       }
       const nextStatus: BrokerStatus = {
         provider: "Rithmic",

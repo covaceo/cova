@@ -1,4 +1,5 @@
 import { ApiError, requireAuthenticatedUser, requireProEntitlement, sendApiError } from "../_lib/auth.js";
+import { acquireRithmicSyncPermit } from "../_lib/rithmic-limit.js";
 import { requestRithmicSync } from "../_lib/rithmic-service.js";
 
 const ALLOWED_LOOKBACK_DAYS = new Set([30, 90, 180, 365]);
@@ -7,12 +8,12 @@ function cleanBody(body) {
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new ApiError(400, "Enter a valid Rithmic login and history range.");
   const username = String(body.username || "").trim();
   const password = String(body.password || "");
-  const accountId = body.accountId == null ? undefined : String(body.accountId).trim();
+  const accountKey = body.accountKey == null ? undefined : String(body.accountKey).trim();
   const lookbackDays = Number(body.lookbackDays || 90);
   if (!username || username.length > 128 || !password || password.length > 256) throw new ApiError(400, "Enter a valid Rithmic login and history range.");
-  if (accountId && accountId.length > 128) throw new ApiError(400, "Enter a valid Rithmic account.");
+  if (accountKey && !/^[A-Za-z0-9_-]{20,64}$/.test(accountKey)) throw new ApiError(400, "Enter a valid Rithmic account.");
   if (!ALLOWED_LOOKBACK_DAYS.has(lookbackDays)) throw new ApiError(400, "Choose a valid Rithmic history range.");
-  return { accountId, lookbackDays, password, username };
+  return { accountKey, lookbackDays, password, username };
 }
 
 export default async function handler(req, res) {
@@ -29,10 +30,20 @@ export default async function handler(req, res) {
     const input = cleanBody(req.body);
     const finishIndex = Math.floor(Date.now() / 1000);
     const startIndex = finishIndex - input.lookbackDays * 24 * 60 * 60;
+    let permit;
+    try {
+      permit = await acquireRithmicSyncPermit({ actorId: user.id });
+    } catch {
+      throw new ApiError(503, "Rithmic sync protection is temporarily unavailable.");
+    }
+    if (!permit.allowed) {
+      res.setHeader("Retry-After", String(permit.retryAfterSeconds));
+      throw new ApiError(429, "Too many Rithmic sync attempts. Wait and try again.");
+    }
     let data;
     try {
       data = await requestRithmicSync({
-        accountId: input.accountId,
+        accountKey: input.accountKey,
         finishIndex,
         password: input.password,
         startIndex,
@@ -41,6 +52,8 @@ export default async function handler(req, res) {
       });
     } catch {
       throw new ApiError(502, "Rithmic sync is temporarily unavailable. Check the login and try again.");
+    } finally {
+      await permit.release();
     }
     if (data.missingPointValues.length) {
       throw new ApiError(422, "Rithmic returned incomplete contract values, so Cova did not import partial P&L.");
