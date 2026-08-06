@@ -1,6 +1,6 @@
 # Rithmic connector boundary
 
-Status: sandbox implementation, not a production availability claim.
+Status: the signed Rithmic Test connector infrastructure is deployed. Normal Rithmic Paper / Rithmic 01 customer connectivity remains provider-gated and is not a production availability claim.
 
 ## Topology
 
@@ -20,9 +20,11 @@ Required server-only variables:
 ```text
 RITHMIC_CONNECTOR_URL=https://<private-service>/api/sync
 COVA_RITHMIC_SERVICE_SECRET=<32+ random bytes>
+KV_REST_API_URL=https://<rate-limit-store>.upstash.io
+KV_REST_API_TOKEN=<server-only token>
 ```
 
-Never prefix either value with `VITE_`.
+Never prefix any of these values with `VITE_`.
 
 ## Data path
 
@@ -47,12 +49,17 @@ Do not describe Cova as sponsored, endorsed, or powered by Rithmic outside the r
 
 ## Release gate
 
-Production remains blocked until:
+Completed engineering gates:
 
-- the private service is placed in a private GitHub repository and deployed
-- production secrets are generated and configured on both server boundaries
-- the private service's free, non-auto-upgrading Redis nonce store is connected and a signed replay is rejected atomically
-- provider agreements are accepted if presented
-- a real non-Test account returns history and mapping is verified against its source records
-- Rithmic conformance screenshots and required proof are submitted and accepted
-- Raf approves the final rendered integration and release
+- the licensed service remains in a private GitHub repository and is deployed behind HMAC authentication
+- shared production secrets are configured on both server boundaries
+- one free Upstash Redis resource backs the private replay claim and public attempt/concurrency limits
+- production proof returned signed status `200`, exact replay `409`, and one authenticated Rithmic Test account
+- aggregate tests, clean-checkout builds, audits, desktop/mobile QA, and required attribution checks passed
+
+Remaining provider/product gates:
+
+- Rithmic must provide or enable the normal customer production path
+- a non-Test account must return real fill history and Cova's normalized ledger must be reconciled against the provider source
+- Rithmic conformance evidence must be submitted and accepted
+- Raf must approve normal customer availability after those checks; until then the UI must remain explicitly labeled `Rithmic Test`
