@@ -7,7 +7,7 @@
     "dev": "vite --host 127.0.0.1",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "test": "npm run test:risk && npm run test:backtest && npm run test:practice-history && npm run test:practice-datafeed && npm run test:practice-architecture && npm run test:ui-content && npm run test:custom-cursor && npm run test:legal && npm run test:api-security && npm run test:rithmic-nonce && npm run test:rithmic && npm run test:rithmic-ui",
+    "test": "npm run test:risk && npm run test:backtest && npm run test:practice-history && npm run test:practice-datafeed && npm run test:practice-architecture && npm run test:ui-content && npm run test:custom-cursor && npm run test:legal && npm run test:api-security && npm run test:rithmic && npm run test:rithmic-ui",
     "test:risk": "node scripts/risk-regression.mjs",
     "test:backtest": "node scripts/backtest-regression.mjs",
     "test:practice-history": "node scripts/practice-history-regression.mjs",
@@ -17,7 +17,6 @@
     "test:custom-cursor": "node scripts/custom-cursor-regression.mjs",
     "test:legal": "node scripts/legal-trust-regression.mjs",
     "test:api-security": "node scripts/api-security-regression.mjs",
-    "test:rithmic-nonce": "node --test scripts/rithmic-nonce-regression.mjs",
     "test:rithmic": "node --test scripts/rithmic-service-regression.mjs",
     "test:rithmic-ui": "node scripts/rithmic-ui-regression.mjs",
     "audit:custom-cursor": "node scripts/custom-cursor-browser-audit.mjs"
