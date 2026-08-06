@@ -38,7 +38,15 @@ function configuredSupabase(env) {
   } catch {
     throw new Error("nonce_store_not_configured");
   }
-  if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash || serviceRoleKey.length < 32) {
+  const jwtKey = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(serviceRoleKey);
+  const secretKey = /^sb_secret_[A-Za-z0-9_-]{20,}$/.test(serviceRoleKey);
+  if (url.protocol !== "https:"
+    || !url.hostname.endsWith(".supabase.co")
+    || url.username
+    || url.password
+    || url.search
+    || url.hash
+    || (!jwtKey && !secretKey)) {
     throw new Error("nonce_store_not_configured");
   }
   return { serviceRoleKey, supabaseUrl };
