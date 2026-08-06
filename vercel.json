@@ -1,4 +1,9 @@
 {
+  "functions": {
+    "api/rithmic/sync.js": {
+      "maxDuration": 300
+    }
+  },
   "headers": [
     {
       "source": "/(.*)",

@@ -63,14 +63,14 @@ export const propFirmOptions: {
   {
     id: "rithmic",
     name: "Rithmic",
-    badge: "Platform account",
-    route: "Connect platform",
+    badge: "Test connector",
+    route: "Rithmic Test connector",
     platforms: "Rithmic / R|Trader",
     status: "advanced",
-    summary: "Choose Rithmic if your prop firm routes trades through Rithmic or R|Trader Pro.",
-    fit: "Cova will support platform-level import so multiple prop firms can use the same review workflow.",
-    connectLabel: "Show Rithmic export steps",
-    connectNotice: "Rithmic direct sync is planned. Upload a Rithmic export below for now and Cova will still build your review.",
+    summary: "Use the private Rithmic Test connector to verify a read-only, user-triggered trade-history sync before commercial release.",
+    fit: "Cova opens an on-demand R | Protocol API session, imports completed fills, then logs out and discards the login.",
+    connectLabel: "Review Rithmic Test connector",
+    connectNotice: "Rithmic Test connector. Credentials are used for one request and discarded by Cova when it finishes.",
   },
   {
     id: "tradovate",
@@ -198,7 +198,6 @@ export function getFirmConnectEnv(firmId: PropFirmId) {
     apex: env.VITE_APEX_CONNECT_URL,
     myfundedfutures: env.VITE_MFFU_CONNECT_URL,
     tradeify: env.VITE_TRADEIFY_CONNECT_URL,
-    rithmic: env.VITE_RITHMIC_CONNECT_URL,
     tradovate: env.VITE_TRADOVATE_CONNECT_URL,
   };
   return urls[firmId];
@@ -237,6 +236,9 @@ export function buildFirmConnectUrl(firmId: PropFirmId) {
 }
 
 export function canRedirectToFirmProvider(firmId: PropFirmId) {
+  if (firmId === "rithmic") {
+    return true;
+  }
   if (firmId === "other") {
     return false;
   }

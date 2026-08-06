@@ -52,7 +52,7 @@ Current connector strategy:
 
 - **TopstepX / ProjectX:** first real connector. Users paste the TopstepX username and API key from account settings; Cova validates it against ProjectX, encrypts the session token, and imports trade history read-only.
 - **Apex, MyFundedFutures, Tradeify, and other firms:** use CSV or platform exports first, then add templates as real user files come in.
-- **Rithmic:** high-value later connector, but heavier infrastructure than a simple web auth flow.
+- **Rithmic:** sandbox connector implemented behind an HMAC-authenticated private service. The licensed protocol kit stays out of this public repository; credentials are used for one read-only sync and are not stored. This is not a production availability claim. See `docs/rithmic-connector.md`.
 - **Tradovate:** scaffold remains available for users who already have API access, but it is no longer the default path.
 
 The existing Tradovate OAuth routes live under `api/tradovate/*`, which means they run through Vercel, not the plain Vite dev server.
