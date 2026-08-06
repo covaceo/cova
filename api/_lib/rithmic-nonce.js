@@ -69,8 +69,18 @@ function isAlreadyExists(response, payload) {
 async function fetchOrThrow(fetchImpl, url, init, code) {
   try {
     return await fetchImpl(url, init);
-  } catch {
-    throw new Error(code);
+  } catch (error) {
+    const transportCode = String(error?.cause?.code || error?.code || "").toLowerCase();
+    const allowed = new Set([
+      "econnrefused",
+      "enotfound",
+      "err_invalid_char",
+      "err_invalid_url",
+      "etimedout",
+      "und_err_connect_timeout",
+      "und_err_socket",
+    ]);
+    throw new Error(allowed.has(transportCode) ? `${code}_${transportCode}` : code);
   }
 }
 

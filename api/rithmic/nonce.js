@@ -43,7 +43,7 @@ export default async function handler(req, res, options = {}) {
     if (!claimed) return send(res, 409, { claimed: false, code: "replayed_request" });
     return send(res, 200, { claimed: true });
   } catch (error) {
-    const allowedCodes = new Set([
+    const baseCodes = new Set([
       "nonce_store_not_configured",
       "nonce_bucket_probe_failed",
       "nonce_bucket_create_failed",
@@ -51,7 +51,10 @@ export default async function handler(req, res, options = {}) {
       "nonce_object_claim_failed",
       "nonce_object_transport_failed",
     ]);
-    const code = allowedCodes.has(error?.message) ? error.message : "nonce_store_unavailable";
+    const transportPattern = /^nonce_(?:bucket|object)_transport_failed_(?:econnrefused|enotfound|err_invalid_char|err_invalid_url|etimedout|und_err_connect_timeout|und_err_socket)$/;
+    const code = baseCodes.has(error?.message) || transportPattern.test(String(error?.message || ""))
+      ? error.message
+      : "nonce_store_unavailable";
     return send(res, 503, { claimed: false, code });
   }
 }
