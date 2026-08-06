@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { claimRithmicNonceInStorage, createRithmicNonceSignature } from "../api/_lib/rithmic-nonce.js";
+import {
+  claimRithmicNonce,
+  claimRithmicNonceInStorage,
+  createRithmicNonceSignature,
+} from "../api/_lib/rithmic-nonce.js";
 import nonceHandler from "../api/rithmic/nonce.js";
 
 const SECRET = "k".repeat(48);
@@ -16,6 +20,37 @@ function responseHarness() {
     json(value) { this.body = value; return this; },
   };
 }
+
+test("claims a nonce atomically in Redis with a bounded TTL", async () => {
+  const requests = [];
+  const env = {
+    KV_REST_API_TOKEN: "k".repeat(48),
+    KV_REST_API_URL: "https://cova-rithmic.upstash.io",
+  };
+  const input = {
+    requestId: "22222222-2222-4222-8222-222222222222",
+    signedAt: 1_786_033_600,
+  };
+  const claimed = await claimRithmicNonce({
+    env,
+    fetchImpl: async (url, init) => {
+      requests.push({ url: String(url), init });
+      return { ok: true, status: 200, json: async () => ({ result: "OK" }) };
+    },
+    ...input,
+  });
+  assert.equal(claimed, true);
+  assert.equal(requests[0].url, env.KV_REST_API_URL);
+  assert.deepEqual(JSON.parse(requests[0].init.body), ["SET", `rithmic:nonce:${input.requestId}`, "1", "NX", "EX", 600]);
+  assert.equal(requests[0].init.headers.get("Authorization"), `Bearer ${env.KV_REST_API_TOKEN}`);
+
+  const replayed = await claimRithmicNonce({
+    env,
+    fetchImpl: async () => ({ ok: true, status: 200, json: async () => ({ result: null }) }),
+    ...input,
+  });
+  assert.equal(replayed, false);
+});
 
 test("claims an atomic non-upserting object in a private Supabase Storage bucket", async () => {
   const requests = [];
