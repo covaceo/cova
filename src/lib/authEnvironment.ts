@@ -6,6 +6,10 @@ function getViteEnv() {
   return ((import.meta as unknown as { env?: Record<string, string | undefined> }).env ?? {});
 }
 
+export function isRithmicUiPreview() {
+  return getViteEnv().VITE_RITHMIC_UI_PREVIEW === "true";
+}
+
 export function getHostedAuthEnv(mode: AuthMode) {
   const env = getViteEnv();
   return mode === "signup"
@@ -14,6 +18,9 @@ export function getHostedAuthEnv(mode: AuthMode) {
 }
 
 export function getHostedLogoutUrl() {
+  if (isRithmicUiPreview()) {
+    return "";
+  }
   const env = getViteEnv();
   return env.VITE_AUTH_LOGOUT_URL || "/api/auth/logout";
 }
@@ -41,5 +48,6 @@ export function isLocalPreview() {
 export function isDemoPreviewEnabled() {
   const env = getViteEnv();
   return isLocalPreview()
+    || isRithmicUiPreview()
     || env.VITE_ENABLE_DEMO_PREVIEW === "true";
 }

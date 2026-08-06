@@ -1,6 +1,7 @@
 import { motion } from "motion/react";
 import { type FormEvent, useState } from "react";
 import { ArrowUpRight, BadgeCheck, ChevronDown, CircleDot, ClipboardCheck, FileUp, Gauge, LockKeyhole, SlidersHorizontal, Upload } from "lucide-react";
+import { isRithmicUiPreview } from "../lib/authEnvironment";
 import { type CsvParseResult, formatMoney } from "../lib/risk";
 import { buildFirmConnectUrl, canRedirectToFirmProvider, csvExportGuides, propFirmOptions, type PropFirmId } from "../lib/propFirms";
 import { GlassButton } from "./GlassButton";
@@ -346,6 +347,7 @@ export function BrokerConnectPanel({
   const isTopstepX = selectedFirm.id === "topstepx";
   const selectedProviderName = isTopstepX ? "TopstepX" : selectedFirm.name;
   const selectedConnected = connected && brokerStatus?.provider === selectedProviderName;
+  const rithmicPreview = isRithmicUiPreview();
   const [projectXCredentials, setProjectXCredentials] = useState<ProjectXCredentials>({ userName: "", apiKey: "" });
   const [rithmicCredentials, setRithmicCredentials] = useState<RithmicCredentials>({ username: "", password: "", lookbackDays: 90 });
   const [rithmicAccounts, setRithmicAccounts] = useState<{ accountId?: string; accountName?: string }[]>([]);
@@ -563,12 +565,14 @@ export function BrokerConnectPanel({
         >
           <div>
             <div className="flex flex-wrap items-center gap-3">
-              <span className="rounded-full border border-amber-200/18 bg-amber-300/8 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-amber-100">Rithmic Test</span>
+              <span className="rounded-full border border-amber-200/18 bg-amber-300/8 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-amber-100">{rithmicPreview ? "Visual preview" : "Rithmic Test"}</span>
               <span className="rounded-full border border-emerald-200/16 bg-emerald-300/8 px-3 py-1.5 font-body text-xs text-[#b9f5df]">Read-only</span>
             </div>
             <h4 className="mt-4 font-body text-2xl font-semibold tracking-[-0.03em] text-white">Import Rithmic history.</h4>
             <p className="mt-2 max-w-2xl font-body text-sm leading-relaxed text-white/56">
-              One-time login. Credentials are discarded by Cova when it finishes. No order access. P&amp;L is gross before commissions.
+              {rithmicPreview
+                ? "Visual only. Nothing leaves this browser."
+                : "One-time login. Credentials are discarded by Cova when it finishes. No order access. P&L is gross before commissions."}
             </p>
           </div>
 
@@ -576,7 +580,7 @@ export function BrokerConnectPanel({
             <label className="block">
               <span className="font-body text-xs uppercase tracking-[0.18em] text-white/42">Username</span>
               <input
-                autoComplete="username"
+                autoComplete={rithmicPreview ? "off" : "username"}
                 className="mt-2 h-12 w-full rounded-[16px] border border-white/10 bg-black/34 px-4 font-body text-sm text-white outline-none transition placeholder:text-white/24 focus:border-emerald-200/32 focus:bg-black/44"
                 onChange={(event) => setRithmicCredentials((current) => ({ ...current, username: event.target.value }))}
                 placeholder="Test username"
@@ -588,7 +592,7 @@ export function BrokerConnectPanel({
             <label className="block">
               <span className="font-body text-xs uppercase tracking-[0.18em] text-white/42">Password</span>
               <input
-                autoComplete="current-password"
+                autoComplete={rithmicPreview ? "new-password" : "current-password"}
                 className="mt-2 h-12 w-full rounded-[16px] border border-white/10 bg-black/34 px-4 font-body text-sm text-white outline-none transition placeholder:text-white/24 focus:border-emerald-200/32 focus:bg-black/44"
                 onChange={(event) => setRithmicCredentials((current) => ({ ...current, password: event.target.value }))}
                 placeholder="Test password"
@@ -625,7 +629,7 @@ export function BrokerConnectPanel({
               </select>
             </label>
             <GlassButton disabled={rithmicBusy} strong type="submit">
-              {rithmicBusy ? "Syncing..." : "Sync history"} <ArrowUpRight className="h-4 w-4" />
+              {rithmicBusy ? "Working..." : rithmicPreview ? "Run preview" : "Sync history"} <ArrowUpRight className="h-4 w-4" />
             </GlassButton>
           </div>
 
@@ -635,28 +639,30 @@ export function BrokerConnectPanel({
         </form>
       )}
 
-      <div className="mt-6 flex flex-col gap-3 border-t border-white/10 pt-5 lg:flex-row lg:items-center lg:justify-between" data-broker-lifecycle>
-        <div>
-          <p className="font-body text-sm font-medium text-white/82">{selectedFirm.name}</p>
-          <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.16em] text-white/42">
-            {selectedConnected ? "Connected" : providerStatus[selectedFirm.id]}
-          </p>
+      {!rithmicPreview && (
+        <div className="mt-6 flex flex-col gap-3 border-t border-white/10 pt-5 lg:flex-row lg:items-center lg:justify-between" data-broker-lifecycle>
+          <div>
+            <p className="font-body text-sm font-medium text-white/82">{selectedFirm.name}</p>
+            <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.16em] text-white/42">
+              {selectedConnected ? "Connected" : providerStatus[selectedFirm.id]}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 lg:justify-end">
+            <GlassButton strong onClick={startFirmConnect}>
+              {selectedFirm.connectLabel} <ArrowUpRight className="h-4 w-4" />
+            </GlassButton>
+            {selectedFirm.id !== "other" && <GlassButton onClick={showExportGuide}>Export CSV</GlassButton>}
+            {!entitlements.canUseDirectSync && selectedFirm.id !== "other" && <GlassButton onClick={upgradeToPro}>Unlock sync</GlassButton>}
+            {entitlements.canUseDirectSync && selectedFirm.id === "tradovate" && (
+              <GlassButton onClick={checkTradovateStatus}>{brokerBusy ? "Checking..." : "Check status"}</GlassButton>
+            )}
+            {entitlements.canUseDirectSync && selectedFirm.id === "tradovate" && selectedConnected && (
+              <GlassButton onClick={syncTradovate}>{syncBusy ? "Syncing..." : "Sync trades"}</GlassButton>
+            )}
+            {selectedConnected && <GlassButton onClick={disconnectBroker}>Disconnect</GlassButton>}
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2 lg:justify-end">
-          <GlassButton strong onClick={startFirmConnect}>
-            {selectedFirm.connectLabel} <ArrowUpRight className="h-4 w-4" />
-          </GlassButton>
-          {selectedFirm.id !== "other" && <GlassButton onClick={showExportGuide}>Export CSV</GlassButton>}
-          {!entitlements.canUseDirectSync && selectedFirm.id !== "other" && <GlassButton onClick={upgradeToPro}>Unlock sync</GlassButton>}
-          {entitlements.canUseDirectSync && selectedFirm.id === "tradovate" && (
-            <GlassButton onClick={checkTradovateStatus}>{brokerBusy ? "Checking..." : "Check status"}</GlassButton>
-          )}
-          {entitlements.canUseDirectSync && selectedFirm.id === "tradovate" && selectedConnected && (
-            <GlassButton onClick={syncTradovate}>{syncBusy ? "Syncing..." : "Sync trades"}</GlassButton>
-          )}
-          {selectedConnected && <GlassButton onClick={disconnectBroker}>Disconnect</GlassButton>}
-        </div>
-      </div>
+      )}
 
       {brokerNotice && (
         <p className="mt-5 border-l-2 border-[#18c887]/50 bg-[#18c887]/8 px-4 py-3 font-body text-sm text-white/68" role="status">

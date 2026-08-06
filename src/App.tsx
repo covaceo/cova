@@ -41,7 +41,7 @@ import { Navbar } from "./components/Navbar";
 import { OAuthConnectPage } from "./components/OAuthConnectPage";
 import { Toast } from "./components/Toast";
 import { WorkspaceShell } from "./components/WorkspaceShell";
-import { getHostedLogoutUrl, isDemoPreviewEnabled } from "./lib/authEnvironment";
+import { getHostedLogoutUrl, isDemoPreviewEnabled, isRithmicUiPreview } from "./lib/authEnvironment";
 import { BROKER_STATUS_KEY, brokerMessageForStatus, clearBrokerStatus, readBrokerStatus, writeBrokerStatus, type BrokerStatus } from "./lib/brokerStatus";
 import { PRACTICE_ACCOUNT_STORAGE_KEY, PRACTICE_TRADES_STORAGE_KEY, samplePracticeReps, type PracticeRep } from "./lib/backtesting";
 import { buildFirmConnectUrl, canRedirectToFirmProvider, csvExportGuides, getFirmProviderHost, getPropFirm, propFirmOptions, type PropFirmId } from "./lib/propFirms";
@@ -651,6 +651,24 @@ function getProCheckoutUrl() {
 }
 
 function loadAuthSession(): AuthSession | null {
+  if (isRithmicUiPreview()) {
+    const session: AuthSession = {
+      email: DEV_PREVIEW_EMAIL,
+      mode: "login",
+      plan: "pro",
+      signedInAt: new Date().toISOString(),
+      source: "local-preview",
+      subscriptionStatus: "preview",
+    };
+    try {
+      setActiveStorageIdentity(session.email);
+      localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
+    } catch {
+      // The visual preview remains usable with an in-memory session when storage is blocked.
+    }
+    return session;
+  }
+
   try {
     const parsed = JSON.parse(localStorage.getItem(AUTH_SESSION_KEY) ?? "null");
     if (typeof parsed?.email === "string" && typeof parsed?.signedInAt === "string") {

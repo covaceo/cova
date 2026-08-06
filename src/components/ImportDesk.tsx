@@ -4,6 +4,7 @@ import { type PropFirmId } from "../lib/propFirms";
 import { BROKER_STATUS_KEY, clearBrokerStatus, readBrokerStatus, writeBrokerStatus, type BrokerStatus } from "../lib/brokerStatus";
 import { canRedirectToTradovate } from "../lib/tradovateConnect";
 import { authorizedFetch } from "../lib/apiClient";
+import { isRithmicUiPreview } from "../lib/authEnvironment";
 import { ImageAtmosphere, SectionShell } from "./LayoutShell";
 import { BrokerConnectPanel, CsvExportGuide, CsvPreview, CsvUploadPanel, ImportNextSteps } from "./ImportPanels";
 
@@ -37,7 +38,7 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
   const [rithmicCapability, setRithmicCapability] = useState({ available: false, checked: false });
   const [brokerNotice, setBrokerNotice] = useState("");
   const [brokerStatus, setBrokerStatus] = useState<BrokerStatus | null>(() => readBrokerStatus());
-  const [selectedFirmId, setSelectedFirmId] = useState<PropFirmId>("topstepx");
+  const [selectedFirmId, setSelectedFirmId] = useState<PropFirmId>(() => isRithmicUiPreview() ? "rithmic" : "topstepx");
   const parsed = useMemo(() => parseCsvDetailed(text), [text]);
 
   useEffect(() => {
@@ -194,10 +195,15 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
         counts?: { trades?: number; rawFills?: number };
         credentialsStored?: boolean;
         selectionRequired?: boolean;
+        preview?: boolean;
         error?: string;
       };
       if (!response.ok) {
         throw new Error(data.error || "Rithmic sync failed.");
+      }
+      if (data.preview) {
+        setBrokerNotice("Visual preview complete. Nothing was sent, saved, or imported.");
+        return data;
       }
       if (data.selectionRequired && data.accounts && data.accounts.length > 1) {
         setBrokerNotice(`Rithmic returned ${data.accounts.length} accounts. Choose one below, re-enter the Test password, and sync again.`);
