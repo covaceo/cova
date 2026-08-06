@@ -49,22 +49,29 @@ async function command(redis, body, fetchImpl) {
   }
 }
 
-export async function acquireRithmicSyncPermit({ actorId, env = process.env, fetchImpl = fetch, lockId = randomUUID() }) {
+export async function acquireRithmicSyncPermit({ actorId, ipAddress, env = process.env, fetchImpl = fetch, lockId = randomUUID() }) {
   const cleanActor = String(actorId || "");
-  if (!cleanActor) throw new Error("Rithmic rate limiting is not configured.");
+  const cleanIp = String(ipAddress || "");
+  if (!cleanActor || !cleanIp) throw new Error("Rithmic rate limiting is not configured.");
   const redis = configuredRedis(env);
   const actorHash = createHash("sha256").update(cleanActor).digest("hex").slice(0, 32);
+  const ipHash = createHash("sha256").update(cleanIp).digest("hex").slice(0, 32);
   const attemptsKey = `rithmic:sync:attempts:${actorHash}`;
+  const ipAttemptsKey = `rithmic:sync:ip-attempts:${ipHash}`;
   const lockKey = `rithmic:sync:lock:${actorHash}`;
-  const attempts = Number(await command(redis, [
+  const attempts = await command(redis, [
     "EVAL",
-    "local n=redis.call('INCR',KEYS[1]); if n==1 then redis.call('EXPIRE',KEYS[1],ARGV[1]) end; return n",
-    "1",
+    "local out={}; for i=1,#KEYS do local n=redis.call('INCR',KEYS[i]); if n==1 then redis.call('EXPIRE',KEYS[i],ARGV[1]) end; out[i]=n end; return out",
+    "2",
     attemptsKey,
+    ipAttemptsKey,
     String(ATTEMPT_WINDOW_SECONDS),
-  ], fetchImpl));
-  if (!Number.isSafeInteger(attempts)) throw new Error("Rithmic rate limiting is unavailable.");
-  if (attempts > ATTEMPT_LIMIT) return { allowed: false, retryAfterSeconds: ATTEMPT_WINDOW_SECONDS, release: async () => undefined };
+  ], fetchImpl);
+  if (!Array.isArray(attempts) || attempts.length !== 2
+    || attempts.some((value) => typeof value !== "number" || !Number.isSafeInteger(value) || value < 0)) throw new Error("Rithmic rate limiting is unavailable.");
+  if (attempts.some((value) => value > ATTEMPT_LIMIT)) {
+    return { allowed: false, retryAfterSeconds: ATTEMPT_WINDOW_SECONDS, release: async () => undefined };
+  }
 
   const locked = await command(redis, ["SET", lockKey, lockId, "NX", "EX", LOCK_SECONDS], fetchImpl);
   if (locked !== "OK") return { allowed: false, retryAfterSeconds: 10, release: async () => undefined };

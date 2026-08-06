@@ -1,8 +1,17 @@
+import { isIP } from "node:net";
 import { ApiError, requireAuthenticatedUser, requireProEntitlement, sendApiError } from "../_lib/auth.js";
 import { acquireRithmicSyncPermit } from "../_lib/rithmic-limit.js";
 import { requestRithmicSync } from "../_lib/rithmic-service.js";
 
-const ALLOWED_LOOKBACK_DAYS = new Set([30, 90, 180, 365]);
+const ALLOWED_LOOKBACK_DAYS = new Set([30, 90, 180]);
+
+export function rithmicClientIp(req) {
+  const value = req?.headers?.["x-forwarded-for"];
+  const forwarded = Array.isArray(value) ? value[0] : String(value || "");
+  const ipAddress = forwarded.split(",", 1)[0].trim();
+  if (!isIP(ipAddress)) throw new ApiError(503, "Rithmic sync protection is temporarily unavailable.");
+  return ipAddress;
+}
 
 function cleanBody(body) {
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new ApiError(400, "Enter a valid Rithmic login and history range.");
@@ -28,11 +37,12 @@ export default async function handler(req, res) {
     const user = await requireAuthenticatedUser(req);
     requireProEntitlement(user);
     const input = cleanBody(req.body);
+    const ipAddress = rithmicClientIp(req);
     const finishIndex = Math.floor(Date.now() / 1000);
     const startIndex = finishIndex - input.lookbackDays * 24 * 60 * 60;
     let permit;
     try {
-      permit = await acquireRithmicSyncPermit({ actorId: user.id });
+      permit = await acquireRithmicSyncPermit({ actorId: user.id, ipAddress });
     } catch {
       throw new ApiError(503, "Rithmic sync protection is temporarily unavailable.");
     }

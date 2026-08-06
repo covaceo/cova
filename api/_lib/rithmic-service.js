@@ -25,17 +25,15 @@ function configuredUrl(value, { allowLocal = process.env.NODE_ENV !== "productio
 }
 
 function cleanString(value, max = 256) {
-  return typeof value === "string" ? value.slice(0, max) : "";
+  return typeof value === "string" && value.length <= max ? value : null;
 }
 
 function finiteNumber(value) {
-  const number = Number(value);
-  return Number.isFinite(number) ? number : null;
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 function cleanCount(value) {
-  const number = Number(value);
-  return Number.isSafeInteger(number) && number >= 0 ? number : 0;
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : null;
 }
 
 function validDate(value) {
@@ -49,12 +47,13 @@ function cleanAccount(value) {
   if (!value || typeof value !== "object") return null;
   const accountKey = cleanString(value.accountKey, 64);
   const accountId = cleanString(value.accountId, 128);
+  const accountName = cleanString(value.accountName, 128);
   const currency = cleanString(value.currency, 16);
-  if (!/^[A-Za-z0-9_-]{20,64}$/.test(accountKey) || !accountId || !currency) return null;
+  if (!/^[A-Za-z0-9_-]{20,64}$/.test(accountKey || "") || !accountId || accountName === null || !currency) return null;
   return {
     accountKey,
     accountId,
-    accountName: cleanString(value.accountName, 128),
+    accountName,
     currency,
   };
 }
@@ -74,7 +73,9 @@ function cleanTrade(value, account) {
   const contracts = finiteNumber(value.contracts);
   const pnl = finiteNumber(value.pnl);
   const risk = finiteNumber(value.risk);
-  if (!id || !validDate(date) || !market || !side
+  const setup = cleanString(value.setup, 120);
+  const notes = cleanString(value.notes, 500);
+  if (!id || !validDate(date) || !market || !side || setup === null || notes === null
     || !Number.isSafeInteger(contracts) || contracts <= 0
     || entry === null || entry <= 0 || exit === null || exit <= 0
     || pnl === null || risk === null || risk < 0
@@ -93,9 +94,9 @@ function cleanTrade(value, account) {
     contracts,
     pnl,
     currency,
-    setup: cleanString(value.setup, 120),
+    setup,
     risk,
-    notes: cleanString(value.notes, 500),
+    notes,
     source: { provider: "Rithmic", accountKey, accountId, currency },
   };
 }
@@ -106,8 +107,8 @@ function escapeCsv(value) {
 }
 
 function tradesToCsv(trades) {
-  const header = ["date", "market", "side", "contracts", "entry", "exit", "pnl", "risk", "setup", "notes", "source_provider", "source_account_id", "source_trade_id"];
-  const rows = trades.map((trade) => [trade.date, trade.market, trade.side, trade.contracts, trade.entry, trade.exit, trade.pnl, trade.risk, trade.setup, trade.notes, trade.source.provider, trade.source.accountId, trade.id]
+  const header = ["date", "market", "side", "contracts", "entry", "exit", "pnl", "risk", "setup", "notes", "source_provider", "source_account_key", "source_account_id", "source_currency", "source_trade_id"];
+  const rows = trades.map((trade) => [trade.date, trade.market, trade.side, trade.contracts, trade.entry, trade.exit, trade.pnl, trade.risk, trade.setup, trade.notes, trade.source.provider, trade.source.accountKey, trade.source.accountId, trade.source.currency, trade.id]
     .map(escapeCsv).join(","));
   return [header.join(","), ...rows].join("\n");
 }
@@ -120,15 +121,27 @@ function cleanResult(value) {
     throw new Error("Rithmic sync result is too large to import safely.");
   }
   const account = cleanAccount(value.account);
-  const accounts = Array.isArray(value.accounts) ? value.accounts.slice(0, 100).map(cleanAccount).filter(Boolean) : [];
-  if (accounts.length !== (Array.isArray(value.accounts) ? Math.min(value.accounts.length, 100) : 0)) throw new Error("Rithmic sync is temporarily unavailable.");
+  const rawAccounts = Array.isArray(value.accounts) ? value.accounts : [];
+  if (rawAccounts.length > 100) throw new Error("Rithmic sync is temporarily unavailable.");
+  const accounts = rawAccounts.map(cleanAccount).filter(Boolean);
+  const accountKeys = accounts.map((candidate) => candidate.accountKey);
+  if (accounts.length !== rawAccounts.length || new Set(accountKeys).size !== accounts.length) throw new Error("Rithmic sync is temporarily unavailable.");
   const trades = value.trades.map((trade) => cleanTrade(trade, account)).filter(Boolean);
   const ids = trades.map((trade) => trade.id);
   if (trades.length !== value.trades.length || new Set(ids).size !== ids.length) throw new Error("Rithmic sync is temporarily unavailable.");
-  const reportedTrades = Number(value.counts?.trades);
-  if (!Number.isSafeInteger(reportedTrades) || reportedTrades !== trades.length) throw new Error("Rithmic sync is temporarily unavailable.");
+  const reportedTrades = cleanCount(value.counts?.trades);
+  const reportedAccounts = cleanCount(value.counts?.accounts);
+  const rawFills = cleanCount(value.counts?.rawFills);
+  const uniqueFills = cleanCount(value.counts?.uniqueFills);
+  const historyWindows = cleanCount(value.counts?.historyWindows);
+  if (reportedTrades !== trades.length || reportedAccounts !== accounts.length
+    || rawFills === null || uniqueFills === null || historyWindows === null
+    || uniqueFills > rawFills || historyWindows > 13) throw new Error("Rithmic sync is temporarily unavailable.");
   if (value.selectionRequired === true && (account || trades.length || accounts.length < 2)) throw new Error("Rithmic sync is temporarily unavailable.");
   if (value.selectionRequired !== true && !account) throw new Error("Rithmic sync is temporarily unavailable.");
+  if (account && !accounts.some((candidate) => candidate.accountKey === account.accountKey
+    && candidate.accountId === account.accountId
+    && candidate.currency === account.currency)) throw new Error("Rithmic sync is temporarily unavailable.");
   const csv = tradesToCsv(trades);
   if (Buffer.byteLength(csv, "utf8") > MAX_CSV_BYTES
     || Buffer.byteLength(JSON.stringify({ trades, csv }), "utf8") > MAX_RESPONSE_BYTES) {
@@ -143,11 +156,11 @@ function cleanResult(value) {
     trades,
     csv,
     counts: {
-      rawFills: cleanCount(value.counts?.rawFills),
-      uniqueFills: cleanCount(value.counts?.uniqueFills),
+      rawFills,
+      uniqueFills,
       trades: trades.length,
-      accounts: cleanCount(value.counts?.accounts),
-      historyWindows: cleanCount(value.counts?.historyWindows),
+      accounts: accounts.length,
+      historyWindows,
     },
     missingPointValues: [],
   };
@@ -232,7 +245,7 @@ export async function requestRithmicSync(payload, options = {}) {
       headers: signed.headers,
       body: signed.body,
       redirect: "error",
-      signal: options.signal || AbortSignal.timeout(280_000),
+      signal: options.signal || AbortSignal.timeout(250_000),
     });
   } catch {
     throw new Error("Rithmic sync is temporarily unavailable.");
