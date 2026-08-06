@@ -47,7 +47,9 @@ export default async function handler(req, res, options = {}) {
       "nonce_store_not_configured",
       "nonce_bucket_probe_failed",
       "nonce_bucket_create_failed",
+      "nonce_bucket_transport_failed",
       "nonce_object_claim_failed",
+      "nonce_object_transport_failed",
     ]);
     const code = allowedCodes.has(error?.message) ? error.message : "nonce_store_unavailable";
     return send(res, 503, { claimed: false, code });
