@@ -1,4 +1,4 @@
-import { claimRithmicNonceInStorage, validateRithmicNonceRequest } from "../_lib/rithmic-nonce.js";
+import { claimRithmicNonce, validateRithmicNonceRequest } from "../_lib/rithmic-nonce.js";
 
 function send(res, status, body) {
   res.setHeader("Cache-Control", "no-store");
@@ -15,7 +15,7 @@ function header(req, name) {
 export default async function handler(req, res, options = {}) {
   const env = options.env || process.env;
   const now = options.now || (() => Math.floor(Date.now() / 1000));
-  const claimNonce = options.claimNonce || claimRithmicNonceInStorage;
+  const claimNonce = options.claimNonce || claimRithmicNonce;
 
   if (req.method !== "POST") return send(res, 405, { claimed: false, code: "method_not_allowed" });
   if (!header(req, "content-type").toLowerCase().startsWith("application/json")) {
@@ -42,7 +42,21 @@ export default async function handler(req, res, options = {}) {
     });
     if (!claimed) return send(res, 409, { claimed: false, code: "replayed_request" });
     return send(res, 200, { claimed: true });
-  } catch {
-    return send(res, 503, { claimed: false, code: "nonce_store_unavailable" });
+  } catch (error) {
+    const baseCodes = new Set([
+      "nonce_store_not_configured",
+      "nonce_kv_claim_failed",
+      "nonce_kv_transport_failed",
+      "nonce_bucket_probe_failed",
+      "nonce_bucket_create_failed",
+      "nonce_bucket_transport_failed",
+      "nonce_object_claim_failed",
+      "nonce_object_transport_failed",
+    ]);
+    const transportPattern = /^nonce_(?:(?:bucket|object)_transport_failed|kv_transport_failed)_(?:econnrefused|enotfound|err_invalid_char|err_invalid_url|etimedout|und_err_connect_timeout|und_err_socket)$/;
+    const code = baseCodes.has(error?.message) || transportPattern.test(String(error?.message || ""))
+      ? error.message
+      : "nonce_store_unavailable";
+    return send(res, 503, { claimed: false, code });
   }
 }

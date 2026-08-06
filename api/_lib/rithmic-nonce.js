@@ -38,7 +38,15 @@ function configuredSupabase(env) {
   } catch {
     throw new Error("nonce_store_not_configured");
   }
-  if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash || serviceRoleKey.length < 32) {
+  const jwtKey = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(serviceRoleKey);
+  const secretKey = /^sb_secret_[A-Za-z0-9_-]{20,}$/.test(serviceRoleKey);
+  if (url.protocol !== "https:"
+    || !url.hostname.endsWith(".supabase.co")
+    || url.username
+    || url.password
+    || url.search
+    || url.hash
+    || (!jwtKey && !secretKey)) {
     throw new Error("nonce_store_not_configured");
   }
   return { serviceRoleKey, supabaseUrl };
@@ -58,16 +66,34 @@ function isAlreadyExists(response, payload) {
   return /duplicate|already exists|resource exists/i.test(detail);
 }
 
+async function fetchOrThrow(fetchImpl, url, init, code) {
+  try {
+    return await fetchImpl(url, init);
+  } catch (error) {
+    const transportCode = String(error?.cause?.code || error?.code || "").toLowerCase();
+    const allowed = new Set([
+      "econnrefused",
+      "enotfound",
+      "err_invalid_char",
+      "err_invalid_url",
+      "etimedout",
+      "und_err_connect_timeout",
+      "und_err_socket",
+    ]);
+    throw new Error(allowed.has(transportCode) ? `${code}_${transportCode}` : code);
+  }
+}
+
 async function ensureNonceBucket({ fetchImpl, serviceRoleKey, supabaseUrl }) {
   const bucketUrl = `${supabaseUrl}/storage/v1/bucket/${BUCKET_NAME}`;
-  const existing = await fetchImpl(bucketUrl, {
+  const existing = await fetchOrThrow(fetchImpl, bucketUrl, {
     headers: serviceHeaders(serviceRoleKey),
     method: "GET",
-  });
+  }, "nonce_bucket_transport_failed");
   if (existing.ok) return;
-  if (existing.status !== 404) throw new Error("nonce_store_unavailable");
+  if (existing.status !== 404) throw new Error("nonce_bucket_probe_failed");
 
-  const created = await fetchImpl(`${supabaseUrl}/storage/v1/bucket`, {
+  const created = await fetchOrThrow(fetchImpl, `${supabaseUrl}/storage/v1/bucket`, {
     body: JSON.stringify({
       allowed_mime_types: ["application/octet-stream"],
       file_size_limit: 1,
@@ -77,33 +103,85 @@ async function ensureNonceBucket({ fetchImpl, serviceRoleKey, supabaseUrl }) {
     }),
     headers: serviceHeaders(serviceRoleKey, { "Content-Type": "application/json" }),
     method: "POST",
-  });
+  }, "nonce_bucket_transport_failed");
   if (created.ok) return;
   const payload = await responsePayload(created);
-  if (!isAlreadyExists(created, payload)) throw new Error("nonce_store_unavailable");
+  if (!isAlreadyExists(created, payload)) throw new Error("nonce_bucket_create_failed");
 }
 
-export async function claimRithmicNonceInStorage({ env = process.env, fetchImpl = fetch, requestId, signedAt }) {
+function validateNonce(requestId, signedAt) {
   if (!UUID_PATTERN.test(String(requestId || "")) || !Number.isSafeInteger(Number(signedAt))) {
     throw new Error("invalid_nonce");
   }
+}
+
+function configuredRedis(env) {
+  const redisUrl = String(env.KV_REST_API_URL || "").replace(/\/$/, "");
+  const redisToken = String(env.KV_REST_API_TOKEN || "");
+  let url;
+  try {
+    url = new URL(redisUrl);
+  } catch {
+    throw new Error("nonce_store_not_configured");
+  }
+  if (url.protocol !== "https:"
+    || !url.hostname.endsWith(".upstash.io")
+    || url.username
+    || url.password
+    || url.search
+    || url.hash
+    || redisToken.length < 32
+    || /[\r\n]/.test(redisToken)) {
+    throw new Error("nonce_store_not_configured");
+  }
+  return { redisToken, redisUrl };
+}
+
+export async function claimRithmicNonceInRedis({ env = process.env, fetchImpl = fetch, requestId, signedAt }) {
+  validateNonce(requestId, signedAt);
+  const { redisToken, redisUrl } = configuredRedis(env);
+  const response = await fetchOrThrow(fetchImpl, redisUrl, {
+    body: JSON.stringify(["SET", `rithmic:nonce:${requestId}`, "1", "NX", "EX", 600]),
+    headers: new Headers({
+      Authorization: `Bearer ${redisToken}`,
+      "Content-Type": "application/json",
+    }),
+    method: "POST",
+  }, "nonce_kv_transport_failed");
+  if (!response.ok) throw new Error("nonce_kv_claim_failed");
+  const payload = await responsePayload(response);
+  if (payload?.result === "OK") return true;
+  if (payload?.result === null) return false;
+  throw new Error("nonce_kv_claim_failed");
+}
+
+export async function claimRithmicNonceInStorage({ env = process.env, fetchImpl = fetch, requestId, signedAt }) {
+  validateNonce(requestId, signedAt);
   const { serviceRoleKey, supabaseUrl } = configuredSupabase(env);
   await ensureNonceBucket({ fetchImpl, serviceRoleKey, supabaseUrl });
 
   const day = new Date(Number(signedAt) * 1000).toISOString().slice(0, 10);
   const objectUrl = `${supabaseUrl}/storage/v1/object/${BUCKET_NAME}/${day}/${requestId}`;
-  const response = await fetchImpl(objectUrl, {
+  const response = await fetchOrThrow(fetchImpl, objectUrl, {
     body: Buffer.from([1]),
     headers: serviceHeaders(serviceRoleKey, {
       "Content-Type": "application/octet-stream",
       "x-upsert": "false",
     }),
     method: "POST",
-  });
+  }, "nonce_object_transport_failed");
   if (response.ok) return true;
   const payload = await responsePayload(response);
   if (isAlreadyExists(response, payload)) return false;
-  throw new Error("nonce_store_unavailable");
+  throw new Error("nonce_object_claim_failed");
+}
+
+export async function claimRithmicNonce(options) {
+  const env = options?.env || process.env;
+  const redisConfigured = Boolean(env.KV_REST_API_URL || env.KV_REST_API_TOKEN);
+  return redisConfigured
+    ? claimRithmicNonceInRedis({ ...options, env })
+    : claimRithmicNonceInStorage({ ...options, env });
 }
 
 export function validateRithmicNonceRequest(body, { now, secret, signature, timestamp }) {

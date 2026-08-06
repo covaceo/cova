@@ -138,7 +138,7 @@ test("claims a private Rithmic nonce with an atomic non-upserting storage object
     { ok: true, status: 200, json: async () => ({ Key: "private" }) },
   ];
   const claimed = await claimRithmicNonceInStorage({
-    env: { SUPABASE_URL: "https://example.supabase.co", SUPABASE_SERVICE_ROLE_KEY: "r".repeat(48) },
+    env: { SUPABASE_URL: "https://example.supabase.co", SUPABASE_SERVICE_ROLE_KEY: `sb_secret_${"r".repeat(40)}` },
     fetchImpl: async (url, init = {}) => {
       requests.push({ url: String(url), init });
       return responses.shift();
