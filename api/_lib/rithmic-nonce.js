@@ -109,10 +109,54 @@ async function ensureNonceBucket({ fetchImpl, serviceRoleKey, supabaseUrl }) {
   if (!isAlreadyExists(created, payload)) throw new Error("nonce_bucket_create_failed");
 }
 
-export async function claimRithmicNonceInStorage({ env = process.env, fetchImpl = fetch, requestId, signedAt }) {
+function validateNonce(requestId, signedAt) {
   if (!UUID_PATTERN.test(String(requestId || "")) || !Number.isSafeInteger(Number(signedAt))) {
     throw new Error("invalid_nonce");
   }
+}
+
+function configuredRedis(env) {
+  const redisUrl = String(env.KV_REST_API_URL || "").replace(/\/$/, "");
+  const redisToken = String(env.KV_REST_API_TOKEN || "");
+  let url;
+  try {
+    url = new URL(redisUrl);
+  } catch {
+    throw new Error("nonce_store_not_configured");
+  }
+  if (url.protocol !== "https:"
+    || !url.hostname.endsWith(".upstash.io")
+    || url.username
+    || url.password
+    || url.search
+    || url.hash
+    || redisToken.length < 32
+    || /[\r\n]/.test(redisToken)) {
+    throw new Error("nonce_store_not_configured");
+  }
+  return { redisToken, redisUrl };
+}
+
+export async function claimRithmicNonceInRedis({ env = process.env, fetchImpl = fetch, requestId, signedAt }) {
+  validateNonce(requestId, signedAt);
+  const { redisToken, redisUrl } = configuredRedis(env);
+  const response = await fetchOrThrow(fetchImpl, redisUrl, {
+    body: JSON.stringify(["SET", `rithmic:nonce:${requestId}`, "1", "NX", "EX", 600]),
+    headers: new Headers({
+      Authorization: `Bearer ${redisToken}`,
+      "Content-Type": "application/json",
+    }),
+    method: "POST",
+  }, "nonce_kv_transport_failed");
+  if (!response.ok) throw new Error("nonce_kv_claim_failed");
+  const payload = await responsePayload(response);
+  if (payload?.result === "OK") return true;
+  if (payload?.result === null) return false;
+  throw new Error("nonce_kv_claim_failed");
+}
+
+export async function claimRithmicNonceInStorage({ env = process.env, fetchImpl = fetch, requestId, signedAt }) {
+  validateNonce(requestId, signedAt);
   const { serviceRoleKey, supabaseUrl } = configuredSupabase(env);
   await ensureNonceBucket({ fetchImpl, serviceRoleKey, supabaseUrl });
 
@@ -130,6 +174,14 @@ export async function claimRithmicNonceInStorage({ env = process.env, fetchImpl 
   const payload = await responsePayload(response);
   if (isAlreadyExists(response, payload)) return false;
   throw new Error("nonce_object_claim_failed");
+}
+
+export async function claimRithmicNonce(options) {
+  const env = options?.env || process.env;
+  const redisConfigured = Boolean(env.KV_REST_API_URL || env.KV_REST_API_TOKEN);
+  return redisConfigured
+    ? claimRithmicNonceInRedis({ ...options, env })
+    : claimRithmicNonceInStorage({ ...options, env });
 }
 
 export function validateRithmicNonceRequest(body, { now, secret, signature, timestamp }) {
