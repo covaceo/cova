@@ -1,6 +1,6 @@
 import { requireAuthenticatedUser, sendApiError } from "../_lib/auth.js";
-import { clearCookie, parseCookies } from "../_lib/cookies.js";
-import { deleteBrokerConnection, deleteBrokerConnectionsForUser } from "../_lib/supabase.js";
+import { clearCookie } from "../_lib/cookies.js";
+import { deleteBrokerConnectionsForProvider, deleteBrokerConnectionsForUser } from "../_lib/supabase.js";
 
 const providers = {
   projectx: { cookie: "cova_projectx_connection", label: "TopstepX" },
@@ -33,10 +33,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ disconnected: true, provider: "All Cova connectors" });
     }
 
-    const connectionId = parseCookies(req)[config.cookie];
-    if (connectionId) {
-      await deleteBrokerConnection({ connectionId, provider, userId: user.id });
-    }
+    await deleteBrokerConnectionsForProvider({ provider, userId: user.id });
 
     res.setHeader("Cache-Control", "no-store");
     res.setHeader("Set-Cookie", [

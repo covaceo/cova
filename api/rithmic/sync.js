@@ -1,5 +1,5 @@
 import { isIP } from "node:net";
-import { ApiError, requireAuthenticatedUser, requireProEntitlement, sendApiError } from "../_lib/auth.js";
+import { ApiError, requirePolicyAcceptedUser, requireProEntitlement, sendApiError } from "../_lib/auth.js";
 import { acquireRithmicSyncPermit } from "../_lib/rithmic-limit.js";
 import { requestRithmicSync } from "../_lib/rithmic-service.js";
 
@@ -34,7 +34,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const user = await requireAuthenticatedUser(req);
+    const user = await requirePolicyAcceptedUser(req);
     requireProEntitlement(user);
     const input = cleanBody(req.body);
     const ipAddress = rithmicClientIp(req);

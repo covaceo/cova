@@ -1,4 +1,4 @@
-import { requireAuthenticatedUser, requireProEntitlement, sendApiError } from "../_lib/auth.js";
+import { requirePolicyAcceptedUser, requireProEntitlement, sendApiError } from "../_lib/auth.js";
 import { requestRithmicStatus } from "../_lib/rithmic-service.js";
 
 export default async function handler(req, res) {
@@ -10,7 +10,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const user = await requireAuthenticatedUser(req);
+    const user = await requirePolicyAcceptedUser(req);
     requireProEntitlement(user);
     let capability = { available: false, environment: "Rithmic Test" };
     try {

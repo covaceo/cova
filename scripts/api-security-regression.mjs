@@ -129,20 +129,29 @@ try {
   ]) {
     const providerCalls = [];
     globalThis.fetch = async (url) => {
-      providerCalls.push(String(url));
-      return new Response(JSON.stringify({
-        id: "free-user",
-        email: "free@example.com",
-        app_metadata: { plan: "free" },
-        user_metadata: { plan: "pro" },
-      }), { status: 200, headers: { "Content-Type": "application/json" } });
+      const requestUrl = String(url);
+      providerCalls.push(requestUrl);
+      if (requestUrl.endsWith("/auth/v1/user")) {
+        return new Response(JSON.stringify({
+          id: "free-user",
+          email: "free@example.com",
+          app_metadata: { plan: "free" },
+          user_metadata: { plan: "pro" },
+        }), { status: 200, headers: { "Content-Type": "application/json" } });
+      }
+      if (requestUrl.includes("/rest/v1/policy_acceptances")) {
+        return new Response(JSON.stringify([{ id: "acceptance-1" }]), { status: 200, headers: { "Content-Type": "application/json" } });
+      }
+      throw new Error(`Unexpected provider call ${requestUrl}`);
     };
     const res = responseMock();
     await handler(request, res);
     assert.equal(res.statusCode, 403, `${label} should reject an authenticated Free account.`);
     assert.equal(res.headers.get("cache-control"), "private, no-store", `${label} entitlement failures must not be cached.`);
     assert.match(res.body?.error || "", /Cova Pro is required/i);
-    assert.deepEqual(providerCalls, ["https://example.supabase.co/auth/v1/user"], `${label} must stop before provider or connection storage calls.`);
+    assert.equal(providerCalls.length, 2, `${label} must stop after authentication, policy acceptance, and entitlement checks.`);
+    assert.match(providerCalls[0], /\/auth\/v1\/user$/);
+    assert.match(providerCalls[1], /\/rest\/v1\/policy_acceptances/);
   }
 
   const connectMethodRes = responseMock();
@@ -189,6 +198,9 @@ try {
         headers: { "Content-Type": "application/json" },
       });
     }
+    if (String(url).includes("/rest/v1/policy_acceptances")) {
+      return new Response(JSON.stringify([{ id: "acceptance-1" }]), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
     return new Response(null, { status: 204 });
   };
   const disconnectRes = responseMock();
@@ -205,7 +217,7 @@ try {
     ? disconnectRes.headers.get("set-cookie")
     : [disconnectRes.headers.get("set-cookie")];
   assert.ok(disconnectCookies.some((cookie) => /^cova_oauth_context=;/.test(cookie) && /Max-Age=0/.test(cookie)), "Tradovate disconnect must invalidate a pending OAuth context cookie.");
-  assert.equal(disconnectCalls.filter(({ url }) => !url.endsWith("/auth/v1/user")).length, 1, "Tradovate disconnect should delete the retained connection once.");
+  assert.equal(disconnectCalls.filter(({ url }) => !url.endsWith("/auth/v1/user") && !url.includes("/rest/v1/policy_acceptances")).length, 1, "Tradovate disconnect should delete the retained connection once.");
 
   const staleCallbackCalls = [];
   globalThis.fetch = async (url, options = {}) => {
@@ -230,6 +242,9 @@ try {
         status: 200,
         headers: { "Content-Type": "application/json" },
       });
+    }
+    if (String(url).includes("/rest/v1/policy_acceptances")) {
+      return new Response(JSON.stringify([{ id: "acceptance-1" }]), { status: 200, headers: { "Content-Type": "application/json" } });
     }
     return new Response(null, { status: 204 });
   };

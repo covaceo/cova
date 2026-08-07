@@ -11,12 +11,18 @@ npm run dev
 
 ## Auth Gate
 
-The MVP includes a premium login/sign-up panel that does not store passwords locally. In local preview it starts a temporary local session. For production, prefer Supabase magic-link auth:
+The MVP includes a premium login/sign-up panel that does not store passwords locally. In local preview it starts a temporary local session. Production Supabase magic-link auth requires browser-safe project values and server-side account access:
 
 ```bash
 VITE_SUPABASE_URL=
 VITE_SUPABASE_ANON_KEY=
+SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
 ```
+
+For `SUPABASE_SERVICE_ROLE_KEY`, use a dedicated backend-only `sb_secret_...` key (recommended) or the legacy JWT `service_role` key. Cova sends opaque `sb_secret_...` values only as `apikey`; they are not JWT bearer tokens. Never expose either server key to the browser.
+
+Login magic links set `shouldCreateUser: false`. Signup magic links may create a Supabase user, but the workspace remains locked after email verification. The authenticated member must then affirm the current Terms and Privacy Policy through Cova; `/api/auth/consent` records that direct authenticated action in the immutable, owner-scoped `policy_acceptances` table before the workspace unlocks. Apply `supabase/migrations/20260807010000_auth_policy_acceptances.sql` and `supabase/migrations/20260807020000_unique_broker_provider_connections.sql` to the target Supabase project before enabling production or preview auth.
 
 Optional hosted-auth redirect URLs still work if Supabase is not configured:
 
@@ -101,13 +107,13 @@ TRADOVATE_TOKEN_URL=https://live.tradovateapi.com/auth/oauthtoken
 TRADOVATE_API_BASE_URL=https://live.tradovateapi.com/v1
 ```
 
-Generate a 32-byte encryption key with:
+Generate the 32-byte token-encryption value with:
 
 ```bash
 openssl rand -base64 32
 ```
 
-Run `supabase/tradovate_connector.sql` in Supabase before saving broker tokens; it creates the shared `broker_connections` table. Any connector should stay read/review oriented; Cova should not place trades or expose broker tokens to the browser.
+Run `supabase/tradovate_connector.sql` in Supabase before saving broker tokens; it creates the shared `broker_connections` table. Before enabling member auth, apply `supabase/migrations/20260807010000_auth_policy_acceptances.sql` and `supabase/migrations/20260807020000_unique_broker_provider_connections.sql`; together they enforce the auth-owner cascade, immutable owner-only policy acceptance, and one credential row per owner/provider. Any connector should stay read/review oriented; Cova should not place trades or expose broker tokens to the browser.
 
 ## CSV Fields
 

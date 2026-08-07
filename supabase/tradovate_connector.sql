@@ -25,6 +25,7 @@ alter table public.broker_connections
 
 create index if not exists broker_connections_user_id_idx on public.broker_connections (user_id);
 create index if not exists broker_connections_provider_idx on public.broker_connections (provider);
+create unique index if not exists broker_connections_user_provider_key on public.broker_connections (user_id, provider);
 
 create or replace function public.set_updated_at()
 returns trigger language plpgsql as $$

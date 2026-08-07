@@ -56,11 +56,11 @@ assert.match(attribution, /Trading Platform by Rithmic™ is a trademark of Rith
 assert.match(attribution, /The R \| Protocol API™ software is Copyright © 2026 by Rithmic, LLC/, "The required protocol copyright notice must be present.");
 assert.match(attribution, /The OMNE™ software is Copyright © 2026 by Omnesys, LLC and Omnesys Technologies, Inc\./, "The required OMNE copyright notice must be present.");
 assert.match(attribution, /The Powered by OMNE artwork is a trademark of Omnesys, LLC and Omnesys Technologies, Inc\. All Rights Reserved\./, "The required OMNE artwork notice must be present verbatim.");
-assert.match(endpoint, /requireAuthenticatedUser/);
+assert.match(endpoint, /requirePolicyAcceptedUser/);
 assert.match(endpoint, /requireProEntitlement/);
 assert.match(endpoint, /acquireRithmicSyncPermit/, "The public sync route must rate-limit before calling the private connector.");
 assert.match(limiter, /\["SET", lockKey, lockId, "NX", "EX", LOCK_SECONDS\]/, "Concurrent syncs must be blocked atomically.");
-assert.match(statusEndpoint, /requireAuthenticatedUser/);
+assert.match(statusEndpoint, /requirePolicyAcceptedUser/);
 assert.match(statusEndpoint, /requireProEntitlement/);
 assert.doesNotMatch(endpoint, /console\.(log|info|debug)/, "The credential-handling endpoint must not log request data.");
 assert.doesNotMatch(endpoint, /broker_connections|serviceSupabase|access_token_encrypted|refresh_token_encrypted/, "Rithmic credentials must not be persisted by the public endpoint.");

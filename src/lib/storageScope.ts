@@ -26,5 +26,4 @@ export function scopedStorageKey(baseKey: string) {
 
 export function removeScopedStorage(baseKey: string) {
   localStorage.removeItem(scopedStorageKey(baseKey));
-  localStorage.removeItem(baseKey);
 }
