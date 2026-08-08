@@ -121,6 +121,35 @@ export async function getTradovateConnection(connectionId, userId) {
   return getBrokerConnection({ connectionId, provider: "tradovate", userId });
 }
 
+export async function getBrokerConnectionForUser({ provider, userId }) {
+  if (!provider || !userId) {
+    return null;
+  }
+
+  const { supabaseUrl, serviceRoleKey } = getSupabaseConfig();
+  const endpoint = new URL(`${supabaseUrl}/rest/v1/broker_connections`);
+  endpoint.searchParams.set("provider", `eq.${provider}`);
+  endpoint.searchParams.set("user_id", `eq.${userId}`);
+  endpoint.searchParams.set("status", "eq.connected");
+  endpoint.searchParams.set("select", "*");
+  endpoint.searchParams.set("order", "created_at.desc");
+  endpoint.searchParams.set("limit", "1");
+
+  const response = await fetch(endpoint, { headers: supabaseServiceHeaders(serviceRoleKey) });
+  await requireSuccess(response, "Secure storage rejected the owner connection lookup");
+  const rows = await response.json();
+  const connection = rows?.[0] || null;
+  if (connection?.expires_at && new Date(connection.expires_at).getTime() <= Date.now()) {
+    await deleteBrokerConnection({ connectionId: connection.id, provider, userId });
+    return null;
+  }
+  return connection;
+}
+
+export async function getTradovateConnectionForUser(userId) {
+  return getBrokerConnectionForUser({ provider: "tradovate", userId });
+}
+
 export async function deleteBrokerConnection({ connectionId, provider, userId }) {
   if (!connectionId || !userId) {
     return false;

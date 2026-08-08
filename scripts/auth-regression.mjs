@@ -388,6 +388,61 @@ test("provider status routes share one authenticated function within the Hobby d
   }
 });
 
+test("Tradovate status recovers the authenticated owner's durable connection when its browser cookie is missing", async () => {
+  const priorFetch = global.fetch;
+  const priorUrl = process.env.SUPABASE_URL;
+  const priorKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const calls = [];
+  process.env.SUPABASE_URL = "https://cova-auth.example";
+  process.env.SUPABASE_SERVICE_ROLE_KEY = "fixture-service-role";
+  global.fetch = async (url) => {
+    const requestUrl = String(url);
+    calls.push(requestUrl);
+    if (requestUrl.endsWith("/auth/v1/user")) {
+      return new Response(JSON.stringify({ id: "owner-1", email: "owner@example.com", app_metadata: {} }), { status: 200 });
+    }
+    if (requestUrl.includes("/rest/v1/broker_connections")) {
+      const query = new URL(requestUrl);
+      assert.equal(query.searchParams.get("user_id"), "eq.owner-1");
+      assert.equal(query.searchParams.get("provider"), "eq.tradovate");
+      assert.equal(query.searchParams.get("status"), "eq.connected");
+      assert.equal(query.searchParams.get("limit"), "1");
+      assert.equal(query.searchParams.get("id"), null);
+      return new Response(JSON.stringify([{
+        id: "durable-connection-1",
+        provider: "tradovate",
+        status: "connected",
+        expires_at: "2099-08-08T00:00:00.000Z",
+        access_token_encrypted: "must-not-return",
+      }]), { status: 200 });
+    }
+    throw new Error(`unexpected recovered status call ${requestUrl}`);
+  };
+  try {
+    const { default: handler } = await import(`../api/connectors/status.js?cookie-recovery=${Date.now()}`);
+    const response = responseHarness();
+    await handler({
+      method: "GET",
+      query: { provider: "tradovate" },
+      headers: { authorization: "Bearer owner-token", cookie: "" },
+    }, response);
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.body, {
+      connected: true,
+      provider: "Tradovate",
+      status: "connected",
+      expiresAt: "2099-08-08T00:00:00.000Z",
+    });
+    assert.match(String(response.headers["Set-Cookie"] || ""), /^cova_tradovate_connection=durable-connection-1;/);
+    assert.doesNotMatch(JSON.stringify(response.body), /access_token|must-not-return/i);
+    assert.equal(calls.length, 2);
+  } finally {
+    global.fetch = priorFetch;
+    if (priorUrl === undefined) delete process.env.SUPABASE_URL; else process.env.SUPABASE_URL = priorUrl;
+    if (priorKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY; else process.env.SUPABASE_SERVICE_ROLE_KEY = priorKey;
+  }
+});
+
 test("browser signup confirms policy only after Supabase authenticates the member", () => {
   const authPanels = read("src", "components", "AuthPanels.tsx");
   const app = read("src", "App.tsx");

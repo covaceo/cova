@@ -35,7 +35,7 @@ import { AuthGate, AuthSheet } from "./components/AuthPanels";
 import { CommunityPage, FeaturesPage, PricingPage, ResourcesPage } from "./components/MarketingPages";
 import { PrivacyPage, SecurityPage, TermsPage } from "./components/LegalPages";
 import { CustomCursor } from "./components/CustomCursor";
-import { Coach, Passport, PracticeLab, RulesEngine } from "./components/WorkspaceSections";
+import { Coach, PASSPORT_PREFERENCES_STORAGE_KEY, Passport, PracticeLab, RulesEngine } from "./components/WorkspaceSections";
 import { Dashboard } from "./components/DashboardView";
 import { ImportDesk } from "./components/ImportDesk";
 import { Navbar } from "./components/Navbar";
@@ -46,7 +46,7 @@ import { getHostedLogoutUrl, isDemoPreviewEnabled } from "./lib/authEnvironment"
 import { CURRENT_PRIVACY_VERSION, CURRENT_TERMS_VERSION } from "./lib/legal";
 import { BROKER_STATUS_KEY, brokerMessageForStatus, clearBrokerStatus, readBrokerStatus, writeBrokerStatus, type BrokerStatus } from "./lib/brokerStatus";
 import { PRACTICE_ACCOUNT_STORAGE_KEY, PRACTICE_TRADES_STORAGE_KEY, samplePracticeReps, type PracticeRep } from "./lib/backtesting";
-import { buildFirmConnectUrl, canRedirectToFirmProvider, csvExportGuides, getFirmProviderHost, getPropFirm, propFirmOptions, type PropFirmId } from "./lib/propFirms";
+import { buildFirmConnectUrl, canRedirectToFirmProvider, csvExportGuides, getFirmProviderHost, getPropFirm, type PropFirmId } from "./lib/propFirms";
 import { isProtectedSection, sections, useHashSection, type Section } from "./lib/appRoutes";
 import { clearActiveStorageIdentity, removeScopedStorage, scopedStorageKey, setActiveStorageIdentity } from "./lib/storageScope";
 
@@ -123,6 +123,7 @@ export default function App() {
   const validatedAccessTokenRef = useRef("");
   const isSignedIn = Boolean(authSession);
   const entitlements = planEntitlements[authSession?.plan ?? "free"];
+  const proCheckoutAvailable = Boolean(getProCheckoutUrl()) || isDemoPreviewEnabled();
   const analysis = useMemo(() => analyze(trades, rules), [trades, rules]);
   const hasSampleTrades = trades.some((trade) => trade.id.startsWith("demo-"));
   const hasReviewedTrades = trades.some((trade) => !trade.id.startsWith("demo-"));
@@ -612,6 +613,7 @@ export default function App() {
     removeScopedStorage(BROKER_STATUS_KEY);
     removeScopedStorage(PRACTICE_ACCOUNT_STORAGE_KEY);
     removeScopedStorage(PRACTICE_TRADES_STORAGE_KEY);
+    removeScopedStorage(PASSPORT_PREFERENCES_STORAGE_KEY);
     localStorage.removeItem("cova-dashboard-focus-v1");
     localStorage.removeItem("cova-dashboard-range-v1");
   }
@@ -762,13 +764,18 @@ export default function App() {
   }
 
   function upgradeToPro() {
+    const checkoutUrl = getProCheckoutUrl();
+    if (!checkoutUrl && !isDemoPreviewEnabled()) {
+      announce("Pro checkout is not open yet. Keep using Free while billing is prepared.", "warning");
+      return;
+    }
+
     if (!authSession) {
       setAuthMode("signup");
       announce("Create a free account first, then choose Pro.", "info");
       return;
     }
 
-    const checkoutUrl = getProCheckoutUrl();
     if (checkoutUrl) {
       window.location.assign(checkoutUrl);
       return;
@@ -919,7 +926,7 @@ export default function App() {
             <RouteFrame key="overview">
               <Hero go={go} openAuth={setAuthMode} isSignedIn={isSignedIn} />
               <StoryStrip />
-              <PlanStrip currentPlan={authSession?.plan ?? null} go={go} openAuth={setAuthMode} upgradeToPro={upgradeToPro} />
+              <PlanStrip currentPlan={authSession?.plan ?? null} go={go} openAuth={setAuthMode} proCheckoutAvailable={proCheckoutAvailable} upgradeToPro={upgradeToPro} />
               <CtaFooter go={go} isSignedIn={isSignedIn} openAuth={setAuthMode} openPassport={openPassport} />
             </RouteFrame>
           )}
@@ -930,7 +937,7 @@ export default function App() {
           )}
           {section === "pricing" && (
             <RouteFrame key="pricing">
-              <PricingPage currentPlan={authSession?.plan ?? null} go={go} openAuth={setAuthMode} upgradeToPro={upgradeToPro} />
+              <PricingPage currentPlan={authSession?.plan ?? null} go={go} openAuth={setAuthMode} proCheckoutAvailable={proCheckoutAvailable} upgradeToPro={upgradeToPro} />
             </RouteFrame>
           )}
           {section === "resources" && (
@@ -1069,7 +1076,7 @@ function loadAuthSession(): AuthSession | null {
 function readOAuthFirmId(): PropFirmId | null {
   try {
     const saved = localStorage.getItem(OAUTH_FIRM_KEY);
-    return saved !== "topstepx" && propFirmOptions.some((firm) => firm.id === saved) ? saved as PropFirmId : null;
+    return saved === "tradovate" ? "tradovate" : null;
   } catch {
     return null;
   }

@@ -882,7 +882,7 @@ function groupBy<T>(items: T[], getKey: (item: T) => string) {
     acc[key] = acc[key] ?? [];
     acc[key].push(item);
     return acc;
-  }, {});
+  }, Object.create(null) as Record<string, T[]>);
 }
 
 export function parseCsv(text: string): Trade[] {

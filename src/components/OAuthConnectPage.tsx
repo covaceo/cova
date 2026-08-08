@@ -55,6 +55,20 @@ export function OAuthConnectPage({ firmId, onApprove, onCancel }: { firmId: Prop
     setStep("consent");
   }
 
+  if (!hasConfiguredProvider && !devProviderPreview) {
+    return (
+      <section className="relative min-h-screen overflow-hidden px-5 pb-24 pt-36 md:px-12 lg:px-20">
+        <ImageAtmosphere src="/media/cova-dashboard-plate.jpg" align="right" opacity="opacity-[0.28]" />
+        <div className="relative z-10 mx-auto max-w-3xl rounded-[42px] border border-white/10 bg-black/72 p-8 md:p-12">
+          <p className="font-body text-xs uppercase tracking-[0.24em] text-[#18c887]">Connector unavailable</p>
+          <h2 className="mt-4 font-body text-4xl font-semibold tracking-[-0.04em] text-white md:text-5xl">{firm.name} direct sign-in is not configured.</h2>
+          <p className="mt-5 max-w-2xl font-body text-sm font-light leading-relaxed text-white/58">Cova will not simulate a provider sign-in in production. Return to Trade History and use the provider's CSV export instead.</p>
+          <div className="mt-8"><GlassButton onClick={onCancel}>Back to Trade History</GlassButton></div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="relative min-h-screen overflow-hidden px-5 pb-24 pt-36 md:px-12 lg:px-20">
       <ImageAtmosphere src="/media/cova-dashboard-plate.jpg" align="right" opacity="opacity-[0.28]" />

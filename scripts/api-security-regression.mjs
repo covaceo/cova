@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { requireAuthenticatedUser, requireProEntitlement } from "../api/_lib/auth.js";
 import { createOAuthContext, verifyOAuthContext } from "../api/_lib/oauth-context.js";
 import { getAppOrigin, getTradovateRedirectUri } from "../api/_lib/urls.js";
+import { encryptSecret } from "../api/_lib/encryption.js";
 import { getBrokerConnection, saveBrokerConnection } from "../api/_lib/supabase.js";
 import disconnectConnector from "../api/connectors/disconnect.js";
 import logout from "../api/auth/logout.js";
@@ -161,7 +162,12 @@ try {
     query: { error: "access_denied", state: "wrong" },
   }, callbackRes);
   assert.equal(callbackRes.redirectCode, 302);
-  assert.match(callbackRes.redirectUrl, /OAuth%20state%20validation%20failed/, "Callback should reject invalid state before processing provider denial.");
+  const callbackRedirect = new URL(callbackRes.redirectUrl);
+  assert.equal(callbackRedirect.searchParams.get("message"), "OAuth state validation failed. Start the connection again from Cova.", "Callback should reject invalid state before processing provider denial.");
+  assert.equal(callbackRedirect.hash, "#import", "Tradovate callback results must preserve the real import route hash.");
+  assert.equal(callbackRedirect.searchParams.get("broker"), "tradovate", "Tradovate callback results must identify the provider in the URL query.");
+  assert.equal(callbackRedirect.searchParams.get("brokerStatus"), "error", "Tradovate callback failures must expose a client-readable status query.");
+  assert.equal(callbackRedirect.hash.includes("?"), false, "Tradovate callback results must not bury query parameters inside the route hash.");
 
   const freeState = "free-state";
   const freeContext = createOAuthContext("free-user", freeState);
@@ -180,7 +186,7 @@ try {
     query: { code: "fixture-code", state: freeState },
   }, freeCallbackRes);
   assert.equal(freeCallbackRes.redirectCode, 302);
-  assert.match(freeCallbackRes.redirectUrl, /Cova%20Pro%20is%20required/i, "Tradovate callback should recheck the current server-side plan.");
+  assert.equal(new URL(freeCallbackRes.redirectUrl).searchParams.get("message"), "Cova Pro is required for direct sync.", "Tradovate callback should recheck the current server-side plan.");
   assert.deepEqual(callbackCalls, ["https://example.supabase.co/auth/v1/admin/users/free-user"], "A downgraded callback must stop before provider token exchange or storage.");
 
   const pendingState = "pending-state";
@@ -227,8 +233,49 @@ try {
     query: { code: "fixture-code", state: pendingState },
   }, staleCallbackRes);
   assert.equal(staleCallbackRes.redirectCode, 302);
-  assert.match(staleCallbackRes.redirectUrl, /OAuth%20state%20validation%20failed/);
+  assert.equal(new URL(staleCallbackRes.redirectUrl).searchParams.get("message"), "OAuth state validation failed. Start the connection again from Cova.");
   assert.deepEqual(staleCallbackCalls, [], "A callback after disconnect must make zero entitlement, provider-token, or storage calls.");
+
+  process.env.TRADOVATE_CLIENT_ID = "tradovate-client";
+  process.env.TRADOVATE_CLIENT_SECRET = "tradovate-secret";
+  const successState = "success-state";
+  const successCookie = createOAuthContext("pro-user", successState);
+  let storedConnection;
+  const successfulCallbackCalls = [];
+  globalThis.fetch = async (url, options = {}) => {
+    const target = String(url);
+    successfulCallbackCalls.push(target);
+    if (target.endsWith("/auth/v1/admin/users/pro-user")) {
+      return new Response(JSON.stringify({ id: "pro-user", email: "pro@example.com", app_metadata: { plan: "pro" } }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
+    if (target.includes("/rest/v1/policy_acceptances?")) {
+      return new Response(JSON.stringify([{ id: "acceptance-1" }]), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
+    if (target.includes("tradovateapi.com/auth/oauthtoken")) {
+      return new Response(JSON.stringify({ accessToken: "provider-access-token", mdAccessToken: "provider-market-token", expirationTime: "2099-01-01T00:00:00.000Z" }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
+    if (target.includes("/rest/v1/broker_connections") && options.method === "POST") {
+      storedConnection = JSON.parse(String(options.body));
+      return new Response(JSON.stringify([storedConnection]), { status: 201, headers: { "Content-Type": "application/json" } });
+    }
+    throw new Error(`Unexpected successful callback request: ${target}`);
+  };
+  const successfulCallbackRes = responseMock();
+  await tradovateCallback({
+    method: "GET",
+    headers: { host: "covadesk.com", cookie: `cova_oauth_context=${encodeURIComponent(successCookie)}` },
+    query: { code: "provider-code", state: successState },
+  }, successfulCallbackRes);
+  const successfulRedirect = new URL(successfulCallbackRes.redirectUrl);
+  assert.equal(successfulCallbackRes.redirectCode, 302);
+  assert.equal(successfulRedirect.hash, "#import", "A successful credential write must return to the actual import route.");
+  assert.equal(successfulRedirect.searchParams.get("broker"), "tradovate");
+  assert.equal(successfulRedirect.searchParams.get("brokerStatus"), "connected", `A successful credential write must expose a client-readable connected status: ${JSON.stringify({ calls: successfulCallbackCalls, message: successfulRedirect.searchParams.get("message") })}`);
+  assert.equal(storedConnection.user_id, "pro-user");
+  assert.equal(storedConnection.provider, "tradovate");
+  assert.equal(storedConnection.status, "connected");
+  assert.ok(!JSON.stringify(storedConnection).includes("provider-access-token"), "Stored provider credentials must remain encrypted.");
+  assert.equal(successfulCallbackCalls.length, 4, "Successful callback should verify entitlement and policy, exchange the code, and persist one connection.");
 
   const disconnectAllCalls = [];
   globalThis.fetch = async (url, options = {}) => {
@@ -260,6 +307,181 @@ try {
 
   assert.equal(getAppOrigin({ headers: { host: "ignored.example" } }), "https://covadesk.com");
   assert.equal(getTradovateRedirectUri({ headers: {} }), "https://covadesk.com/api/tradovate/callback");
+
+  process.env.KV_REST_API_URL = "https://cova-sync.upstash.io";
+  process.env.KV_REST_API_TOKEN = "t".repeat(48);
+  const throttledSyncCalls = [];
+  globalThis.fetch = async (url, options = {}) => {
+    const target = String(url);
+    throttledSyncCalls.push(target);
+    if (target.endsWith("/auth/v1/user")) {
+      return new Response(JSON.stringify({ id: "pro-user", app_metadata: { plan: "pro" } }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    if (target.includes("/rest/v1/policy_acceptances?")) {
+      return new Response(JSON.stringify([{ id: "acceptance-1" }]), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    if (target === process.env.KV_REST_API_URL) {
+      return new Response(JSON.stringify({ result: [6, 1] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    throw new Error(`Tradovate throttling must stop before ${target}`);
+  };
+  const throttledSyncRes = responseMock();
+  await tradovateSync({
+    method: "GET",
+    headers: {
+      authorization: "Bearer pro-token",
+      cookie: "cova_tradovate_connection=fixture-connection",
+      "x-forwarded-for": "203.0.113.7",
+    },
+    query: {},
+  }, throttledSyncRes);
+  assert.equal(throttledSyncRes.statusCode, 429, "Tradovate sync must rate-limit repeated user or IP attempts before loading stored credentials.");
+  assert.equal(throttledSyncRes.headers.get("retry-after"), "60");
+  assert.equal(throttledSyncCalls.some((target) => target.includes("/rest/v1/broker_connections") || target.includes("tradovateapi.com")), false, "A throttled sync must make zero connection-store or Tradovate calls.");
+
+  const oversizedRedisResults = [[1, 1], "OK", 1];
+  const oversizedProviderSignals = [];
+  const encryptedTradovateToken = encryptSecret("provider-access-token");
+  globalThis.fetch = async (url, options = {}) => {
+    const target = String(url);
+    if (target.endsWith("/auth/v1/user")) {
+      return new Response(JSON.stringify({ id: "pro-user", app_metadata: { plan: "pro" } }), { status: 200 });
+    }
+    if (target.includes("/rest/v1/policy_acceptances?")) {
+      return new Response(JSON.stringify([{ id: "acceptance-1" }]), { status: 200 });
+    }
+    if (target === process.env.KV_REST_API_URL) {
+      return new Response(JSON.stringify({ result: oversizedRedisResults.shift() }), { status: 200 });
+    }
+    if (target.includes("/rest/v1/broker_connections?")) {
+      return new Response(JSON.stringify([{ access_token_encrypted: encryptedTradovateToken, status: "connected" }]), { status: 200 });
+    }
+    if (target.includes("tradovateapi.com/v1/fill/list")) {
+      oversizedProviderSignals.push(options.signal);
+      return new Response("[]", { status: 200, headers: { "Content-Length": String(2 * 1024 * 1024 + 1) } });
+    }
+    if (target.includes("tradovateapi.com/v1/fillPair/list")) {
+      oversizedProviderSignals.push(options.signal);
+      return new Response("[]", { status: 200 });
+    }
+    throw new Error(`Unexpected bounded Tradovate request ${target}`);
+  };
+  const oversizedSyncRes = responseMock();
+  await tradovateSync({
+    method: "GET",
+    headers: {
+      authorization: "Bearer pro-token",
+      cookie: "cova_tradovate_connection=fixture-connection",
+      "x-forwarded-for": "203.0.113.7",
+    },
+    query: {},
+  }, oversizedSyncRes);
+  assert.equal(oversizedSyncRes.statusCode, 502, "Tradovate must reject a provider response whose declared body exceeds the byte ceiling.");
+  assert.ok(oversizedProviderSignals.length > 0 && oversizedProviderSignals.every((signal) => signal instanceof AbortSignal), "Every Tradovate provider request must carry an abort deadline.");
+  assert.equal(new Set(oversizedProviderSignals).size, 1, "All Tradovate provider requests in one sync must share one overall deadline.");
+
+  const rowBoundRedisResults = [[1, 1], "OK", 1];
+  const excessiveFills = Array.from({ length: 5_001 }, (_, index) => ({ id: index + 1 }));
+  let rowBoundContractCalls = 0;
+  globalThis.fetch = async (url) => {
+    const target = String(url);
+    if (target.endsWith("/auth/v1/user")) return new Response(JSON.stringify({ id: "pro-user", app_metadata: { plan: "pro" } }), { status: 200 });
+    if (target.includes("/rest/v1/policy_acceptances?")) return new Response(JSON.stringify([{ id: "acceptance-1" }]), { status: 200 });
+    if (target === process.env.KV_REST_API_URL) return new Response(JSON.stringify({ result: rowBoundRedisResults.shift() }), { status: 200 });
+    if (target.includes("/rest/v1/broker_connections?")) return new Response(JSON.stringify([{ access_token_encrypted: encryptedTradovateToken, status: "connected" }]), { status: 200 });
+    if (target.includes("tradovateapi.com/v1/fill/list")) return new Response(JSON.stringify(excessiveFills), { status: 200 });
+    if (target.includes("tradovateapi.com/v1/fillPair/list")) return new Response("[]", { status: 200 });
+    if (target.includes("tradovateapi.com/v1/contract/item")) {
+      rowBoundContractCalls += 1;
+      return new Response("{}", { status: 200 });
+    }
+    throw new Error(`Unexpected row-bounded Tradovate request ${target}`);
+  };
+  const rowBoundSyncRes = responseMock();
+  await tradovateSync({
+    method: "GET",
+    headers: {
+      authorization: "Bearer pro-token",
+      cookie: "cova_tradovate_connection=fixture-connection",
+      "x-forwarded-for": "203.0.113.7",
+    },
+    query: {},
+  }, rowBoundSyncRes);
+  assert.equal(rowBoundSyncRes.statusCode, 502, "Tradovate must reject provider lists above the row ceiling.");
+  assert.equal(rowBoundContractCalls, 0, "An oversized provider list must stop before contract fanout.");
+
+  const fanoutRedisResults = [[1, 1], "OK", 1];
+  const excessiveContracts = Array.from({ length: 201 }, (_, index) => ({ id: index + 1, contractId: index + 1 }));
+  let fanoutContractCalls = 0;
+  globalThis.fetch = async (url) => {
+    const target = String(url);
+    if (target.endsWith("/auth/v1/user")) return new Response(JSON.stringify({ id: "pro-user", app_metadata: { plan: "pro" } }), { status: 200 });
+    if (target.includes("/rest/v1/policy_acceptances?")) return new Response(JSON.stringify([{ id: "acceptance-1" }]), { status: 200 });
+    if (target === process.env.KV_REST_API_URL) return new Response(JSON.stringify({ result: fanoutRedisResults.shift() }), { status: 200 });
+    if (target.includes("/rest/v1/broker_connections?")) return new Response(JSON.stringify([{ access_token_encrypted: encryptedTradovateToken, status: "connected" }]), { status: 200 });
+    if (target.includes("tradovateapi.com/v1/fill/list")) return new Response(JSON.stringify(excessiveContracts), { status: 200 });
+    if (target.includes("tradovateapi.com/v1/fillPair/list")) return new Response("[]", { status: 200 });
+    if (target.includes("tradovateapi.com/v1/contract/item")) {
+      fanoutContractCalls += 1;
+      return new Response("{}", { status: 200 });
+    }
+    throw new Error(`Unexpected fanout-bounded Tradovate request ${target}`);
+  };
+  const fanoutSyncRes = responseMock();
+  await tradovateSync({
+    method: "GET",
+    headers: {
+      authorization: "Bearer pro-token",
+      cookie: "cova_tradovate_connection=fixture-connection",
+      "x-forwarded-for": "203.0.113.7",
+    },
+    query: {},
+  }, fanoutSyncRes);
+  assert.equal(fanoutSyncRes.statusCode, 502, "Tradovate must reject syncs above the unique-contract lookup ceiling.");
+  assert.equal(fanoutContractCalls, 0, "The unique-contract ceiling must run before contract fanout begins.");
+
+  const concurrencyRedisResults = [[1, 1], "OK", 1];
+  const boundedContracts = Array.from({ length: 12 }, (_, index) => ({ id: index + 1, contractId: index + 1 }));
+  let activeContractCalls = 0;
+  let maxActiveContractCalls = 0;
+  globalThis.fetch = async (url) => {
+    const target = String(url);
+    if (target.endsWith("/auth/v1/user")) return new Response(JSON.stringify({ id: "pro-user", app_metadata: { plan: "pro" } }), { status: 200 });
+    if (target.includes("/rest/v1/policy_acceptances?")) return new Response(JSON.stringify([{ id: "acceptance-1" }]), { status: 200 });
+    if (target === process.env.KV_REST_API_URL) return new Response(JSON.stringify({ result: concurrencyRedisResults.shift() }), { status: 200 });
+    if (target.includes("/rest/v1/broker_connections?")) return new Response(JSON.stringify([{ access_token_encrypted: encryptedTradovateToken, status: "connected" }]), { status: 200 });
+    if (target.includes("tradovateapi.com/v1/fill/list")) return new Response(JSON.stringify(boundedContracts), { status: 200 });
+    if (target.includes("tradovateapi.com/v1/fillPair/list")) return new Response("[]", { status: 200 });
+    if (target.includes("tradovateapi.com/v1/contract/item")) {
+      activeContractCalls += 1;
+      maxActiveContractCalls = Math.max(maxActiveContractCalls, activeContractCalls);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      activeContractCalls -= 1;
+      return new Response(JSON.stringify({ id: Number(new URL(target).searchParams.get("id")), name: "NQZ6" }), { status: 200 });
+    }
+    throw new Error(`Unexpected concurrency-bounded Tradovate request ${target}`);
+  };
+  const concurrencySyncRes = responseMock();
+  await tradovateSync({
+    method: "GET",
+    headers: {
+      authorization: "Bearer pro-token",
+      cookie: "cova_tradovate_connection=fixture-connection",
+      "x-forwarded-for": "203.0.113.7",
+    },
+    query: {},
+  }, concurrencySyncRes);
+  assert.equal(concurrencySyncRes.statusCode, 200, "A bounded Tradovate sync should still complete.");
+  assert.ok(maxActiveContractCalls <= 5, `Tradovate contract lookups must cap concurrency at five, observed ${maxActiveContractCalls}.`);
 
   console.log("api-security-regression: authenticated ownership and OAuth integrity passed");
 } finally {

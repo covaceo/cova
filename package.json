@@ -20,6 +20,7 @@
     "test:api-security": "node scripts/api-security-regression.mjs",
     "test:rithmic": "node --test scripts/rithmic-service-regression.mjs",
     "test:rithmic-ui": "node scripts/rithmic-ui-regression.mjs",
+    "audit:mobile": "node scripts/mobile-audit.mjs",
     "audit:custom-cursor": "node scripts/custom-cursor-browser-audit.mjs"
   },
   "dependencies": {

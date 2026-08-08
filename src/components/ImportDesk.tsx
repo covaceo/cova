@@ -21,6 +21,8 @@ type RithmicCredentials = {
   lookbackDays: 30 | 90 | 180;
 };
 
+const MAX_CSV_FILE_BYTES = 2 * 1024 * 1024;
+
 export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, reset, upgradeToPro }: { entitlements: ImportEntitlements; importCsv: (text: string, mode?: ImportMode) => void; openFirmOAuth: (firm: PropFirmId) => void; status: string; reset: () => void; upgradeToPro: () => void }) {
   const [text, setText] = useState("date,market,side,contracts,entry,exit,pnl,risk,setup,notes\n2026-05-06,NQ,Long,1,18900,18915,300,250,Opening range,Smoke row");
   const [mode, setMode] = useState<ImportMode>("append");
@@ -61,6 +63,11 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
 
   async function readFile(file?: File) {
     if (!file) {
+      return;
+    }
+    if (file.size > MAX_CSV_FILE_BYTES) {
+      setFileName(`${file.name} exceeds the 2 MB CSV limit.`);
+      setText("");
       return;
     }
     setFileName(file.name);

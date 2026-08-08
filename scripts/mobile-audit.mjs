@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -22,6 +22,35 @@ const auditRoutes = selectedRouteNames.size ? routes.filter((route) => selectedR
 const unknownRouteNames = [...selectedRouteNames].filter((name) => !routes.some((route) => route.name === name));
 
 const sleep = (ms) => new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
+
+async function terminateChromeTree(chrome) {
+  if (chrome.exitCode !== null) return;
+  if (process.platform === "win32" && chrome.pid) {
+    await new Promise((resolveTerminate) => {
+      execFile("taskkill.exe", ["/PID", String(chrome.pid), "/T", "/F"], () => resolveTerminate());
+    });
+    return;
+  }
+  chrome.kill("SIGTERM");
+  await Promise.race([
+    new Promise((resolveExit) => chrome.once("exit", resolveExit)),
+    sleep(1_500),
+  ]);
+}
+
+async function removeProfileDirectory(profileDir) {
+  let lastError;
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    try {
+      await rm(profileDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 150 });
+      return;
+    } catch (error) {
+      lastError = error;
+      await sleep(250 * (attempt + 1));
+    }
+  }
+  throw lastError;
+}
 
 async function waitForJson(url, timeoutMs = 10000) {
   const started = Date.now();
@@ -391,9 +420,8 @@ async function main() {
       throw new Error(`Mobile audit failed:\n${failures.join("\n")}`);
     }
   } finally {
-    chrome.kill("SIGTERM");
-    await sleep(300);
-    await rm(profileDir, { recursive: true, force: true });
+    await terminateChromeTree(chrome);
+    await removeProfileDirectory(profileDir);
     if (stderr && process.env.CDP_DEBUG) {
       console.error(stderr);
     }

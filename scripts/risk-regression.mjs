@@ -193,4 +193,12 @@ const overtradingAnalysis = analyze(Array.from({ length: 9 }, (_, index) => make
 })), defaultRules);
 assert.ok(overtradingAnalysis.behaviorFlags.some((flag) => flag.id === "overtrading-session"), "Behavior flags should call out high-count red sessions.");
 
+for (const setup of ["__proto__", "constructor"]) {
+  const prototypeSensitive = parseCsvDetailed(`date,market,side,contracts,entry,exit,pnl,risk,setup,notes
+2026-08-02,NQ,Long,1,19000,19010,200,100,${setup},Imported fixture`);
+  assert.equal(prototypeSensitive.issues.length, 0, `${setup} should remain a valid literal setup label.`);
+  const prototypeAnalysis = analyze(prototypeSensitive.trades, defaultRules);
+  assert.equal(prototypeAnalysis.bySetup[0]?.name, setup, `${setup} must not resolve through Object.prototype during grouping.`);
+}
+
 console.log("risk-regression: all checks passed");

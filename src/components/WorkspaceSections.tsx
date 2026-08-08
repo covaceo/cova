@@ -793,6 +793,23 @@ const passportExportPresets: PassportExportPreset[] = [
   { id: "story", label: "Story 9:16", note: "Full-screen vertical", width: 1080, height: 1920 },
 ];
 
+export const PASSPORT_PREFERENCES_STORAGE_KEY = "cova-passport-preferences-v1";
+
+function readPassportPreferences(): { exportPresetId: PassportExportPresetId; shareModeId: PassportShareModeId } {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(scopedStorageKey(PASSPORT_PREFERENCES_STORAGE_KEY)) ?? "null");
+    const shareModeId = passportShareModes.some((mode) => mode.id === parsed?.shareModeId)
+      ? parsed.shareModeId as PassportShareModeId
+      : "flex";
+    const exportPresetId = passportExportPresets.some((preset) => preset.id === parsed?.exportPresetId)
+      ? parsed.exportPresetId as PassportExportPresetId
+      : "feed";
+    return { exportPresetId, shareModeId };
+  } catch {
+    return { exportPresetId: "feed", shareModeId: "flex" };
+  }
+}
+
 function getPassportTier(analysis: ReturnType<typeof analyze>): PassportTier {
   const breachCount = analysis.breaches.length;
   const score = analysis.score;
@@ -1142,24 +1159,24 @@ function getPrimaryLeak(analysis: ReturnType<typeof analyze>) {
 
 function getPassportProofLine(tier: PassportTier, analysis: ReturnType<typeof analyze>) {
   if (analysis.totalPnl < 0) {
-    return "Red sample · rebuild control";
+    return "Negative result · user-supplied data";
   }
   if (tier.rank === "Diamond") {
-    return "Elite control · high-confidence review";
+    return "Strongest calculated rank · user-supplied data";
   }
   if (tier.rank === "Platinum") {
-    return "Profitable · pressure tested";
+    return "Profitable calculated rank · user-supplied data";
   }
   if (tier.rank === "Gold") {
-    return "Profitable · leaks still visible";
+    return "Profitable sample · user-supplied data";
   }
   if (tier.rank === "Silver") {
-    return "Green · still inconsistent";
+    return "Positive sample · user-supplied data";
   }
   if (tier.rank === "Bronze") {
-    return "Ranked · control needs work";
+    return "Calculated rank · user-supplied data";
   }
-  return `${Math.max(0, 10 - analysis.trades.length)} trades until rank unlock`;
+  return `User-supplied sample · ${Math.max(0, 10 - analysis.trades.length)} trades until rank`;
 }
 
 function getPassportNextTarget(tier: PassportTier, analysis: ReturnType<typeof analyze>) {
@@ -1170,16 +1187,16 @@ function getPassportNextTarget(tier: PassportTier, analysis: ReturnType<typeof a
     return "Top rank · keep the process boring";
   }
   if (tier.rank === "Platinum") {
-    return "Diamond: 90 score · 90% rules held · zero-breach week";
+    return "Diamond: 30 trades · 90 score · 90% rules · ≤1 flag · 0.30R · 1.50 PF";
   }
   if (tier.rank === "Gold") {
-    return "Platinum: 20 trades · 80% rules held · 1.25 PF";
+    return "Platinum: 20 trades · 82 score · 80% rules · ≤2 flags · 0.15R · 1.25 PF";
   }
   if (tier.rank === "Silver") {
-    return "Gold: 68 score · 70% rules held · 1.25 PF";
+    return "Gold: 10 trades · 68 score · 60% rules · positive R · 1.05 PF";
   }
   if (tier.rank === "Bronze") {
-    return "Silver: 60% rules held · PF 1.10 · fewer breaches";
+    return "Silver: move the reviewed sample above $0 net P&L";
   }
   return `${Math.max(0, 10 - analysis.trades.length)} more reviewed trades to unlock rank`;
 }
@@ -1300,8 +1317,9 @@ function getPassportDiamondPreviewStats(mode: PassportShareModeId): PassportStat
 }
 
 export function Passport({ analysis, entitlements, isSampleReview, go, upgradeToPro }: { analysis: ReturnType<typeof analyze>; entitlements: WorkspaceEntitlements; isSampleReview: boolean; go: (section: Section) => void; upgradeToPro: () => void }) {
-  const [shareModeId, setShareModeId] = useState<PassportShareModeId>("flex");
-  const [exportPresetId, setExportPresetId] = useState<PassportExportPresetId>("feed");
+  const initialPreferences = useMemo(() => readPassportPreferences(), []);
+  const [shareModeId, setShareModeId] = useState<PassportShareModeId>(initialPreferences.shareModeId);
+  const [exportPresetId, setExportPresetId] = useState<PassportExportPresetId>(initialPreferences.exportPresetId);
   const cardRef = useRef<HTMLDivElement | null>(null);
   const faceRef = useRef<HTMLDivElement | null>(null);
   const shadowRef = useRef<HTMLDivElement | null>(null);
@@ -1338,6 +1356,14 @@ export function Passport({ analysis, entitlements, isSampleReview, go, upgradeTo
   const ledgerHasFlags = analysis.breaches.length > 0;
   const ledgerStatusCopy = isSampleReview ? "Sample review · demo data" : ledgerHasFlags ? "Rules calculated · flags found" : "Rules calculated · no flags found";
   const ledgerStatusClass = ledgerHasFlags || isSampleReview ? "has-flags" : "is-verified";
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(scopedStorageKey(PASSPORT_PREFERENCES_STORAGE_KEY), JSON.stringify({ exportPresetId, shareModeId }));
+    } catch {
+      // Preference persistence is optional when browser storage is unavailable.
+    }
+  }, [exportPresetId, shareModeId]);
 
   useEffect(() => () => {
     if (frameRef.current !== null) {
@@ -1460,7 +1486,7 @@ export function Passport({ analysis, entitlements, isSampleReview, go, upgradeTo
                         </div>
                         <div className="passport-profile-pills">
                           <span>{shareMode.label}</span>
-                          <span>{isSampleReview ? "Demo" : "Local PNG"}</span>
+                          <span>{isSampleReview ? "Demo" : "User-supplied"}</span>
                         </div>
                       </header>
 
@@ -1469,7 +1495,7 @@ export function Passport({ analysis, entitlements, isSampleReview, go, upgradeTo
                         <div>
                           <span>TRADER {traderNumber}</span>
                           <strong>{marketLine} · {setupLine}</strong>
-                          <small>{isSampleReview ? "Anonymous sample profile" : "Anonymous reviewed profile"}</small>
+                          <small>{isSampleReview ? "Anonymous sample profile" : "Anonymous user-supplied profile"}</small>
                         </div>
                       </div>
 
@@ -1524,7 +1550,7 @@ export function Passport({ analysis, entitlements, isSampleReview, go, upgradeTo
                           <span>{isSampleReview ? "Demo ref" : "Review ref"}</span>
                           <code>{reviewId}</code>
                         </div>
-                        <p>{analysis.latestDate} · local export · user controlled</p>
+                        <p>{isSampleReview ? "DEMO DATA · NOT ACCOUNT VERIFIED" : "USER-SUPPLIED DATA · NOT ACCOUNT VERIFIED"}</p>
                       </footer>
                     </div>
                   </div>
@@ -1726,7 +1752,7 @@ async function composePassportExport(sourceDataUrl: string, preset: PassportExpo
 
   context.fillStyle = isSampleReview ? palette.accent : "rgba(255,255,255,0.48)";
   context.font = "700 20px Arial, sans-serif";
-  const footerCopy = isSampleReview ? "DEMO DATA · NOT ACCOUNT VERIFIED" : "REVIEWED IMPORT · LOCAL PNG · USER CONTROLLED";
+  const footerCopy = isSampleReview ? "DEMO DATA · NOT ACCOUNT VERIFIED" : "USER-SUPPLIED DATA · NOT ACCOUNT VERIFIED";
   context.fillText(footerCopy, 64, preset.height - 48);
   return canvas.toDataURL("image/png");
 }

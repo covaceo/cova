@@ -3,6 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 const ATTEMPT_LIMIT = 5;
 const ATTEMPT_WINDOW_SECONDS = 60;
 const LOCK_SECONDS = 300;
+const ALLOWED_PROVIDERS = new Set(["rithmic", "tradovate"]);
 
 function configuredRedis(env) {
   const rawUrl = String(env.KV_REST_API_URL || "").replace(/\/$/, "");
@@ -49,16 +50,17 @@ async function command(redis, body, fetchImpl) {
   }
 }
 
-export async function acquireRithmicSyncPermit({ actorId, ipAddress, env = process.env, fetchImpl = fetch, lockId = randomUUID() }) {
+export async function acquireProviderSyncPermit({ provider, actorId, ipAddress, env = process.env, fetchImpl = fetch, lockId = randomUUID() }) {
+  const cleanProvider = String(provider || "").toLowerCase();
   const cleanActor = String(actorId || "");
   const cleanIp = String(ipAddress || "");
-  if (!cleanActor || !cleanIp) throw new Error("Rithmic rate limiting is not configured.");
+  if (!ALLOWED_PROVIDERS.has(cleanProvider) || !cleanActor || !cleanIp) throw new Error("Sync rate limiting is not configured.");
   const redis = configuredRedis(env);
   const actorHash = createHash("sha256").update(cleanActor).digest("hex").slice(0, 32);
   const ipHash = createHash("sha256").update(cleanIp).digest("hex").slice(0, 32);
-  const attemptsKey = `rithmic:sync:attempts:${actorHash}`;
-  const ipAttemptsKey = `rithmic:sync:ip-attempts:${ipHash}`;
-  const lockKey = `rithmic:sync:lock:${actorHash}`;
+  const attemptsKey = `${cleanProvider}:sync:attempts:${actorHash}`;
+  const ipAttemptsKey = `${cleanProvider}:sync:ip-attempts:${ipHash}`;
+  const lockKey = `${cleanProvider}:sync:lock:${actorHash}`;
   const attempts = await command(redis, [
     "EVAL",
     "local out={}; for i=1,#KEYS do local n=redis.call('INCR',KEYS[i]); if n==1 then redis.call('EXPIRE',KEYS[i],ARGV[1]) end; out[i]=n end; return out",
@@ -91,4 +93,12 @@ export async function acquireRithmicSyncPermit({ actorId, ipAddress, env = proce
       ], fetchImpl).catch(() => undefined);
     },
   };
+}
+
+export function acquireRithmicSyncPermit(options) {
+  return acquireProviderSyncPermit({ ...options, provider: "rithmic" });
+}
+
+export function acquireTradovateSyncPermit(options) {
+  return acquireProviderSyncPermit({ ...options, provider: "tradovate" });
 }
