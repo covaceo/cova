@@ -15,6 +15,10 @@ export type BrokerStatus = {
 export function readBrokerStatus(): BrokerStatus | null {
   try {
     const parsed = JSON.parse(localStorage.getItem(scopedStorageKey(BROKER_STATUS_KEY)) ?? "null");
+    if (parsed?.provider === "TopstepX") {
+      removeScopedStorage(BROKER_STATUS_KEY);
+      return null;
+    }
     if (typeof parsed?.provider === "string" && typeof parsed.message === "string") {
       return {
         provider: parsed.provider,

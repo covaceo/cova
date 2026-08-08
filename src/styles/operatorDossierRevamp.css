@@ -1236,7 +1236,6 @@ textarea {
   .operator-workspace .source-ledger-panel > p,
   .operator-workspace .source-ledger-panel .source-primary-choice,
   .operator-workspace .source-ledger-panel .source-header-grid,
-  .operator-workspace .source-ledger-panel .projectx-ledger,
   .operator-workspace .source-route-ledger {
     margin-inline: 0 !important;
   }

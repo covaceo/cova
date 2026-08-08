@@ -30,7 +30,6 @@ Cova connector code contains no order-placement, order-modification, order-cance
 - Signed, short-lived OAuth state bound to the initiating member.
 - AES-256-GCM encryption for persisted provider tokens.
 - Provider credentials and service-role secrets remain server-side.
-- ProjectX raw API keys are discarded after authentication and are not persisted.
 - Browser receives an opaque Secure, HttpOnly, SameSite connector cookie, not a provider token.
 - Disconnect, sign-out, account deletion, and token-expiry cleanup remove active Cova connector records.
 - Cova does not sell personal information or use advertising trackers for behavioral advertising.

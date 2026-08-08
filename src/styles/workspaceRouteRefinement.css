@@ -40,7 +40,6 @@
 .source-ledger-panel > p,
 .source-ledger-panel .source-primary-choice,
 .source-ledger-panel .source-header-grid,
-.source-ledger-panel .projectx-ledger,
 .source-route-ledger {
   margin-inline: 20px;
 }
@@ -118,7 +117,6 @@
   border-color: rgba(148, 163, 184, 0.16) !important;
 }
 
-.projectx-ledger,
 .source-route-ledger {
   border-radius: 0 !important;
 }

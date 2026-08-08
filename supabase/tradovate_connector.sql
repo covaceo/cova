@@ -3,7 +3,7 @@ create extension if not exists pgcrypto;
 create table if not exists public.broker_connections (
   id uuid primary key,
   user_id uuid not null references auth.users(id) on delete cascade,
-  provider text not null check (provider in ('tradovate', 'projectx')),
+  provider text not null check (provider = 'tradovate'),
   provider_account_id text,
   access_token_encrypted text not null,
   refresh_token_encrypted text,

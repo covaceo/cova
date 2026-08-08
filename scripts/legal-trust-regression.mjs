@@ -86,8 +86,6 @@ for (const parts of requiredSecurityFiles) {
 }
 
 const sensitiveHandlers = [
-  ["api", "projectx", "connect.js"],
-  ["api", "projectx", "sync.js"],
   ["api", "tradovate", "connect.js"],
   ["api", "tradovate", "sync.js"],
   ["api", "connectors", "status.js"],
@@ -112,6 +110,7 @@ assert.match(supabaseServer, /deleteAuthUser/, "Server storage should support ac
 const schema = read("supabase", "tradovate_connector.sql");
 assert.match(schema, /user_id uuid not null/i, "Connector rows should require an owner.");
 assert.match(schema, /auth\.uid\(\)/i, "Database RLS should enforce owner access.");
+assert.doesNotMatch(schema, /projectx/i, "The retired TopstepX direct connector must not remain in the connector schema bootstrap.");
 
 const apiClient = read("src", "lib", "apiClient.ts");
 const importDesk = read("src", "components", "ImportDesk.tsx");
@@ -127,7 +126,6 @@ const dashboardBriefs = read("src", "components", "DashboardBriefs.tsx");
 const workspaceSections = read("src", "components", "WorkspaceSections.tsx");
 const authEnvironment = read("src", "lib", "authEnvironment.ts");
 const storageScope = read("src", "lib", "storageScope.ts");
-const projectXConnect = read("api", "projectx", "connect.js");
 const disconnect = read("api", "connectors", "disconnect.js");
 const vercelConfig = read("vercel.json");
 const securityTxt = read("public", ".well-known", "security.txt");
@@ -141,9 +139,8 @@ assert.match(app, /setActiveStorageIdentity/, "Verified sign-in should select th
 assert.match(storageScope, /ACTIVE_STORAGE_IDENTITY_KEY/, "The storage namespace helper should exist.");
 assert.doesNotMatch(authEnvironment, /hostname\.endsWith\("\.vercel\.app"\)/, "Vercel preview URLs must not automatically unlock Pro demo mode.");
 assert.doesNotMatch(supabaseClient, /user_metadata\?\.plan/, "User-editable profile metadata must not grant Pro access.");
-assert.match(projectXConnect, /provider token is not scope-limited/i, "ProjectX storage should disclose that the provider token is not technically read-only.");
-assert.doesNotMatch(projectXConnect, /projectx:read:/i, "ProjectX should not persist invented read-only scopes.");
-assert.match(importPanels, /apiKey: ""/, "The raw ProjectX API key should be cleared from component state after submission.");
+assert.equal(existsSync(join(root, "api", "projectx")), false, "The retired TopstepX connector endpoints must not ship.");
+assert.doesNotMatch(`${importDesk}\n${importPanels}`, /ProjectX|projectx|Paste API key/, "Trade History must not collect TopstepX credentials or call a retired connector.");
 assert.match(disconnect, /provider === "all"/, "Sign-out should be able to delete every connector record for the member.");
 assert.match(vercelConfig, /Content-Security-Policy/, "Production should send a Content Security Policy.");
 assert.match(vercelConfig, /Strict-Transport-Security/, "Production should send HSTS.");

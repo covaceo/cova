@@ -12,7 +12,7 @@ const routes = [
   { name: "overview", hash: "overview", needsAuth: false, requiredText: ["See the patterns", "behind your risk.", "What Cova caught", "Daily loss breach"] },
   { name: "overview-auth", hash: "overview", needsAuth: true, requiredText: ["Link account", "Daily loss breach"] },
   { name: "pricing", hash: "pricing", needsAuth: false, requiredText: ["MOST CHOSEN BY ACTIVE TRADERS", "Cova Pro"] },
-  { name: "import", hash: "import", needsAuth: true, requiredText: ["Upload CSV first", "Beta connector"] },
+  { name: "import", hash: "import", needsAuth: true, requiredText: ["Upload CSV first", "TopstepX export", "CSV guide"] },
   { name: "insights", hash: "coach", needsAuth: true, requiredText: ["Current risk review", "Review note"] },
   { name: "practice", hash: "practice", needsAuth: true, requiredText: ["Build the replay account first.", "Set practice account", "Enter replay simulator"] },
   { name: "passport", hash: "passport", needsAuth: true, requiredText: ["Sample review · demo data", "Feed 4:5", "Review receipt"] },

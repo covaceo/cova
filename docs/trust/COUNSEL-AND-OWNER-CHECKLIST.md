@@ -60,7 +60,6 @@ Current Terms make billing conditional on an enabled external checkout and prese
 ## Provider agreements
 
 - Obtain Tradovate application approval and minimum history scope.
-- Confirm ProjectX/TopstepX terms permit API-key authentication, encrypted session-token storage, and retrospective account/trade-history processing.
 - Confirm branding and trademark permissions.
 - Document revocation APIs and provider-required incident notification.
 - Confirm whether provider data may be used in Passport exports or only private account review.

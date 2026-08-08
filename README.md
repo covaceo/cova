@@ -52,16 +52,15 @@ VITE_STRIPE_CHECKOUT_URL=
 
 ## Prop Firm Connect
 
-The Upload tab now includes a prop-firm selector next to the universal CSV lane. The current UI supports TopstepX / ProjectX, Apex, MyFundedFutures, Tradeify, Rithmic, Tradovate, and an Other Firm fallback.
+The Upload tab includes a prop-firm selector next to the universal CSV lane. TopstepX, Apex, MyFundedFutures, Tradeify, and other firms are CSV-guided paths. Cova does not offer a direct TopstepX connector.
 
 Current connector strategy:
 
-- **TopstepX / ProjectX:** first real connector. Users paste the TopstepX username and API key from account settings; Cova validates it against ProjectX, encrypts the session token, and imports trade history read-only.
-- **Apex, MyFundedFutures, Tradeify, and other firms:** use CSV or platform exports first, then add templates as real user files come in.
-- **Rithmic:** sandbox connector implemented behind an HMAC-authenticated private service. The licensed protocol kit stays out of this public repository; credentials are used for one read-only sync and are not stored. This is not a production availability claim. See `docs/rithmic-connector.md`.
-- **Tradovate:** scaffold remains available for users who already have API access, but it is no longer the default path.
+- **TopstepX, Apex, MyFundedFutures, Tradeify, and other firms:** use CSV or platform exports. No Cova-held provider credentials are required.
+- **Rithmic:** a private, fail-closed Test connector exists for controlled verification only. It is not publicly available and is not a production availability claim. See `docs/rithmic-connector.md`.
+- **Tradovate:** the OAuth scaffold remains available for eligible users with approved API access, but it is not the default path.
 
-The existing Tradovate OAuth routes live under `api/tradovate/*`, which means they run through Vercel, not the plain Vite dev server.
+The Tradovate OAuth routes live under `api/tradovate/*`, which means they run through Vercel, not the plain Vite development server. Other firm buttons lead users to export guidance unless a reviewed provider URL is explicitly configured.
 
 Local UI preview:
 
@@ -69,10 +68,9 @@ Local UI preview:
 npm run dev
 ```
 
-The TopstepX connector lives under `api/projectx/*`, which means it runs through Vercel, not the plain Vite dev server. The other firm buttons intentionally lead users to export guidance unless a real provider URL is configured:
+Optional reviewed provider redirects:
 
 ```bash
-VITE_TOPSTEPX_CONNECT_URL=
 VITE_APEX_CONNECT_URL=
 VITE_MFFU_CONNECT_URL=
 VITE_TRADEIFY_CONNECT_URL=
@@ -89,7 +87,6 @@ vercel dev
 Required environment variables:
 
 ```bash
-PROJECTX_API_BASE_URL=https://api.topstepx.com/api
 TRADOVATE_CLIENT_ID=
 TRADOVATE_CLIENT_SECRET=
 TRADOVATE_REDIRECT_URI=http://localhost:3000/api/tradovate/callback
@@ -113,7 +110,7 @@ Generate the 32-byte token-encryption value with:
 openssl rand -base64 32
 ```
 
-Run `supabase/tradovate_connector.sql` in Supabase before saving broker tokens; it creates the shared `broker_connections` table. Before enabling member auth, apply `supabase/migrations/20260807010000_auth_policy_acceptances.sql` and `supabase/migrations/20260807020000_unique_broker_provider_connections.sql`; together they enforce the auth-owner cascade, immutable owner-only policy acceptance, and one credential row per owner/provider. Any connector should stay read/review oriented; Cova should not place trades or expose broker tokens to the browser.
+Run `supabase/tradovate_connector.sql` in Supabase before saving broker tokens; it creates the shared `broker_connections` table. Before enabling member auth, apply `supabase/migrations/20260807010000_auth_policy_acceptances.sql`, `supabase/migrations/20260807020000_unique_broker_provider_connections.sql`, and `supabase/migrations/20260807030000_retire_projectx_connector.sql`; together they enforce the auth-owner cascade, immutable owner-only policy acceptance, one credential row per owner/provider, and a fail-closed Tradovate-only connector schema. Any connector should stay read/review oriented; Cova should not place trades or expose broker tokens to the browser.
 
 ## CSV Fields
 

@@ -15,14 +15,14 @@ export const propFirmOptions: {
   {
     id: "topstepx",
     name: "TopstepX",
-    badge: "CSV-first beta",
-    route: "Beta connector + CSV",
+    badge: "CSV import",
+    route: "Upload export",
     platforms: "TopstepX account",
-    status: "direct",
-    summary: "Start with a CSV export today. If you want to test the ProjectX path, paste the API key from TopstepX settings and Cova validates trade-history access read-only.",
-    fit: "CSV is the safest default while the TopstepX connector stays beta. No broker password, no order access — imported history feeds the dashboard, limits, insights, and Risk Passport.",
-    connectLabel: "Try TopstepX beta",
-    connectNotice: "TopstepX beta connector: paste your username and API key below, or use CSV first if you just want the review flow.",
+    status: "guided",
+    summary: "Export completed trade history from TopstepX and upload the CSV for retrospective review.",
+    fit: "Cova does not connect directly to TopstepX. CSV keeps account access and provider credentials outside Cova.",
+    connectLabel: "Show TopstepX export steps",
+    connectNotice: "TopstepX direct sync is not offered. Use the export guide below and upload the CSV to review the account.",
   },
   {
     id: "apex",
@@ -194,7 +194,6 @@ export const csvExportGuides: {
 export function getFirmConnectEnv(firmId: PropFirmId) {
   const env = ((import.meta as unknown as { env?: Record<string, string | undefined> }).env ?? {});
   const urls: Partial<Record<PropFirmId, string | undefined>> = {
-    topstepx: env.VITE_TOPSTEPX_CONNECT_URL,
     apex: env.VITE_APEX_CONNECT_URL,
     myfundedfutures: env.VITE_MFFU_CONNECT_URL,
     tradeify: env.VITE_TRADEIFY_CONNECT_URL,
