@@ -9,13 +9,15 @@ function getSupabaseConfig() {
   return { supabaseUrl: supabaseUrl.replace(/\/$/, ""), serviceRoleKey };
 }
 
-function serviceHeaders(serviceRoleKey, extra = {}) {
-  return {
+export function supabaseServiceHeaders(serviceRoleKey, extra = {}) {
+  const headers = {
     apikey: serviceRoleKey,
-    Authorization: ["Bearer", serviceRoleKey].join(" "),
     "Content-Type": "application/json",
-    ...extra,
   };
+  if (!serviceRoleKey.startsWith("sb_secret_")) {
+    headers.Authorization = ["Bearer", serviceRoleKey].join(" ");
+  }
+  return { ...headers, ...extra };
 }
 
 async function requireSuccess(response, message) {
@@ -61,9 +63,11 @@ export async function saveBrokerConnection({
     status: "connected",
   };
 
-  const response = await fetch(`${supabaseUrl}/rest/v1/broker_connections`, {
+  const endpoint = new URL(`${supabaseUrl}/rest/v1/broker_connections`);
+  endpoint.searchParams.set("on_conflict", "user_id,provider");
+  const response = await fetch(endpoint, {
     method: "POST",
-    headers: serviceHeaders(serviceRoleKey, { Prefer: "return=representation" }),
+    headers: supabaseServiceHeaders(serviceRoleKey, { Prefer: "resolution=merge-duplicates,return=representation" }),
     body: JSON.stringify(row),
   });
   await requireSuccess(response, "Secure storage rejected the broker connection");
@@ -101,7 +105,7 @@ export async function getBrokerConnection({ connectionId, provider, userId }) {
   endpoint.searchParams.set("select", "*");
 
   const response = await fetch(endpoint, {
-    headers: serviceHeaders(serviceRoleKey),
+    headers: supabaseServiceHeaders(serviceRoleKey),
   });
   await requireSuccess(response, "Secure storage rejected the connection lookup");
   const rows = await response.json();
@@ -132,10 +136,22 @@ export async function deleteBrokerConnection({ connectionId, provider, userId })
 
   const response = await fetch(endpoint, {
     method: "DELETE",
-    headers: serviceHeaders(serviceRoleKey, { Prefer: "return=minimal" }),
+    headers: supabaseServiceHeaders(serviceRoleKey, { Prefer: "return=minimal" }),
   });
   await requireSuccess(response, "Secure storage rejected connection deletion");
   return true;
+}
+
+export async function listBrokerConnectionsForUser(userId) {
+  const { supabaseUrl, serviceRoleKey } = getSupabaseConfig();
+  const endpoint = new URL(`${supabaseUrl}/rest/v1/broker_connections`);
+  endpoint.searchParams.set("user_id", `eq.${userId}`);
+  endpoint.searchParams.set("select", "provider,status,expires_at");
+  endpoint.searchParams.set("order", "created_at.desc");
+  const response = await fetch(endpoint, { headers: supabaseServiceHeaders(serviceRoleKey) });
+  await requireSuccess(response, "Stored connector status lookup");
+  const rows = await response.json();
+  return Array.isArray(rows) ? rows : [];
 }
 
 export async function deleteBrokerConnectionsForUser(userId) {
@@ -149,10 +165,71 @@ export async function deleteBrokerConnectionsForUser(userId) {
 
   const response = await fetch(endpoint, {
     method: "DELETE",
-    headers: serviceHeaders(serviceRoleKey, { Prefer: "return=minimal" }),
+    headers: supabaseServiceHeaders(serviceRoleKey, { Prefer: "return=minimal" }),
   });
   await requireSuccess(response, "Secure storage rejected account connection deletion");
   return true;
+}
+
+export async function deleteBrokerConnectionsForProvider({ provider, userId }) {
+  if (!provider || !userId) {
+    return false;
+  }
+
+  const { supabaseUrl, serviceRoleKey } = getSupabaseConfig();
+  const endpoint = new URL(`${supabaseUrl}/rest/v1/broker_connections`);
+  endpoint.searchParams.set("user_id", `eq.${userId}`);
+  endpoint.searchParams.set("provider", `eq.${provider}`);
+
+  const response = await fetch(endpoint, {
+    method: "DELETE",
+    headers: supabaseServiceHeaders(serviceRoleKey, { Prefer: "return=minimal" }),
+  });
+  await requireSuccess(response, "Secure storage rejected provider connection deletion");
+  return true;
+}
+
+export async function recordPolicyAcceptance({ userId, termsVersion, privacyVersion }) {
+  if (!userId || !termsVersion || !privacyVersion) {
+    throw new Error("Missing policy acceptance fields.");
+  }
+
+  const { supabaseUrl, serviceRoleKey } = getSupabaseConfig();
+  const endpoint = new URL(`${supabaseUrl}/rest/v1/policy_acceptances`);
+  endpoint.searchParams.set("on_conflict", "user_id,terms_version,privacy_version");
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: supabaseServiceHeaders(serviceRoleKey, { Prefer: "resolution=ignore-duplicates,return=minimal" }),
+    body: JSON.stringify({
+      user_id: userId,
+      terms_version: termsVersion,
+      privacy_version: privacyVersion,
+      source: "web-signup",
+    }),
+  });
+  await requireSuccess(response, "Secure storage rejected policy acceptance");
+  return true;
+}
+
+export async function hasPolicyAcceptance({ userId, termsVersion, privacyVersion }, { fetchImpl = fetch, timeoutMs = 5_000 } = {}) {
+  if (!userId || !termsVersion || !privacyVersion) {
+    return false;
+  }
+
+  const { supabaseUrl, serviceRoleKey } = getSupabaseConfig();
+  const endpoint = new URL(`${supabaseUrl}/rest/v1/policy_acceptances`);
+  endpoint.searchParams.set("user_id", `eq.${userId}`);
+  endpoint.searchParams.set("terms_version", `eq.${termsVersion}`);
+  endpoint.searchParams.set("privacy_version", `eq.${privacyVersion}`);
+  endpoint.searchParams.set("select", "id");
+  endpoint.searchParams.set("limit", "1");
+  const response = await fetchImpl(endpoint, {
+    headers: supabaseServiceHeaders(serviceRoleKey),
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  await requireSuccess(response, "Secure storage rejected policy acceptance lookup");
+  const rows = await response.json();
+  return Array.isArray(rows) && rows.length === 1;
 }
 
 export async function deleteAuthUser(userId) {
@@ -163,7 +240,7 @@ export async function deleteAuthUser(userId) {
   const { supabaseUrl, serviceRoleKey } = getSupabaseConfig();
   const response = await fetch(`${supabaseUrl}/auth/v1/admin/users/${encodeURIComponent(userId)}`, {
     method: "DELETE",
-    headers: serviceHeaders(serviceRoleKey),
+    headers: supabaseServiceHeaders(serviceRoleKey),
   });
   if (!response.ok && response.status !== 404) {
     throw new Error(`Authentication provider rejected account deletion (${response.status}).`);

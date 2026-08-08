@@ -12,6 +12,7 @@ import {
   Upload,
 } from "lucide-react";
 import { type FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import type { Session as SupabaseSession } from "@supabase/supabase-js";
 import {
   analyze,
   defaultRules,
@@ -22,8 +23,8 @@ import {
   sampleTrades,
   Trade,
 } from "./lib/risk";
-import { getSupabaseClient, getSupabaseUserPlan } from "./lib/supabaseClient";
-import { authorizedFetch } from "./lib/apiClient";
+import { getSupabaseClient, getSupabaseUserPlan, lockSupabaseLocally, signOutSupabase } from "./lib/supabaseClient";
+
 import { Hero } from "./components/MarketingHero";
 import { CsvExplainer } from "./components/CsvExplainer";
 import { StoryStrip } from "./components/StoryStrip";
@@ -42,6 +43,7 @@ import { OAuthConnectPage } from "./components/OAuthConnectPage";
 import { Toast } from "./components/Toast";
 import { WorkspaceShell } from "./components/WorkspaceShell";
 import { getHostedLogoutUrl, isDemoPreviewEnabled } from "./lib/authEnvironment";
+import { CURRENT_PRIVACY_VERSION, CURRENT_TERMS_VERSION } from "./lib/legal";
 import { BROKER_STATUS_KEY, brokerMessageForStatus, clearBrokerStatus, readBrokerStatus, writeBrokerStatus, type BrokerStatus } from "./lib/brokerStatus";
 import { PRACTICE_ACCOUNT_STORAGE_KEY, PRACTICE_TRADES_STORAGE_KEY, samplePracticeReps, type PracticeRep } from "./lib/backtesting";
 import { buildFirmConnectUrl, canRedirectToFirmProvider, csvExportGuides, getFirmProviderHost, getPropFirm, propFirmOptions, type PropFirmId } from "./lib/propFirms";
@@ -111,6 +113,14 @@ export default function App() {
   const [trades, setTrades] = useState<Trade[]>(() => loadAuthSession() ? loadState()?.trades ?? sampleTrades : []);
   const [rules, setRules] = useState<RiskRule[]>(() => loadAuthSession() ? loadState()?.rules ?? defaultRules : defaultRules);
   const [practiceReps, setPracticeReps] = useState<PracticeRep[]>(() => loadAuthSession() ? loadState()?.practiceReps ?? samplePracticeReps : []);
+  const [pendingSupabaseSession, setPendingSupabaseSession] = useState<SupabaseSession | null>(null);
+  const authGenerationRef = useRef(0);
+  const identitySwitchGenerationRef = useRef(0);
+  const activeProviderUserIdRef = useRef<string | null>(null);
+  const pendingPolicyUserIdRef = useRef<string | null>(null);
+  const providerSessionRef = useRef<SupabaseSession | null>(null);
+  const providerSessionsBlockedRef = useRef(false);
+  const validatedAccessTokenRef = useRef("");
   const isSignedIn = Boolean(authSession);
   const entitlements = planEntitlements[authSession?.plan ?? "free"];
   const analysis = useMemo(() => analyze(trades, rules), [trades, rules]);
@@ -152,24 +162,44 @@ export default function App() {
 
     let mounted = true;
     client.auth.getSession().then(({ data }) => {
-      const user = data.session?.user;
+      const session = data.session;
       if (!mounted) {
         return;
       }
-      if (!user?.email) {
+      if (!session?.user?.email) {
+        invalidateProviderSession();
         lockWorkspace(false);
         return;
       }
-      completeAuth(user.email, "login", "supabase", normalizePlan(getSupabaseUserPlan(user)), user.id);
-    }).catch(() => lockWorkspace(false));
+      startSupabaseValidation(session);
+    }).catch(() => {
+      invalidateProviderSession();
+      handleSupabaseAuthFailure();
+    });
 
     const { data } = client.auth.onAuthStateChange((event, session) => {
-      const user = session?.user;
-      if (!user?.email) {
+      if (!session?.user?.email) {
+        if (event === "SIGNED_OUT") {
+          providerSessionsBlockedRef.current = true;
+        }
+        invalidateProviderSession();
         lockWorkspace(event === "SIGNED_OUT");
         return;
       }
-      completeAuth(user.email, "login", "supabase", normalizePlan(getSupabaseUserPlan(user)), user.id);
+      if (providerSessionsBlockedRef.current) {
+        return;
+      }
+      const sameKnownUser = activeProviderUserIdRef.current === session.user.id || pendingPolicyUserIdRef.current === session.user.id;
+      if ((event === "TOKEN_REFRESHED" || event === "USER_UPDATED" || event === "SIGNED_IN") && sameKnownUser) {
+        adoptSupabaseSession(session);
+        return;
+      }
+      prepareSupabaseIdentity(session);
+      window.setTimeout(() => {
+        if (mounted) {
+          startSupabaseValidation(session);
+        }
+      }, 0);
     });
 
     return () => {
@@ -319,7 +349,10 @@ export default function App() {
     };
     setActiveStorageIdentity(userId || emailAddress);
     const saved = loadState();
+    activeProviderUserIdRef.current = source === "supabase" ? userId || null : null;
+    pendingPolicyUserIdRef.current = null;
     setAuthSession(session);
+    setPendingSupabaseSession(null);
     setBrokerStatus(readBrokerStatus());
     localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
     localStorage.removeItem(AUTH_INTENT_KEY);
@@ -339,18 +372,274 @@ export default function App() {
     }
   }
 
-  function lockWorkspace(announceChange = true) {
+  function invalidateProviderSession() {
+    authGenerationRef.current += 1;
+    providerSessionRef.current = null;
+    validatedAccessTokenRef.current = "";
+  }
+
+  function isCurrentSupabaseTask(session: SupabaseSession, generation: number) {
+    const current = providerSessionRef.current;
+    return (
+      authGenerationRef.current === generation &&
+      current?.access_token === session.access_token &&
+      current?.user.id === session.user.id
+    );
+  }
+
+  function hasDeletionIdentityContinuity(userId: string, identityGeneration: number) {
+    const currentUserId = providerSessionRef.current?.user.id;
+    return (
+      identitySwitchGenerationRef.current === identityGeneration &&
+      (!currentUserId || currentUserId === userId)
+    );
+  }
+
+  function adoptSupabaseSession(session: SupabaseSession) {
+    authGenerationRef.current += 1;
+    providerSessionRef.current = session;
+    validatedAccessTokenRef.current = session.access_token;
+    if (pendingPolicyUserIdRef.current === session.user.id) {
+      setPendingSupabaseSession(session);
+    }
+    if (activeProviderUserIdRef.current === session.user.id && session.user.email) {
+      setAuthSession((current) => current?.source === "supabase" && current.userId === session.user.id
+        ? { ...current, email: session.user.email || current.email, plan: normalizePlan(getSupabaseUserPlan(session.user)) }
+        : current);
+    }
+  }
+
+  function prepareSupabaseIdentity(session: SupabaseSession) {
+    const knownUserId = activeProviderUserIdRef.current || pendingPolicyUserIdRef.current;
+    const switchingIdentity = Boolean(knownUserId && knownUserId !== session.user.id);
+    if (switchingIdentity) {
+      identitySwitchGenerationRef.current += 1;
+      authGenerationRef.current += 1;
+      providerSessionRef.current = null;
+      validatedAccessTokenRef.current = "";
+      hideWorkspaceForAuthCheck();
+      activeProviderUserIdRef.current = null;
+      pendingPolicyUserIdRef.current = null;
+      setPendingSupabaseSession(null);
+      setAuthMode(null);
+    }
+  }
+
+  function startSupabaseValidation(session: SupabaseSession) {
+    if (providerSessionsBlockedRef.current) {
+      return;
+    }
+    prepareSupabaseIdentity(session);
+    const current = providerSessionRef.current;
+    if (current?.access_token !== session.access_token || current.user.id !== session.user.id) {
+      authGenerationRef.current += 1;
+      providerSessionRef.current = session;
+      validatedAccessTokenRef.current = "";
+    }
+    const generation = authGenerationRef.current;
+    void completeSupabaseAuth(session, generation).catch(() => {
+      if (isCurrentSupabaseTask(session, generation)) {
+        validatedAccessTokenRef.current = "";
+        handleSupabaseAuthFailure();
+      }
+    });
+  }
+
+  async function completeSupabaseAuth(session: SupabaseSession, generation: number) {
+    const accessToken = session.access_token;
+    const user = session.user;
+    if (!accessToken || !user.email || validatedAccessTokenRef.current === accessToken) {
+      return;
+    }
+    validatedAccessTokenRef.current = accessToken;
+
+    try {
+      const consent = await fetchPolicyAcceptance(accessToken, "GET");
+      if (!isCurrentSupabaseTask(session, generation)) {
+        return;
+      }
+      if (!consent.accepted) {
+        hideWorkspaceForAuthCheck();
+        pendingPolicyUserIdRef.current = user.id;
+        setPendingSupabaseSession(session);
+        setAuthMode("signup");
+        announce("Confirm the current Terms and Privacy Policy to finish account setup.", "warning");
+        return;
+      }
+
+      pendingPolicyUserIdRef.current = null;
+      setPendingSupabaseSession(null);
+      const authIntent = readAuthIntent();
+      completeAuth(user.email, authIntent?.mode ?? "login", "supabase", normalizePlan(getSupabaseUserPlan(user)), user.id);
+    } catch (error) {
+      if (isCurrentSupabaseTask(session, generation)) {
+        validatedAccessTokenRef.current = "";
+      }
+      throw error;
+    }
+  }
+
+  async function acceptPendingPolicies() {
+    const session = pendingSupabaseSession;
+    if (!session?.access_token || !session.user.email) {
+      throw new Error("The verified member session expired. Request a new secure link.");
+    }
+    const generation = authGenerationRef.current;
+    if (!isCurrentSupabaseTask(session, generation)) {
+      throw new Error("The verified member session changed. Request a new secure link.");
+    }
+    const consent = await fetchPolicyAcceptance(session.access_token, "POST");
+    if (!isCurrentSupabaseTask(session, generation) || !consent.accepted) {
+      throw new Error("Cova could not record policy acceptance.");
+    }
+    pendingPolicyUserIdRef.current = null;
+    setPendingSupabaseSession(null);
+    validatedAccessTokenRef.current = session.access_token;
+    const authIntent = readAuthIntent();
+    completeAuth(session.user.email, authIntent?.mode ?? "signup", "supabase", normalizePlan(getSupabaseUserPlan(session.user)), session.user.id);
+  }
+
+  async function closeAuthSheet() {
+    if (pendingSupabaseSession) {
+      lockSupabaseLocally();
+      lockWorkspace(false);
+      const result = await signOutSupabase();
+      if (result.error) {
+        announce("Signed out on this device. Server session revocation could not be confirmed.", "warning");
+      }
+      return;
+    }
+    setAuthMode(null);
+  }
+
+  async function inspectPendingProviders() {
+    const session = pendingSupabaseSession;
+    if (!session?.access_token) {
+      throw new Error("The verified member session expired. Request a new secure link.");
+    }
+    const generation = authGenerationRef.current;
+    if (!isCurrentSupabaseTask(session, generation)) {
+      throw new Error("The verified member session changed. Request a new secure link.");
+    }
+    const response = await fetch("/api/connectors/status", {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+      signal: AbortSignal.timeout(5_000),
+    }).catch(() => null);
+    const payload = response ? await response.json().catch(() => ({})) as { providers?: Array<{ provider?: string }> } : {};
+    if (!isCurrentSupabaseTask(session, generation) || !response?.ok || !Array.isArray(payload.providers)) {
+      throw new Error("Cova could not inspect saved provider credentials.");
+    }
+    const connected = [...new Set(payload.providers.map((provider) => String(provider.provider || "").trim()).filter(Boolean))];
+    announce(connected.length ? `Saved provider credentials: ${connected.join(", ")}.` : "No saved provider credentials were found.", "info");
+  }
+
+  async function disconnectPendingProviders() {
+    const session = pendingSupabaseSession;
+    if (!session?.access_token) {
+      throw new Error("The verified member session expired. Request a new secure link.");
+    }
+    const generation = authGenerationRef.current;
+    if (!isCurrentSupabaseTask(session, generation)) {
+      throw new Error("The verified member session changed. Request a new secure link.");
+    }
+    const response = await fetch("/api/connectors/disconnect", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ provider: "all" }),
+      signal: AbortSignal.timeout(5_000),
+    }).catch(() => null);
+    if (!isCurrentSupabaseTask(session, generation) || !response?.ok) {
+      throw new Error("Cova could not confirm provider credential deletion.");
+    }
+    announce("Saved provider credentials were disconnected.", "success");
+  }
+
+  async function deletePendingAccount() {
+    const session = pendingSupabaseSession;
+    if (!session?.access_token || !session.user.id) {
+      throw new Error("The verified member session expired. Request a new secure link.");
+    }
+    const confirmed = window.confirm("Permanently delete this Cova account, stored connector tokens, and this account's Cova data on this device? This cannot be undone.");
+    if (!confirmed) {
+      return;
+    }
+    const deletionIdentityGeneration = identitySwitchGenerationRef.current;
+    authGenerationRef.current += 1;
+    const response = await fetch("/api/account/delete", {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${session.access_token}` },
+      signal: AbortSignal.timeout(10_000),
+    }).catch(() => null);
+    const data = response ? await response.json().catch(() => ({})) as { deleted?: boolean; error?: string } : {};
+    if (!response?.ok || !data.deleted) {
+      throw new Error(data.error || "Account deletion could not be completed.");
+    }
+    if (!hasDeletionIdentityContinuity(session.user.id, deletionIdentityGeneration)) {
+      announce("Account deleted. The browser identity changed, so its local data was left untouched.", "warning");
+      return;
+    }
+    setActiveStorageIdentity(session.user.id);
+    const deviceCleanupConfirmed = tryPurgeCurrentAccountDeviceData();
+    lockSupabaseLocally();
+    lockWorkspace(false);
+    await settleWithin(signOutSupabase(), 5_000).catch(() => undefined);
+    announce(deviceCleanupConfirmed ? "Your Cova account and connector records were deleted." : "Account deleted. Browser storage cleanup could not be fully confirmed.", deviceCleanupConfirmed ? "success" : "warning");
+  }
+
+  function handleSupabaseAuthFailure() {
+    hideWorkspaceForAuthCheck();
+    announce("Account verification is temporarily unavailable. Reload to retry.", "warning");
+  }
+
+  function hideWorkspaceForAuthCheck() {
+    setAuthSession(null);
+    setBrokerStatus(null);
+    setMobileOpen(false);
+    setTrades([]);
+    setRules(defaultRules);
+    setPracticeReps([]);
+    setStatus("Account verification pending.");
+    if (isProtectedSection(section)) {
+      setSection("overview");
+    }
+  }
+
+  function purgeCurrentAccountDeviceData() {
     removeScopedStorage(STORAGE_KEY);
     removeScopedStorage(BROKER_STATUS_KEY);
     removeScopedStorage(PRACTICE_ACCOUNT_STORAGE_KEY);
     removeScopedStorage(PRACTICE_TRADES_STORAGE_KEY);
-    localStorage.removeItem(AUTH_SESSION_KEY);
-    localStorage.removeItem(AUTH_INTENT_KEY);
-    localStorage.removeItem(OAUTH_FIRM_KEY);
     localStorage.removeItem("cova-dashboard-focus-v1");
     localStorage.removeItem("cova-dashboard-range-v1");
-    clearActiveStorageIdentity();
+  }
+
+  function tryPurgeCurrentAccountDeviceData() {
+    try {
+      purgeCurrentAccountDeviceData();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function lockWorkspace(announceChange = true) {
+    providerSessionsBlockedRef.current = true;
+    invalidateProviderSession();
+    activeProviderUserIdRef.current = null;
+    pendingPolicyUserIdRef.current = null;
+    try {
+      localStorage.removeItem(AUTH_SESSION_KEY);
+      localStorage.removeItem(AUTH_INTENT_KEY);
+      localStorage.removeItem(OAUTH_FIRM_KEY);
+      clearActiveStorageIdentity();
+    } catch {
+      // State is still locked below when browser storage is unavailable.
+    }
     setAuthSession(null);
+    setPendingSupabaseSession(null);
     setBrokerStatus(null);
     setAuthMode(null);
     setMobileOpen(false);
@@ -367,47 +656,98 @@ export default function App() {
   }
 
   async function signOut() {
-    if (authSession?.source !== "local-preview") {
-      await authorizedFetch("/api/connectors/disconnect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider: "all" }),
-      }).catch(() => undefined);
+    const source = authSession?.source;
+    const accessToken = providerSessionRef.current?.access_token || pendingSupabaseSession?.access_token || "";
+    lockSupabaseLocally();
+    lockWorkspace(true);
+
+    let cleanupFailed = false;
+    if (source !== "local-preview") {
+      if (accessToken) {
+        const response = await fetch("/api/connectors/disconnect", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ provider: "all" }),
+          signal: AbortSignal.timeout(5_000),
+        }).catch(() => null);
+        cleanupFailed ||= !response?.ok;
+      } else {
+        cleanupFailed = true;
+      }
     }
-    const client = getSupabaseClient();
-    await client?.auth.signOut().catch(() => undefined);
+
+    const signOutResult = await settleWithin(signOutSupabase(), 5_000).catch(() => ({ error: new Error("Sign-out timed out.") }));
+    cleanupFailed ||= Boolean(signOutResult.error);
     const logoutUrl = getHostedLogoutUrl();
     if (logoutUrl) {
-      await fetch(logoutUrl, { method: "POST", credentials: "include" }).catch(() => undefined);
+      const response = await fetch(logoutUrl, {
+        method: "POST",
+        credentials: "include",
+        signal: AbortSignal.timeout(5_000),
+      }).catch(() => null);
+      cleanupFailed ||= !response?.ok;
     }
-    lockWorkspace(true);
+    if (cleanupFailed) {
+      announce("Signed out locally. Remote session or connector cleanup could not be fully confirmed.", "warning");
+    }
   }
 
   async function deleteAccount() {
     if (!authSession) {
       return;
     }
+    const deletingUserId = authSession.userId;
+    const deletionSession = providerSessionRef.current;
     const confirmed = window.confirm("Permanently delete your Cova account, stored connector tokens, and this device's Cova data? This cannot be undone.");
     if (!confirmed) {
       return;
     }
 
     if (authSession.source === "local-preview") {
+      const deviceCleanupConfirmed = tryPurgeCurrentAccountDeviceData();
       await signOut();
-      announce("Demo account data was removed from this device.", "success");
+      announce(deviceCleanupConfirmed ? "Demo account data was removed from this device." : "Demo account closed. Browser storage cleanup could not be fully confirmed.", deviceCleanupConfirmed ? "success" : "warning");
       return;
     }
 
+    if (
+      !deletingUserId ||
+      !deletionSession?.access_token ||
+      deletionSession.user.id !== deletingUserId ||
+      validatedAccessTokenRef.current !== deletionSession.access_token
+    ) {
+      hideWorkspaceForAuthCheck();
+      announce("The verified account changed. Reload before trying account deletion again.", "warning");
+      return;
+    }
+
+    const deletionIdentityGeneration = identitySwitchGenerationRef.current;
+    authGenerationRef.current += 1;
+
     try {
-      const response = await authorizedFetch("/api/account/delete", { method: "DELETE" });
+      const response = await fetch("/api/account/delete", {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${deletionSession.access_token}` },
+        signal: AbortSignal.timeout(10_000),
+      });
       const data = await response.json() as { deleted?: boolean; error?: string };
       if (!response.ok || !data.deleted) {
         throw new Error(data.error || "Account deletion could not be completed.");
       }
-      const client = getSupabaseClient();
-      await client?.auth.signOut().catch(() => undefined);
+      if (!hasDeletionIdentityContinuity(deletingUserId, deletionIdentityGeneration)) {
+        announce("Account deleted. The browser identity changed, so its local data was left untouched.", "warning");
+        return;
+      }
+      setActiveStorageIdentity(deletingUserId);
+      const deviceCleanupConfirmed = tryPurgeCurrentAccountDeviceData();
+      lockSupabaseLocally();
       lockWorkspace(false);
-      announce("Your Cova account and connector records were deleted.", "success");
+      const remoteCleanup = await settleWithin(signOutSupabase(), 5_000).catch(() => ({ error: new Error("Sign-out timed out.") }));
+      const cleanupConfirmed = deviceCleanupConfirmed && !remoteCleanup.error;
+      announce(cleanupConfirmed ? "Your Cova account and connector records were deleted." : "Account deleted. Browser or remote session cleanup could not be fully confirmed.", cleanupConfirmed ? "success" : "warning");
     } catch (error) {
       announce(error instanceof Error ? error.message : "Account deletion could not be completed.", "warning");
     }
@@ -556,7 +896,7 @@ export default function App() {
           signOut={signOut}
         />
       )}
-      <AuthSheet authIntentKey={AUTH_INTENT_KEY} mode={authMode} setMode={setAuthMode} close={() => setAuthMode(null)} onAuthenticated={completeAuth} onDevPreview={signInAsDevPreview} openLegal={(legalSection) => { setAuthMode(null); go(legalSection); }} />
+      <AuthSheet authIntentKey={AUTH_INTENT_KEY} mode={authMode} setMode={setAuthMode} close={() => { void closeAuthSheet(); }} onAuthenticated={completeAuth} onDeleteRestrictedAccount={deletePendingAccount} onDevPreview={signInAsDevPreview} onDisconnectProviders={disconnectPendingProviders} onInspectProviders={inspectPendingProviders} onPolicyAccepted={acceptPendingPolicies} pendingPolicyConfirmation={Boolean(pendingSupabaseSession)} openLegal={(legalSection) => { setAuthMode(null); go(legalSection); }} />
       <Toast toast={toast} />
 
       <main className="relative z-10">
@@ -643,6 +983,42 @@ export default function App() {
       </main>
     </div>
   );
+}
+
+type PolicyAcceptanceStatus = {
+  accepted: boolean;
+  privacyVersion: string;
+  termsVersion: string;
+};
+
+async function fetchPolicyAcceptance(accessToken: string, method: "GET" | "POST"): Promise<PolicyAcceptanceStatus> {
+  const response = await fetch("/api/auth/consent", {
+    method,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      ...(method === "POST" ? { "Content-Type": "application/json" } : {}),
+    },
+    body: method === "POST" ? JSON.stringify({ termsVersion: CURRENT_TERMS_VERSION, privacyVersion: CURRENT_PRIVACY_VERSION }) : undefined,
+    credentials: "include",
+  });
+  const payload = await response.json().catch(() => ({})) as Partial<PolicyAcceptanceStatus> & { error?: string };
+  if (!response.ok || typeof payload.accepted !== "boolean") {
+    throw new Error(payload.error || "Cova could not verify policy acceptance.");
+  }
+  return {
+    accepted: payload.accepted,
+    privacyVersion: String(payload.privacyVersion || ""),
+    termsVersion: String(payload.termsVersion || ""),
+  };
+}
+
+async function settleWithin<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_resolve, reject) => {
+      window.setTimeout(() => reject(new Error("Operation timed out.")), timeoutMs);
+    }),
+  ]);
 }
 
 function getProCheckoutUrl() {

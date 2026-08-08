@@ -41,24 +41,33 @@ for (const heading of [
 
 assert.match(legalPages, /support@covadesk\.com/g, "Legal pages should publish the verified support contact.");
 assert.match(legalPages, /Rafael Lino, Founder and CEO of Cova/i, "Legal pages should identify the owner-confirmed operator.");
-assert.match(legalPages, /Supabase production setup is pending/i, "Legal and security copy should disclose that Supabase is not active in production.");
-assert.doesNotMatch(legalPages, /Production member access uses Supabase/i, "Security copy must not describe unconfigured Supabase authentication as production behavior.");
+assert.doesNotMatch(legalPages, /Supabase production setup is pending/i, "Approved auth copy must not describe Supabase as pending.");
+assert.match(legalPages, /Supabase Auth for passwordless magic-link sign-in/i, "Privacy copy should identify the active authentication provider and method.");
+assert.match(legalPages, /records the Terms and Privacy Policy versions accepted with a server timestamp/i, "Privacy copy should disclose durable policy acceptance data.");
+assert.match(legalPages, /Supabase magic-link authentication protects member routes/i, "Security copy should describe the active member gate.");
+assert.match(legalPages, /current server-recorded Terms and Privacy Policy acceptance/i, "Security copy should disclose the server-owned consent gate.");
 assert.doesNotMatch(legalPages, /Provider access tokens are encrypted before database storage/i, "Security copy must not describe pending token storage as active production behavior.");
-assert.doesNotMatch(legalPages, /Cova uses Vercel for application hosting and request delivery and Supabase for authentication/i, "Security copy must separate current hosting from pending Supabase setup.");
 assert.match(legalPages, /18 years of age|at least 18/i, "Terms should require adult users.");
 assert.match(legalPages, /do not sell|does not sell/i, "Privacy Policy should state Cova's sale position.");
 
 const authPanels = read("src", "components", "AuthPanels.tsx");
 const supabaseClient = read("src", "lib", "supabaseClient.ts");
+const consentHandler = read("api", "auth", "consent.js");
+const policySchema = read("supabase", "migrations", "20260807010000_auth_policy_acceptances.sql");
 const indexHtml = read("index.html");
 const mainTsx = read("src", "main.tsx");
 const packageJson = read("package.json");
 
 assert.match(authPanels, /policyAccepted/, "Signup should require an affirmative policy checkbox.");
 assert.match(authPanels, /I agree to the Terms of Service and Privacy Policy/i, "Signup consent should name both controlling documents.");
-assert.match(authPanels, /termsVersion/, "Signup should record the accepted policy version.");
-assert.match(supabaseClient, /terms_accepted_at/, "Supabase signup metadata should record acceptance time.");
-assert.match(supabaseClient, /terms_version/, "Supabase signup metadata should record the accepted version.");
+assert.match(app, /termsVersion:\s*CURRENT_TERMS_VERSION/, "Authenticated confirmation should submit the current Terms version.");
+assert.match(app, /privacyVersion:\s*CURRENT_PRIVACY_VERSION/, "Authenticated confirmation should submit the current Privacy version.");
+assert.match(consentHandler, /requireAuthenticatedUser/, "Only an authenticated member action may record policy acceptance.");
+assert.match(consentHandler, /recordPolicyAcceptance/, "Authenticated signup should write a durable server-owned acceptance row.");
+assert.match(policySchema, /accepted_at timestamptz not null default now\(\)/i, "Policy acceptance time should be assigned by the database.");
+assert.match(policySchema, /auth\.uid\(\) = user_id/i, "Members should only read their own policy acceptance rows.");
+assert.match(supabaseClient, /shouldCreateUser:\s*mode\s*===\s*"signup"/, "Login must not create an unconsented user.");
+assert.doesNotMatch(supabaseClient, /terms_accepted_at|terms_version/, "User-editable Supabase metadata must not be acceptance evidence.");
 assert.doesNotMatch(indexHtml, /fonts\.googleapis\.com|fonts\.gstatic\.com/, "Visitors should not contact Google merely to render typography.");
 assert.doesNotMatch(indexHtml, /<script(?![^>]*\bsrc=)[^>]*>[\s\S]*?<\/script>/i, "The production document should not ship inline executable scripts that its CSP blocks.");
 assert.match(mainTsx, /@fontsource\//, "Cova should bundle the fonts used by the interface.");
@@ -78,16 +87,15 @@ for (const parts of requiredSecurityFiles) {
 
 const sensitiveHandlers = [
   ["api", "projectx", "connect.js"],
-  ["api", "projectx", "status.js"],
   ["api", "projectx", "sync.js"],
   ["api", "tradovate", "connect.js"],
-  ["api", "tradovate", "status.js"],
   ["api", "tradovate", "sync.js"],
+  ["api", "connectors", "status.js"],
   ["api", "connectors", "disconnect.js"],
   ["api", "account", "delete.js"],
 ];
 for (const parts of sensitiveHandlers) {
-  assert.match(read(...parts), /require(?:AuthenticatedUser|DirectSyncUser)/, `${parts.join("/")} should require a signed-in Cova user.`);
+  assert.match(read(...parts), /require(?:AuthenticatedUser|PolicyAcceptedUser|DirectSyncUser)/, `${parts.join("/")} should require a signed-in Cova user.`);
 }
 
 const callback = read("api", "tradovate", "callback.js");

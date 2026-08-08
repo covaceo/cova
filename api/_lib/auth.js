@@ -1,3 +1,6 @@
+import { CURRENT_PRIVACY_VERSION, CURRENT_TERMS_VERSION } from "./legal-policy.js";
+import { hasPolicyAcceptance, supabaseServiceHeaders } from "./supabase.js";
+
 export class ApiError extends Error {
   constructor(statusCode, message) {
     super(message);
@@ -53,6 +56,28 @@ export async function requireAuthenticatedUser(req, { fetchImpl = fetch, timeout
   };
 }
 
+async function requireCurrentPolicyAcceptance(userId, options = {}) {
+  let accepted;
+  try {
+    accepted = await hasPolicyAcceptance({
+      userId,
+      termsVersion: CURRENT_TERMS_VERSION,
+      privacyVersion: CURRENT_PRIVACY_VERSION,
+    }, options);
+  } catch {
+    throw new ApiError(503, "Cova could not verify policy acceptance.");
+  }
+  if (!accepted) {
+    throw new ApiError(403, "Accept the current Terms and Privacy Policy to continue.");
+  }
+}
+
+export async function requirePolicyAcceptedUser(req, options = {}) {
+  const user = await requireAuthenticatedUser(req, options);
+  await requireCurrentPolicyAcceptance(user.id, options);
+  return user;
+}
+
 export function requireProEntitlement(user) {
   if (user?.plan !== "pro") {
     throw new ApiError(403, "Cova Pro is required for direct sync.");
@@ -70,10 +95,7 @@ export async function requireProUserById(userId, { fetchImpl = fetch, timeoutMs 
   let response;
   try {
     response = await fetchImpl(`${supabaseUrl}/auth/v1/admin/users/${encodeURIComponent(String(userId || ""))}`, {
-      headers: {
-        apikey: serviceRoleKey,
-        Authorization: `Bearer ${serviceRoleKey}`,
-      },
+      headers: supabaseServiceHeaders(serviceRoleKey),
       signal: AbortSignal.timeout(timeoutMs),
     });
   } catch {
@@ -89,11 +111,13 @@ export async function requireProUserById(userId, { fetchImpl = fetch, timeoutMs 
     throw new ApiError(403, "Cova could not verify your current Pro access.");
   }
 
-  return requireProEntitlement({
+  const entitledUser = requireProEntitlement({
     id: String(user.id),
     email: typeof user.email === "string" ? user.email : "",
     plan: user.app_metadata?.plan === "pro" ? "pro" : "free",
   });
+  await requireCurrentPolicyAcceptance(entitledUser.id, { fetchImpl, timeoutMs });
+  return entitledUser;
 }
 
 export function sendApiError(res, error, fallbackMessage) {

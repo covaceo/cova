@@ -2,7 +2,6 @@ import { useEffect, useState, type FormEvent } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowUpRight, Check, LockKeyhole, Mail, SlidersHorizontal, UserRound, X } from "lucide-react";
 import { buildHostedAuthUrl, canRedirectToHostedAuth, isDemoPreviewEnabled, isLocalPreview } from "../lib/authEnvironment";
-import { CURRENT_TERMS_VERSION } from "../lib/legal";
 import { isSupabaseConfigured, sendSupabaseMagicLink } from "../lib/supabaseClient";
 import { GlassButton } from "./GlassButton";
 import { ImageAtmosphere } from "./LayoutShell";
@@ -11,6 +10,12 @@ import { StartFreeButton } from "./StartFreeButton";
 type AuthMode = "login" | "signup";
 type PlanTier = "free" | "pro";
 type AuthSource = "local-preview" | "hosted" | "supabase";
+
+function buildSupabaseRedirectUrl() {
+  const redirectUrl = new URL(window.location.href);
+  redirectUrl.hash = "";
+  return redirectUrl.toString();
+}
 
 type AuthGateProps = {
   devPreviewEmail: string;
@@ -23,8 +28,13 @@ type AuthSheetProps = {
   close: () => void;
   mode: AuthMode | null;
   onAuthenticated: (email: string, mode: AuthMode, source?: AuthSource, plan?: PlanTier, userId?: string) => void;
+  onDeleteRestrictedAccount: () => Promise<void>;
   onDevPreview: () => void;
+  onDisconnectProviders: () => Promise<void>;
+  onInspectProviders: () => Promise<void>;
+  onPolicyAccepted: () => Promise<void>;
   openLegal: (section: "privacy" | "terms") => void;
+  pendingPolicyConfirmation: boolean;
   setMode: (mode: AuthMode) => void;
 };
 
@@ -70,36 +80,48 @@ export function AuthGate({ devPreviewEmail, openAuth, onDevPreview }: AuthGatePr
   );
 }
 
-export function AuthSheet({ authIntentKey, mode, setMode, close, onAuthenticated, onDevPreview, openLegal }: AuthSheetProps) {
+export function AuthSheet({ authIntentKey, mode, setMode, close, onAuthenticated, onDeleteRestrictedAccount, onDevPreview, onDisconnectProviders, onInspectProviders, onPolicyAccepted, openLegal, pendingPolicyConfirmation }: AuthSheetProps) {
   const [email, setEmail] = useState("");
   const [notice, setNotice] = useState("");
   const [authBusy, setAuthBusy] = useState(false);
   const [policyAccepted, setPolicyAccepted] = useState(false);
-  const isSignup = mode === "signup";
+  const isSignup = pendingPolicyConfirmation || mode === "signup";
   const canRedirect = mode ? canRedirectToHostedAuth(mode) : false;
   const supabaseReady = isSupabaseConfigured();
   const showDevPreview = isDemoPreviewEnabled();
 
   useEffect(() => {
     setNotice("");
-    if (mode !== "signup") {
-      setPolicyAccepted(false);
-    }
-  }, [mode]);
+    setPolicyAccepted(false);
+  }, [mode, pendingPolicyConfirmation]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!mode) {
       return;
     }
-    if (isSignup && !policyAccepted) {
+    if (pendingPolicyConfirmation) {
+      if (!policyAccepted) {
+        setNotice("Confirm the Terms of Service and Privacy Policy to continue.");
+        return;
+      }
+      setAuthBusy(true);
+      try {
+        await onPolicyAccepted();
+      } catch (error) {
+        setNotice(error instanceof Error ? error.message : "Could not record policy acceptance. Try again.");
+      } finally {
+        setAuthBusy(false);
+      }
+      return;
+    }
+    const requiresPolicyAcceptance = isSignup && !supabaseReady;
+    if (requiresPolicyAcceptance && !policyAccepted) {
       setNotice("Accept the Terms of Service and Privacy Policy to create an account.");
       return;
     }
     setAuthBusy(true);
     const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash || "#dashboard"}`;
-    const termsAcceptedAt = isSignup ? new Date().toISOString() : undefined;
-    const termsVersion = isSignup ? CURRENT_TERMS_VERSION : undefined;
 
     localStorage.setItem(
       authIntentKey,
@@ -108,8 +130,6 @@ export function AuthSheet({ authIntentKey, mode, setMode, close, onAuthenticated
         mode,
         returnTo,
         savedAt: new Date().toISOString(),
-        termsAcceptedAt,
-        termsVersion,
       }),
     );
 
@@ -120,11 +140,7 @@ export function AuthSheet({ authIntentKey, mode, setMode, close, onAuthenticated
     }
 
     if (supabaseReady) {
-      const redirectTo = `${window.location.origin}${returnTo}`;
-      const { error } = await sendSupabaseMagicLink(email, redirectTo, termsAcceptedAt && termsVersion ? {
-        acceptedAt: termsAcceptedAt,
-        termsVersion,
-      } : undefined);
+      const { error } = await sendSupabaseMagicLink(email, buildSupabaseRedirectUrl(), mode);
       if (error) {
         setNotice(error.message || "Could not send the sign-in link. Try again in a moment.");
         setAuthBusy(false);
@@ -149,18 +165,29 @@ export function AuthSheet({ authIntentKey, mode, setMode, close, onAuthenticated
     window.location.assign(buildHostedAuthUrl(mode));
   }
 
+  async function runRestrictedAction(action: () => Promise<void>) {
+    setAuthBusy(true);
+    try {
+      await action();
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Account management could not be completed.");
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
   return (
     <AnimatePresence>
       {mode && (
         <motion.div
-          className="fixed inset-0 z-[80] flex items-center justify-center px-4 py-8"
+          className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto px-4 py-4 md:items-center md:py-8"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
           <button className="absolute inset-0 cursor-default bg-black/62 backdrop-blur-md" onClick={close} type="button" aria-label="Close auth panel" />
           <motion.div
-            className="liquid-glass-strong relative grid w-full max-w-5xl overflow-hidden rounded-[44px] p-4 md:grid-cols-[0.95fr_1.05fr]"
+            className="liquid-glass-strong relative grid w-full max-w-5xl shrink-0 overflow-hidden rounded-[44px] p-4 md:grid-cols-[0.95fr_1.05fr]"
             initial={{ opacity: 0, y: 34, scale: 0.96, filter: "blur(12px)" }}
             animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
             exit={{ opacity: 0, y: 20, scale: 0.98, filter: "blur(10px)" }}
@@ -201,7 +228,7 @@ export function AuthSheet({ authIntentKey, mode, setMode, close, onAuthenticated
             </div>
 
             <form className="p-6 md:p-8" onSubmit={submit}>
-              <div className="terminal-tab-bar mb-8 inline-grid grid-cols-2">
+              {!pendingPolicyConfirmation && <div className="terminal-tab-bar mb-8 inline-grid grid-cols-2">
                 {(["login", "signup"] as const).map((item) => {
                   const active = mode === item;
                   return (
@@ -222,19 +249,21 @@ export function AuthSheet({ authIntentKey, mode, setMode, close, onAuthenticated
                     </button>
                   );
                 })}
-              </div>
+              </div>}
 
-              <p className="font-body text-xs uppercase tracking-[0.24em] text-[#18c887]">{isSignup ? "Create account" : "Existing account"}</p>
+              <p className="font-body text-xs uppercase tracking-[0.24em] text-[#18c887]">{pendingPolicyConfirmation ? "Email verified" : isSignup ? "Create account" : "Existing account"}</p>
               <h3 className="mt-3 font-body text-3xl font-medium text-white">
-                {isSignup ? "Create your Cova workspace." : "Return to your Cova workspace."}
+                {pendingPolicyConfirmation ? "Confirm your Cova agreement." : isSignup ? "Create your Cova workspace." : "Return to your Cova workspace."}
               </h3>
               <p className="mt-4 max-w-md font-body text-sm font-light leading-relaxed text-white/56">
-                {isSignup
+                {pendingPolicyConfirmation
+                  ? "Your email is verified. Confirm the current policies before Cova opens the member workspace."
+                  : isSignup
                   ? "Save uploads, limits, insight notes, and Passport history under your member identity."
                   : "Use your member session to protect the production Cova workspace."}
               </p>
 
-              <label className="mt-8 block font-body text-xs uppercase tracking-[0.2em] text-white/40" htmlFor="auth-email">
+              {!pendingPolicyConfirmation && <><label className="mt-8 block font-body text-xs uppercase tracking-[0.2em] text-white/40" htmlFor="auth-email">
                 Email
               </label>
               <div className="liquid-glass mt-3 flex items-center gap-3 rounded-full px-5 py-3">
@@ -249,9 +278,9 @@ export function AuthSheet({ authIntentKey, mode, setMode, close, onAuthenticated
                   autoComplete="email"
                   required
                 />
-              </div>
+              </div></>}
 
-              {isSignup && (
+              {(pendingPolicyConfirmation || (isSignup && !supabaseReady)) && (
                 <label className="mt-5 flex items-start gap-3 font-body text-xs leading-5 text-white/58" aria-label="I agree to the Terms of Service and Privacy Policy">
                   <input
                     className="mt-0.5 h-4 w-4 shrink-0 accent-[#18c887]"
@@ -269,13 +298,29 @@ export function AuthSheet({ authIntentKey, mode, setMode, close, onAuthenticated
                 </label>
               )}
 
-              <button className="cova-button cova-button-primary mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3 font-body text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60" disabled={authBusy || (isSignup && !policyAccepted)} type="submit">
+              {isSignup && supabaseReady && !pendingPolicyConfirmation && (
+                <p className="mt-5 font-body text-xs leading-5 text-white/58">
+                  Verify your email first. Cova will then ask you to confirm the <button className="text-[#b9f5df] underline underline-offset-4" onClick={() => openLegal("terms")} type="button">Terms of Service</button> and <button className="text-[#b9f5df] underline underline-offset-4" onClick={() => openLegal("privacy")} type="button">Privacy Policy</button> before opening the workspace.
+                </p>
+              )}
+
+              <button className="cova-button cova-button-primary mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3 font-body text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60" disabled={authBusy || ((pendingPolicyConfirmation || (isSignup && !supabaseReady)) && !policyAccepted)} type="submit">
                 <UserRound className="h-4 w-4" />
-                {authBusy ? "Working..." : isDemoPreviewEnabled() ? "Start demo session" : supabaseReady ? "Send secure link" : canRedirect ? "Continue securely" : "Start demo session"}
+                {authBusy ? "Working..." : pendingPolicyConfirmation ? "Accept and continue" : isDemoPreviewEnabled() ? "Start demo session" : supabaseReady ? "Send secure link" : canRedirect ? "Continue securely" : "Start demo session"}
                 <ArrowUpRight className="h-4 w-4" />
               </button>
 
-              {showDevPreview && (
+              {pendingPolicyConfirmation && (
+                <div className="mt-3 grid gap-2 border-t border-white/10 pt-3">
+                  <p className="font-body text-xs leading-5 text-white/45">You can inspect or disconnect saved provider credentials, or delete this account without accepting new policies.</p>
+                  <button className="cova-button cova-button-secondary inline-flex w-full items-center justify-center rounded-full px-6 py-3 font-body text-sm font-medium disabled:opacity-60" disabled={authBusy} onClick={() => { void runRestrictedAction(onInspectProviders); }} type="button">Check saved providers</button>
+                  <button className="cova-button cova-button-secondary inline-flex w-full items-center justify-center rounded-full px-6 py-3 font-body text-sm font-medium disabled:opacity-60" disabled={authBusy} onClick={() => { void runRestrictedAction(onDisconnectProviders); }} type="button">Disconnect saved providers</button>
+                  <button className="inline-flex w-full items-center justify-center rounded-full border border-red-300/24 px-6 py-3 font-body text-sm font-medium text-red-100 transition hover:border-red-200/45 disabled:opacity-60" disabled={authBusy} onClick={() => { void runRestrictedAction(onDeleteRestrictedAccount); }} type="button">Delete account</button>
+                  <button className="px-4 py-2 font-body text-xs text-white/52 underline underline-offset-4 hover:text-white" disabled={authBusy} onClick={close} type="button">Sign out</button>
+                </div>
+              )}
+
+              {showDevPreview && !pendingPolicyConfirmation && (
                 <button
                   className="cova-button cova-button-secondary mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3 font-body text-sm font-medium"
                   onClick={onDevPreview}
@@ -287,7 +332,7 @@ export function AuthSheet({ authIntentKey, mode, setMode, close, onAuthenticated
               )}
 
               <p className="mt-4 min-h-10 font-body text-xs leading-relaxed text-white/45">
-                {notice || (isDemoPreviewEnabled() ? "Demo preview creates a temporary Cova session immediately so you can test dashboard and account linking." : supabaseReady ? "Cova uses Supabase magic links when configured, so the app never stores your password." : "Production auth will redirect through your hosted auth provider. This MVP keeps the visual flow ready without storing passwords locally.")}
+                {notice || (pendingPolicyConfirmation ? "Acceptance is recorded only after this verified member action." : isDemoPreviewEnabled() ? "Demo preview creates a temporary Cova session immediately so you can test dashboard and account linking." : supabaseReady ? "Cova uses Supabase magic links when configured, so the app never stores your password." : "Production auth will redirect through your hosted auth provider. This MVP keeps the visual flow ready without storing passwords locally.")}
               </p>
             </form>
           </motion.div>

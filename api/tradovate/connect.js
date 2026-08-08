@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { requireAuthenticatedUser, requireProEntitlement, sendApiError } from "../_lib/auth.js";
+import { requirePolicyAcceptedUser, requireProEntitlement, sendApiError } from "../_lib/auth.js";
 import { serializeCookie } from "../_lib/cookies.js";
 import { createOAuthContext } from "../_lib/oauth-context.js";
 import { getTradovateRedirectUri } from "../_lib/urls.js";
@@ -13,7 +13,7 @@ export default async function handler(req, res) {
   res.setHeader("Cache-Control", "private, no-store");
 
   try {
-    const user = requireProEntitlement(await requireAuthenticatedUser(req));
+    const user = requireProEntitlement(await requirePolicyAcceptedUser(req));
     const clientId = process.env.TRADOVATE_CLIENT_ID;
     if (!clientId) {
       return res.status(500).json({ error: "Tradovate access is not configured yet." });
