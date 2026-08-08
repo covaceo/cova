@@ -106,7 +106,7 @@ export default function App() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode | null>(null);
   const [authSession, setAuthSession] = useState<AuthSession | null>(() => loadAuthSession());
-  const [oauthFirmId, setOauthFirmId] = useState<PropFirmId>(() => readOAuthFirmId() ?? "topstepx");
+  const [oauthFirmId, setOauthFirmId] = useState<PropFirmId>(() => readOAuthFirmId() ?? "tradovate");
   const [toast, setToast] = useState<ToastState>(null);
   const [status, setStatus] = useState("Trade history ready.");
   const [brokerStatus, setBrokerStatus] = useState<BrokerStatus | null>(() => readBrokerStatus());
@@ -790,6 +790,13 @@ export default function App() {
   }
 
   function openFirmOAuth(firmId: PropFirmId) {
+    if (firmId === "topstepx") {
+      localStorage.removeItem(OAUTH_FIRM_KEY);
+      setStatus("TopstepX is available through CSV import only.");
+      announce("TopstepX is CSV-only. Upload an export from Trade History.", "info");
+      go("import");
+      return;
+    }
     if (!entitlements.canUseDirectSync) {
       setStatus("Direct account sync is a Pro feature. CSV import remains available on Free.");
       announce("Direct account sync is a Pro feature. Use CSV import or review Pro.", "warning");
@@ -805,6 +812,13 @@ export default function App() {
   }
 
   function completeFirmOAuth(firmId: PropFirmId) {
+    if (firmId === "topstepx") {
+      localStorage.removeItem(OAUTH_FIRM_KEY);
+      setStatus("TopstepX is available through CSV import only.");
+      announce("TopstepX direct linking is unavailable. Use CSV import.", "warning");
+      go("import");
+      return;
+    }
     const firm = getPropFirm(firmId);
     const nextStatus: BrokerStatus = {
       provider: firm.name,
@@ -1055,7 +1069,7 @@ function loadAuthSession(): AuthSession | null {
 function readOAuthFirmId(): PropFirmId | null {
   try {
     const saved = localStorage.getItem(OAUTH_FIRM_KEY);
-    return propFirmOptions.some((firm) => firm.id === saved) ? saved as PropFirmId : null;
+    return saved !== "topstepx" && propFirmOptions.some((firm) => firm.id === saved) ? saved as PropFirmId : null;
   } catch {
     return null;
   }

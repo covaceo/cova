@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -11,6 +11,7 @@ const compiled = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.ES2022, target: ts.ScriptTarget.ES2022 },
 });
 const outDir = mkdtempSync(join(tmpdir(), "cova-practice-history-"));
+process.once("exit", () => rmSync(outDir, { recursive: true, force: true }));
 const compiledPath = join(outDir, "backtesting.mjs");
 writeFileSync(compiledPath, compiled.outputText);
 const backtesting = await import(`${pathToFileURL(compiledPath).href}?t=${Date.now()}`);

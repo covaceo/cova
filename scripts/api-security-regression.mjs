@@ -3,8 +3,6 @@ import { requireAuthenticatedUser, requireProEntitlement } from "../api/_lib/aut
 import { createOAuthContext, verifyOAuthContext } from "../api/_lib/oauth-context.js";
 import { getAppOrigin, getTradovateRedirectUri } from "../api/_lib/urls.js";
 import { getBrokerConnection, saveBrokerConnection } from "../api/_lib/supabase.js";
-import projectXConnect from "../api/projectx/connect.js";
-import projectXSync from "../api/projectx/sync.js";
 import disconnectConnector from "../api/connectors/disconnect.js";
 import logout from "../api/auth/logout.js";
 import deleteAccount from "../api/account/delete.js";
@@ -97,7 +95,7 @@ try {
   await saveBrokerConnection({
     accessToken: "provider-access-token",
     connectionId: "11111111-1111-4111-8111-111111111111",
-    provider: "projectx",
+    provider: "tradovate",
     userId: "user-123",
   });
   assert.equal(insertedRow.user_id, "user-123", "Stored connector rows should have an owner.");
@@ -108,11 +106,11 @@ try {
     lookupUrl = String(url);
     return new Response("[]", { status: 200, headers: { "Content-Type": "application/json" } });
   };
-  await getBrokerConnection({ connectionId: "connection-1", provider: "projectx", userId: "user-123" });
+  await getBrokerConnection({ connectionId: "connection-1", provider: "tradovate", userId: "user-123" });
   assert.match(lookupUrl, /user_id=eq\.user-123/, "Connector lookup should be scoped to the authenticated owner.");
 
   for (const [label, handler, request] of [
-    ["ProjectX connect", projectXConnect, { method: "POST", headers: {}, body: {} }],
+    ["Tradovate connect", tradovateConnect, { method: "POST", headers: {} }],
     ["Connector disconnect", disconnectConnector, { method: "POST", headers: {}, body: {} }],
     ["Account delete", deleteAccount, { method: "DELETE", headers: {} }],
   ]) {
@@ -122,8 +120,6 @@ try {
   }
 
   for (const [label, handler, request] of [
-    ["ProjectX connect", projectXConnect, { method: "POST", headers: { authorization: "Bearer free-token" }, body: { userName: "fixture-user", apiKey: "fixture-api-key" } }],
-    ["ProjectX sync", projectXSync, { method: "GET", headers: { authorization: "Bearer free-token", cookie: "cova_projectx_connection=fixture-connection" }, query: {} }],
     ["Tradovate connect", tradovateConnect, { method: "POST", headers: { authorization: "Bearer free-token" } }],
     ["Tradovate sync", tradovateSync, { method: "GET", headers: { authorization: "Bearer free-token", cookie: "cova_tradovate_connection=fixture-connection" }, query: {} }],
   ]) {

@@ -1,10 +1,6 @@
 {
   "rewrites": [
     {
-      "source": "/api/projectx/status",
-      "destination": "/api/connectors/status?provider=projectx"
-    },
-    {
       "source": "/api/tradovate/status",
       "destination": "/api/connectors/status?provider=tradovate"
     }

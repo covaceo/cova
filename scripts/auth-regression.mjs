@@ -62,9 +62,10 @@ test("auth release documents the required public and server environments plus mi
   assert.match(envExample, /^VITE_SUPABASE_URL=/m);
   assert.match(envExample, /^VITE_SUPABASE_ANON_KEY=/m);
   assert.match(envExample, /^SUPABASE_SERVICE_ROLE_KEY=/m);
-  assert.doesNotMatch(envExample, /COVA_AUTH_CONSENT_SECRET/);
+  assert.doesNotMatch(envExample, /COVA_AUTH_CONSENT_SECRET|CONSENT_INTENT_SIGNING_SECRET/);
   assert.match(readme, /20260807010000_auth_policy_acceptances\.sql/);
   assert.match(readme, /20260807020000_unique_broker_provider_connections\.sql/);
+  assert.match(readme, /20260807030000_retire_projectx_connector\.sql/);
   assert.match(readme, /sb_secret_/);
 });
 
@@ -275,8 +276,6 @@ test("connector APIs reject authenticated users without current server-owned ass
       (error) => error?.statusCode === 403,
     );
     for (const path of [
-      ["api", "projectx", "connect.js"],
-      ["api", "projectx", "sync.js"],
       ["api", "rithmic", "status.js"],
       ["api", "rithmic", "sync.js"],
       ["api", "tradovate", "connect.js"],
@@ -290,7 +289,6 @@ test("connector APIs reject authenticated users without current server-owned ass
     const connectorStatusSource = read("api", "connectors", "status.js");
     assert.match(connectorStatusSource, /requireAuthenticatedUser/);
     assert.match(connectorStatusSource, /listBrokerConnectionsForUser/);
-    assert.match(connectorStatusSource, /sendProjectXStatus/);
     assert.match(connectorStatusSource, /sendTradovateStatus/);
     assert.doesNotMatch(connectorStatusSource, /requirePolicyAcceptedUser|requireProEntitlement/);
   } finally {
@@ -340,11 +338,10 @@ test("provider status routes share one authenticated function within the Hobby d
     const relative = path.slice(apiRoot.length + 1).replaceAll("\\", "/");
     return relative.endsWith(".js") && !relative.split("/").some((part) => part.startsWith("_"));
   });
-  assert.equal(endpointFiles.length, 12);
+  assert.equal(endpointFiles.length, 10);
 
   const vercel = JSON.parse(read("vercel.json"));
   assert.deepEqual(vercel.rewrites, [
-    { source: "/api/projectx/status", destination: "/api/connectors/status?provider=projectx" },
     { source: "/api/tradovate/status", destination: "/api/connectors/status?provider=tradovate" },
   ]);
 
@@ -362,7 +359,7 @@ test("provider status routes share one authenticated function within the Hobby d
       assert.match(requestUrl, /user_id=eq\.owner-1/);
       assert.match(requestUrl, /provider=eq\.tradovate/);
       assert.match(requestUrl, /id=eq\.connection-1/);
-      return new Response(JSON.stringify([{ status: "connected", expires_at: "2026-08-08T00:00:00.000Z" }]), { status: 200 });
+      return new Response(JSON.stringify([{ status: "connected", expires_at: "2099-08-08T00:00:00.000Z" }]), { status: 200 });
     }
     throw new Error(`unexpected consolidated status call ${requestUrl}`);
   };
@@ -382,7 +379,7 @@ test("provider status routes share one authenticated function within the Hobby d
       connected: true,
       provider: "Tradovate",
       status: "connected",
-      expiresAt: "2026-08-08T00:00:00.000Z",
+      expiresAt: "2099-08-08T00:00:00.000Z",
     });
   } finally {
     global.fetch = priorFetch;

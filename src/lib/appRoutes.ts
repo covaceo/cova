@@ -7,31 +7,61 @@ export function isProtectedSection(section: Section) {
   return protectedSections.includes(section as (typeof protectedSections)[number]);
 }
 
+type HashSection = {
+  section: Section;
+  documentAnchor: string | null;
+};
+
+function readHashSection(): HashSection {
+  const raw = window.location.hash.replace("#", "");
+  if (sections.includes(raw as Section)) {
+    return { section: raw as Section, documentAnchor: null };
+  }
+  const legalAnchor = raw.match(/^legal-(privacy|terms|security)-\d+$/);
+  if (legalAnchor) {
+    return { section: legalAnchor[1] as Section, documentAnchor: raw };
+  }
+  return { section: "overview", documentAnchor: null };
+}
+
 export function useHashSection(): [Section, (section: Section) => void] {
-  const read = () => {
-    const raw = window.location.hash.replace("#", "");
-    return sections.includes(raw as Section) ? raw as Section : "overview";
-  };
-  const [section, setSectionState] = useState<Section>(read);
+  const [section, setSectionState] = useState<Section>(() => readHashSection().section);
   const scrollToTop = () => {
     window.requestAnimationFrame(() => {
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
   };
+  const scrollToDocumentAnchor = (documentAnchor: string) => {
+    window.requestAnimationFrame(() => {
+      document.getElementById(documentAnchor)?.scrollIntoView({ block: "start" });
+    });
+  };
+
   useEffect(() => {
-    const onHash = () => {
-      setSectionState(read());
-      scrollToTop();
+    const syncHash = () => {
+      const next = readHashSection();
+      setSectionState(next.section);
+      if (next.documentAnchor) {
+        scrollToDocumentAnchor(next.documentAnchor);
+      } else {
+        scrollToTop();
+      }
     };
-    window.addEventListener("hashchange", onHash);
-    window.addEventListener("popstate", onHash);
+    const initial = readHashSection();
+    if (initial.documentAnchor) {
+      scrollToDocumentAnchor(initial.documentAnchor);
+    }
+    window.addEventListener("hashchange", syncHash);
+    window.addEventListener("popstate", syncHash);
     return () => {
-      window.removeEventListener("hashchange", onHash);
-      window.removeEventListener("popstate", onHash);
+      window.removeEventListener("hashchange", syncHash);
+      window.removeEventListener("popstate", syncHash);
     };
   }, []);
+
   const setSection = (next: Section) => {
-    if (read() === next) {
+    const current = readHashSection();
+    if (current.section === next && !current.documentAnchor) {
       scrollToTop();
       return;
     }
@@ -41,4 +71,3 @@ export function useHashSection(): [Section, (section: Section) => void] {
   };
   return [section, setSection];
 }
-

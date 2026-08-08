@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -7,6 +7,7 @@ import ts from "typescript";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const outDir = mkdtempSync(join(tmpdir(), "cova-practice-datafeed-"));
+process.once("exit", () => rmSync(outDir, { recursive: true, force: true }));
 
 function compile(sourceRelativePath, outputName, replacements = []) {
   const source = readFileSync(join(root, sourceRelativePath), "utf8");

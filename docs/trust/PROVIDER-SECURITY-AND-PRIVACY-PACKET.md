@@ -38,7 +38,6 @@ The browser never receives the provider access token or the Supabase service-rol
 | Provider | Credential entry | Cova endpoint allowlist | Explicit exclusions | Current qualification |
 |---|---|---|---|---|
 | Tradovate | OAuth authorization code on provider flow | Token exchange plus account and trade-history retrieval used by the connector | No order, account-setting, withdrawal, or funds calls | OAuth scope is deployment-configured through `TRADOVATE_SCOPE` and must be approved/pinned to the minimum provider-supported history scope before production enablement |
-| ProjectX / TopstepX | User-generated API key submitted over TLS to Cova backend | `api/Auth/loginKey`, `api/Account/search`, `api/Trade/search` | No order placement, modification, cancellation, position-management, withdrawal, or settings endpoint | Raw API key is discarded after authentication; encrypted session token may carry broader provider permissions, so user-side revocation remains required |
 | CSV | File selected locally by member | No provider API | No credentials or provider token | Default supported import path |
 | Other firms | Provider-hosted flow only when explicitly configured, otherwise CSV | No live connector claimed unless configured and approved | Preview form forbids real credential entry | Preview/research only |
 
@@ -72,7 +71,6 @@ The browser never receives the provider access token or the Supabase service-rol
 - Each ciphertext uses a random 96-bit IV and authentication tag.
 - The encryption key is a server-only 32-byte deployment secret.
 - Provider tokens are decrypted only inside server connector routes after member and record-owner checks.
-- ProjectX raw API keys are used for provider authentication and are not persisted.
 - Responses do not expose provider tokens or database connection IDs.
 - Expired rows are rejected and deleted during lookup.
 
@@ -154,14 +152,13 @@ Production verification on July 21, 2026 confirmed:
 - `covadesk.com` served the merged asset containing the Privacy, Terms, and Security routes;
 - CSP, HSTS, frame denial, restrictive referrer policy, and permissions policy were present;
 - `/.well-known/security.txt` served the published contact and canonical URL;
-- unauthenticated Tradovate status, ProjectX status, disconnect, and account-deletion requests returned HTTP 401;
+- unauthenticated Tradovate status, disconnect, and account-deletion requests returned HTTP 401;
 - the production Security route rendered without horizontal overflow, broken images, or console errors.
 
 ## 13. Open provider dependencies
 
 - The production Supabase ownership/RLS migration included at `supabase/tradovate_connector.sql` must be applied and verified before connectors are described as production-ready.
 - Tradovate must approve the application, redirect URI, and minimum permitted history scope.
-- ProjectX/TopstepX must confirm API-key and session-token terms permit this retrospective account-history use.
 - Provider-side token revocation support must be documented if available.
 - Cova must not describe a connector as production-ready until provider approval, production environment configuration, migration, and live owner-switch testing are complete.
 

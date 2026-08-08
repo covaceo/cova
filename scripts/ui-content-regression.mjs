@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -9,8 +9,10 @@ const read = (...parts) => readFileSync(join(root, ...parts), "utf8");
 const workspace = read("src", "components", "WorkspaceSections.tsx");
 const workspaceShell = read("src", "components", "WorkspaceShell.tsx");
 const appRoutes = read("src", "lib", "appRoutes.ts");
+const brokerStatusSource = read("src", "lib", "brokerStatus.ts");
 const app = read("src", "App.tsx");
 const importPanels = read("src", "components", "ImportPanels.tsx");
+const importDesk = read("src", "components", "ImportDesk.tsx");
 const storyStrip = read("src", "components", "StoryStrip.tsx");
 const marketingPages = read("src", "components", "MarketingPages.tsx");
 const planSections = read("src", "components", "PlanSections.tsx");
@@ -30,7 +32,69 @@ const tradingViewHost = read("src", "components", "practice", "LightweightReplay
 const backtestingTerminal = read("src", "components", "practice", "BacktestingTerminal.tsx");
 const backtestingLabCss = read("src", "styles", "backtestingLab.css");
 const backtesting = read("src", "lib", "backtesting.ts");
+const vercel = read("vercel.json");
+const envExample = read(".env.example");
+const readme = read("README.md");
+const providerPacket = read("docs", "trust", "PROVIDER-SECURITY-AND-PRIVACY-PACKET.md");
+const providerBrief = read("docs", "trust", "PROVIDER-APPLICATION-BRIEF.md");
+const ownerChecklist = read("docs", "trust", "COUNSEL-AND-OWNER-CHECKLIST.md");
+const tempRegressionScripts = [
+  read("scripts", "risk-regression.mjs"),
+  read("scripts", "backtest-regression.mjs"),
+  read("scripts", "practice-history-regression.mjs"),
+  read("scripts", "practice-datafeed-regression.mjs"),
+];
 const practiceUi = `${workspace}\n${backtestingTerminal}`;
+
+for (const stalePath of [
+  "app.js",
+  "styles.css",
+  "kickbacks.vsix",
+  "vite.config.js",
+  "vite.config.d.ts",
+  "assets/reference",
+  "public/reference",
+  "public/brand/cova-wordmark-custom-white.png",
+  "public/cova-mark.svg",
+  "public/cova-dashboard.png",
+  "public/cova-operator-reference.png",
+  "public/cova-practice.css",
+  "public/cova-practice.png",
+  "public/cova-trading-platform.png",
+  "public/pricing-copper-room.jpg",
+  "public/trading_platform/README.md",
+  "public/media/cova-dashboard-plate.png",
+  "public/media/cova-hero-candles.png",
+  "public/media/cova-hero-centerpiece-v1.png",
+  "public/media/cova-hero-v2.jpg",
+  "public/media/cova-hero-v2.png",
+  "public/media/cova-hero-wordmark-source-chromakey.png",
+  "public/media/cova-hero-wordmark-v1.png",
+  "public/media/cova-logo-favicon.png",
+  "public/media/cova-logo-mark.png",
+  "public/media/cova-logo-minimal-black.png",
+  "public/media/cova-logo-minimal-favicon.png",
+  "public/media/cova-logo-minimal-source-chromakey.png",
+  "public/media/cova-logo-minimal-white.png",
+  "public/media/cova-market-hero-v1.png",
+  "public/media/cova-passport-product.png",
+  "public/media/cova-story-frame-01.png",
+  "public/media/cova-story-frame-03.png",
+  "public/media/cova-story-stage-v2.png",
+  "public/media/wordmark-options/cova-wordmark-option-1-editorial.png",
+  "public/media/wordmark-options/cova-wordmark-option-2-terminal.png",
+  "public/media/wordmark-options/cova-wordmark-option-3-sleek.png",
+  "public/media/wordmark-options/cova-wordmark-options-preview.png",
+  "public/media/wordmark-options/cova-wordmark-option-1-rounded.png",
+  "public/media/wordmark-options/cova-wordmark-option-2-sharp.png",
+  "public/media/wordmark-options/cova-wordmark-option-4-sleek.png",
+]) {
+  assert.equal(existsSync(join(root, stalePath)), false, `${stalePath} is an obsolete or generated artifact and must not ship in the application repository.`);
+}
+
+for (const script of tempRegressionScripts) {
+  assert.match(script, /process\.once\("exit", \(\) => rmSync\(outDir, \{ recursive: true, force: true \}\)\)/, "Regression transpilation directories must be removed when each test process exits.");
+}
 
 assert.match(workspace, /Rules calculated · flags found/, "Passport ledger should use factual mixed-state copy when any rules are flagged.");
 assert.match(workspace, /analysis\.breaches\.length/, "Passport ledger heading should be tied to actual breach state, not static verified copy.");
@@ -47,9 +111,24 @@ assert.match(workspace, /Review active limits/, "Insights should provide a direc
 assert.match(workspace, /data-tone=\{insight\.tone\.toLowerCase\(\)\}/, "Insights should expose severity to the visual system.");
 
 assert.match(importPanels, /Upload CSV first/, "Trade History should make the CSV-first path obvious.");
-assert.match(importPanels, /Beta connector/, "Trade History should label connector access as beta instead of overclaiming production readiness.");
 assert.match(importPanels, /data-csv-primary/, "Trade History should expose a primary CSV decision lane.");
-assert.match(propFirms, /CSV-first beta/, "TopstepX connector status should be beta/framed around CSV-first fallback.");
+assert.match(propFirms, /id: "topstepx"[\s\S]*?status: "guided"/, "TopstepX must remain available only as a CSV export guide.");
+assert.doesNotMatch(propFirms, /ProjectX|VITE_TOPSTEPX_CONNECT_URL|CSV-first beta|Try TopstepX beta/, "The retired TopstepX direct connector must not remain in provider configuration.");
+assert.doesNotMatch(importPanels, /ProjectX|projectx|data-projectx-connect|TopstepX direct sync|Paste API key/, "Trade History must not expose the retired TopstepX credential flow.");
+assert.doesNotMatch(importDesk, /ProjectX|projectx|\/api\/projectx\//, "Trade History must not call the retired TopstepX connector APIs.");
+assert.doesNotMatch(mobileAudit, /Beta connector/, "Browser QA must not expect the retired TopstepX beta connector.");
+assert.match(mobileAudit, /TopstepX export/, "Browser QA must verify the surviving TopstepX CSV guide.");
+assert.doesNotMatch(app, /readOAuthFirmId\(\) \?\? "topstepx"/, "A stale OAuth route must not default to the retired TopstepX connector.");
+assert.match(app, /firmId === "topstepx"[\s\S]*?CSV/, "TopstepX must be rejected by any stale direct-connection callback and returned to CSV import.");
+assert.match(app, /saved !== "topstepx"/, "Legacy TopstepX OAuth browser state must not restore the retired connector.");
+assert.match(brokerStatusSource, /parsed\?\.provider === "TopstepX"[\s\S]*?removeScopedStorage\(BROKER_STATUS_KEY\)/, "Legacy TopstepX connected browser state must be purged instead of restored.");
+assert.match(importDesk, /brokerStatus\?\.provider === "Tradovate" \? "tradovate" : "all"/, "Unknown legacy broker states must trigger all-provider cleanup rather than a false Tradovate-only disconnect.");
+assert.equal(existsSync(join(root, "api", "projectx")), false, "Retired TopstepX serverless endpoints must not ship.");
+assert.equal(existsSync(join(root, "api", "_lib", "projectx.js")), false, "Retired TopstepX provider helpers must not ship.");
+assert.doesNotMatch(vercel, /projectx/i, "Vercel routing must not expose the retired TopstepX connector.");
+for (const releaseDocument of [envExample, readme, providerPacket, providerBrief, ownerChecklist]) {
+  assert.doesNotMatch(releaseDocument, /ProjectX|TopstepX \/ ProjectX|api\/projectx|PROJECTX_API_BASE_URL|TOPSTEPX_CONNECT/, "Release documentation must not advertise or request approval for the retired TopstepX direct connector.");
+}
 
 assert.match(storyStrip, /What Cova caught/, "Homepage should include concrete product proof, not only process cards.");
 assert.match(storyStrip, /Daily loss breach/, "Homepage proof should show a specific risk issue Cova catches.");
@@ -157,6 +236,10 @@ assert.match(marketingPages, /#risk-discipline/, "Community should describe the 
 assert.match(marketingPages, /No live entry calls, paid signals, copy trading, account management, broker solicitation/, "Community should preserve the trading-safety boundaries.");
 assert.doesNotMatch(marketingPages, /Product preview · community not open|What this preview proposes|Join the preview/, "Community should not retain obsolete preview-only language.");
 assert.match(appRoutes, /"practice"/, "Practice/backtesting should be a real protected workspace route.");
+assert.match(appRoutes, /legal-\(privacy\|terms\|security\)-\\d\+/, "Legal table-of-contents anchors must resolve back to their owning legal route.");
+assert.match(appRoutes, /documentAnchor/, "Legal table-of-contents navigation must retain the concrete anchor id.");
+assert.match(appRoutes, /getElementById[\s\S]*?scrollIntoView/, "Legal anchors must scroll after React renders the target section.");
+assert.match(appRoutes, /current\.section === next && !current\.documentAnchor/, "Selecting a legal page from one of its anchors must normalize the route instead of retaining a stale anchor hash.");
 assert.match(workspaceShell, /Practice/, "Workspace sidebar should expose the practice route.");
 assert.match(app, /PracticeLab/, "App should render the PracticeLab route.");
 assert.match(backtestingTerminal, /BacktestingTerminal/, "PracticeLab should render through the dedicated Backtesting terminal.");
@@ -183,8 +266,8 @@ assert.match(backtestingLabCss, /\.backtesting-chart-viewport \.practice-tv-cont
 assert.match(tradingViewHost, /TradingView Lightweight Charts/, "Practice should identify the active official chart renderer.");
 assert.match(tradingViewHost, /Deterministic demo tape/, "Practice should disclose that the current tape is deterministic demo data.");
 assert.match(tradingViewHost, /not historical market data/, "Practice should preserve the demo-data boundary.");
-assert.match(importPanels, /!entitlements\.canUseDirectSync/, "Direct connector UI must enforce the Free/Pro boundary.");
-assert.match(importPanels, /entitlements\.canUseDirectSync && selectedFirm\.id === "topstepx" && selectedConnected/, "Free users must not see connected-sync actions.");
+assert.match(importPanels, /if \(firm\.status === "guided"\)[\s\S]*?if \(!entitlements\.canUseDirectSync\)/, "CSV-guided providers must remain available on Free before direct-sync entitlement checks.");
+assert.match(importPanels, /selectedFirm\.status !== "guided"[\s\S]*?Unlock sync/, "CSV-only provider cards must not advertise an unavailable direct-sync upgrade.");
 assert.match(app, /if \(!entitlements\.canUseDirectSync\)/, "App-level OAuth entry must enforce the direct-sync entitlement.");
 assert.doesNotMatch(tradingViewHost, /Drop `charting_library\.js`/, "Practice must not expose developer installation instructions in the product UI.");
 assert.match(workspaceShell, /No live brokerage execution/, "Workspace safety copy should distinguish simulation from live brokerage execution.");

@@ -14,10 +14,6 @@ type ImportEntitlements = {
   maxTradesPerImport: number;
   plan: "free" | "pro";
 };
-type ProjectXCredentials = {
-  userName: string;
-  apiKey: string;
-};
 type RithmicCredentials = {
   username: string;
   password: string;
@@ -32,8 +28,6 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
   const [fileName, setFileName] = useState("");
   const [brokerBusy, setBrokerBusy] = useState(false);
   const [syncBusy, setSyncBusy] = useState(false);
-  const [projectXBusy, setProjectXBusy] = useState(false);
-  const [projectXSyncBusy, setProjectXSyncBusy] = useState(false);
   const [rithmicBusy, setRithmicBusy] = useState(false);
   const [rithmicCapability, setRithmicCapability] = useState({ available: false, checked: false });
   const [brokerNotice, setBrokerNotice] = useState("");
@@ -97,81 +91,6 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
       setBrokerNotice(`${error instanceof Error ? error.message : "Tradovate sync is unavailable right now."} Upload a CSV export instead and Cova will review the account the same way.`);
     } finally {
       setSyncBusy(false);
-    }
-  }
-
-  async function connectProjectX(credentials: ProjectXCredentials) {
-    setProjectXBusy(true);
-    setBrokerNotice("");
-    try {
-      const response = await authorizedFetch("/api/projectx/connect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(credentials),
-      });
-      const contentType = response.headers.get("content-type") ?? "";
-      if (!contentType.includes("application/json")) {
-        throw new Error("TopstepX connector backend is not running. Use Vercel dev or deploy Cova before testing the real connector.");
-      }
-      const data = await response.json() as Partial<BrokerStatus> & { error?: string; verified?: boolean; accounts?: unknown[] };
-      if (!response.ok) {
-        throw new Error(data.error || "TopstepX could not validate those credentials.");
-      }
-
-      const nextStatus: BrokerStatus = {
-        provider: "TopstepX",
-        status: data.connected ? "connected" : (data.status as BrokerStatus["status"] || "needs-storage"),
-        connected: Boolean(data.connected),
-        connectionId: data.connectionId,
-        message: data.message || (data.connected ? "TopstepX connected. Cova will only request account and trade-history endpoints." : "TopstepX validated the key, but secure storage is not configured yet."),
-        updatedAt: new Date().toISOString(),
-      };
-      writeBrokerStatus(nextStatus);
-      setBrokerStatus(nextStatus);
-      setBrokerNotice(nextStatus.message);
-      if (nextStatus.connected) {
-        void syncProjectX();
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "TopstepX connect is unavailable right now.";
-      const nextStatus: BrokerStatus = {
-        provider: "TopstepX",
-        status: "api-unavailable",
-        connected: false,
-        message,
-        updatedAt: new Date().toISOString(),
-      };
-      setBrokerStatus(nextStatus);
-      setBrokerNotice(`${message} You can still use the TopstepX export guide below today.`);
-    } finally {
-      setProjectXBusy(false);
-    }
-  }
-
-  async function syncProjectX() {
-    setProjectXSyncBusy(true);
-    setBrokerNotice("");
-    try {
-      const response = await authorizedFetch("/api/projectx/sync");
-      const contentType = response.headers.get("content-type") ?? "";
-      if (!contentType.includes("application/json")) {
-        throw new Error("TopstepX sync backend is not reachable from this preview.");
-      }
-      const data = await response.json() as { csv?: string; trades?: unknown[]; counts?: { trades?: number; rawTrades?: number }; error?: string; account?: { name?: string } };
-      if (!response.ok) {
-        throw new Error(data.error || "TopstepX sync failed.");
-      }
-      const tradeCount = data.counts?.trades ?? data.trades?.length ?? 0;
-      if (!data.csv || tradeCount <= 0) {
-        setBrokerNotice("TopstepX connected, but no trade history came back for the selected account yet.");
-        return;
-      }
-      setBrokerNotice(`Synced ${tradeCount} TopstepX trade${tradeCount === 1 ? "" : "s"}${data.account?.name ? ` from ${data.account.name}` : ""}.`);
-      importCsv(data.csv, "replace");
-    } catch (error) {
-      setBrokerNotice(`${error instanceof Error ? error.message : "TopstepX sync is unavailable right now."} Use the export guide below if you need to import today.`);
-    } finally {
-      setProjectXSyncBusy(false);
     }
   }
 
@@ -255,7 +174,7 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
     if (!brokerStatus?.connected) {
       return;
     }
-    const provider = brokerStatus.provider === "Tradovate" ? "tradovate" : "projectx";
+    const provider = brokerStatus?.provider === "Tradovate" ? "tradovate" : "all";
     setBrokerBusy(true);
     setBrokerNotice("");
     try {
@@ -328,12 +247,9 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
           canRedirectToTradovate={canRedirectToTradovate}
           brokerStatus={brokerStatus}
           checkTradovateStatus={checkTradovateStatus}
-          connectProjectX={connectProjectX}
           disconnectBroker={disconnectBroker}
           entitlements={entitlements}
           openFirmOAuth={openFirmOAuth}
-          projectXBusy={projectXBusy}
-          projectXSyncBusy={projectXSyncBusy}
           rithmicAvailable={rithmicCapability.available}
           rithmicBusy={rithmicBusy}
           rithmicStatusChecked={rithmicCapability.checked}
@@ -342,7 +258,6 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
           setSelectedFirmId={setSelectedFirmId}
           startTradovateConnect={startTradovateConnect}
           syncBusy={syncBusy}
-          syncProjectX={syncProjectX}
           syncRithmic={syncRithmic}
           syncTradovate={syncTradovate}
           upgradeToPro={upgradeToPro}

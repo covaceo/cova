@@ -1,6 +1,6 @@
 import { motion } from "motion/react";
 import { type FormEvent, useState } from "react";
-import { ArrowUpRight, BadgeCheck, ChevronDown, CircleDot, ClipboardCheck, FileUp, Gauge, LockKeyhole, SlidersHorizontal, Upload } from "lucide-react";
+import { ArrowUpRight, ChevronDown, CircleDot, ClipboardCheck, FileUp, SlidersHorizontal, Upload } from "lucide-react";
 import { type CsvParseResult, formatMoney } from "../lib/risk";
 import { buildFirmConnectUrl, canRedirectToFirmProvider, csvExportGuides, propFirmOptions, type PropFirmId } from "../lib/propFirms";
 import { GlassButton } from "./GlassButton";
@@ -23,10 +23,6 @@ type BrokerStatus = {
   updatedAt: string;
 };
 type CredentialText = `${string}`;
-type ProjectXCredentials = {
-  userName: string;
-  apiKey: CredentialText;
-};
 type RithmicCredentials = {
   username: string;
   password: CredentialText;
@@ -39,7 +35,7 @@ type RithmicSyncResult = {
 };
 
 const providerStatus: Record<PropFirmId, string> = {
-  topstepx: "Beta",
+  topstepx: "CSV",
   apex: "CSV",
   myfundedfutures: "CSV",
   tradeify: "CSV",
@@ -298,12 +294,9 @@ export function BrokerConnectPanel({
   brokerStatus,
   canRedirectToTradovate,
   checkTradovateStatus,
-  connectProjectX,
   disconnectBroker,
   entitlements,
   openFirmOAuth,
-  projectXBusy,
-  projectXSyncBusy,
   rithmicAvailable,
   rithmicBusy,
   rithmicStatusChecked,
@@ -312,7 +305,6 @@ export function BrokerConnectPanel({
   setSelectedFirmId,
   startTradovateConnect,
   syncBusy,
-  syncProjectX,
   syncRithmic,
   syncTradovate,
   upgradeToPro,
@@ -322,12 +314,9 @@ export function BrokerConnectPanel({
   brokerStatus: BrokerStatus | null;
   canRedirectToTradovate: () => boolean;
   checkTradovateStatus: () => void;
-  connectProjectX: (credentials: ProjectXCredentials) => Promise<void> | void;
   disconnectBroker: () => Promise<void> | void;
   entitlements: ImportEntitlements;
   openFirmOAuth: (firm: PropFirmId) => void;
-  projectXBusy: boolean;
-  projectXSyncBusy: boolean;
   rithmicAvailable: boolean;
   rithmicBusy: boolean;
   rithmicStatusChecked: boolean;
@@ -336,17 +325,13 @@ export function BrokerConnectPanel({
   setSelectedFirmId: (firm: PropFirmId) => void;
   startTradovateConnect: () => void;
   syncBusy: boolean;
-  syncProjectX: () => Promise<void> | void;
   syncRithmic: (credentials: RithmicCredentials) => Promise<RithmicSyncResult | void> | RithmicSyncResult | void;
   syncTradovate: () => void;
   upgradeToPro: () => void;
 }) {
   const connected = Boolean(brokerStatus?.connected);
   const selectedFirm = propFirmOptions.find((firm) => firm.id === selectedFirmId) ?? propFirmOptions[0];
-  const isTopstepX = selectedFirm.id === "topstepx";
-  const selectedProviderName = isTopstepX ? "TopstepX" : selectedFirm.name;
-  const selectedConnected = connected && brokerStatus?.provider === selectedProviderName;
-  const [projectXCredentials, setProjectXCredentials] = useState<ProjectXCredentials>({ userName: "", apiKey: "" });
+  const selectedConnected = connected && brokerStatus?.provider === selectedFirm.name;
   const [rithmicCredentials, setRithmicCredentials] = useState<RithmicCredentials>({ username: "", password: "", lookbackDays: 90 });
   const [rithmicAccounts, setRithmicAccounts] = useState<{ accountKey?: string; accountId?: string; accountName?: string }[]>([]);
 
@@ -364,13 +349,14 @@ export function BrokerConnectPanel({
       return;
     }
 
-    if (!entitlements.canUseDirectSync) {
-      setBrokerNotice(`${firm.name}: direct account sync is a Pro feature. Use the CSV export path on Free.`);
+    if (firm.status === "guided") {
+      document.querySelector("[data-export-guide]")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      setBrokerNotice(firm.connectNotice);
       return;
     }
 
-    if (firm.id === "topstepx") {
-      document.querySelector("[data-projectx-connect]")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (!entitlements.canUseDirectSync) {
+      setBrokerNotice(`${firm.name}: direct account sync is a Pro feature. Use the CSV export path on Free.`);
       return;
     }
 
@@ -398,23 +384,12 @@ export function BrokerConnectPanel({
 
   function useCsvLane() {
     document.querySelector("[data-csv-import]")?.scrollIntoView({ behavior: "smooth", block: "center" });
-    setBrokerNotice(`${selectedFirm.name}: upload your trade export below. CSV is the default path while direct sync stays beta or unavailable.`);
+    setBrokerNotice(`${selectedFirm.name}: upload your trade export below. CSV is the supported path unless Cova explicitly shows an active connector.`);
   }
 
   function showExportGuide() {
     document.querySelector("[data-export-guide]")?.scrollIntoView({ behavior: "smooth", block: "center" });
     setBrokerNotice(`${selectedFirm.name}: use the export guide below to find the cleanest trade file for Cova.`);
-  }
-
-  function submitProjectX(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!entitlements.canUseDirectSync) {
-      setBrokerNotice("TopstepX direct sync is a Pro feature. Use CSV import on Free.");
-      return;
-    }
-    const credentials = { ...projectXCredentials };
-    setProjectXCredentials((current) => ({ ...current, apiKey: "" }));
-    void connectProjectX(credentials);
   }
 
   async function submitRithmic(event: FormEvent<HTMLFormElement>) {
@@ -475,75 +450,6 @@ export function BrokerConnectPanel({
           );
         })}
       </div>
-
-      {isTopstepX && entitlements.canUseDirectSync && (
-        <form
-          className="projectx-ledger mt-6 border border-emerald-200/14 bg-[linear-gradient(135deg,rgba(24,200,135,0.11),rgba(0,0,0,0.22)_44%,rgba(59,130,246,0.08))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
-          data-projectx-connect
-          onSubmit={submitProjectX}
-        >
-          <div className="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-end">
-            <div>
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="rounded-full border border-emerald-200/16 bg-emerald-300/8 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-[#b9f5df]">Beta connector</span>
-                <span className="rounded-full border border-white/10 bg-black/28 px-3 py-1.5 font-body text-xs text-white/48">No password required</span>
-              </div>
-              <h4 className="mt-4 font-body text-2xl font-semibold tracking-[-0.03em] text-white">Test TopstepX through ProjectX.</h4>
-              <p className="mt-2 max-w-2xl font-body text-sm leading-relaxed text-white/56">
-                CSV upload is the default path today. If you test the beta connector, Cova validates the API key on the backend, discards the raw key after authentication, and only calls account and trade-history endpoints.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-3 lg:justify-end">
-              {entitlements.canUseDirectSync && selectedFirm.id === "topstepx" && selectedConnected && (
-                <GlassButton onClick={syncProjectX}>{projectXSyncBusy ? "Syncing..." : "Sync TopstepX"}</GlassButton>
-              )}
-              <GlassButton onClick={showExportGuide}>Need export steps?</GlassButton>
-            </div>
-          </div>
-
-          <div className="mt-5 grid gap-3 md:grid-cols-[1fr_1fr_auto] md:items-end">
-            <label className="block">
-              <span className="font-body text-xs uppercase tracking-[0.18em] text-white/42">TopstepX username</span>
-              <input
-                autoComplete="username"
-                className="mt-2 h-12 w-full rounded-[16px] border border-white/10 bg-black/34 px-4 font-body text-sm text-white outline-none transition placeholder:text-white/24 focus:border-emerald-200/32 focus:bg-black/44"
-                onChange={(event) => setProjectXCredentials((current) => ({ ...current, userName: event.target.value }))}
-                placeholder="your@email.com"
-                type="text"
-                value={projectXCredentials.userName}
-              />
-            </label>
-            <label className="block">
-              <span className="font-body text-xs uppercase tracking-[0.18em] text-white/42">API key</span>
-              <input
-                autoComplete="off"
-                className="mt-2 h-12 w-full rounded-[16px] border border-white/10 bg-black/34 px-4 font-body text-sm text-white outline-none transition placeholder:text-white/24 focus:border-emerald-200/32 focus:bg-black/44"
-                onChange={(event) => setProjectXCredentials((current) => ({ ...current, apiKey: event.target.value }))}
-                placeholder="Paste API key"
-                type="password"
-                value={projectXCredentials.apiKey}
-              />
-            </label>
-            <GlassButton strong type="submit">
-              {projectXBusy ? "Connecting..." : "Connect"} <ArrowUpRight className="h-4 w-4" />
-            </GlassButton>
-          </div>
-
-          <div className="mt-4 grid gap-3 md:grid-cols-3">
-            {[
-              { icon: LockKeyhole, label: "No order calls", text: "Cova's endpoint allowlist excludes order placement, changes, and cancellation." },
-              { icon: BadgeCheck, label: "Encrypted", text: "The session token is encrypted before it is stored." },
-              { icon: Gauge, label: "Provider scope", text: "The provider token may carry broader permissions. Revoke it at the provider when finished." },
-            ].map(({ icon: Icon, label, text }) => (
-              <div className="source-security-row p-3" key={label}>
-                <Icon className="h-4 w-4 text-[#18c887]" />
-                <p className="mt-2 font-body text-xs font-medium text-white/78">{label}</p>
-                <p className="mt-1 font-body text-[11px] leading-relaxed text-white/42">{text}</p>
-              </div>
-            ))}
-          </div>
-        </form>
-      )}
 
       {selectedFirm.id === "rithmic" && entitlements.canUseDirectSync && (!rithmicStatusChecked || !rithmicAvailable) && (
         <div className="mt-6 rounded-[24px] border border-white/12 bg-white/[0.025] p-5" data-rithmic-unavailable>
@@ -646,7 +552,7 @@ export function BrokerConnectPanel({
             {selectedFirm.connectLabel} <ArrowUpRight className="h-4 w-4" />
           </GlassButton>
           {selectedFirm.id !== "other" && <GlassButton onClick={showExportGuide}>Export CSV</GlassButton>}
-          {!entitlements.canUseDirectSync && selectedFirm.id !== "other" && <GlassButton onClick={upgradeToPro}>Unlock sync</GlassButton>}
+          {!entitlements.canUseDirectSync && selectedFirm.status !== "guided" && selectedFirm.id !== "other" && <GlassButton onClick={upgradeToPro}>Unlock sync</GlassButton>}
           {entitlements.canUseDirectSync && selectedFirm.id === "tradovate" && (
             <GlassButton onClick={checkTradovateStatus}>{brokerBusy ? "Checking..." : "Check status"}</GlassButton>
           )}
