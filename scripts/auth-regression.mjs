@@ -467,6 +467,56 @@ test("Tradovate status recovers the authenticated owner's durable connection whe
   }
 });
 
+test("Tradovate status keeps a retained owner connection revocable while provider configuration is incomplete", async () => {
+  const restoreTradovateEnv = installCompleteTradovateEnvironment();
+  delete process.env.TRADOVATE_CLIENT_SECRET;
+  const priorFetch = global.fetch;
+  const priorUrl = process.env.SUPABASE_URL;
+  const priorKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  process.env.SUPABASE_URL = "https://cova-auth.example";
+  process.env.SUPABASE_SERVICE_ROLE_KEY = "fixture-service-role";
+  global.fetch = async (url) => {
+    const requestUrl = String(url);
+    if (requestUrl.endsWith("/auth/v1/user")) {
+      return new Response(JSON.stringify({ id: "owner-1", email: "owner@example.com", app_metadata: {} }), { status: 200 });
+    }
+    if (requestUrl.includes("/rest/v1/broker_connections")) {
+      return new Response(JSON.stringify([{
+        id: "retained-connection-1",
+        provider: "tradovate",
+        status: "connected",
+        expires_at: "2099-08-08T00:00:00.000Z",
+        access_token_encrypted: "must-not-return",
+      }]), { status: 200 });
+    }
+    throw new Error(`unexpected unavailable status call ${requestUrl}`);
+  };
+  try {
+    const { default: handler } = await import(`../api/connectors/status.js?unavailable-retained=${Date.now()}`);
+    const response = responseHarness();
+    await handler({
+      method: "GET",
+      query: { provider: "tradovate" },
+      headers: { authorization: "Bearer owner-token", cookie: "" },
+    }, response);
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.body, {
+      available: false,
+      connected: true,
+      provider: "Tradovate",
+      status: "configuration-unavailable",
+      expiresAt: "2099-08-08T00:00:00.000Z",
+    });
+    assert.match(String(response.headers["Set-Cookie"] || ""), /^cova_tradovate_connection=retained-connection-1;/);
+    assert.doesNotMatch(JSON.stringify(response.body), /access_token|must-not-return/i);
+  } finally {
+    restoreTradovateEnv();
+    global.fetch = priorFetch;
+    if (priorUrl === undefined) delete process.env.SUPABASE_URL; else process.env.SUPABASE_URL = priorUrl;
+    if (priorKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY; else process.env.SUPABASE_SERVICE_ROLE_KEY = priorKey;
+  }
+});
+
 test("browser signup confirms policy only after Supabase authenticates the member", () => {
   const authPanels = read("src", "components", "AuthPanels.tsx");
   const app = read("src", "App.tsx");

@@ -38,10 +38,11 @@ test("the environment template names every Tradovate capability dependency", () 
   }
 });
 
-test("Tradovate status fails closed without a complete server environment", () => {
+test("Tradovate status fails closed without hiding a retained owner connection", () => {
   assert.match(statusSource, /import \{ tradovateEnvironmentReady \} from "\.\.\/_lib\/tradovate-capability\.js"/);
-  assert.match(statusSource, /if \(!tradovateEnvironmentReady\(\)\)[\s\S]*available: false[\s\S]*connected: false/);
-  assert.match(statusSource, /available: true/);
+  assert.match(statusSource, /const available = tradovateEnvironmentReady\(\)/);
+  assert.match(statusSource, /available,[\s\S]*connected: true[\s\S]*configuration-unavailable/);
+  assert.match(statusSource, /available,[\s\S]*connected: false[\s\S]*unavailable/);
 });
 
 test("Tradovate connect refuses partial server configuration", () => {
@@ -51,9 +52,11 @@ test("Tradovate connect refuses partial server configuration", () => {
 
 test("Trade History discovers Tradovate capability before offering direct connect", () => {
   assert.match(importDeskSource, /const \[tradovateCapability, setTradovateCapability\] = useState\(\{ available: false, checked: false \}\)/);
-  assert.match(importDeskSource, /authorizedFetch\("\/api\/tradovate\/status"\)[\s\S]*available: data\?\.available === true, checked: true/);
+  assert.match(importDeskSource, /authorizedFetch\("\/api\/tradovate\/status"\)[\s\S]*available: response\.ok && data\?\.available === true, checked: true/);
   assert.match(importDeskSource, /tradovateAvailable=\{tradovateCapability\.available\}/);
   assert.match(importDeskSource, /tradovateStatusChecked=\{tradovateCapability\.checked\}/);
+  assert.match(importDeskSource, /data\?\.connected === true[\s\S]*writeBrokerStatus\(nextStatus\)/);
+  assert.match(importPanelsSource, /const selectedConnected = connected && brokerStatus\?\.provider === selectedFirm\.name/);
   assert.match(importPanelsSource, /data-tradovate-unavailable/);
   assert.match(importPanelsSource, /tradovateStatusChecked && !tradovateAvailable[\s\S]*Use CSV/);
   assert.match(importPanelsSource, /selectedFirm\.id === "tradovate"[\s\S]*!tradovateAvailable[\s\S]*CSV import remains available/);

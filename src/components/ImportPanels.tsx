@@ -335,9 +335,7 @@ export function BrokerConnectPanel({
 }) {
   const connected = Boolean(brokerStatus?.connected);
   const selectedFirm = propFirmOptions.find((firm) => firm.id === selectedFirmId) ?? propFirmOptions[0];
-  const selectedConnected = connected
-    && brokerStatus?.provider === selectedFirm.name
-    && (selectedFirm.id !== "tradovate" || tradovateAvailable);
+  const selectedConnected = connected && brokerStatus?.provider === selectedFirm.name;
   const tradovateUnavailable = selectedFirm.id === "tradovate"
     && entitlements.canUseDirectSync
     && tradovateStatusChecked && !tradovateAvailable;
