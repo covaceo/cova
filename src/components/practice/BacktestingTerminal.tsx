@@ -17,7 +17,7 @@ import {
   Target,
   X,
 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import type {
   PracticeAccount,
   PracticeAccountLimitStatus,
@@ -30,7 +30,7 @@ import type {
 } from "../../lib/backtesting";
 import { formatMoney, formatPercent } from "../../lib/risk";
 
-type DeskTab = "positions" | "orders" | "trades" | "review";
+export type DeskTab = "positions" | "orders" | "trades" | "review";
 
 type BacktestingTerminalProps = {
   account: PracticeAccount | null;
@@ -39,12 +39,14 @@ type BacktestingTerminalProps = {
   analysis: PracticeAnalysis;
   chart: ReactNode;
   currentCandle: ReplayCandle;
+  deskTab: DeskTab;
   limitStatus: PracticeAccountLimitStatus;
   mistake: string;
   onBackHour: () => void;
   onBuy: () => void;
   onChangeAccount: () => void;
   onClosePosition: () => void;
+  onDeskTabChange: (tab: DeskTab) => void;
   onMistakeChange: (value: string) => void;
   onPlayToggle: () => void;
   onQuantityChange: (quantity: number) => void;
@@ -77,12 +79,14 @@ export function BacktestingTerminal({
   analysis,
   chart,
   currentCandle,
+  deskTab,
   limitStatus,
   mistake,
   onBackHour,
   onBuy,
   onChangeAccount,
   onClosePosition,
+  onDeskTabChange,
   onMistakeChange,
   onPlayToggle,
   onQuantityChange,
@@ -100,7 +104,6 @@ export function BacktestingTerminal({
   rulesFollowed,
   visibleCandles,
 }: BacktestingTerminalProps) {
-  const [deskTab, setDeskTab] = useState<DeskTab>("positions");
   const canOpen = Boolean(account) && !position && limitStatus.canOpenNewPosition;
   const dailyLossRemaining = Math.max(0, account ? account.maxDailyLoss + Math.min(0, limitStatus.dailyPnl) : 0);
   const drawdownRemaining = Math.max(0, account ? account.maxDrawdown - accountStats.maxDrawdown : 0);
@@ -268,7 +271,7 @@ export function BacktestingTerminal({
       <section className="backtesting-bottom-desk">
         <nav aria-label="Backtesting evidence desk">
           {deskTabs.map((tab) => (
-            <button aria-selected={deskTab === tab.id} className={deskTab === tab.id ? "is-active" : ""} key={tab.id} onClick={() => setDeskTab(tab.id)} type="button">{tab.label}</button>
+            <button aria-selected={deskTab === tab.id} className={deskTab === tab.id ? "is-active" : ""} key={tab.id} onClick={() => onDeskTabChange(tab.id)} type="button">{tab.label}</button>
           ))}
         </nav>
         <div className="backtesting-desk-content">

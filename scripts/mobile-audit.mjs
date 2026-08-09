@@ -14,7 +14,14 @@ const routes = [
   { name: "pricing", hash: "pricing", needsAuth: false, requiredText: ["MOST CHOSEN BY ACTIVE TRADERS", "Cova Pro"] },
   { name: "import", hash: "import", needsAuth: true, requiredText: ["Upload CSV first", "TopstepX export", "CSV guide"] },
   { name: "insights", hash: "coach", needsAuth: true, requiredText: ["Current risk review", "Review note"] },
-  { name: "practice", hash: "practice", needsAuth: true, requiredText: ["Build the replay account first.", "Set practice account", "Enter replay simulator"] },
+  {
+    name: "practice",
+    hash: "practice",
+    needsAuth: true,
+    requiredText: viewportWidth < 1024
+      ? ["Practice is built for desktop", "Back to risk desk"]
+      : ["Build the replay account first.", "Set practice account", "Enter replay simulator"],
+  },
   { name: "passport", hash: "passport", needsAuth: true, requiredText: ["Sample review · demo data", "Feed 4:5", "Review receipt"] },
 ];
 const selectedRouteNames = new Set((process.env.COVA_ROUTES ?? "").split(",").map((name) => name.trim()).filter(Boolean));
@@ -222,8 +229,10 @@ async function main() {
       let practiceOutcome = null;
       let practiceScreenshot = null;
       if (route.name === "practice") {
-        await cdp.send("Runtime.evaluate", { expression: `document.querySelector('.practice-setup-card')?.requestSubmit();` });
-        await sleep(1200);
+        if (viewportWidth >= 1024) {
+          await cdp.send("Runtime.evaluate", { expression: `document.querySelector('.practice-setup-card')?.requestSubmit();` });
+          await sleep(1200);
+        }
         const practiceResult = await cdp.send("Runtime.evaluate", {
           returnByValue: true,
           expression: `(() => {
@@ -232,6 +241,7 @@ async function main() {
             const terminal = document.querySelector('.backtesting-terminal');
             const chart = document.querySelector('.backtesting-chart-viewport');
             const orderRail = document.querySelector('.backtesting-order-rail');
+            const availabilityGate = document.querySelector('.practice-availability-gate');
             const inspectVisibility = (element) => {
               if (!element) return { present: false, rendered: false, inViewport: false, rect: null };
               const style = getComputedStyle(element);
@@ -258,6 +268,7 @@ async function main() {
               orderRailState,
               orderTicketPresent: orderRail?.innerText.toLowerCase().includes('order ticket') ?? false,
               practiceLimitsPresent: orderRail?.innerText.toLowerCase().includes('within practice limits') ?? false,
+              availabilityGateVisible: inspectVisibility(availabilityGate).inViewport,
               documentOverflow: root.scrollWidth - root.clientWidth,
               commandOverflow: command ? command.scrollWidth - command.clientWidth : null,
               commandOverflowX: command ? getComputedStyle(command).overflowX : null,
@@ -265,6 +276,74 @@ async function main() {
           })()`,
         });
         practiceOutcome = practiceResult.result.value;
+        if (viewportWidth < 1024) {
+          await cdp.send("Emulation.setDeviceMetricsOverride", {
+            width: 1440,
+            height: 900,
+            deviceScaleFactor: 1,
+            mobile: false,
+            screenWidth: 1440,
+            screenHeight: 900,
+          });
+          await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: false });
+          await sleep(500);
+          const desktopBoundary = await cdp.send("Runtime.evaluate", {
+            returnByValue: true,
+            expression: `({ gate: Boolean(document.querySelector('.practice-availability-gate')), terminal: Boolean(document.querySelector('.backtesting-terminal')), setupOpen: Boolean(document.querySelector('.practice-setup-modal')) })`,
+          });
+          await cdp.send("Runtime.evaluate", {
+            expression: `(() => { const button = [...document.querySelectorAll('.backtesting-bottom-desk nav button')].find((item) => item.textContent?.trim() === 'Trades'); button?.click(); })()`,
+          });
+          await sleep(100);
+          const selectedDeskBeforeGate = await cdp.send("Runtime.evaluate", {
+            returnByValue: true,
+            expression: `document.querySelector('.backtesting-bottom-desk nav button[aria-selected="true"]')?.textContent?.trim() ?? null`,
+          });
+          await cdp.send("Emulation.setDeviceMetricsOverride", {
+            width: viewportWidth,
+            height: viewportHeight,
+            deviceScaleFactor: 2,
+            mobile: true,
+            screenWidth: viewportWidth,
+            screenHeight: viewportHeight,
+          });
+          await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: true });
+          await sleep(500);
+          const mobileBoundary = await cdp.send("Runtime.evaluate", {
+            returnByValue: true,
+            expression: `({ gate: Boolean(document.querySelector('.practice-availability-gate')), terminal: Boolean(document.querySelector('.backtesting-terminal')), setupOpen: Boolean(document.querySelector('.practice-setup-modal')) })`,
+          });
+          await cdp.send("Emulation.setDeviceMetricsOverride", {
+            width: 1440,
+            height: 900,
+            deviceScaleFactor: 1,
+            mobile: false,
+            screenWidth: 1440,
+            screenHeight: 900,
+          });
+          await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: false });
+          await sleep(500);
+          const restoredDesk = await cdp.send("Runtime.evaluate", {
+            returnByValue: true,
+            expression: `({ gate: Boolean(document.querySelector('.practice-availability-gate')), terminal: Boolean(document.querySelector('.backtesting-terminal')), selectedDesk: document.querySelector('.backtesting-bottom-desk nav button[aria-selected="true"]')?.textContent?.trim() ?? null })`,
+          });
+          await cdp.send("Emulation.setDeviceMetricsOverride", {
+            width: viewportWidth,
+            height: viewportHeight,
+            deviceScaleFactor: 2,
+            mobile: true,
+            screenWidth: viewportWidth,
+            screenHeight: viewportHeight,
+          });
+          await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: true });
+          await sleep(500);
+          practiceOutcome.boundaryTransition = {
+            desktop: desktopBoundary.result.value,
+            selectedDeskBeforeGate: selectedDeskBeforeGate.result.value,
+            mobile: mobileBoundary.result.value,
+            desktopRestored: restoredDesk.result.value,
+          };
+        }
         const practiceCapture = await cdp.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false, fromSurface: true });
         practiceScreenshot = join(outDir, `${route.name}-terminal-${viewportWidth}x${viewportHeight}.png`);
         await writeFile(practiceScreenshot, Buffer.from(practiceCapture.data, "base64"));
@@ -381,7 +460,20 @@ async function main() {
       ...(result.name === "overview-auth" && (result.footerPrimaryOutcome?.hasAuthDialog || result.footerPrimaryOutcome?.hash !== "#dashboard") ? ["overview-auth: signed-in footer primary did not open dashboard"] : []),
       ...(result.name === "overview-auth" && result.footer?.secondaryText !== "Open Risk Passport" ? ["overview-auth: signed-in footer Passport label mismatch"] : []),
       ...(result.name === "overview-auth" && (result.footerSecondaryOutcome?.hasAuthDialog || result.footerSecondaryOutcome?.hash !== "#passport") ? ["overview-auth: signed-in footer Passport action did not open Passport"] : []),
-      ...(result.name === "practice" && (!result.practiceOutcome || result.practiceOutcome.setupOpen || !result.practiceOutcome.terminalVisible || !result.practiceOutcome.chartVisible || !result.practiceOutcome.orderRailVisible || !result.practiceOutcome.orderTicketPresent || !result.practiceOutcome.practiceLimitsPresent) ? ["practice: simulator terminal did not open completely after setup"] : []),
+      ...(result.name === "practice" && viewportWidth >= 1024 && (!result.practiceOutcome || result.practiceOutcome.setupOpen || !result.practiceOutcome.terminalVisible || !result.practiceOutcome.chartVisible || !result.practiceOutcome.orderRailVisible || !result.practiceOutcome.orderTicketPresent || !result.practiceOutcome.practiceLimitsPresent) ? ["practice: desktop simulator terminal did not open completely after setup"] : []),
+      ...(result.name === "practice" && viewportWidth < 1024 && (!result.practiceOutcome?.availabilityGateVisible || result.practiceOutcome.terminalState?.present || result.practiceOutcome.chartState?.present || result.practiceOutcome.orderRailState?.present || result.practiceOutcome.setupOpen) ? ["practice: unsupported device did not receive the exclusive availability gate"] : []),
+      ...(result.name === "practice" && viewportWidth < 1024 && (
+        result.practiceOutcome?.boundaryTransition?.desktop?.gate !== false ||
+        result.practiceOutcome?.boundaryTransition?.desktop?.terminal !== true ||
+        result.practiceOutcome?.boundaryTransition?.desktop?.setupOpen !== true ||
+        result.practiceOutcome?.boundaryTransition?.mobile?.gate !== true ||
+        result.practiceOutcome?.boundaryTransition?.mobile?.terminal !== false ||
+        result.practiceOutcome?.boundaryTransition?.mobile?.setupOpen !== false ||
+        result.practiceOutcome?.boundaryTransition?.selectedDeskBeforeGate !== "Trades" ||
+        result.practiceOutcome?.boundaryTransition?.desktopRestored?.gate !== false ||
+        result.practiceOutcome?.boundaryTransition?.desktopRestored?.terminal !== true ||
+        result.practiceOutcome?.boundaryTransition?.desktopRestored?.selectedDesk !== "Trades"
+      ) ? ["practice: capability round trip did not preserve setup and evidence-desk state while exclusively mounting the correct surface"] : []),
       ...(result.name === "practice" && (result.practiceOutcome?.documentOverflow ?? 0) > 1 ? [`practice: terminal introduced document overflow ${result.practiceOutcome.documentOverflow}px`] : []),
       ...(result.name === "practice" && viewportWidth < 768 && (result.practiceOutcome?.commandOverflow ?? 0) > 0 && result.practiceOutcome?.commandOverflowX !== "auto" ? ["practice: mobile command strip overflows without an intentional horizontal scroll owner"] : []),
       ...result.required.filter((check) => !check.present).map((check) => `${result.name}: missing “${check.text}”`),

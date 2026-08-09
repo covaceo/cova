@@ -46,7 +46,7 @@ import {
 import { removeScopedStorage, scopedStorageKey } from "../lib/storageScope";
 import { analyze, formatMoney, formatPercent, type RiskRule } from "../lib/risk";
 import { LightweightReplayChart } from "./practice/LightweightReplayChart";
-import { BacktestingTerminal } from "./practice/BacktestingTerminal";
+import { BacktestingTerminal, type DeskTab } from "./practice/BacktestingTerminal";
 import { GlassButton } from "./GlassButton";
 import { ImageAtmosphere, SectionShell } from "./LayoutShell";
 
@@ -322,6 +322,23 @@ type PracticeAccountDraft = {
 };
 
 const defaultPracticeDate = "2025-03-14";
+const PRACTICE_DESKTOP_CAPABILITY = "(min-width: 1024px) and (hover: hover) and (pointer: fine)";
+
+function usePracticeDesktopEligibility() {
+  const [eligible, setEligible] = useState(() => (
+    typeof window !== "undefined" && window.matchMedia(PRACTICE_DESKTOP_CAPABILITY).matches
+  ));
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia(PRACTICE_DESKTOP_CAPABILITY);
+    const updateEligibility = () => setEligible(mediaQuery.matches);
+    updateEligibility();
+    mediaQuery.addEventListener("change", updateEligibility);
+    return () => mediaQuery.removeEventListener("change", updateEligibility);
+  }, []);
+
+  return eligible;
+}
 
 const defaultPracticeAccountDraft = (): PracticeAccountDraft => ({
   accountSize: "50000",
@@ -336,6 +353,7 @@ const defaultPracticeAccountDraft = (): PracticeAccountDraft => ({
 });
 
 export function PracticeLab({ go, practiceReps, setPracticeReps }: { go: (section: Section) => void; practiceReps: PracticeRep[]; setPracticeReps: (next: PracticeRep[]) => void }) {
+  const desktopEligible = usePracticeDesktopEligibility();
   const [account, setAccount] = useState<PracticeAccount | null>(() => readPracticeAccount());
   const [simTrades, setSimTrades] = useState<PracticeTrade[]>(() => readPracticeTrades());
   const [setupOpen, setSetupOpen] = useState(() => !readPracticeAccount());
@@ -360,6 +378,7 @@ export function PracticeLab({ go, practiceReps, setPracticeReps }: { go: (sectio
   const [activeSetup, setActiveSetup] = useState(accountDraft.setup);
   const [rulesFollowed, setRulesFollowed] = useState<"yes" | "no">("yes");
   const [mistake, setMistake] = useState("");
+  const [deskTab, setDeskTab] = useState<DeskTab>("positions");
   const [orderQuantity, setOrderQuantity] = useState(() => readPracticeAccount()?.contracts ?? 1);
 
   const previewAccount = useMemo(() => createDefaultPracticeAccount({
@@ -447,7 +466,7 @@ export function PracticeLab({ go, practiceReps, setPracticeReps }: { go: (sectio
   }, [simTrades]);
 
   useEffect(() => {
-    if (!playing) return;
+    if (!desktopEligible || !playing) return;
     const timer = window.setInterval(() => {
       setPlayIndex((current) => {
         if (current >= replayTape.candles.length - 1) {
@@ -458,7 +477,7 @@ export function PracticeLab({ go, practiceReps, setPracticeReps }: { go: (sectio
       });
     }, 460);
     return () => window.clearInterval(timer);
-  }, [playing, replayTape.candles.length, replayTape.id]);
+  }, [desktopEligible, playing, replayTape.candles.length, replayTape.id]);
 
   useEffect(() => {
     setReplayRuntime((runtime) => runtime.tapeId === replayTape.id
@@ -557,6 +576,33 @@ export function PracticeLab({ go, practiceReps, setPracticeReps }: { go: (sectio
     setPlayIndex((current) => Math.max(earliestIndex, Math.min(replayTape.candles.length - 1, current + amount)));
   }
 
+  if (!desktopEligible) {
+    return (
+      <div className="backtesting-lab-shell">
+        <header className="backtesting-lab-topbar">
+          <button aria-label="Back to Cova risk desk" className="backtesting-lab-back" onClick={() => go("dashboard")} type="button">
+            <ArrowLeft className="h-4 w-4" />
+            <img src="/media/wordmark-options/cova-wordmark-option-3-sleek-cropped.png" alt="Cova" />
+          </button>
+          <div className="backtesting-lab-title">
+            <span>Practice environment</span>
+            <strong>Backtesting Lab</strong>
+          </div>
+        </header>
+        <main className="practice-availability-stage">
+          <section aria-labelledby="practice-availability-title" className="practice-availability-gate">
+            <CircleDot aria-hidden="true" className="practice-availability-mark" />
+            <h1 id="practice-availability-title">Practice is built for desktop.</h1>
+            <p>The Backtesting Lab needs a wide screen, keyboard, and precise pointer. Your other Cova routes stay available here.</p>
+            <button onClick={() => go("dashboard")} type="button">
+              Back to risk desk <ArrowUpRight className="h-4 w-4" />
+            </button>
+          </section>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="backtesting-lab-shell">
       <header className="backtesting-lab-topbar">
@@ -577,12 +623,14 @@ export function PracticeLab({ go, practiceReps, setPracticeReps }: { go: (sectio
           analysis={analysis}
           chart={<LightweightReplayChart key={replayTape.id} visibleCandles={visibleCandles} position={position} tape={replayTape} trades={simTrades} />}
           currentCandle={currentCandle}
+          deskTab={deskTab}
           limitStatus={limitStatus}
           mistake={mistake}
           onBackHour={() => stepReplay(-(60 / replayTape.dataSource.resolutionMinutes))}
           onBuy={() => openPracticePosition("Long")}
           onChangeAccount={() => setSetupOpen(true)}
           onClosePosition={closePracticePosition}
+          onDeskTabChange={setDeskTab}
           onMistakeChange={setMistake}
           onPlayToggle={() => setPlaying((current) => !current)}
           onQuantityChange={setOrderQuantity}
