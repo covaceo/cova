@@ -77,8 +77,19 @@ export async function saveBrokerConnection({
 }
 
 export async function saveTradovateConnection({ connectionId, tokenData, userId }) {
+  const expirationTime = Date.parse(String(tokenData?.expirationTime || ""));
   const expiresIn = Number(tokenData?.expires_in || tokenData?.expiration || 0);
-  const expiresAt = expiresIn > 0 ? new Date(Date.now() + expiresIn * 1000).toISOString() : null;
+  const expiresAt = Number.isFinite(expirationTime)
+    ? new Date(expirationTime).toISOString()
+    : Number.isFinite(expiresIn) && expiresIn > 0
+      ? new Date(Date.now() + expiresIn * 1000).toISOString()
+      : null;
+  if (!expiresAt) {
+    throw new Error("Tradovate returned a credential without a valid expiry.");
+  }
+  if (Date.parse(expiresAt) <= Date.now()) {
+    throw new Error("Tradovate returned an expired credential.");
+  }
   return saveBrokerConnection({
     connectionId,
     provider: "tradovate",
@@ -89,6 +100,13 @@ export async function saveTradovateConnection({ connectionId, tokenData, userId 
     expiresAt,
     userId,
   });
+}
+
+function connectionExpiryIsInvalid(connection, provider) {
+  if (!connection) return false;
+  if (!connection.expires_at) return provider === "tradovate";
+  const expiry = Date.parse(String(connection.expires_at));
+  return !Number.isFinite(expiry) || expiry <= Date.now();
 }
 
 export async function getBrokerConnection({ connectionId, provider, userId }) {
@@ -110,7 +128,7 @@ export async function getBrokerConnection({ connectionId, provider, userId }) {
   await requireSuccess(response, "Secure storage rejected the connection lookup");
   const rows = await response.json();
   const connection = rows?.[0] || null;
-  if (connection?.expires_at && new Date(connection.expires_at).getTime() <= Date.now()) {
+  if (connectionExpiryIsInvalid(connection, provider)) {
     await deleteBrokerConnection({ connectionId, provider, userId });
     return null;
   }
@@ -139,7 +157,7 @@ export async function getBrokerConnectionForUser({ provider, userId }) {
   await requireSuccess(response, "Secure storage rejected the owner connection lookup");
   const rows = await response.json();
   const connection = rows?.[0] || null;
-  if (connection?.expires_at && new Date(connection.expires_at).getTime() <= Date.now()) {
+  if (connectionExpiryIsInvalid(connection, provider)) {
     await deleteBrokerConnection({ connectionId: connection.id, provider, userId });
     return null;
   }

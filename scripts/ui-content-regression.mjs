@@ -5,6 +5,16 @@ import { fileURLToPath } from "node:url";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const read = (...parts) => readFileSync(join(root, ...parts), "utf8");
+const packageJson = JSON.parse(read("package.json"));
+const releaseBrowserPath = join(root, "scripts", "release-browser-regression.mjs");
+const ownedPreviewPath = join(root, "scripts", "owned-vite-preview.mjs");
+const authBrowserPath = join(root, "scripts", "auth-modal-browser-regression.mjs");
+assert.equal(existsSync(releaseBrowserPath), true, "The canonical browser release gate must be self-contained in the repository.");
+assert.equal(existsSync(ownedPreviewPath), true, "The canonical release gate must ship its owned Vite preview child.");
+assert.equal(existsSync(authBrowserPath), true, "The short-mobile AuthSheet browser regression must ship in the repository.");
+const releaseBrowser = existsSync(releaseBrowserPath) ? readFileSync(releaseBrowserPath, "utf8") : "";
+const ownedPreview = existsSync(ownedPreviewPath) ? readFileSync(ownedPreviewPath, "utf8") : "";
+const authBrowser = existsSync(authBrowserPath) ? readFileSync(authBrowserPath, "utf8") : "";
 
 const workspace = read("src", "components", "WorkspaceSections.tsx");
 const workspaceShell = read("src", "components", "WorkspaceShell.tsx");
@@ -46,6 +56,20 @@ const tempRegressionScripts = [
   read("scripts", "practice-datafeed-regression.mjs"),
 ];
 const practiceUi = `${workspace}\n${backtestingTerminal}`;
+
+assert.match(packageJson.scripts.test, /test:browser-release/, "The canonical test aggregate must run the compiled browser release gate.");
+assert.equal(packageJson.scripts["test:browser-release"], "npm run build && node scripts/release-browser-regression.mjs");
+assert.match(releaseBrowser, /spawn\([\s\S]*preview[\s\S]*COVA_VIEWPORT_WIDTH[\s\S]*mobile-audit\.mjs[\s\S]*auth-modal-browser-regression\.mjs[\s\S]*finally/, "The release browser gate must start preview, run mobile and AuthSheet audits, and always clean up.");
+assert.match(releaseBrowser, /spawn\([\s\S]*owned-vite-preview\.mjs[\s\S]*"ipc"[\s\S]*waitForOwnedPreview[\s\S]*owned-preview-ready/, "The release gate must require a ready IPC event from its own preview child.");
+assert.match(releaseBrowser, /type:\s*"shutdown"[\s\S]*waitForPortClosed/, "The release gate must shut down its owned child and verify that its port closes.");
+assert.match(ownedPreview, /preview\([\s\S]*port:\s*0[\s\S]*strictPort:\s*true/, "The owned preview child must use an OS-selected strict port.");
+assert.match(ownedPreview, /process\.send[\s\S]*owned-preview-ready/, "The owned preview child must report readiness through IPC.");
+assert.match(ownedPreview, /server\?\.close|server\.close/, "The owned preview child must support graceful shutdown.");
+for (const chromeHarness of [mobileAudit, authBrowser]) {
+  assert.match(chromeHarness, /--remote-debugging-port=0/, "Chrome QA must request an OS-selected CDP port.");
+  assert.match(chromeHarness, /DevToolsActivePort/, "Chrome QA must bind CDP through the spawned run's unique profile.");
+}
+assert.match(authBrowser, /width:\s*390,\s*height:\s*640[\s\S]*aria-label=.Close.[\s\S]*overlay\.scrollTop[\s\S]*background[\s\S]*allInert/, "The AuthSheet browser regression must verify short-phone close visibility, top scroll position, and background isolation.");
 
 for (const stalePath of [
   "app.js",
@@ -289,6 +313,8 @@ assert.match(workspace, /SAMPLE REVIEW · DEMO DATA/, "Sample Passport watermark
 assert.match(workspace, /Sample analysis · not account verification/, "Sample Passport proof copy must not claim account verification.");
 assert.doesNotMatch(workspace, /high-confidence review|pressure tested|zero-breach week/i, "Passport must not attach unsupported verification or time-window claims to user-supplied history.");
 assert.match(workspace, /USER-SUPPLIED DATA · NOT ACCOUNT VERIFIED/, "Imported Passport exports must disclose that source data is user supplied and not account verified.");
+assert.match(workspace, /function getPassportExportDisclosure[\s\S]*DEMO DATA · NOT ACCOUNT VERIFIED · LOCAL PNG · USER CONTROLLED[\s\S]*USER-SUPPLIED DATA · NOT ACCOUNT VERIFIED · LOCAL PNG · USER CONTROLLED/, "Passport needs one canonical lifecycle disclosure for sample and user-supplied exports.");
+assert.ok((workspace.match(/getPassportExportDisclosure\(isSampleReview\)/g) || []).length >= 3, "Passport card, composed PNG, and fallback export must use the same lifecycle disclosure.");
 assert.match(workspace, /PASSPORT_PREFERENCES_STORAGE_KEY/, "Implemented Passport preferences must have an owner-scoped persistence key matching the Privacy disclosure.");
 assert.doesNotMatch(workspace, /rank: "Blown"/, "Passport ranks should not shame a red account with a non-strategy tier.");
 assert.doesNotMatch(workspace, /passport-(?:tier|card-skin)-blown/, "Passport internals should use rebuild language for red Bronze states.");

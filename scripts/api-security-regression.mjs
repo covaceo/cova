@@ -3,7 +3,7 @@ import { requireAuthenticatedUser, requireProEntitlement } from "../api/_lib/aut
 import { createOAuthContext, verifyOAuthContext } from "../api/_lib/oauth-context.js";
 import { getAppOrigin, getTradovateRedirectUri } from "../api/_lib/urls.js";
 import { encryptSecret } from "../api/_lib/encryption.js";
-import { getBrokerConnection, saveBrokerConnection } from "../api/_lib/supabase.js";
+import { getBrokerConnection, getTradovateConnection, getTradovateConnectionForUser, saveBrokerConnection, saveTradovateConnection } from "../api/_lib/supabase.js";
 import disconnectConnector from "../api/connectors/disconnect.js";
 import logout from "../api/auth/logout.js";
 import deleteAccount from "../api/account/delete.js";
@@ -49,6 +49,36 @@ try {
   process.env.OAUTH_COOKIE_SECRET = "oauth-context-test-secret";
   process.env.APP_ORIGIN = "https://covadesk.com";
   process.env.TRADOVATE_REDIRECT_URI = "https://covadesk.com/api/tradovate/callback";
+
+  let expiredTokenStorageCalls = 0;
+  globalThis.fetch = async () => {
+    expiredTokenStorageCalls += 1;
+    throw new Error("Expired Tradovate credentials must be rejected before storage.");
+  };
+  await assert.rejects(
+    () => saveTradovateConnection({
+      connectionId: "expired-connection",
+      tokenData: { accessToken: "expired-token", expirationTime: "2000-01-01T00:00:00.000Z" },
+      userId: "pro-user",
+    }),
+    /expired/i,
+  );
+  assert.equal(expiredTokenStorageCalls, 0, "Expired Tradovate credentials must never reach durable storage.");
+
+  const invalidExpiryDeletes = [];
+  let invalidExpiryLookup = 0;
+  globalThis.fetch = async (url, options = {}) => {
+    const target = String(url);
+    if (options.method === "DELETE") {
+      invalidExpiryDeletes.push(target);
+      return new Response(null, { status: 204 });
+    }
+    invalidExpiryLookup += 1;
+    return new Response(JSON.stringify([{ id: invalidExpiryLookup === 1 ? "legacy-null" : "legacy-invalid", status: "connected", expires_at: invalidExpiryLookup === 1 ? null : "not-a-date", access_token_encrypted: "legacy-token" }]), { status: 200 });
+  };
+  assert.equal(await getTradovateConnection("legacy-null", "pro-user"), null, "A legacy Tradovate row without expiry must fail closed.");
+  assert.equal(await getTradovateConnectionForUser("pro-user"), null, "A Tradovate row with malformed expiry must fail closed.");
+  assert.equal(invalidExpiryDeletes.length, 2, "Invalid Tradovate expiry rows must be deleted through both lookup paths.");
 
   assert.throws(
     () => serializeTradovateSyncPayload({ provider: "Tradovate", csv: "x".repeat(2 * 1024 * 1024), trades: [] }),
@@ -280,6 +310,7 @@ try {
   assert.equal(storedConnection.user_id, "pro-user");
   assert.equal(storedConnection.provider, "tradovate");
   assert.equal(storedConnection.status, "connected");
+  assert.equal(storedConnection.expires_at, "2099-01-01T00:00:00.000Z", "Tradovate absolute expirationTime must persist as the durable credential expiry.");
   assert.ok(!JSON.stringify(storedConnection).includes("provider-access-token"), "Stored provider credentials must remain encrypted.");
   assert.equal(successfulCallbackCalls.length, 4, "Successful callback should verify entitlement and policy, exchange the code, and persist one connection.");
 
@@ -357,6 +388,366 @@ try {
   const oversizedRedisResults = [[1, 1], "OK", 1];
   const oversizedProviderSignals = [];
   const encryptedTradovateToken = encryptSecret("provider-access-token");
+  let ledgerProbeIndex = 0;
+  async function runTradovateLedgerProbe({ fills, fillPairs, contracts, positions, preservePairPrices = false }) {
+    const normalizedFillPairs = fillPairs.map((pair, index) => {
+      const buyFill = fills.find((fill) => String(fill.id) === String(pair.buyFillId));
+      const sellFill = fills.find((fill) => String(fill.id) === String(pair.sellFillId));
+      return {
+        ...pair,
+        positionId: pair.positionId ?? `position-${index + 1}`,
+        buyPrice: preservePairPrices ? pair.buyPrice : pair.buyPrice ?? buyFill?.price,
+        sellPrice: preservePairPrices ? pair.sellPrice : pair.sellPrice ?? sellFill?.price,
+      };
+    });
+    const normalizedPositions = positions ?? normalizedFillPairs.map((pair) => {
+      const buyFill = fills.find((fill) => String(fill.id) === String(pair.buyFillId));
+      return {
+        id: pair.positionId,
+        accountId: pair.accountId ?? "account-1",
+        contractId: buyFill?.contractId ?? "unresolved-contract",
+      };
+    });
+    const redisResults = [[1, 1], "OK", 1];
+    globalThis.fetch = async (url) => {
+      const target = String(url);
+      if (target.endsWith("/auth/v1/user")) return new Response(JSON.stringify({ id: "pro-user", app_metadata: { plan: "pro" } }), { status: 200 });
+      if (target.includes("/rest/v1/policy_acceptances?")) return new Response(JSON.stringify([{ id: "acceptance-1" }]), { status: 200 });
+      if (target === process.env.KV_REST_API_URL) return new Response(JSON.stringify({ result: redisResults.shift() }), { status: 200 });
+      if (target.includes("/rest/v1/broker_connections?")) return new Response(JSON.stringify([{ access_token_encrypted: encryptedTradovateToken, expires_at: "2099-01-01T00:00:00.000Z", provider_account_id: "account-1", status: "connected" }]), { status: 200 });
+      if (target.includes("tradovateapi.com/v1/fill/list")) return new Response(JSON.stringify(fills), { status: 200 });
+      if (target.includes("tradovateapi.com/v1/fillPair/list")) return new Response(JSON.stringify(normalizedFillPairs), { status: 200 });
+      if (target.includes("tradovateapi.com/v1/position/list")) return new Response(JSON.stringify(normalizedPositions), { status: 200 });
+      if (target.includes("tradovateapi.com/v1/contract/item")) {
+        const id = new URL(target).searchParams.get("id");
+        return new Response(JSON.stringify(contracts[String(id)]), { status: 200 });
+      }
+      throw new Error(`Unexpected ledger-probe request ${target}`);
+    };
+    ledgerProbeIndex += 1;
+    const response = responseMock();
+    await tradovateSync({
+      method: "GET",
+      headers: {
+        authorization: "Bearer pro-token",
+        cookie: "cova_tradovate_connection=fixture-connection",
+        "x-forwarded-for": `203.0.113.${20 + ledgerProbeIndex}`,
+      },
+      query: {},
+    }, response);
+    return response;
+  }
+
+  const providerErrorRedisResults = [[1, 1], "OK", 1];
+  const providerDiagnostic = "SENTINEL provider diagnostic detail";
+  globalThis.fetch = async (url) => {
+    const target = String(url);
+    if (target.endsWith("/auth/v1/user")) return new Response(JSON.stringify({ id: "pro-user", app_metadata: { plan: "pro" } }), { status: 200 });
+    if (target.includes("/rest/v1/policy_acceptances?")) return new Response(JSON.stringify([{ id: "acceptance-1" }]), { status: 200 });
+    if (target === process.env.KV_REST_API_URL) return new Response(JSON.stringify({ result: providerErrorRedisResults.shift() }), { status: 200 });
+    if (target.includes("/rest/v1/broker_connections?")) return new Response(JSON.stringify([{ access_token_encrypted: encryptedTradovateToken, expires_at: "2099-01-01T00:00:00.000Z", status: "connected" }]), { status: 200 });
+    if (target.includes("tradovateapi.com/v1/fill/list")) return new Response(JSON.stringify({ error_description: providerDiagnostic }), { status: 400 });
+    if (target.includes("tradovateapi.com/v1/position/list")) return new Response("[]", { status: 200 });
+    if (target.includes("tradovateapi.com/v1/fillPair/list")) return new Response("[]", { status: 200 });
+    throw new Error(`Unexpected provider-diagnostic request ${target}`);
+  };
+  const providerErrorRes = responseMock();
+  await tradovateSync({
+    method: "GET",
+    headers: {
+      authorization: "Bearer pro-token",
+      cookie: "cova_tradovate_connection=fixture-connection",
+      "x-forwarded-for": "203.0.113.7",
+    },
+    query: {},
+  }, providerErrorRes);
+  assert.equal(providerErrorRes.statusCode, 502);
+  assert.equal(JSON.stringify(providerErrorRes.body).includes(providerDiagnostic), false, "Tradovate-controlled diagnostics must never cross the client API boundary.");
+  assert.equal(providerErrorRes.body.error, "Tradovate provider request failed.");
+
+  const strictLedgerRedisResults = [[1, 1], "OK", 1];
+  globalThis.fetch = async (url) => {
+    const target = String(url);
+    if (target.endsWith("/auth/v1/user")) return new Response(JSON.stringify({ id: "pro-user", app_metadata: { plan: "pro" } }), { status: 200 });
+    if (target.includes("/rest/v1/policy_acceptances?")) return new Response(JSON.stringify([{ id: "acceptance-1" }]), { status: 200 });
+    if (target === process.env.KV_REST_API_URL) return new Response(JSON.stringify({ result: strictLedgerRedisResults.shift() }), { status: 200 });
+    if (target.includes("/rest/v1/broker_connections?")) return new Response(JSON.stringify([{ access_token_encrypted: encryptedTradovateToken, expires_at: "2099-01-01T00:00:00.000Z", provider_account_id: "account-1", status: "connected" }]), { status: 200 });
+    if (target.includes("tradovateapi.com/v1/fill/list")) return new Response(JSON.stringify([
+      { id: 1, orderId: 11, contractId: 7, qty: 1, price: 100, timestamp: "2026-08-01T10:00:00Z", tradeDate: { year: 2026, month: 8, day: 1 }, action: "Buy", active: true, finallyPaired: 1 },
+      { id: 2, orderId: 12, contractId: 7, qty: 1, price: 101, timestamp: "2026-08-01T10:01:00Z", tradeDate: { year: 2026, month: 8, day: 1 }, action: "Sell", active: true, finallyPaired: 1 },
+    ]), { status: 200 });
+    if (target.includes("tradovateapi.com/v1/fillPair/list")) return new Response(JSON.stringify([{ id: 42, positionId: 77, buyFillId: 1, sellFillId: 2, qty: 1, buyPrice: 100, sellPrice: 101, active: true }]), { status: 200 });
+    if (target.includes("tradovateapi.com/v1/position/list")) return new Response(JSON.stringify([{ id: 77, accountId: 9, contractId: 7, timestamp: "2026-08-01T10:01:00Z", tradeDate: { year: 2026, month: 8, day: 1 }, netPos: 0, bought: 1, boughtValue: 100, sold: 1, soldValue: 101, prevPos: 0 }]), { status: 200 });
+    if (target.includes("tradovateapi.com/v1/contract/item")) return new Response(JSON.stringify({ id: 7, name: "NQZ6" }), { status: 200 });
+    throw new Error(`Unexpected strict-ledger request ${target}`);
+  };
+  const strictLedgerRes = responseMock();
+  await tradovateSync({
+    method: "GET",
+    headers: {
+      authorization: "Bearer pro-token",
+      cookie: "cova_tradovate_connection=fixture-connection",
+      "x-forwarded-for": "203.0.113.7",
+    },
+    query: {},
+  }, strictLedgerRes);
+  assert.equal(strictLedgerRes.statusCode, 200);
+  assert.equal(strictLedgerRes.body.trades[0].id, "tradovate-42");
+  assert.equal(strictLedgerRes.body.trades[0].risk, 0, "Tradovate sync must not invent planned risk from realized P&L.");
+  assert.deepEqual(strictLedgerRes.body.trades[0].source, { provider: "Tradovate", accountId: "9" });
+  assert.equal(strictLedgerRes.body.counts.positions, 1);
+  assert.match(strictLedgerRes.body.csv, /source_provider,source_account_id,source_trade_id/);
+  assert.match(strictLedgerRes.body.csv, /Tradovate,9,tradovate-42/);
+
+  const validPriceTimeFills = () => [
+    { id: 1, contractId: 7, qty: 1, price: 100, timestamp: "2026-08-01T10:00:00Z" },
+    { id: 2, contractId: 7, qty: 1, price: 101, timestamp: "2026-08-01T10:01:00Z" },
+  ];
+  const validPriceTimePair = (overrides = {}) => ({
+    id: 42,
+    buyFillId: 1,
+    sellFillId: 2,
+    qty: 1,
+    buyPrice: 100,
+    sellPrice: 101,
+    ...overrides,
+  });
+  const validNqContract = { 7: { id: 7, name: "NQZ6" } };
+
+  const booleanPairPriceRes = await runTradovateLedgerProbe({
+    fills: validPriceTimeFills(),
+    fillPairs: [validPriceTimePair({ buyPrice: true })],
+    contracts: validNqContract,
+  });
+  assert.equal(booleanPairPriceRes.statusCode, 502, "Boolean pair prices must not be coerced into fabricated financial values.");
+  assert.equal(booleanPairPriceRes.body.trades, undefined);
+  assert.equal(booleanPairPriceRes.body.csv, undefined);
+
+  const stringPairPriceRes = await runTradovateLedgerProbe({
+    fills: validPriceTimeFills(),
+    fillPairs: [validPriceTimePair({ buyPrice: "100" })],
+    contracts: validNqContract,
+  });
+  assert.equal(stringPairPriceRes.statusCode, 502, "String pair prices must fail closed instead of being coerced.");
+
+  const missingPairPrice = validPriceTimePair();
+  delete missingPairPrice.buyPrice;
+  const missingPairPriceRes = await runTradovateLedgerProbe({
+    fills: validPriceTimeFills(),
+    fillPairs: [missingPairPrice],
+    contracts: validNqContract,
+    preservePairPrices: true,
+  });
+  assert.equal(missingPairPriceRes.statusCode, 502, "Missing required pair prices must not fall back to fill prices.");
+
+  const stringFillPriceRes = await runTradovateLedgerProbe({
+    fills: [
+      { ...validPriceTimeFills()[0], price: "100" },
+      validPriceTimeFills()[1],
+    ],
+    fillPairs: [validPriceTimePair()],
+    contracts: validNqContract,
+  });
+  assert.equal(stringFillPriceRes.statusCode, 502, "Required fill prices must remain finite positive numbers.");
+
+  const booleanTimestampRes = await runTradovateLedgerProbe({
+    fills: [
+      { ...validPriceTimeFills()[0], timestamp: true },
+      validPriceTimeFills()[1],
+    ],
+    fillPairs: [validPriceTimePair()],
+    contracts: validNqContract,
+  });
+  assert.equal(booleanTimestampRes.statusCode, 502, "Boolean fill timestamps must not become 1970 dates.");
+
+  const missingTimestampWithFallbackRes = await runTradovateLedgerProbe({
+    fills: [
+      { id: 1, contractId: 7, qty: 1, price: 100, createdAt: "2026-08-01T10:00:00Z" },
+      validPriceTimeFills()[1],
+    ],
+    fillPairs: [validPriceTimePair()],
+    contracts: validNqContract,
+  });
+  assert.equal(missingTimestampWithFallbackRes.statusCode, 502, "Missing required fill timestamps must not use undocumented fallbacks.");
+
+  const mismatchedContractIdRes = await runTradovateLedgerProbe({
+    fills: validPriceTimeFills(),
+    fillPairs: [validPriceTimePair()],
+    contracts: { 7: { id: 8, name: "ESZ6" } },
+  });
+  assert.equal(mismatchedContractIdRes.statusCode, 502, "Returned contract metadata must identify the exact requested contract.");
+  assert.equal(mismatchedContractIdRes.body.trades, undefined);
+  assert.equal(mismatchedContractIdRes.body.csv, undefined);
+
+  const incompletePairRes = await runTradovateLedgerProbe({
+    fills: [{ id: 1, accountId: "account-1", contractId: 7, qty: 1, price: 100, timestamp: "2026-08-01T10:00:00Z" }],
+    fillPairs: [{ id: "incomplete-pair", accountId: "account-1", buyFillId: 1, sellFillId: 2, qty: 1 }],
+    contracts: { 7: { id: 7, name: "NQZ6" } },
+  });
+  assert.equal(incompletePairRes.statusCode, 502, "Every Tradovate fill pair must resolve to exactly one complete trade.");
+  assert.equal(incompletePairRes.body.trades, undefined);
+
+  const crossPositionContractRes = await runTradovateLedgerProbe({
+    fills: [
+      { id: 1, contractId: 7, qty: 1, price: 100, timestamp: "2026-08-01T10:00:00Z" },
+      { id: 2, contractId: 7, qty: 1, price: 101, timestamp: "2026-08-01T10:01:00Z" },
+    ],
+    fillPairs: [{ id: "cross-contract-pair", positionId: "cross-position", buyFillId: 1, sellFillId: 2, qty: 1 }],
+    positions: [{ id: "cross-position", accountId: "account-a", contractId: 8 }],
+    contracts: { 7: { id: 7, name: "NQZ6" } },
+  });
+  assert.equal(crossPositionContractRes.statusCode, 502, "Fill contracts must agree with the position that owns account provenance.");
+  assert.equal(crossPositionContractRes.body.trades, undefined);
+
+  const sharedLongId = "x".repeat(128);
+  const identifierCollisionRes = await runTradovateLedgerProbe({
+    fills: [
+      { id: 1, accountId: "account-1", contractId: 7, qty: 1, price: 100, timestamp: "2026-08-01T10:00:00Z" },
+      { id: 2, accountId: "account-1", contractId: 7, qty: 1, price: 101, timestamp: "2026-08-01T10:01:00Z" },
+      { id: 3, accountId: "account-1", contractId: 7, qty: 1, price: 102, timestamp: "2026-08-01T10:02:00Z" },
+      { id: 4, accountId: "account-1", contractId: 7, qty: 1, price: 103, timestamp: "2026-08-01T10:03:00Z" },
+    ],
+    fillPairs: [
+      { id: `${sharedLongId}a`, accountId: "account-1", buyFillId: 1, sellFillId: 2, qty: 1 },
+      { id: `${sharedLongId}b`, accountId: "account-1", buyFillId: 3, sellFillId: 4, qty: 1 },
+    ],
+    contracts: { 7: { id: 7, name: "NQZ6" } },
+  });
+  assert.equal(identifierCollisionRes.statusCode, 502, "Over-limit provider identifiers must be rejected without truncation or collision.");
+  assert.equal(identifierCollisionRes.body.trades, undefined);
+
+  const excessivePairQuantityRes = await runTradovateLedgerProbe({
+    fills: [
+      { id: "qty-buy", accountId: "account-1", contractId: 101, qty: 1, price: 100, timestamp: "2026-01-01T10:00:00.000Z" },
+      { id: "qty-sell", accountId: "account-1", contractId: 101, qty: 1, price: 120, timestamp: "2026-01-01T10:01:00.000Z" },
+    ],
+    fillPairs: [{ id: "qty-excess", accountId: "account-1", buyFillId: "qty-buy", sellFillId: "qty-sell", qty: 999 }],
+    contracts: { 101: { id: 101, name: "MNQZ6" } },
+  });
+  assert.equal(excessivePairQuantityRes.statusCode, 502, "A fill pair cannot claim more contracts than either referenced fill contains.");
+
+  const reusedFillCapacityRes = await runTradovateLedgerProbe({
+    fills: [
+      { id: "reuse-buy", accountId: "account-1", contractId: 101, qty: 1, price: 100, timestamp: "2026-01-01T10:00:00.000Z" },
+      { id: "reuse-sell", accountId: "account-1", contractId: 101, qty: 1, price: 120, timestamp: "2026-01-01T10:01:00.000Z" },
+    ],
+    fillPairs: [
+      { id: "reuse-pair-a", accountId: "account-1", buyFillId: "reuse-buy", sellFillId: "reuse-sell", qty: 1 },
+      { id: "reuse-pair-b", accountId: "account-1", buyFillId: "reuse-buy", sellFillId: "reuse-sell", qty: 1 },
+    ],
+    contracts: { 101: { id: 101, name: "MNQZ6" } },
+  });
+  assert.equal(reusedFillCapacityRes.statusCode, 502, "Fill quantity can be consumed only once across the complete pair ledger.");
+
+  const missingPairQuantityRes = await runTradovateLedgerProbe({
+    fills: [
+      { id: "missing-qty-buy", contractId: 101, qty: 2, price: 100, timestamp: "2026-01-01T10:00:00.000Z" },
+      { id: "missing-qty-sell", contractId: 101, qty: 2, price: 120, timestamp: "2026-01-01T10:01:00.000Z" },
+    ],
+    fillPairs: [{ id: "missing-pair-qty", buyFillId: "missing-qty-buy", sellFillId: "missing-qty-sell" }],
+    contracts: { 101: { id: 101, name: "MNQZ6" } },
+  });
+  assert.equal(missingPairQuantityRes.statusCode, 502, "A missing required pair quantity must not be inferred from fill capacity.");
+
+  const wrongTypeQuantityRes = await runTradovateLedgerProbe({
+    fills: [
+      { id: "string-qty-buy", contractId: 101, qty: "1", price: 100, timestamp: "2026-01-01T10:00:00.000Z" },
+      { id: "string-qty-sell", contractId: 101, qty: "1", price: 120, timestamp: "2026-01-01T10:01:00.000Z" },
+    ],
+    fillPairs: [{ id: "string-pair-qty", buyFillId: "string-qty-buy", sellFillId: "string-qty-sell", qty: "1" }],
+    contracts: { 101: { id: 101, name: "MNQZ6" } },
+  });
+  assert.equal(wrongTypeQuantityRes.statusCode, 502, "Tradovate quantities must remain required numeric integers without coercion.");
+
+  const unresolvedContractRedisResults = [[1, 1], "OK", 1];
+  globalThis.fetch = async (url) => {
+    const target = String(url);
+    if (target.endsWith("/auth/v1/user")) return new Response(JSON.stringify({ id: "pro-user", app_metadata: { plan: "pro" } }), { status: 200 });
+    if (target.includes("/rest/v1/policy_acceptances?")) return new Response(JSON.stringify([{ id: "acceptance-1" }]), { status: 200 });
+    if (target === process.env.KV_REST_API_URL) return new Response(JSON.stringify({ result: unresolvedContractRedisResults.shift() }), { status: 200 });
+    if (target.includes("/rest/v1/broker_connections?")) return new Response(JSON.stringify([{ access_token_encrypted: encryptedTradovateToken, expires_at: "2099-01-01T00:00:00.000Z", provider_account_id: "account-1", status: "connected" }]), { status: 200 });
+    if (target.includes("tradovateapi.com/v1/fill/list")) return new Response(JSON.stringify([
+      { id: 1, accountId: "account-1", contractId: 99, qty: 1, price: 100, timestamp: "2026-08-01T10:00:00Z" },
+      { id: 2, accountId: "account-1", contractId: 99, qty: 1, price: 101, timestamp: "2026-08-01T10:01:00Z" },
+    ]), { status: 200 });
+    if (target.includes("tradovateapi.com/v1/fillPair/list")) return new Response(JSON.stringify([{ id: "pair-99", positionId: "position-99", buyFillId: 1, sellFillId: 2, qty: 1, buyPrice: 100, sellPrice: 101 }]), { status: 200 });
+    if (target.includes("tradovateapi.com/v1/position/list")) return new Response(JSON.stringify([{ id: "position-99", accountId: "account-1", contractId: 99 }]), { status: 200 });
+    if (target.includes("tradovateapi.com/v1/contract/item")) return new Response(JSON.stringify({ error: "missing contract" }), { status: 404 });
+    throw new Error(`Unexpected unresolved-contract request ${target}`);
+  };
+  const unresolvedContractRes = responseMock();
+  await tradovateSync({
+    method: "GET",
+    headers: {
+      authorization: "Bearer pro-token",
+      cookie: "cova_tradovate_connection=fixture-connection",
+      "x-forwarded-for": "203.0.113.7",
+    },
+    query: {},
+  }, unresolvedContractRes);
+  assert.equal(unresolvedContractRes.statusCode, 502, "Missing contract metadata must fail the entire import closed.");
+  assert.equal(unresolvedContractRes.body.error, "Tradovate provider request failed.");
+  assert.equal(unresolvedContractRes.body.trades, undefined);
+
+  const unsupportedContractRedisResults = [[1, 1], "OK", 1];
+  globalThis.fetch = async (url) => {
+    const target = String(url);
+    if (target.endsWith("/auth/v1/user")) return new Response(JSON.stringify({ id: "pro-user", app_metadata: { plan: "pro" } }), { status: 200 });
+    if (target.includes("/rest/v1/policy_acceptances?")) return new Response(JSON.stringify([{ id: "acceptance-1" }]), { status: 200 });
+    if (target === process.env.KV_REST_API_URL) return new Response(JSON.stringify({ result: unsupportedContractRedisResults.shift() }), { status: 200 });
+    if (target.includes("/rest/v1/broker_connections?")) return new Response(JSON.stringify([{ access_token_encrypted: encryptedTradovateToken, expires_at: "2099-01-01T00:00:00.000Z", provider_account_id: "account-1", status: "connected" }]), { status: 200 });
+    if (target.includes("tradovateapi.com/v1/fill/list")) return new Response(JSON.stringify([
+      { id: 1, accountId: "account-1", contractId: 100, qty: 1, price: 100, timestamp: "2026-08-01T10:00:00Z" },
+      { id: 2, accountId: "account-1", contractId: 100, qty: 1, price: 101, timestamp: "2026-08-01T10:01:00Z" },
+    ]), { status: 200 });
+    if (target.includes("tradovateapi.com/v1/fillPair/list")) return new Response(JSON.stringify([{ id: "pair-100", positionId: "position-100", buyFillId: 1, sellFillId: 2, qty: 1, buyPrice: 100, sellPrice: 101 }]), { status: 200 });
+    if (target.includes("tradovateapi.com/v1/position/list")) return new Response(JSON.stringify([{ id: "position-100", accountId: "account-1", contractId: 100 }]), { status: 200 });
+    if (target.includes("tradovateapi.com/v1/contract/item")) return new Response(JSON.stringify({ id: 100, name: "XYZU6" }), { status: 200 });
+    throw new Error(`Unexpected unsupported-contract request ${target}`);
+  };
+  const unsupportedContractRes = responseMock();
+  await tradovateSync({
+    method: "GET",
+    headers: {
+      authorization: "Bearer pro-token",
+      cookie: "cova_tradovate_connection=fixture-connection",
+      "x-forwarded-for": "203.0.113.7",
+    },
+    query: {},
+  }, unsupportedContractRes);
+  assert.equal(unsupportedContractRes.statusCode, 502, "Unknown point values must fail closed instead of fabricating P&L.");
+  assert.equal(unsupportedContractRes.body.trades, undefined);
+
+  const malformedLedgerRedisResults = [[1, 1], "OK", 1];
+  globalThis.fetch = async (url) => {
+    const target = String(url);
+    if (target.endsWith("/auth/v1/user")) return new Response(JSON.stringify({ id: "pro-user", email: "pro@example.com", app_metadata: { plan: "pro" } }), { status: 200 });
+    if (target.includes("/policy/eval")) return new Response(JSON.stringify({ allow: true }), { status: 200 });
+    if (target.includes("/policy_acceptances?")) return new Response(JSON.stringify([{ id: "policy-ok" }]), { status: 200 });
+    if (target === process.env.KV_REST_API_URL) return new Response(JSON.stringify({ result: malformedLedgerRedisResults.shift() }), { status: 200 });
+    if (target.includes("/rest/v1/broker_connections?")) return new Response(JSON.stringify([{ access_token_encrypted: encryptedTradovateToken, expires_at: "2099-01-01T00:00:00.000Z", provider_account_id: "account-1" }]), { status: 200 });
+    if (target.includes("/fill/list")) return new Response(JSON.stringify([
+      { id: 1, accountId: "account-1", contractId: 7, action: "Buy", price: null, timestamp: "not-a-date" },
+      { id: 2, accountId: "account-1", contractId: 7, action: "Sell", price: null, timestamp: "not-a-date" },
+    ]), { status: 200 });
+    if (target.includes("/fillPair/list")) return new Response(JSON.stringify([{ id: "malformed-pair", positionId: "malformed-position", buyFillId: 1, sellFillId: 2 }]), { status: 200 });
+    if (target.includes("/position/list")) return new Response(JSON.stringify([{ id: "malformed-position", accountId: "account-1", contractId: 7 }]), { status: 200 });
+    if (target.includes("/contract/item")) return new Response(JSON.stringify({ id: 7, name: "NQZ6" }), { status: 200 });
+    throw new Error(`Unexpected malformed-ledger request: ${target}`);
+  };
+  const malformedLedgerRes = responseMock();
+  await tradovateSync({
+    method: "GET",
+    headers: {
+      authorization: "Bearer pro-token",
+      cookie: "cova_tradovate_connection=fixture-connection",
+      "x-forwarded-for": "203.0.113.18",
+    },
+    query: {},
+  }, malformedLedgerRes);
+  assert.equal(malformedLedgerRes.statusCode, 502, "Missing Tradovate quantity, prices, or timestamps must fail closed instead of fabricating ledger values.");
+  assert.equal(malformedLedgerRes.body.trades, undefined);
+
   globalThis.fetch = async (url, options = {}) => {
     const target = String(url);
     if (target.endsWith("/auth/v1/user")) {
@@ -369,13 +760,17 @@ try {
       return new Response(JSON.stringify({ result: oversizedRedisResults.shift() }), { status: 200 });
     }
     if (target.includes("/rest/v1/broker_connections?")) {
-      return new Response(JSON.stringify([{ access_token_encrypted: encryptedTradovateToken, status: "connected" }]), { status: 200 });
+      return new Response(JSON.stringify([{ access_token_encrypted: encryptedTradovateToken, expires_at: "2099-01-01T00:00:00.000Z", status: "connected" }]), { status: 200 });
     }
     if (target.includes("tradovateapi.com/v1/fill/list")) {
       oversizedProviderSignals.push(options.signal);
       return new Response("[]", { status: 200, headers: { "Content-Length": String(2 * 1024 * 1024 + 1) } });
     }
     if (target.includes("tradovateapi.com/v1/fillPair/list")) {
+      oversizedProviderSignals.push(options.signal);
+      return new Response("[]", { status: 200 });
+    }
+    if (target.includes("tradovateapi.com/v1/position/list")) {
       oversizedProviderSignals.push(options.signal);
       return new Response("[]", { status: 200 });
     }
@@ -398,13 +793,17 @@ try {
   const amplifiedOutputRedisResults = [[1, 1], "OK", 1];
   const amplifiedFillPairs = Array.from({ length: 20 }, (_, index) => ({
     id: index + 1,
+    positionId: index + 1,
     buyFillId: index * 2 + 1,
     sellFillId: index * 2 + 2,
     qty: 1,
+    buyPrice: 100,
+    sellPrice: 101,
   }));
+  const amplifiedPositions = amplifiedFillPairs.map((pair) => ({ id: pair.positionId, accountId: 1, contractId: 1 }));
   const amplifiedFills = amplifiedFillPairs.flatMap((pair) => [
-    { id: pair.buyFillId, contractId: 1, qty: 1, price: 100, timestamp: "2026-01-01T10:00:00Z" },
-    { id: pair.sellFillId, contractId: 1, qty: 1, price: 101, timestamp: "2026-01-01T10:01:00Z" },
+    { id: pair.buyFillId, accountId: "account-1", contractId: 1, qty: 1, price: 100, timestamp: "2026-01-01T10:00:00Z" },
+    { id: pair.sellFillId, accountId: "account-1", contractId: 1, qty: 1, price: 101, timestamp: "2026-01-01T10:01:00Z" },
   ]);
   const oversizedContractName = `NQ${"X".repeat(200_000)}`;
   globalThis.fetch = async (url) => {
@@ -412,9 +811,10 @@ try {
     if (target.endsWith("/auth/v1/user")) return new Response(JSON.stringify({ id: "pro-user", app_metadata: { plan: "pro" } }), { status: 200 });
     if (target.includes("/rest/v1/policy_acceptances?")) return new Response(JSON.stringify([{ id: "acceptance-1" }]), { status: 200 });
     if (target === process.env.KV_REST_API_URL) return new Response(JSON.stringify({ result: amplifiedOutputRedisResults.shift() }), { status: 200 });
-    if (target.includes("/rest/v1/broker_connections?")) return new Response(JSON.stringify([{ access_token_encrypted: encryptedTradovateToken }]), { status: 200 });
+    if (target.includes("/rest/v1/broker_connections?")) return new Response(JSON.stringify([{ access_token_encrypted: encryptedTradovateToken, expires_at: "2099-01-01T00:00:00.000Z", provider_account_id: "account-1" }]), { status: 200 });
     if (target.includes("/fill/list")) return new Response(JSON.stringify(amplifiedFills), { status: 200 });
     if (target.includes("/fillPair/list")) return new Response(JSON.stringify(amplifiedFillPairs), { status: 200 });
+    if (target.includes("/position/list")) return new Response(JSON.stringify(amplifiedPositions), { status: 200 });
     if (target.includes("/contract/item")) return new Response(JSON.stringify({ id: 1, name: oversizedContractName }), { status: 200 });
     throw new Error(`Unexpected amplified Tradovate request ${target}`);
   };
@@ -440,9 +840,10 @@ try {
     if (target.endsWith("/auth/v1/user")) return new Response(JSON.stringify({ id: "pro-user", app_metadata: { plan: "pro" } }), { status: 200 });
     if (target.includes("/rest/v1/policy_acceptances?")) return new Response(JSON.stringify([{ id: "acceptance-1" }]), { status: 200 });
     if (target === process.env.KV_REST_API_URL) return new Response(JSON.stringify({ result: aggregateBudgetRedisResults.shift() }), { status: 200 });
-    if (target.includes("/rest/v1/broker_connections?")) return new Response(JSON.stringify([{ access_token_encrypted: encryptedTradovateToken }]), { status: 200 });
+    if (target.includes("/rest/v1/broker_connections?")) return new Response(JSON.stringify([{ access_token_encrypted: encryptedTradovateToken, expires_at: "2099-01-01T00:00:00.000Z" }]), { status: 200 });
     if (target.includes("/fill/list")) return new Response(JSON.stringify(aggregateBudgetFills), { status: 200 });
     if (target.includes("/fillPair/list")) return new Response("[]", { status: 200 });
+    if (target.includes("/position/list")) return new Response("[]", { status: 200 });
     if (target.includes("/contract/item")) return new Response(aggregateContractPayload, { status: 200 });
     throw new Error(`Unexpected aggregate-budget Tradovate request ${target}`);
   };
@@ -466,8 +867,9 @@ try {
     if (target.endsWith("/auth/v1/user")) return new Response(JSON.stringify({ id: "pro-user", app_metadata: { plan: "pro" } }), { status: 200 });
     if (target.includes("/rest/v1/policy_acceptances?")) return new Response(JSON.stringify([{ id: "acceptance-1" }]), { status: 200 });
     if (target === process.env.KV_REST_API_URL) return new Response(JSON.stringify({ result: rowBoundRedisResults.shift() }), { status: 200 });
-    if (target.includes("/rest/v1/broker_connections?")) return new Response(JSON.stringify([{ access_token_encrypted: encryptedTradovateToken, status: "connected" }]), { status: 200 });
+    if (target.includes("/rest/v1/broker_connections?")) return new Response(JSON.stringify([{ access_token_encrypted: encryptedTradovateToken, expires_at: "2099-01-01T00:00:00.000Z", status: "connected" }]), { status: 200 });
     if (target.includes("tradovateapi.com/v1/fill/list")) return new Response(JSON.stringify(excessiveFills), { status: 200 });
+    if (target.includes("tradovateapi.com/v1/position/list")) return new Response("[]", { status: 200 });
     if (target.includes("tradovateapi.com/v1/fillPair/list")) return new Response("[]", { status: 200 });
     if (target.includes("tradovateapi.com/v1/contract/item")) {
       rowBoundContractCalls += 1;
@@ -496,8 +898,9 @@ try {
     if (target.endsWith("/auth/v1/user")) return new Response(JSON.stringify({ id: "pro-user", app_metadata: { plan: "pro" } }), { status: 200 });
     if (target.includes("/rest/v1/policy_acceptances?")) return new Response(JSON.stringify([{ id: "acceptance-1" }]), { status: 200 });
     if (target === process.env.KV_REST_API_URL) return new Response(JSON.stringify({ result: fanoutRedisResults.shift() }), { status: 200 });
-    if (target.includes("/rest/v1/broker_connections?")) return new Response(JSON.stringify([{ access_token_encrypted: encryptedTradovateToken, status: "connected" }]), { status: 200 });
+    if (target.includes("/rest/v1/broker_connections?")) return new Response(JSON.stringify([{ access_token_encrypted: encryptedTradovateToken, expires_at: "2099-01-01T00:00:00.000Z", status: "connected" }]), { status: 200 });
     if (target.includes("tradovateapi.com/v1/fill/list")) return new Response(JSON.stringify(excessiveContracts), { status: 200 });
+    if (target.includes("tradovateapi.com/v1/position/list")) return new Response("[]", { status: 200 });
     if (target.includes("tradovateapi.com/v1/fillPair/list")) return new Response("[]", { status: 200 });
     if (target.includes("tradovateapi.com/v1/contract/item")) {
       fanoutContractCalls += 1;
@@ -519,7 +922,13 @@ try {
   assert.equal(fanoutContractCalls, 0, "The unique-contract ceiling must run before contract fanout begins.");
 
   const concurrencyRedisResults = [[1, 1], "OK", 1];
-  const boundedContracts = Array.from({ length: 12 }, (_, index) => ({ id: index + 1, contractId: index + 1 }));
+  const boundedContracts = Array.from({ length: 12 }, (_, index) => ({
+    id: index + 1,
+    contractId: index + 1,
+    qty: 1,
+    price: 100,
+    timestamp: "2026-01-01T10:00:00Z",
+  }));
   let activeContractCalls = 0;
   let maxActiveContractCalls = 0;
   globalThis.fetch = async (url) => {
@@ -527,8 +936,9 @@ try {
     if (target.endsWith("/auth/v1/user")) return new Response(JSON.stringify({ id: "pro-user", app_metadata: { plan: "pro" } }), { status: 200 });
     if (target.includes("/rest/v1/policy_acceptances?")) return new Response(JSON.stringify([{ id: "acceptance-1" }]), { status: 200 });
     if (target === process.env.KV_REST_API_URL) return new Response(JSON.stringify({ result: concurrencyRedisResults.shift() }), { status: 200 });
-    if (target.includes("/rest/v1/broker_connections?")) return new Response(JSON.stringify([{ access_token_encrypted: encryptedTradovateToken, status: "connected" }]), { status: 200 });
+    if (target.includes("/rest/v1/broker_connections?")) return new Response(JSON.stringify([{ access_token_encrypted: encryptedTradovateToken, expires_at: "2099-01-01T00:00:00.000Z", status: "connected" }]), { status: 200 });
     if (target.includes("tradovateapi.com/v1/fill/list")) return new Response(JSON.stringify(boundedContracts), { status: 200 });
+    if (target.includes("tradovateapi.com/v1/position/list")) return new Response("[]", { status: 200 });
     if (target.includes("tradovateapi.com/v1/fillPair/list")) return new Response("[]", { status: 200 });
     if (target.includes("tradovateapi.com/v1/contract/item")) {
       activeContractCalls += 1;

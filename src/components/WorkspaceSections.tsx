@@ -1598,7 +1598,7 @@ export function Passport({ analysis, entitlements, isSampleReview, go, upgradeTo
                           <span>{isSampleReview ? "Demo ref" : "Review ref"}</span>
                           <code>{reviewId}</code>
                         </div>
-                        <p>{isSampleReview ? "DEMO DATA · NOT ACCOUNT VERIFIED" : "USER-SUPPLIED DATA · NOT ACCOUNT VERIFIED"}</p>
+                        <p>{getPassportExportDisclosure(isSampleReview)}</p>
                       </footer>
                     </div>
                   </div>
@@ -1721,6 +1721,12 @@ function escapeSvgText(value: string) {
     .replace(/"/g, "&quot;");
 }
 
+function getPassportExportDisclosure(isSampleReview: boolean) {
+  return isSampleReview
+    ? "DEMO DATA · NOT ACCOUNT VERIFIED · LOCAL PNG · USER CONTROLLED"
+    : "USER-SUPPLIED DATA · NOT ACCOUNT VERIFIED · LOCAL PNG · USER CONTROLLED";
+}
+
 function downloadDataUrl(dataUrl: string, filename: string) {
   const link = document.createElement("a");
   link.download = filename;
@@ -1800,7 +1806,7 @@ async function composePassportExport(sourceDataUrl: string, preset: PassportExpo
 
   context.fillStyle = isSampleReview ? palette.accent : "rgba(255,255,255,0.48)";
   context.font = "700 20px Arial, sans-serif";
-  const footerCopy = isSampleReview ? "DEMO DATA · NOT ACCOUNT VERIFIED" : "USER-SUPPLIED DATA · NOT ACCOUNT VERIFIED";
+  const footerCopy = getPassportExportDisclosure(isSampleReview);
   context.fillText(footerCopy, 64, preset.height - 48);
   return canvas.toDataURL("image/png");
 }
@@ -1916,7 +1922,7 @@ async function downloadPassportPng(analysis: ReturnType<typeof analyze>, tier: P
       <text x="252" y="1272" fill="${palette.metal}" font-family="Arial, sans-serif" font-size="${proofFontSize}" font-weight="800" letter-spacing="${proofTracking}">${escapeSvgText(proofLine)}</text>
       ${nextTargetMarkup}
       ${sampleExportWatermark}
-      <text x="92" y="1430" fill="rgba(224,236,248,0.5)" font-family="Arial, sans-serif" font-size="17" font-weight="700" letter-spacing="3">${isSampleReview ? "DEMO · NOT ACCOUNT VERIFIED · " : ""}MODE ${escapeSvgText(shareMode.label.toUpperCase())} · LOCAL PNG · USER CONTROLLED · ${escapeSvgText(reviewId)}</text>
+      <text x="92" y="1430" fill="rgba(224,236,248,0.5)" font-family="Arial, sans-serif" font-size="17" font-weight="700" letter-spacing="3">${escapeSvgText(getPassportExportDisclosure(isSampleReview))} · MODE ${escapeSvgText(shareMode.label.toUpperCase())} · ${escapeSvgText(reviewId)}</text>
     </svg>
   `;
   const image = new Image();

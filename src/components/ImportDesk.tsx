@@ -144,6 +144,10 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
         setBrokerNotice("Tradovate connected, but no closed fill pairs were found yet.");
         return;
       }
+      const verified = parseCsvDetailed(data.csv);
+      if (verified.issues.length || verified.trades.length !== tradeCount) {
+        throw new Error("Tradovate returned an inconsistent trade ledger, so Cova did not import it.");
+      }
       setBrokerNotice(`Synced ${tradeCount} Tradovate trade${tradeCount === 1 ? "" : "s"} into Cova.`);
       importCsv(data.csv, "replace");
     } catch (error) {

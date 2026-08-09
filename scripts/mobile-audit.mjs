@@ -1,5 +1,5 @@
 import { execFile, spawn } from "node:child_process";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -30,19 +30,27 @@ const unknownRouteNames = [...selectedRouteNames].filter((name) => !routes.some(
 
 const sleep = (ms) => new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
 
-async function terminateChromeTree(chrome) {
-  if (chrome.exitCode !== null) return;
-  if (process.platform === "win32" && chrome.pid) {
-    await new Promise((resolveTerminate) => {
-      execFile("taskkill.exe", ["/PID", String(chrome.pid), "/T", "/F"], () => resolveTerminate());
-    });
-    return;
+async function waitForChromeExit(chrome, timeoutMs = 5_000) {
+  const started = Date.now();
+  while (chrome.exitCode === null && Date.now() - started < timeoutMs) await sleep(50);
+  return chrome.exitCode !== null;
+}
+
+async function terminateChromeTree(chrome, cdp) {
+  if (chrome.exitCode === null && cdp) {
+    await Promise.race([cdp.send("Browser.close").catch(() => {}), sleep(500)]);
+    if (await waitForChromeExit(chrome, 3_000)) return;
   }
-  chrome.kill("SIGTERM");
-  await Promise.race([
-    new Promise((resolveExit) => chrome.once("exit", resolveExit)),
-    sleep(1_500),
-  ]);
+  if (chrome.exitCode === null) {
+    if (process.platform === "win32" && chrome.pid) {
+      await new Promise((resolveTerminate, rejectTerminate) => {
+        execFile("taskkill.exe", ["/PID", String(chrome.pid), "/T", "/F"], (error) => error ? rejectTerminate(error) : resolveTerminate());
+      });
+    } else if (!chrome.kill("SIGTERM")) {
+      throw new Error("Owned Chrome process refused SIGTERM.");
+    }
+  }
+  if (!await waitForChromeExit(chrome)) throw new Error("Owned Chrome process did not exit after termination.");
 }
 
 async function removeProfileDirectory(profileDir) {
@@ -57,6 +65,25 @@ async function removeProfileDirectory(profileDir) {
     }
   }
   throw lastError;
+}
+
+async function waitForDevToolsActivePort(profileDir, chrome, timeoutMs = 10_000) {
+  const activePortPath = join(profileDir, "DevToolsActivePort");
+  const started = Date.now();
+  let lastError;
+  while (Date.now() - started < timeoutMs) {
+    if (chrome.exitCode !== null) throw new Error(`Owned Chrome exited before publishing DevToolsActivePort (${chrome.exitCode}).`);
+    try {
+      const [portLine] = (await readFile(activePortPath, "utf8")).split(/\r?\n/);
+      const port = Number(portLine);
+      if (Number.isInteger(port) && port > 0 && port < 65_536) return port;
+      lastError = new Error(`Invalid DevToolsActivePort value: ${portLine}`);
+    } catch (error) {
+      lastError = error;
+    }
+    await sleep(75);
+  }
+  throw lastError ?? new Error("Owned Chrome did not publish DevToolsActivePort.");
 }
 
 async function waitForJson(url, timeoutMs = 10000) {
@@ -115,27 +142,28 @@ async function main() {
   if (unknownRouteNames.length) throw new Error(`Unknown audit routes: ${unknownRouteNames.join(", ")}`);
   await mkdir(outDir, { recursive: true });
   const profileDir = await mkdtemp(join(tmpdir(), "cova-mobile-chrome-"));
-  const port = 9300 + Math.floor(Math.random() * 400);
   const chrome = spawn(chromePath, [
     "--headless=new",
     "--disable-gpu",
     "--no-first-run",
     "--no-default-browser-check",
     "--hide-scrollbars",
-    `--remote-debugging-port=${port}`,
+    "--remote-debugging-port=0",
     `--user-data-dir=${profileDir}`,
     "about:blank",
   ], { stdio: ["ignore", "pipe", "pipe"] });
 
   let stderr = "";
+  let cdp;
   chrome.stderr.on("data", (chunk) => { stderr += chunk.toString(); });
 
   try {
+    const port = await waitForDevToolsActivePort(profileDir, chrome);
     await waitForJson(`http://127.0.0.1:${port}/json/version`);
     const targets = await waitForJson(`http://127.0.0.1:${port}/json/list`);
     const pageTarget = targets.find((target) => target.type === "page" && target.webSocketDebuggerUrl);
     if (!pageTarget) throw new Error("No page target available from Chrome CDP.");
-    const cdp = await connectCdp(pageTarget.webSocketDebuggerUrl);
+    cdp = await connectCdp(pageTarget.webSocketDebuggerUrl);
 
     await cdp.send("Page.enable");
     await cdp.send("Runtime.enable");
@@ -459,7 +487,6 @@ async function main() {
       results.push({ name: route.name, screenshot: screenshotPath, practiceScreenshot, footerScreenshot, actionOutcome, practiceOutcome, footer, footerPrimaryOutcome, footerSecondaryOutcome, ...audit.result.value });
     }
 
-    cdp.close();
     const failures = results.flatMap((result) => [
       ...(result.documentOverflow > 0 ? [`${result.name}: document overflow ${result.documentOverflow}px`] : []),
       ...(result.hasAuthDialog ? [`${result.name}: unexpected auth dialog`] : []),
@@ -512,7 +539,8 @@ async function main() {
       throw new Error(`Mobile audit failed:\n${failures.join("\n")}`);
     }
   } finally {
-    await terminateChromeTree(chrome);
+    await terminateChromeTree(chrome, cdp);
+    cdp?.close();
     await removeProfileDirectory(profileDir);
     if (stderr && process.env.CDP_DEBUG) {
       console.error(stderr);

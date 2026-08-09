@@ -55,6 +55,7 @@ test("Trade History discovers Tradovate capability before offering direct connec
   assert.match(importDeskSource, /authorizedFetch\("\/api\/tradovate\/status"\)[\s\S]*available: response\.ok && data\?\.available === true, checked: true/);
   assert.match(importDeskSource, /tradovateAvailable=\{tradovateCapability\.available\}/);
   assert.match(importDeskSource, /tradovateStatusChecked=\{tradovateCapability\.checked\}/);
+  assert.match(importDeskSource, /const verified = parseCsvDetailed\(data\.csv\)[\s\S]*verified\.issues\.length[\s\S]*verified\.trades\.length !== tradeCount[\s\S]*Tradovate returned an inconsistent trade ledger/);
   assert.match(importDeskSource, /data\?\.connected === true[\s\S]*writeBrokerStatus\(nextStatus\)/);
   assert.match(importPanelsSource, /const selectedConnected = connected && brokerStatus\?\.provider === selectedFirm\.name/);
   assert.match(importPanelsSource, /hidden sm:inline/);

@@ -81,6 +81,19 @@ assert.deepEqual(rithmicParsed.trades[0].source, {
 assert.equal(rithmicParsed.trades[0].id, "rithmic-trade-1", "Rithmic deterministic trade ids must survive import.");
 assert.equal(rithmicParsed.trades[0].risk, 0, "Rithmic imports must not invent a risk amount.");
 
+const tradovateParsed = parseCsvDetailed(`date,market,side,contracts,entry,exit,pnl,risk,setup,notes,source_provider,source_account_id,source_trade_id
+2026-08-01,NQ,Long,1,100,101,20,0,Tradovate sync,Synced from NQZ6,Tradovate,account-1,tradovate-pair-42`);
+assert.equal(tradovateParsed.issues.length, 0, `Tradovate provenance must survive CSV parsing: ${JSON.stringify(tradovateParsed.issues)}`);
+assert.equal(tradovateParsed.trades[0].id, "tradovate-pair-42", "Tradovate deterministic fill-pair ids must survive import.");
+assert.equal(tradovateParsed.trades[0].risk, 0, "Tradovate imports must not invent a planned risk amount.");
+assert.deepEqual(tradovateParsed.trades[0].source, { provider: "Tradovate", accountId: "account-1" });
+
+const duplicateTradovateParsed = parseCsvDetailed(`date,market,side,contracts,entry,exit,pnl,risk,setup,notes,source_provider,source_account_id,source_trade_id
+2026-08-01,NQ,Long,1,100,101,20,0,Tradovate sync,first,Tradovate,account-1,tradovate-duplicate
+2026-08-02,NQ,Short,1,102,101,20,0,Tradovate sync,second,Tradovate,account-1,tradovate-duplicate`);
+assert.equal(duplicateTradovateParsed.issues.length, 1, "Duplicate provider trade IDs must fail closed before import.");
+assert.equal(duplicateTradovateParsed.trades.length, 1);
+
 const propStyleParsed = parseCsvDetailed(`Execution Time;Instrument Name;Filled Qty;Avg Entry;Avg Exit;Net Profit/Loss;Trade Action;Strategy
 2026-05-09 09:45:11;NQ;3;18990.25;19020.50;$1,210.00;BOT;Opening drive
 2026-05-09 10:12:44;NQ;2;19012.00;18986.00;($1,040.00);SLD;Failed breakout`);
