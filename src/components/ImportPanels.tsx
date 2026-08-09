@@ -441,6 +441,7 @@ export function BrokerConnectPanel({
       <div className="mt-5 grid grid-cols-2 gap-2 md:grid-cols-4" data-provider-picker>
         {propFirmOptions.map((firm) => {
           const active = firm.id === selectedFirm.id;
+          const selectionLabel = active ? "Selected" : "Select";
           return (
             <motion.button
               aria-pressed={active}
@@ -461,7 +462,7 @@ export function BrokerConnectPanel({
               </span>
               <span className={`ml-3 inline-flex shrink-0 items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.14em] ${active ? "text-[#b9f5df]" : "text-white/34"}`}>
                 {active && <CircleDot className="h-3.5 w-3.5" />}
-                {active ? "Selected" : "Select"}
+                <span className={active ? "hidden sm:inline" : ""}>{selectionLabel}</span>
               </span>
             </motion.button>
           );
@@ -571,7 +572,9 @@ export function BrokerConnectPanel({
         <div>
           <p className="font-body text-sm font-medium text-white/82">{selectedFirm.name}</p>
           <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.16em] text-white/42">
-            {selectedConnected ? "Connected" : providerStatus[selectedFirm.id]}
+            {selectedConnected
+              ? tradovateUnavailable ? "Stored · sync unavailable" : "Connected"
+              : tradovateUnavailable ? "Unavailable" : providerStatus[selectedFirm.id]}
           </p>
         </div>
         <div className="flex flex-wrap gap-2 lg:justify-end">
@@ -583,7 +586,7 @@ export function BrokerConnectPanel({
           {entitlements.canUseDirectSync && selectedFirm.id === "tradovate" && tradovateAvailable && (
             <GlassButton onClick={checkTradovateStatus}>{brokerBusy ? "Checking..." : "Check status"}</GlassButton>
           )}
-          {entitlements.canUseDirectSync && selectedFirm.id === "tradovate" && selectedConnected && (
+          {entitlements.canUseDirectSync && selectedFirm.id === "tradovate" && tradovateAvailable && selectedConnected && (
             <GlassButton onClick={syncTradovate}>{syncBusy ? "Syncing..." : "Sync trades"}</GlassButton>
           )}
           {selectedConnected && <GlassButton onClick={disconnectBroker}>Disconnect</GlassButton>}

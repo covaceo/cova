@@ -57,6 +57,10 @@ test("Trade History discovers Tradovate capability before offering direct connec
   assert.match(importDeskSource, /tradovateStatusChecked=\{tradovateCapability\.checked\}/);
   assert.match(importDeskSource, /data\?\.connected === true[\s\S]*writeBrokerStatus\(nextStatus\)/);
   assert.match(importPanelsSource, /const selectedConnected = connected && brokerStatus\?\.provider === selectedFirm\.name/);
+  assert.match(importPanelsSource, /hidden sm:inline/);
+  assert.match(importPanelsSource, /tradovateUnavailable \? "Stored · sync unavailable" : "Connected"/);
+  assert.match(importPanelsSource, /tradovateUnavailable \? "Unavailable" : providerStatus/);
+  assert.match(importPanelsSource, /tradovateAvailable && selectedConnected[\s\S]*Sync trades/);
   assert.match(importPanelsSource, /data-tradovate-unavailable/);
   assert.match(importPanelsSource, /tradovateStatusChecked && !tradovateAvailable[\s\S]*Use CSV/);
   assert.match(importPanelsSource, /selectedFirm\.id === "tradovate"[\s\S]*!tradovateAvailable[\s\S]*CSV import remains available/);
