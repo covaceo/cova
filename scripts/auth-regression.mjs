@@ -80,6 +80,24 @@ function responseHarness() {
   };
 }
 
+function installCompleteTradovateEnvironment() {
+  const fixture = {
+    COVA_TOKEN_ENCRYPTION_KEY: "fixture-encryption-key",
+    KV_REST_API_TOKEN: "fixture-kv-token",
+    KV_REST_API_URL: "https://fixture.upstash.io",
+    TRADOVATE_CLIENT_ID: "fixture-client-id",
+    TRADOVATE_CLIENT_SECRET: "fixture-client-secret",
+  };
+  const previous = Object.fromEntries(Object.keys(fixture).map((key) => [key, process.env[key]]));
+  Object.assign(process.env, fixture);
+  return () => {
+    Object.entries(previous).forEach(([key, value]) => {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    });
+  };
+}
+
 test("authenticated member action records exact current policy versions with server time", async () => {
   const priorFetch = global.fetch;
   const priorUrl = process.env.SUPABASE_URL;
@@ -333,6 +351,7 @@ test("restricted connector discovery is owner-scoped and never returns credentia
 });
 
 test("provider status routes share one authenticated function within the Hobby deployment limit", async () => {
+  const restoreTradovateEnv = installCompleteTradovateEnvironment();
   const apiRoot = join(root, "api");
   const endpointFiles = listFiles(apiRoot).filter((path) => {
     const relative = path.slice(apiRoot.length + 1).replaceAll("\\", "/");
@@ -376,12 +395,14 @@ test("provider status routes share one authenticated function within the Hobby d
     }, response);
     assert.equal(response.statusCode, 200);
     assert.deepEqual(response.body, {
+      available: true,
       connected: true,
       provider: "Tradovate",
       status: "connected",
       expiresAt: "2099-08-08T00:00:00.000Z",
     });
   } finally {
+    restoreTradovateEnv();
     global.fetch = priorFetch;
     if (priorUrl === undefined) delete process.env.SUPABASE_URL; else process.env.SUPABASE_URL = priorUrl;
     if (priorKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY; else process.env.SUPABASE_SERVICE_ROLE_KEY = priorKey;
@@ -389,6 +410,7 @@ test("provider status routes share one authenticated function within the Hobby d
 });
 
 test("Tradovate status recovers the authenticated owner's durable connection when its browser cookie is missing", async () => {
+  const restoreTradovateEnv = installCompleteTradovateEnvironment();
   const priorFetch = global.fetch;
   const priorUrl = process.env.SUPABASE_URL;
   const priorKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -428,6 +450,7 @@ test("Tradovate status recovers the authenticated owner's durable connection whe
     }, response);
     assert.equal(response.statusCode, 200);
     assert.deepEqual(response.body, {
+      available: true,
       connected: true,
       provider: "Tradovate",
       status: "connected",
@@ -437,6 +460,7 @@ test("Tradovate status recovers the authenticated owner's durable connection whe
     assert.doesNotMatch(JSON.stringify(response.body), /access_token|must-not-return/i);
     assert.equal(calls.length, 2);
   } finally {
+    restoreTradovateEnv();
     global.fetch = priorFetch;
     if (priorUrl === undefined) delete process.env.SUPABASE_URL; else process.env.SUPABASE_URL = priorUrl;
     if (priorKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY; else process.env.SUPABASE_SERVICE_ROLE_KEY = priorKey;
@@ -717,4 +741,16 @@ test("scoped deletion never erases an unowned legacy base record", () => {
 test("auth dialog starts at the top and scrolls on narrow viewports", () => {
   const authPanels = read("src", "components", "AuthPanels.tsx");
   assert.match(authPanels, /fixed inset-0[^"\n]*items-start[^"\n]*overflow-y-auto[^"\n]*md:items-center/);
+});
+
+test("auth dialog locks background scroll and keeps modal isolation through its exit", () => {
+  const authPanels = read("src", "components", "AuthPanels.tsx");
+  assert.match(authPanels, /modalIsolationActive/);
+  assert.match(authPanels, /onExitComplete=\{\(\) => setModalIsolationActive\(false\)\}/);
+  assert.match(authPanels, /document\.body\.style\.position = "fixed"/);
+  assert.match(authPanels, /document\.documentElement\.style\.overflow = "hidden"/);
+  assert.match(authPanels, /window\.scrollTo\(scrollX, scrollY\)/);
+  assert.match(authPanels, /overscroll-contain/);
+  assert.match(authPanels, /matchMedia\("\(max-width: 767px\)"\)/);
+  assert.match(authPanels, /data-auth-mobile-initial-focus/);
 });

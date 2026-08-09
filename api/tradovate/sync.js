@@ -10,6 +10,9 @@ const MAX_CONCURRENT_CONTRACT_LOOKUPS = 5;
 const MAX_CONTRACT_LOOKUPS = 200;
 const MAX_PROVIDER_ROWS = 5_000;
 const MAX_PROVIDER_RESPONSE_BYTES = 2 * 1024 * 1024;
+const MAX_PROVIDER_SYNC_BYTES = 6 * 1024 * 1024;
+const MAX_SYNC_RESPONSE_BYTES = 2 * 1024 * 1024;
+const MAX_CONTRACT_LABEL_LENGTH = 160;
 const PROVIDER_SYNC_TIMEOUT_MS = 25_000;
 
 const POINT_VALUES = {
@@ -91,18 +94,22 @@ export default async function handler(req, res) {
         return;
       }
 
+      let providerTimeout;
       try {
-        const providerSignal = AbortSignal.timeout(PROVIDER_SYNC_TIMEOUT_MS);
+        const providerController = new AbortController();
+        providerTimeout = setTimeout(() => providerController.abort(), PROVIDER_SYNC_TIMEOUT_MS);
+        providerTimeout.unref?.();
+        const providerSignal = providerController.signal;
+        const providerBudget = createProviderByteBudget(MAX_PROVIDER_SYNC_BYTES, () => providerController.abort());
         const [rawFills, rawFillPairs] = await Promise.all([
-          tradovateGet("/fill/list", accessToken, providerSignal),
-          tradovateGet("/fillPair/list", accessToken, providerSignal),
+          tradovateGet("/fill/list", accessToken, providerSignal, providerBudget),
+          tradovateGet("/fillPair/list", accessToken, providerSignal, providerBudget),
         ]);
         const fills = boundedProviderList(rawFills);
         const fillPairs = boundedProviderList(rawFillPairs);
-        const contracts = await loadContracts(fills, accessToken, providerSignal);
+        const contracts = await loadContracts(fills, accessToken, providerSignal, providerBudget);
         const trades = normalizeFillPairs(fills, fillPairs, contracts);
-
-        res.status(200).json({
+        const payload = {
           provider: "Tradovate",
           trades,
           csv: tradesToCsv(trades),
@@ -111,9 +118,13 @@ export default async function handler(req, res) {
             fillPairs: Array.isArray(fillPairs) ? fillPairs.length : 0,
             trades: trades.length,
           },
-        });
+        };
+        serializeTradovateSyncPayload(payload);
+        res.status(200).json(payload);
       } catch (error) {
         res.status(502).json({ error: error instanceof Error ? error.message : "Tradovate sync failed." });
+      } finally {
+        if (providerTimeout) clearTimeout(providerTimeout);
       }
     } finally {
       await permit.release();
@@ -123,7 +134,7 @@ export default async function handler(req, res) {
   }
 }
 
-async function tradovateGet(path, accessToken, signal = AbortSignal.timeout(PROVIDER_SYNC_TIMEOUT_MS)) {
+async function tradovateGet(path, accessToken, signal = AbortSignal.timeout(PROVIDER_SYNC_TIMEOUT_MS), byteBudget = null) {
   const baseUrl = new URL(process.env.TRADOVATE_API_BASE_URL || DEFAULT_API_BASE_URL);
   const url = new URL(path.replace(/^\//, ""), `${baseUrl.toString().replace(/\/$/, "")}/`);
   const response = await fetch(url, {
@@ -134,18 +145,19 @@ async function tradovateGet(path, accessToken, signal = AbortSignal.timeout(PROV
     redirect: "error",
     signal,
   });
-  const payload = await readBoundedJson(response, MAX_PROVIDER_RESPONSE_BYTES);
+  const payload = await readBoundedJson(response, MAX_PROVIDER_RESPONSE_BYTES, byteBudget);
   if (!response.ok || payload?.error) {
     throw new Error(payload?.error_description || payload?.error || `Tradovate request failed: ${path}`);
   }
   return payload;
 }
 
-async function readBoundedJson(response, maxBytes) {
+async function readBoundedJson(response, maxBytes, byteBudget = null) {
   const declared = Number(response.headers?.get?.("content-length") || 0);
   if (Number.isFinite(declared) && declared > maxBytes) {
     throw new Error("Tradovate sync result is too large to import safely.");
   }
+  byteBudget?.assertAvailable(declared);
   const reader = response.body?.getReader?.();
   if (!reader) throw new Error("Tradovate sync is temporarily unavailable.");
   const chunks = [];
@@ -154,6 +166,7 @@ async function readBoundedJson(response, maxBytes) {
     const { done, value } = await reader.read();
     if (done) break;
     total += value.byteLength;
+    byteBudget?.consume(value.byteLength);
     if (total > maxBytes) {
       await reader.cancel().catch(() => undefined);
       throw new Error("Tradovate sync result is too large to import safely.");
@@ -169,13 +182,38 @@ async function readBoundedJson(response, maxBytes) {
   }
 }
 
+function createProviderByteBudget(maxBytes, onExceeded) {
+  let consumed = 0;
+  function fail() {
+    onExceeded?.();
+    throw new Error("Tradovate sync result is too large to import safely.");
+  }
+  return {
+    assertAvailable(bytes) {
+      if (Number.isFinite(bytes) && bytes > 0 && consumed + bytes > maxBytes) fail();
+    },
+    consume(bytes) {
+      consumed += bytes;
+      if (!Number.isFinite(consumed) || consumed > maxBytes) fail();
+    },
+  };
+}
+
+export function serializeTradovateSyncPayload(payload) {
+  const serialized = JSON.stringify(payload);
+  if (Buffer.byteLength(serialized, "utf8") > MAX_SYNC_RESPONSE_BYTES) {
+    throw new Error("Tradovate sync result is too large to import safely.");
+  }
+  return serialized;
+}
+
 function boundedProviderList(value) {
   if (!Array.isArray(value)) throw new Error("Tradovate sync is temporarily unavailable.");
   if (value.length > MAX_PROVIDER_ROWS) throw new Error("Tradovate sync result is too large to import safely.");
   return value;
 }
 
-async function loadContracts(fills, accessToken, signal) {
+async function loadContracts(fills, accessToken, signal, byteBudget) {
   const ids = Array.from(new Set((Array.isArray(fills) ? fills : []).map((fill) => fill.contractId).filter(Boolean)));
   if (ids.length > MAX_CONTRACT_LOOKUPS) throw new Error("Tradovate sync result is too large to import safely.");
   const pairs = [];
@@ -183,7 +221,7 @@ async function loadContracts(fills, accessToken, signal) {
     const batch = ids.slice(offset, offset + MAX_CONCURRENT_CONTRACT_LOOKUPS);
     pairs.push(...await Promise.all(batch.map(async (id) => {
       try {
-        const contract = await tradovateGet(`/contract/item?id=${encodeURIComponent(id)}`, accessToken, signal);
+        const contract = await tradovateGet(`/contract/item?id=${encodeURIComponent(id)}`, accessToken, signal, byteBudget);
         return [id, contract];
       } catch {
         if (signal.aborted) throw new Error("Tradovate sync is temporarily unavailable.");
@@ -217,7 +255,8 @@ function normalizeFillPair(pair, fillsById, contracts, index) {
   const sellTime = new Date(sellFill.timestamp || sellFill.tradeDate || sellFill.createdAt || 0).getTime();
   const isLong = buyTime <= sellTime;
   const contract = contracts.get(buyFill.contractId || sellFill.contractId) || {};
-  const market = inferMarket(contract.name || contract.symbol || contract.productName || `CONTRACT-${buyFill.contractId || sellFill.contractId}`);
+  const contractLabel = boundedProviderText(contract.name || contract.symbol || contract.productName || `CONTRACT-${buyFill.contractId || sellFill.contractId}`);
+  const market = inferMarket(contractLabel);
   const pointValue = POINT_VALUES[market] || 1;
   const quantity = Number(pair.qty || pair.quantity || Math.min(Number(buyFill.qty || buyFill.quantity || 1), Number(sellFill.qty || sellFill.quantity || 1)) || 1);
   const buyPrice = Number(pair.buyPrice || buyFill.price || buyFill.avgPrice || 0);
@@ -237,12 +276,16 @@ function normalizeFillPair(pair, fillsById, contracts, index) {
     pnl,
     risk: Math.max(1, Math.round(Math.abs(pnl || pointValue * quantity))),
     setup: "Tradovate sync",
-    notes: contract.name ? `Synced from ${contract.name}` : "Synced from Tradovate fill pair",
+    notes: contractLabel ? `Synced from ${contractLabel}` : "Synced from Tradovate fill pair",
   };
 }
 
+function boundedProviderText(value) {
+  return String(value || "").replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, MAX_CONTRACT_LABEL_LENGTH);
+}
+
 function inferMarket(name) {
-  const compact = String(name).toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const compact = String(name).toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 32);
   return KNOWN_ROOTS.find((root) => compact.startsWith(root)) || compact.replace(/[FGHJKMNQUVXZ]\d+$/, "") || "UNK";
 }
 

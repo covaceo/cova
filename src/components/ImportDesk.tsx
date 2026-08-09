@@ -32,6 +32,7 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
   const [syncBusy, setSyncBusy] = useState(false);
   const [rithmicBusy, setRithmicBusy] = useState(false);
   const [rithmicCapability, setRithmicCapability] = useState({ available: false, checked: false });
+  const [tradovateCapability, setTradovateCapability] = useState({ available: false, checked: false });
   const [brokerNotice, setBrokerNotice] = useState("");
   const [brokerStatus, setBrokerStatus] = useState<BrokerStatus | null>(() => readBrokerStatus());
   const [selectedFirmId, setSelectedFirmId] = useState<PropFirmId>("topstepx");
@@ -57,6 +58,19 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
       })
       .catch(() => {
         if (!cancelled) setRithmicCapability({ available: false, checked: true });
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    authorizedFetch("/api/tradovate/status")
+      .then(async (response) => {
+        const data = await response.json().catch(() => ({}));
+        if (!cancelled) setTradovateCapability({ available: data?.available === true, checked: true });
+      })
+      .catch(() => {
+        if (!cancelled) setTradovateCapability({ available: false, checked: true });
       });
     return () => { cancelled = true; };
   }, []);
@@ -213,7 +227,14 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
       if (!contentType.includes("application/json")) {
         throw new Error("Broker status is not reachable from this preview.");
       }
-      const data = await response.json() as Partial<BrokerStatus> & { provider?: string };
+      const data = await response.json() as Partial<BrokerStatus> & { available?: boolean; provider?: string };
+      setTradovateCapability({ available: data.available === true, checked: true });
+      if (data.available !== true) {
+        clearBrokerStatus();
+        setBrokerStatus(null);
+        setBrokerNotice("Tradovate direct sync is not configured here. Use CSV import instead.");
+        return;
+      }
       const nextStatus: BrokerStatus = {
         provider: "Tradovate",
         status: data.connected ? "connected" : "not-connected",
@@ -226,6 +247,7 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
       setBrokerStatus(nextStatus);
       setBrokerNotice(nextStatus.message);
     } catch (error) {
+      setTradovateCapability({ available: false, checked: true });
       const nextStatus: BrokerStatus = {
         provider: "Tradovate",
         status: "api-unavailable",
@@ -260,6 +282,8 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
           rithmicAvailable={rithmicCapability.available}
           rithmicBusy={rithmicBusy}
           rithmicStatusChecked={rithmicCapability.checked}
+          tradovateAvailable={tradovateCapability.available}
+          tradovateStatusChecked={tradovateCapability.checked}
           selectedFirmId={selectedFirmId}
           setBrokerNotice={setBrokerNotice}
           setSelectedFirmId={setSelectedFirmId}

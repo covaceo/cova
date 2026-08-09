@@ -9,7 +9,7 @@ import logout from "../api/auth/logout.js";
 import deleteAccount from "../api/account/delete.js";
 import tradovateConnect from "../api/tradovate/connect.js";
 import tradovateCallback from "../api/tradovate/callback.js";
-import tradovateSync from "../api/tradovate/sync.js";
+import tradovateSync, { serializeTradovateSyncPayload } from "../api/tradovate/sync.js";
 
 function responseMock() {
   return {
@@ -49,6 +49,12 @@ try {
   process.env.OAUTH_COOKIE_SECRET = "oauth-context-test-secret";
   process.env.APP_ORIGIN = "https://covadesk.com";
   process.env.TRADOVATE_REDIRECT_URI = "https://covadesk.com/api/tradovate/callback";
+
+  assert.throws(
+    () => serializeTradovateSyncPayload({ provider: "Tradovate", csv: "x".repeat(2 * 1024 * 1024), trades: [] }),
+    /too large to import safely/i,
+    "Tradovate must bound the final serialized API response.",
+  );
 
   await assert.rejects(
     () => requireAuthenticatedUser({ headers: {} }),
@@ -388,6 +394,69 @@ try {
   assert.equal(oversizedSyncRes.statusCode, 502, "Tradovate must reject a provider response whose declared body exceeds the byte ceiling.");
   assert.ok(oversizedProviderSignals.length > 0 && oversizedProviderSignals.every((signal) => signal instanceof AbortSignal), "Every Tradovate provider request must carry an abort deadline.");
   assert.equal(new Set(oversizedProviderSignals).size, 1, "All Tradovate provider requests in one sync must share one overall deadline.");
+
+  const amplifiedOutputRedisResults = [[1, 1], "OK", 1];
+  const amplifiedFillPairs = Array.from({ length: 20 }, (_, index) => ({
+    id: index + 1,
+    buyFillId: index * 2 + 1,
+    sellFillId: index * 2 + 2,
+    qty: 1,
+  }));
+  const amplifiedFills = amplifiedFillPairs.flatMap((pair) => [
+    { id: pair.buyFillId, contractId: 1, qty: 1, price: 100, timestamp: "2026-01-01T10:00:00Z" },
+    { id: pair.sellFillId, contractId: 1, qty: 1, price: 101, timestamp: "2026-01-01T10:01:00Z" },
+  ]);
+  const oversizedContractName = `NQ${"X".repeat(200_000)}`;
+  globalThis.fetch = async (url) => {
+    const target = String(url);
+    if (target.endsWith("/auth/v1/user")) return new Response(JSON.stringify({ id: "pro-user", app_metadata: { plan: "pro" } }), { status: 200 });
+    if (target.includes("/rest/v1/policy_acceptances?")) return new Response(JSON.stringify([{ id: "acceptance-1" }]), { status: 200 });
+    if (target === process.env.KV_REST_API_URL) return new Response(JSON.stringify({ result: amplifiedOutputRedisResults.shift() }), { status: 200 });
+    if (target.includes("/rest/v1/broker_connections?")) return new Response(JSON.stringify([{ access_token_encrypted: encryptedTradovateToken }]), { status: 200 });
+    if (target.includes("/fill/list")) return new Response(JSON.stringify(amplifiedFills), { status: 200 });
+    if (target.includes("/fillPair/list")) return new Response(JSON.stringify(amplifiedFillPairs), { status: 200 });
+    if (target.includes("/contract/item")) return new Response(JSON.stringify({ id: 1, name: oversizedContractName }), { status: 200 });
+    throw new Error(`Unexpected amplified Tradovate request ${target}`);
+  };
+  const amplifiedOutputRes = responseMock();
+  await tradovateSync({
+    method: "GET",
+    headers: {
+      authorization: "Bearer pro-token",
+      cookie: "cova_tradovate_connection=fixture-connection",
+      "x-forwarded-for": "203.0.113.7",
+    },
+    query: {},
+  }, amplifiedOutputRes);
+  assert.equal(amplifiedOutputRes.statusCode, 200, "Tradovate should safely normalize provider labels instead of amplifying them into the response.");
+  assert.ok(Buffer.byteLength(JSON.stringify(amplifiedOutputRes.body), "utf8") <= 2 * 1024 * 1024, "Tradovate response must remain within the final JSON byte ceiling.");
+  assert.ok(amplifiedOutputRes.body.trades.every((trade) => trade.notes.length <= 180), "Provider-controlled contract labels must be bounded before they are repeated in trades and CSV.");
+
+  const aggregateBudgetRedisResults = [[1, 1], "OK", 1];
+  const aggregateBudgetFills = Array.from({ length: 4 }, (_, index) => ({ id: index + 1, contractId: index + 1 }));
+  const aggregateContractPayload = JSON.stringify({ name: `NQ${"Y".repeat(1_600_000)}` });
+  globalThis.fetch = async (url) => {
+    const target = String(url);
+    if (target.endsWith("/auth/v1/user")) return new Response(JSON.stringify({ id: "pro-user", app_metadata: { plan: "pro" } }), { status: 200 });
+    if (target.includes("/rest/v1/policy_acceptances?")) return new Response(JSON.stringify([{ id: "acceptance-1" }]), { status: 200 });
+    if (target === process.env.KV_REST_API_URL) return new Response(JSON.stringify({ result: aggregateBudgetRedisResults.shift() }), { status: 200 });
+    if (target.includes("/rest/v1/broker_connections?")) return new Response(JSON.stringify([{ access_token_encrypted: encryptedTradovateToken }]), { status: 200 });
+    if (target.includes("/fill/list")) return new Response(JSON.stringify(aggregateBudgetFills), { status: 200 });
+    if (target.includes("/fillPair/list")) return new Response("[]", { status: 200 });
+    if (target.includes("/contract/item")) return new Response(aggregateContractPayload, { status: 200 });
+    throw new Error(`Unexpected aggregate-budget Tradovate request ${target}`);
+  };
+  const aggregateBudgetRes = responseMock();
+  await tradovateSync({
+    method: "GET",
+    headers: {
+      authorization: "Bearer pro-token",
+      cookie: "cova_tradovate_connection=fixture-connection",
+      "x-forwarded-for": "203.0.113.7",
+    },
+    query: {},
+  }, aggregateBudgetRes);
+  assert.equal(aggregateBudgetRes.statusCode, 502, "Tradovate must reject cumulative upstream bytes above the per-sync budget.");
 
   const rowBoundRedisResults = [[1, 1], "OK", 1];
   const excessiveFills = Array.from({ length: 5_001 }, (_, index) => ({ id: index + 1 }));

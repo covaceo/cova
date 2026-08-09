@@ -300,6 +300,8 @@ export function BrokerConnectPanel({
   rithmicAvailable,
   rithmicBusy,
   rithmicStatusChecked,
+  tradovateAvailable,
+  tradovateStatusChecked,
   selectedFirmId,
   setBrokerNotice,
   setSelectedFirmId,
@@ -320,6 +322,8 @@ export function BrokerConnectPanel({
   rithmicAvailable: boolean;
   rithmicBusy: boolean;
   rithmicStatusChecked: boolean;
+  tradovateAvailable: boolean;
+  tradovateStatusChecked: boolean;
   selectedFirmId: PropFirmId;
   setBrokerNotice: (notice: string) => void;
   setSelectedFirmId: (firm: PropFirmId) => void;
@@ -331,7 +335,12 @@ export function BrokerConnectPanel({
 }) {
   const connected = Boolean(brokerStatus?.connected);
   const selectedFirm = propFirmOptions.find((firm) => firm.id === selectedFirmId) ?? propFirmOptions[0];
-  const selectedConnected = connected && brokerStatus?.provider === selectedFirm.name;
+  const selectedConnected = connected
+    && brokerStatus?.provider === selectedFirm.name
+    && (selectedFirm.id !== "tradovate" || tradovateAvailable);
+  const tradovateUnavailable = selectedFirm.id === "tradovate"
+    && entitlements.canUseDirectSync
+    && tradovateStatusChecked && !tradovateAvailable;
   const [rithmicCredentials, setRithmicCredentials] = useState<RithmicCredentials>({ username: "", password: "", lookbackDays: 90 });
   const [rithmicAccounts, setRithmicAccounts] = useState<{ accountKey?: string; accountId?: string; accountName?: string }[]>([]);
 
@@ -365,6 +374,14 @@ export function BrokerConnectPanel({
       if (rithmicStatusChecked && !rithmicAvailable) {
         setBrokerNotice("Rithmic Test is unavailable here. Use CSV instead.");
       }
+      return;
+    }
+
+    if (firm.id === "tradovate" && (!tradovateStatusChecked || !tradovateAvailable)) {
+      document.querySelector("[data-tradovate-unavailable]")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      setBrokerNotice(tradovateStatusChecked
+        ? "Tradovate direct sync is not configured here. CSV import remains available."
+        : "Cova is checking Tradovate connector availability. CSV import remains available.");
       return;
     }
 
@@ -440,7 +457,9 @@ export function BrokerConnectPanel({
             >
               <span>
                 <span className="block font-body text-sm font-medium text-white md:text-base">{firm.name}</span>
-                <span className="mt-1 block font-mono text-[10px] uppercase tracking-[0.16em] text-white/44">{providerStatus[firm.id]}</span>
+                <span className="mt-1 block font-mono text-[10px] uppercase tracking-[0.16em] text-white/44">
+                  {firm.id === "tradovate" && tradovateStatusChecked && !tradovateAvailable ? "CSV" : providerStatus[firm.id]}
+                </span>
               </span>
               <span className={`ml-3 inline-flex shrink-0 items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.14em] ${active ? "text-[#b9f5df]" : "text-white/34"}`}>
                 {active && <CircleDot className="h-3.5 w-3.5" />}
@@ -540,6 +559,16 @@ export function BrokerConnectPanel({
         </form>
       )}
 
+      {selectedFirm.id === "tradovate" && entitlements.canUseDirectSync && (!tradovateStatusChecked || !tradovateAvailable) && (
+        <div className="mt-6 rounded-[24px] border border-white/12 bg-white/[0.025] p-5" data-tradovate-unavailable>
+          <p className="font-body text-xs uppercase tracking-[0.2em] text-amber-100/80">Direct connector</p>
+          <h4 className="mt-3 font-body text-xl font-semibold text-white">{tradovateStatusChecked ? "Tradovate sync unavailable." : "Checking connector availability..."}</h4>
+          <p className="mt-2 max-w-2xl font-body text-sm leading-relaxed text-white/58">
+            {tradovateStatusChecked ? "Cova does not offer the connection flow until the complete read-only server path is configured. CSV import remains available below." : "Cova is verifying the complete read-only server path before offering the connection flow. CSV import remains available below."}
+          </p>
+        </div>
+      )}
+
       <div className="mt-6 flex flex-col gap-3 border-t border-white/10 pt-5 lg:flex-row lg:items-center lg:justify-between" data-broker-lifecycle>
         <div>
           <p className="font-body text-sm font-medium text-white/82">{selectedFirm.name}</p>
@@ -548,12 +577,12 @@ export function BrokerConnectPanel({
           </p>
         </div>
         <div className="flex flex-wrap gap-2 lg:justify-end">
-          <GlassButton strong onClick={startFirmConnect}>
-            {selectedFirm.connectLabel} <ArrowUpRight className="h-4 w-4" />
+          <GlassButton strong onClick={tradovateUnavailable ? useCsvLane : startFirmConnect}>
+            {tradovateUnavailable ? "Use CSV" : selectedFirm.connectLabel} <ArrowUpRight className="h-4 w-4" />
           </GlassButton>
           {selectedFirm.id !== "other" && <GlassButton onClick={showExportGuide}>Export CSV</GlassButton>}
           {!entitlements.canUseDirectSync && selectedFirm.status !== "guided" && selectedFirm.id !== "other" && <GlassButton onClick={upgradeToPro}>Unlock sync</GlassButton>}
-          {entitlements.canUseDirectSync && selectedFirm.id === "tradovate" && (
+          {entitlements.canUseDirectSync && selectedFirm.id === "tradovate" && tradovateAvailable && (
             <GlassButton onClick={checkTradovateStatus}>{brokerBusy ? "Checking..." : "Check status"}</GlassButton>
           )}
           {entitlements.canUseDirectSync && selectedFirm.id === "tradovate" && selectedConnected && (

@@ -1,5 +1,6 @@
 import { requireAuthenticatedUser, sendApiError } from "../_lib/auth.js";
 import { clearCookie, parseCookies, serializeCookie } from "../_lib/cookies.js";
+import { tradovateEnvironmentReady } from "../_lib/tradovate-capability.js";
 import {
   getTradovateConnection,
   getTradovateConnectionForUser,
@@ -13,6 +14,12 @@ function requestedProvider(req) {
 
 async function sendTradovateStatus(req, res, userId) {
   const connectionId = parseCookies(req).cova_tradovate_connection || "";
+  if (!tradovateEnvironmentReady()) {
+    if (connectionId) {
+      res.setHeader("Set-Cookie", clearCookie("cova_tradovate_connection"));
+    }
+    return res.status(200).json({ available: false, connected: false, provider: "Tradovate", status: "unavailable" });
+  }
   let connection = connectionId ? await getTradovateConnection(connectionId, userId) : null;
   if (!connection) {
     connection = await getTradovateConnectionForUser(userId);
@@ -22,7 +29,7 @@ async function sendTradovateStatus(req, res, userId) {
     if (connectionId) {
       res.setHeader("Set-Cookie", clearCookie("cova_tradovate_connection"));
     }
-    return res.status(200).json({ connected: false, provider: "Tradovate", status: "not-connected" });
+    return res.status(200).json({ available: true, connected: false, provider: "Tradovate", status: "not-connected" });
   }
 
   if (connection.id && connection.id !== connectionId) {
@@ -30,6 +37,7 @@ async function sendTradovateStatus(req, res, userId) {
   }
 
   return res.status(200).json({
+    available: true,
     connected: true,
     provider: "Tradovate",
     status: connection.status || "connected",
