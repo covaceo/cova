@@ -10,12 +10,17 @@ export type Trade = {
   risk: number;
   setup: string;
   notes: string;
-  source?: {
-    provider: "Rithmic";
-    accountKey: string;
-    accountId: string;
-    currency: string;
-  };
+  source?:
+    | {
+        provider: "Rithmic";
+        accountKey: string;
+        accountId: string;
+        currency: string;
+      }
+    | {
+        provider: "Tradovate";
+        accountId: string;
+      };
 };
 
 export type RiskRule = {
@@ -882,7 +887,7 @@ function groupBy<T>(items: T[], getKey: (item: T) => string) {
     acc[key] = acc[key] ?? [];
     acc[key].push(item);
     return acc;
-  }, {});
+  }, Object.create(null) as Record<string, T[]>);
 }
 
 export function parseCsv(text: string): Trade[] {
@@ -900,6 +905,7 @@ export function parseCsvDetailed(text: string): CsvParseResult {
   const headers = rawHeaders.map(normalizeHeader);
   const issues: CsvParseIssue[] = [];
   const trades: Trade[] = [];
+  const providerTradeIds = new Set<string>();
   const now = Date.now();
 
   lines.slice(1).forEach((line, index) => {
@@ -950,6 +956,7 @@ export function parseCsvDetailed(text: string): CsvParseResult {
     const sourceCurrency = valueFrom(record, ["sourcecurrency"]).trim();
     const sourceTradeId = valueFrom(record, ["sourcetradeid"]).trim();
     const isRithmic = sourceProvider.toLowerCase() === "rithmic";
+    const isTradovate = sourceProvider.toLowerCase() === "tradovate";
     const pnl = parseNumber(pnlRaw);
     const contracts = parseNumber(contractsRaw || "1");
     const entry = parseNumber(entryRaw);
@@ -965,6 +972,8 @@ export function parseCsvDetailed(text: string): CsvParseResult {
       isRithmic && !sourceAccountId ? "missing Rithmic source account" : "",
       isRithmic && !sourceCurrency ? "missing Rithmic source currency" : "",
       isRithmic && !/^rithmic-[a-z0-9-]{1,72}$/i.test(sourceTradeId) ? "invalid Rithmic source trade id" : "",
+      isTradovate && !/^[A-Za-z0-9._:-]{1,128}$/.test(sourceAccountId) ? "invalid Tradovate source account" : "",
+      isTradovate && !/^tradovate-[A-Za-z0-9._:-]{1,128}$/.test(sourceTradeId) ? "invalid Tradovate source trade id" : "",
     ].filter(Boolean);
 
     if (rowIssues.length) {
@@ -972,10 +981,16 @@ export function parseCsvDetailed(text: string): CsvParseResult {
       return;
     }
 
-    const risk = isRithmic ? 0 : Math.max(1, parseNumber(valueFrom(record, ["risk", "plannedrisk", "initialrisk", "maxrisk", "r", "rmultiplebase", "riskamount", "plannedloss"])) || Math.abs(pnl) || 500);
+    const providerImport = isRithmic || isTradovate;
+    if (providerImport && providerTradeIds.has(sourceTradeId)) {
+      issues.push({ row: rowNumber, message: "duplicate provider source trade id" });
+      return;
+    }
+    if (providerImport) providerTradeIds.add(sourceTradeId);
+    const risk = providerImport ? 0 : Math.max(1, parseNumber(valueFrom(record, ["risk", "plannedrisk", "initialrisk", "maxrisk", "r", "rmultiplebase", "riskamount", "plannedloss"])) || Math.abs(pnl) || 500);
     const side = parseSide(valueFrom(record, ["side", "direction", "buysell", "action", "position", "tradeaction"]));
     trades.push({
-      id: isRithmic ? sourceTradeId : `csv-${now}-${index}`,
+      id: providerImport ? sourceTradeId : `csv-${now}-${index}`,
       date,
       market,
       side,
@@ -986,7 +1001,11 @@ export function parseCsvDetailed(text: string): CsvParseResult {
       risk,
       setup: valueFrom(record, ["setup", "strategy", "playbook", "tag", "label", "tradetype", "category"]) || "Imported",
       notes: valueFrom(record, ["notes", "note", "comment", "comments", "journal", "description"]),
-      ...(isRithmic ? { source: { provider: "Rithmic" as const, accountKey: sourceAccountKey, accountId: sourceAccountId, currency: sourceCurrency } } : {}),
+      ...(isRithmic
+        ? { source: { provider: "Rithmic" as const, accountKey: sourceAccountKey, accountId: sourceAccountId, currency: sourceCurrency } }
+        : isTradovate
+          ? { source: { provider: "Tradovate" as const, accountId: sourceAccountId } }
+          : {}),
     });
   });
 

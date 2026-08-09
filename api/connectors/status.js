@@ -1,7 +1,9 @@
 import { requireAuthenticatedUser, sendApiError } from "../_lib/auth.js";
-import { parseCookies } from "../_lib/cookies.js";
+import { clearCookie, parseCookies, serializeCookie } from "../_lib/cookies.js";
+import { tradovateEnvironmentReady } from "../_lib/tradovate-capability.js";
 import {
   getTradovateConnection,
+  getTradovateConnectionForUser,
   listBrokerConnectionsForUser,
 } from "../_lib/supabase.js";
 
@@ -11,20 +13,34 @@ function requestedProvider(req) {
 }
 
 async function sendTradovateStatus(req, res, userId) {
-  const connectionId = parseCookies(req).cova_tradovate_connection;
-  if (!connectionId) {
-    return res.status(200).json({ connected: false, provider: "Tradovate", status: "not-connected" });
+  const connectionId = parseCookies(req).cova_tradovate_connection || "";
+  const available = tradovateEnvironmentReady();
+  let connection = connectionId ? await getTradovateConnection(connectionId, userId) : null;
+  if (!connection) {
+    connection = await getTradovateConnectionForUser(userId);
   }
 
-  const connection = await getTradovateConnection(connectionId, userId);
   if (!connection) {
-    return res.status(200).json({ connected: false, provider: "Tradovate", status: "not-connected" });
+    if (connectionId) {
+      res.setHeader("Set-Cookie", clearCookie("cova_tradovate_connection"));
+    }
+    return res.status(200).json({
+      available,
+      connected: false,
+      provider: "Tradovate",
+      status: available ? "not-connected" : "unavailable",
+    });
+  }
+
+  if (connection.id && connection.id !== connectionId) {
+    res.setHeader("Set-Cookie", serializeCookie("cova_tradovate_connection", connection.id, { maxAge: 60 * 60 * 24 * 30 }));
   }
 
   return res.status(200).json({
+    available,
     connected: true,
     provider: "Tradovate",
-    status: connection.status || "connected",
+    status: available ? (connection.status || "connected") : "configuration-unavailable",
     expiresAt: connection.expires_at,
   });
 }

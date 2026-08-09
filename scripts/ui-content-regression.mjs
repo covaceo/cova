@@ -5,6 +5,16 @@ import { fileURLToPath } from "node:url";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const read = (...parts) => readFileSync(join(root, ...parts), "utf8");
+const packageJson = JSON.parse(read("package.json"));
+const releaseBrowserPath = join(root, "scripts", "release-browser-regression.mjs");
+const ownedPreviewPath = join(root, "scripts", "owned-vite-preview.mjs");
+const authBrowserPath = join(root, "scripts", "auth-modal-browser-regression.mjs");
+assert.equal(existsSync(releaseBrowserPath), true, "The canonical browser release gate must be self-contained in the repository.");
+assert.equal(existsSync(ownedPreviewPath), true, "The canonical release gate must ship its owned Vite preview child.");
+assert.equal(existsSync(authBrowserPath), true, "The short-mobile AuthSheet browser regression must ship in the repository.");
+const releaseBrowser = existsSync(releaseBrowserPath) ? readFileSync(releaseBrowserPath, "utf8") : "";
+const ownedPreview = existsSync(ownedPreviewPath) ? readFileSync(ownedPreviewPath, "utf8") : "";
+const authBrowser = existsSync(authBrowserPath) ? readFileSync(authBrowserPath, "utf8") : "";
 
 const workspace = read("src", "components", "WorkspaceSections.tsx");
 const workspaceShell = read("src", "components", "WorkspaceShell.tsx");
@@ -19,6 +29,7 @@ const planSections = read("src", "components", "PlanSections.tsx");
 const ctaFooter = planSections.slice(planSections.indexOf("export function CtaFooter"));
 const propFirms = read("src", "lib", "propFirms.ts");
 const authPanels = read("src", "components", "AuthPanels.tsx");
+const oauthConnectPage = read("src", "components", "OAuthConnectPage.tsx");
 const dashboard = read("src", "components", "DashboardView.tsx");
 const marketingHero = read("src", "components", "MarketingHero.tsx");
 const navbar = read("src", "components", "Navbar.tsx");
@@ -45,6 +56,20 @@ const tempRegressionScripts = [
   read("scripts", "practice-datafeed-regression.mjs"),
 ];
 const practiceUi = `${workspace}\n${backtestingTerminal}`;
+
+assert.match(packageJson.scripts.test, /test:browser-release/, "The canonical test aggregate must run the compiled browser release gate.");
+assert.equal(packageJson.scripts["test:browser-release"], "npm run build && node scripts/release-browser-regression.mjs");
+assert.match(releaseBrowser, /spawn\([\s\S]*preview[\s\S]*COVA_VIEWPORT_WIDTH[\s\S]*mobile-audit\.mjs[\s\S]*auth-modal-browser-regression\.mjs[\s\S]*finally/, "The release browser gate must start preview, run mobile and AuthSheet audits, and always clean up.");
+assert.match(releaseBrowser, /spawn\([\s\S]*owned-vite-preview\.mjs[\s\S]*"ipc"[\s\S]*waitForOwnedPreview[\s\S]*owned-preview-ready/, "The release gate must require a ready IPC event from its own preview child.");
+assert.match(releaseBrowser, /type:\s*"shutdown"[\s\S]*waitForPortClosed/, "The release gate must shut down its owned child and verify that its port closes.");
+assert.match(ownedPreview, /preview\([\s\S]*port:\s*0[\s\S]*strictPort:\s*true/, "The owned preview child must use an OS-selected strict port.");
+assert.match(ownedPreview, /process\.send[\s\S]*owned-preview-ready/, "The owned preview child must report readiness through IPC.");
+assert.match(ownedPreview, /server\?\.close|server\.close/, "The owned preview child must support graceful shutdown.");
+for (const chromeHarness of [mobileAudit, authBrowser]) {
+  assert.match(chromeHarness, /--remote-debugging-port=0/, "Chrome QA must request an OS-selected CDP port.");
+  assert.match(chromeHarness, /DevToolsActivePort/, "Chrome QA must bind CDP through the spawned run's unique profile.");
+}
+assert.match(authBrowser, /width:\s*390,\s*height:\s*640[\s\S]*aria-label=.Close.[\s\S]*overlay\.scrollTop[\s\S]*background[\s\S]*allInert/, "The AuthSheet browser regression must verify short-phone close visibility, top scroll position, and background isolation.");
 
 for (const stalePath of [
   "app.js",
@@ -120,9 +145,14 @@ assert.doesNotMatch(mobileAudit, /Beta connector/, "Browser QA must not expect t
 assert.match(mobileAudit, /TopstepX export/, "Browser QA must verify the surviving TopstepX CSV guide.");
 assert.doesNotMatch(app, /readOAuthFirmId\(\) \?\? "topstepx"/, "A stale OAuth route must not default to the retired TopstepX connector.");
 assert.match(app, /firmId === "topstepx"[\s\S]*?CSV/, "TopstepX must be rejected by any stale direct-connection callback and returned to CSV import.");
-assert.match(app, /saved !== "topstepx"/, "Legacy TopstepX OAuth browser state must not restore the retired connector.");
+assert.match(app, /saved === "tradovate" \? "tradovate" : null/, "Only the retained Tradovate OAuth route may be restored from browser state.");
 assert.match(brokerStatusSource, /parsed\?\.provider === "TopstepX"[\s\S]*?removeScopedStorage\(BROKER_STATUS_KEY\)/, "Legacy TopstepX connected browser state must be purged instead of restored.");
 assert.match(importDesk, /brokerStatus\?\.provider === "Tradovate" \? "tradovate" : "all"/, "Unknown legacy broker states must trigger all-provider cleanup rather than a false Tradovate-only disconnect.");
+const csvReadFile = importDesk.match(/async function readFile\(file\?: File\) \{([\s\S]*?)\n  \}/)?.[1] || "";
+assert.match(importDesk, /const MAX_CSV_FILE_BYTES = 2 \* 1024 \* 1024;/, "Browser CSV imports must have an explicit two-megabyte byte ceiling.");
+assert.match(csvReadFile, /file\.size > MAX_CSV_FILE_BYTES/, "CSV files must be rejected by byte size before their contents are allocated.");
+assert.ok(csvReadFile.indexOf("file.size > MAX_CSV_FILE_BYTES") < csvReadFile.indexOf("await file.text()"), "The CSV byte ceiling must run before File.text allocates the payload.");
+assert.match(csvReadFile, /exceeds the 2 MB CSV limit/, "Oversized CSV files need a clear customer-facing rejection.");
 assert.equal(existsSync(join(root, "api", "projectx")), false, "Retired TopstepX serverless endpoints must not ship.");
 assert.equal(existsSync(join(root, "api", "_lib", "projectx.js")), false, "Retired TopstepX provider helpers must not ship.");
 assert.doesNotMatch(vercel, /projectx/i, "Vercel routing must not expose the retired TopstepX connector.");
@@ -226,6 +256,8 @@ assert.doesNotMatch(planSections, /Saved CSV and review history|Unlimited Risk P
 assert.match(planSections, /Unlimited Passport image exports/, "Pro should describe the implemented repeatable export capability.");
 assert.match(planSections, /Direct sync access when configured/, "Pro should describe direct sync as conditional on configured connectors.");
 assert.match(planSections, /currentPlan === "pro" \? \([\s\S]*?Pro active[\s\S]*?\) : \(/, "The active Pro state must render as status, not reuse the checkout action.");
+assert.match(app, /function upgradeToPro\(\)[\s\S]*?const checkoutUrl = getProCheckoutUrl\(\);[\s\S]*?if \(!checkoutUrl && !isDemoPreviewEnabled\(\)\)[\s\S]*?Pro checkout is not open yet[\s\S]*?return;[\s\S]*?if \(!authSession\)/, "An unavailable production checkout must fail closed before asking a visitor to create an account.");
+assert.match(planSections, /proCheckoutAvailable[\s\S]*?Pro checkout opening soon/, "Pricing must visibly disclose when the advertised Pro checkout is not open.");
 assert.doesNotMatch(app, /maxActivePassports/, "Unused multi-Passport entitlements must not imply a management model that does not exist.");
 assert.match(marketingPages, /resource-action-card/, "Resources should provide actionable routes instead of static explainer cards.");
 assert.doesNotMatch(marketingPages, /title: "OAuth sign-in"[\s\S]*?route: "oauth"/, "Resources must not route a generic OAuth explainer into the default TopstepX API-key flow.");
@@ -279,6 +311,11 @@ assert.match(app, /isSampleReview=\{isSampleReview\}/, "Passport should receive 
 assert.match(workspace, /passport-sample-watermark/, "Sample Passports should carry a watermark inside the exported card node.");
 assert.match(workspace, /SAMPLE REVIEW · DEMO DATA/, "Sample Passport watermark must state that its data is demo-only.");
 assert.match(workspace, /Sample analysis · not account verification/, "Sample Passport proof copy must not claim account verification.");
+assert.doesNotMatch(workspace, /high-confidence review|pressure tested|zero-breach week/i, "Passport must not attach unsupported verification or time-window claims to user-supplied history.");
+assert.match(workspace, /USER-SUPPLIED DATA · NOT ACCOUNT VERIFIED/, "Imported Passport exports must disclose that source data is user supplied and not account verified.");
+assert.match(workspace, /function getPassportExportDisclosure[\s\S]*DEMO DATA · NOT ACCOUNT VERIFIED · LOCAL PNG · USER CONTROLLED[\s\S]*USER-SUPPLIED DATA · NOT ACCOUNT VERIFIED · LOCAL PNG · USER CONTROLLED/, "Passport needs one canonical lifecycle disclosure for sample and user-supplied exports.");
+assert.ok((workspace.match(/getPassportExportDisclosure\(isSampleReview\)/g) || []).length >= 3, "Passport card, composed PNG, and fallback export must use the same lifecycle disclosure.");
+assert.match(workspace, /PASSPORT_PREFERENCES_STORAGE_KEY/, "Implemented Passport preferences must have an owner-scoped persistence key matching the Privacy disclosure.");
 assert.doesNotMatch(workspace, /rank: "Blown"/, "Passport ranks should not shame a red account with a non-strategy tier.");
 assert.doesNotMatch(workspace, /passport-(?:tier|card-skin)-blown/, "Passport internals should use rebuild language for red Bronze states.");
 assert.doesNotMatch(workspace, /Verified trades/, "Passport should call imported rows reviewed trades, not verified trades.");
@@ -298,5 +335,13 @@ assert.match(indexCss, /\.passport-card-hitbox\.passport-credential-hitbox\s*\{[
 assert.match(indexCss, /@media \(max-width: 860px\)[\s\S]*?\.passport-card-hitbox\.passport-credential-hitbox\s*\{[\s\S]*?min-height:\s*0/, "Passport mobile should not inherit the old 800px credential minimum height.");
 assert.match(indexCss, /@media \(max-width: 1180px\)[\s\S]*?\.passport-share-rail\s*\{[\s\S]*?order:\s*-1/, "Passport controls should appear before the long card preview on narrow screens.");
 assert.match(authPanels, /Enter dev preview/, "Dev preview must remain available for Raf's review flow.");
+assert.doesNotMatch(authPanels, /Passport history/, "Signup must not advertise a Passport archive that does not exist.");
+assert.match(authPanels, /Practice history/, "Signup should name the implemented saved Practice history instead.");
+assert.match(authPanels, /dialogRef/, "Auth dialog behavior must be scoped to the rendered modal.");
+assert.match(authPanels, /\.inert\s*=\s*true/, "The open auth modal must make background siblings inert.");
+assert.match(authPanels, /event\.key !== "Tab"/, "The auth modal must trap keyboard tab focus.");
+assert.match(authPanels, /event\.key === "Escape"/, "The auth modal must support Escape dismissal.");
+assert.match(authPanels, /openerRef[\s\S]*?\.focus\(\)/, "Closing auth must restore focus to the invoking control.");
+assert.match(oauthConnectPage, /!hasConfiguredProvider && !devProviderPreview/, "Missing provider configuration must render a production-safe unavailable state rather than a sign-in simulation.");
 
 console.log("ui-content-regression: all checks passed");

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { parseCsvDetailed } from "../lib/risk";
 import { type PropFirmId } from "../lib/propFirms";
-import { BROKER_STATUS_KEY, clearBrokerStatus, readBrokerStatus, writeBrokerStatus, type BrokerStatus } from "../lib/brokerStatus";
+import { clearBrokerStatus, readBrokerStatus, writeBrokerStatus, type BrokerStatus } from "../lib/brokerStatus";
 import { canRedirectToTradovate } from "../lib/tradovateConnect";
 import { authorizedFetch } from "../lib/apiClient";
 import { ImageAtmosphere, SectionShell } from "./LayoutShell";
@@ -21,6 +21,37 @@ type RithmicCredentials = {
   lookbackDays: 30 | 90 | 180;
 };
 
+const MAX_CSV_FILE_BYTES = 2 * 1024 * 1024;
+
+type TradovateStatusResponse = {
+  available?: boolean;
+  connected?: boolean;
+  connectionId?: string;
+  message?: string;
+  provider?: string;
+  status?: string;
+};
+
+function brokerStatusFromTradovate(data: TradovateStatusResponse): BrokerStatus {
+  const connected = data.connected === true;
+  const available = data.available === true;
+  return {
+    provider: "Tradovate",
+    status: available ? (connected ? "connected" : "not-connected") : "api-unavailable",
+    connected,
+    mode: "linked",
+    connectionId: data.connectionId,
+    message: data.message || (connected
+      ? available
+        ? "Tradovate connection found."
+        : "Tradovate connection retained. Direct sync is unavailable here, but you can disconnect it below or use CSV."
+      : available
+        ? "No Tradovate connection found yet."
+        : "Tradovate direct sync is not configured here. Use CSV import instead."),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, reset, upgradeToPro }: { entitlements: ImportEntitlements; importCsv: (text: string, mode?: ImportMode) => void; openFirmOAuth: (firm: PropFirmId) => void; status: string; reset: () => void; upgradeToPro: () => void }) {
   const [text, setText] = useState("date,market,side,contracts,entry,exit,pnl,risk,setup,notes\n2026-05-06,NQ,Long,1,18900,18915,300,250,Opening range,Smoke row");
   const [mode, setMode] = useState<ImportMode>("append");
@@ -30,6 +61,7 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
   const [syncBusy, setSyncBusy] = useState(false);
   const [rithmicBusy, setRithmicBusy] = useState(false);
   const [rithmicCapability, setRithmicCapability] = useState({ available: false, checked: false });
+  const [tradovateCapability, setTradovateCapability] = useState({ available: false, checked: false });
   const [brokerNotice, setBrokerNotice] = useState("");
   const [brokerStatus, setBrokerStatus] = useState<BrokerStatus | null>(() => readBrokerStatus());
   const [selectedFirmId, setSelectedFirmId] = useState<PropFirmId>("topstepx");
@@ -59,8 +91,35 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
     return () => { cancelled = true; };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    authorizedFetch("/api/tradovate/status")
+      .then(async (response) => {
+        const data = await response.json().catch(() => ({})) as TradovateStatusResponse;
+        if (cancelled) return;
+        setTradovateCapability({ available: response.ok && data?.available === true, checked: true });
+        if (response.ok && data?.connected === true) {
+          const nextStatus = brokerStatusFromTradovate(data);
+          writeBrokerStatus(nextStatus);
+          setBrokerStatus(nextStatus);
+        } else if (response.ok && data?.connected === false && readBrokerStatus()?.provider === "Tradovate") {
+          clearBrokerStatus();
+          setBrokerStatus(null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setTradovateCapability({ available: false, checked: true });
+      });
+    return () => { cancelled = true; };
+  }, []);
+
   async function readFile(file?: File) {
     if (!file) {
+      return;
+    }
+    if (file.size > MAX_CSV_FILE_BYTES) {
+      setFileName(`${file.name} exceeds the 2 MB CSV limit.`);
+      setText("");
       return;
     }
     setFileName(file.name);
@@ -84,6 +143,10 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
       if (!data.csv || tradeCount <= 0) {
         setBrokerNotice("Tradovate connected, but no closed fill pairs were found yet.");
         return;
+      }
+      const verified = parseCsvDetailed(data.csv);
+      if (verified.issues.length || verified.trades.length !== tradeCount) {
+        throw new Error("Tradovate returned an inconsistent trade ledger, so Cova did not import it.");
       }
       setBrokerNotice(`Synced ${tradeCount} Tradovate trade${tradeCount === 1 ? "" : "s"} into Cova.`);
       importCsv(data.csv, "replace");
@@ -206,28 +269,37 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
       if (!contentType.includes("application/json")) {
         throw new Error("Broker status is not reachable from this preview.");
       }
-      const data = await response.json() as Partial<BrokerStatus> & { provider?: string };
-      const nextStatus: BrokerStatus = {
-        provider: "Tradovate",
-        status: data.connected ? "connected" : "not-connected",
-        connected: Boolean(data.connected),
-        connectionId: data.connectionId,
-        message: data.message || (data.connected ? "Tradovate connection found." : "No Tradovate connection found yet."),
-        updatedAt: new Date().toISOString(),
-      };
-      localStorage.setItem(BROKER_STATUS_KEY, JSON.stringify(nextStatus));
-      setBrokerStatus(nextStatus);
+      const data = await response.json() as TradovateStatusResponse;
+      if (!response.ok) {
+        throw new Error(data.message || "Tradovate status check failed.");
+      }
+      setTradovateCapability({ available: data.available === true, checked: true });
+      const nextStatus = brokerStatusFromTradovate(data);
+      if (data.connected === true) {
+        writeBrokerStatus(nextStatus);
+        setBrokerStatus(nextStatus);
+      } else {
+        clearBrokerStatus();
+        setBrokerStatus(null);
+      }
       setBrokerNotice(nextStatus.message);
     } catch (error) {
-      const nextStatus: BrokerStatus = {
-        provider: "Tradovate",
-        status: "api-unavailable",
-        connected: false,
-        message: error instanceof Error ? error.message : "Tradovate status check is unavailable in this preview.",
-        updatedAt: new Date().toISOString(),
-      };
-      setBrokerStatus(nextStatus);
-      setBrokerNotice(`${nextStatus.message} Upload a CSV export instead and Cova will review the account the same way.`);
+      setTradovateCapability({ available: false, checked: true });
+      const retainedStatus = readBrokerStatus();
+      if (retainedStatus?.provider === "Tradovate" && retainedStatus.connected) {
+        setBrokerStatus(retainedStatus);
+        setBrokerNotice(`${error instanceof Error ? error.message : "Tradovate status check is unavailable."} The saved connection remains available to disconnect below; use CSV while sync is unavailable.`);
+      } else {
+        const nextStatus: BrokerStatus = {
+          provider: "Tradovate",
+          status: "api-unavailable",
+          connected: false,
+          message: error instanceof Error ? error.message : "Tradovate status check is unavailable in this preview.",
+          updatedAt: new Date().toISOString(),
+        };
+        setBrokerStatus(nextStatus);
+        setBrokerNotice(`${nextStatus.message} Upload a CSV export instead and Cova will review the account the same way.`);
+      }
     } finally {
       setBrokerBusy(false);
     }
@@ -253,6 +325,8 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
           rithmicAvailable={rithmicCapability.available}
           rithmicBusy={rithmicBusy}
           rithmicStatusChecked={rithmicCapability.checked}
+          tradovateAvailable={tradovateCapability.available}
+          tradovateStatusChecked={tradovateCapability.checked}
           selectedFirmId={selectedFirmId}
           setBrokerNotice={setBrokerNotice}
           setSelectedFirmId={setSelectedFirmId}

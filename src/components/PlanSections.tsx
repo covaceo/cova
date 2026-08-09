@@ -57,7 +57,7 @@ const planOptions = [
   },
 ] as const;
 
-export function PlanStrip({ compact = false, currentPlan, go, openAuth, upgradeToPro }: { compact?: boolean; currentPlan: PlanTier | null; go: (section: PlanRoute) => void; openAuth: (mode: AuthMode) => void; upgradeToPro: () => void }) {
+export function PlanStrip({ compact = false, currentPlan, go, openAuth, proCheckoutAvailable, upgradeToPro }: { compact?: boolean; currentPlan: PlanTier | null; go: (section: PlanRoute) => void; openAuth: (mode: AuthMode) => void; proCheckoutAvailable: boolean; upgradeToPro: () => void }) {
   return (
     <section className={`deferred-paint-section plans-section pricing-showcase ${compact ? "pricing-showcase-compact" : ""}`}>
       <div aria-hidden="true" className="pricing-showcase-top-fade" />
@@ -108,7 +108,7 @@ export function PlanStrip({ compact = false, currentPlan, go, openAuth, upgradeT
                   <span className="plan-primary-action plan-primary-status" role="status">Pro active</span>
                 ) : (
                   <button className="plan-primary-action" onClick={upgradeToPro} type="button">
-                    <span>Upgrade to Pro</span><ArrowUpRight aria-hidden="true" />
+                    <span>{proCheckoutAvailable ? "Upgrade to Pro" : "Pro checkout opening soon"}</span><ArrowUpRight aria-hidden="true" />
                   </button>
                 ) : currentPlan ? (
                   <button className="plan-primary-action plan-primary-action-free" onClick={() => go("import")} type="button">

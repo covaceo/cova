@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { requirePolicyAcceptedUser, requireProEntitlement, sendApiError } from "../_lib/auth.js";
 import { serializeCookie } from "../_lib/cookies.js";
 import { createOAuthContext } from "../_lib/oauth-context.js";
+import { tradovateEnvironmentReady } from "../_lib/tradovate-capability.js";
 import { getTradovateRedirectUri } from "../_lib/urls.js";
 
 export default async function handler(req, res) {
@@ -14,10 +15,10 @@ export default async function handler(req, res) {
 
   try {
     const user = requireProEntitlement(await requirePolicyAcceptedUser(req));
-    const clientId = process.env.TRADOVATE_CLIENT_ID;
-    if (!clientId) {
-      return res.status(500).json({ error: "Tradovate access is not configured yet." });
+    if (!tradovateEnvironmentReady()) {
+      return res.status(503).json({ error: "Tradovate access is not configured yet." });
     }
+    const clientId = process.env.TRADOVATE_CLIENT_ID;
 
     const state = randomBytes(32).toString("hex");
     const context = createOAuthContext(user.id, state);

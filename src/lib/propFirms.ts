@@ -236,7 +236,7 @@ export function buildFirmConnectUrl(firmId: PropFirmId) {
 
 export function canRedirectToFirmProvider(firmId: PropFirmId) {
   if (firmId === "rithmic") {
-    return true;
+    return false;
   }
   if (firmId === "other") {
     return false;

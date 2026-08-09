@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowUpRight, Check, LockKeyhole, Mail, SlidersHorizontal, UserRound, X } from "lucide-react";
 import { buildHostedAuthUrl, canRedirectToHostedAuth, isDemoPreviewEnabled, isLocalPreview } from "../lib/authEnvironment";
@@ -89,11 +89,118 @@ export function AuthSheet({ authIntentKey, mode, setMode, close, onAuthenticated
   const canRedirect = mode ? canRedirectToHostedAuth(mode) : false;
   const supabaseReady = isSupabaseConfigured();
   const showDevPreview = isDemoPreviewEnabled();
+  const authOpen = Boolean(mode);
+  const [modalIsolationActive, setModalIsolationActive] = useState(authOpen);
+  const overlayRef = useRef<HTMLDivElement | null>(null);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
+  const closeRef = useRef(close);
+  closeRef.current = close;
 
   useEffect(() => {
     setNotice("");
     setPolicyAccepted(false);
   }, [mode, pendingPolicyConfirmation]);
+
+  useLayoutEffect(() => {
+    if (authOpen) setModalIsolationActive(true);
+  }, [authOpen]);
+
+  useLayoutEffect(() => {
+    if (!modalIsolationActive) {
+      return;
+    }
+
+    const overlay = overlayRef.current;
+    const dialog = dialogRef.current;
+    if (!overlay || !dialog) {
+      return;
+    }
+
+    const scrollX = window.scrollX;
+    const scrollY = window.scrollY;
+    const previousBodyStyle = {
+      left: document.body.style.left,
+      overflow: document.body.style.overflow,
+      position: document.body.style.position,
+      right: document.body.style.right,
+      top: document.body.style.top,
+      width: document.body.style.width,
+    };
+    const previousRootOverflow = document.documentElement.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.left = `-${scrollX}px`;
+    document.body.style.right = "0";
+    document.body.style.width = "100%";
+    document.body.style.overflow = "hidden";
+
+    openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const background = Array.from(overlay.parentElement?.children ?? [])
+      .filter((node): node is HTMLElement => node instanceof HTMLElement && node !== overlay)
+      .map((node) => ({ node, inert: node.inert, ariaHidden: node.getAttribute("aria-hidden") }));
+    background.forEach(({ node }) => {
+      node.inert = true;
+      node.setAttribute("aria-hidden", "true");
+    });
+
+    const focusable = () => Array.from(dialog.querySelectorAll<HTMLElement>(
+      "button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex='-1'])",
+    )).filter((element) => element.offsetParent !== null);
+    const focusFrame = window.requestAnimationFrame(() => {
+      const mobileInitialFocus = window.matchMedia("(max-width: 767px)").matches
+        ? dialog.querySelector<HTMLElement>("[data-auth-mobile-initial-focus]")
+        : null;
+      (mobileInitialFocus || dialog.querySelector<HTMLElement>("[data-auth-initial-focus]") || focusable()[0] || dialog).focus();
+    });
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeRef.current();
+        return;
+      }
+      if (event.key !== "Tab") {
+        return;
+      }
+      const items = focusable();
+      if (!items.length) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      document.removeEventListener("keydown", handleKeyDown);
+      background.forEach(({ node, inert, ariaHidden }) => {
+        node.inert = inert;
+        if (ariaHidden === null) {
+          node.removeAttribute("aria-hidden");
+        } else {
+          node.setAttribute("aria-hidden", ariaHidden);
+        }
+      });
+      document.documentElement.style.overflow = previousRootOverflow;
+      Object.assign(document.body.style, previousBodyStyle);
+      window.scrollTo(scrollX, scrollY);
+      const opener = openerRef.current;
+      openerRef.current = null;
+      window.requestAnimationFrame(() => opener?.focus());
+    };
+  }, [modalIsolationActive]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -177,16 +284,19 @@ export function AuthSheet({ authIntentKey, mode, setMode, close, onAuthenticated
   }
 
   return (
-    <AnimatePresence>
+    <AnimatePresence onExitComplete={() => setModalIsolationActive(false)}>
       {mode && (
         <motion.div
-          className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto px-4 py-4 md:items-center md:py-8"
+          ref={overlayRef}
+          className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto overscroll-contain px-4 py-4 md:items-center md:py-8"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
-          <button className="absolute inset-0 cursor-default bg-black/62 backdrop-blur-md" onClick={close} type="button" aria-label="Close auth panel" />
+          <button className="absolute inset-0 cursor-default bg-black/62 backdrop-blur-md" onClick={close} tabIndex={-1} type="button" aria-label="Close auth panel" />
           <motion.div
+            ref={dialogRef}
+            tabIndex={-1}
             className="liquid-glass-strong relative grid w-full max-w-5xl shrink-0 overflow-hidden rounded-[44px] p-4 md:grid-cols-[0.95fr_1.05fr]"
             initial={{ opacity: 0, y: 34, scale: 0.96, filter: "blur(12px)" }}
             animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
@@ -196,7 +306,7 @@ export function AuthSheet({ authIntentKey, mode, setMode, close, onAuthenticated
             aria-modal="true"
             aria-label={isSignup ? "Create Cova account" : "Log in to Cova"}
           >
-            <button className="liquid-glass absolute right-5 top-5 z-20 grid h-10 w-10 place-items-center rounded-full text-white" onClick={close} type="button" aria-label="Close">
+            <button data-auth-mobile-initial-focus className="liquid-glass absolute right-5 top-5 z-20 grid h-10 w-10 place-items-center rounded-full text-white" onClick={close} type="button" aria-label="Close">
               <X className="h-4 w-4" />
             </button>
 
@@ -259,7 +369,7 @@ export function AuthSheet({ authIntentKey, mode, setMode, close, onAuthenticated
                 {pendingPolicyConfirmation
                   ? "Your email is verified. Confirm the current policies before Cova opens the member workspace."
                   : isSignup
-                  ? "Save uploads, limits, insight notes, and Passport history under your member identity."
+                  ? "Save uploads, limits, insight notes, and Practice history under your member identity."
                   : "Use your member session to protect the production Cova workspace."}
               </p>
 
@@ -270,6 +380,7 @@ export function AuthSheet({ authIntentKey, mode, setMode, close, onAuthenticated
                 <Mail className="h-4 w-4 text-[#18c887]" />
                 <input
                   id="auth-email"
+                  data-auth-initial-focus
                   className="w-full bg-transparent font-body text-sm text-white outline-none placeholder:text-white/30"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
@@ -283,6 +394,7 @@ export function AuthSheet({ authIntentKey, mode, setMode, close, onAuthenticated
               {(pendingPolicyConfirmation || (isSignup && !supabaseReady)) && (
                 <label className="mt-5 flex items-start gap-3 font-body text-xs leading-5 text-white/58" aria-label="I agree to the Terms of Service and Privacy Policy">
                   <input
+                    data-auth-initial-focus={pendingPolicyConfirmation ? true : undefined}
                     className="mt-0.5 h-4 w-4 shrink-0 accent-[#18c887]"
                     checked={policyAccepted}
                     onChange={(event) => setPolicyAccepted(event.target.checked)}

@@ -3,11 +3,10 @@ import { requireProUserById } from "../_lib/auth.js";
 import { clearCookie, parseCookies, serializeCookie } from "../_lib/cookies.js";
 import { verifyOAuthContext } from "../_lib/oauth-context.js";
 import { saveTradovateConnection } from "../_lib/supabase.js";
-import { getAppOrigin, getTradovateRedirectUri } from "../_lib/urls.js";
+import { addBrokerResult, getAppOrigin, getTradovateRedirectUri } from "../_lib/urls.js";
 
 function redirectToClient(req, res, status, message) {
-  const target = new URL(getAppOrigin(req));
-  target.hash = `import?broker=${encodeURIComponent(status)}&message=${encodeURIComponent(message)}`;
+  const target = addBrokerResult("/#import", getAppOrigin(req), status, { message });
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("Set-Cookie", clearCookie("cova_oauth_context"));
   return res.redirect(302, target.toString());
@@ -78,8 +77,7 @@ export default async function handler(req, res) {
 
     const connectionId = randomUUID();
     await saveTradovateConnection({ connectionId, tokenData, userId });
-    const target = new URL(getAppOrigin(req));
-    target.hash = "import?broker=connected&message=Tradovate%20connected%20read-only";
+    const target = addBrokerResult("/#import", getAppOrigin(req), "connected", { message: "Tradovate connected read-only" });
     res.setHeader("Cache-Control", "no-store");
     res.setHeader("Set-Cookie", [
       serializeCookie("cova_tradovate_connection", connectionId, { maxAge: 60 * 60 * 24 * 30 }),

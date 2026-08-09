@@ -151,10 +151,10 @@ function FeatureActionCard({ title, body, Icon, action, onClick, strong = false 
   );
 }
 
-export function PricingPage({ currentPlan, go, openAuth, upgradeToPro }: { currentPlan: PlanTier | null; go: (section: Section) => void; openAuth: (mode: AuthMode) => void; upgradeToPro: () => void }) {
+export function PricingPage({ currentPlan, go, openAuth, proCheckoutAvailable, upgradeToPro }: { currentPlan: PlanTier | null; go: (section: Section) => void; openAuth: (mode: AuthMode) => void; proCheckoutAvailable: boolean; upgradeToPro: () => void }) {
   return (
     <div className="relative overflow-hidden">
-      <PlanStrip compact currentPlan={currentPlan} go={go} openAuth={openAuth} upgradeToPro={upgradeToPro} />
+      <PlanStrip compact currentPlan={currentPlan} go={go} openAuth={openAuth} proCheckoutAvailable={proCheckoutAvailable} upgradeToPro={upgradeToPro} />
       <section className="relative px-5 pb-28 pt-2 md:px-12 lg:px-20">
         <div className="mx-auto grid max-w-7xl gap-5 lg:grid-cols-3">
           {[

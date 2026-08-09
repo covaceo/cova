@@ -37,6 +37,18 @@ assert.doesNotMatch(
 );
 assert.match(workspace, /className="backtesting-lab-shell"/, "Practice should render a dedicated full-screen Backtesting Lab shell.");
 assert.match(workspace, /aria-label="Back to Cova risk desk"/, "Backtesting Lab should provide a clear return path to Cova.");
+assert.match(workspace, /PRACTICE_DESKTOP_CAPABILITY\s*=\s*"\(min-width:\s*1024px\) and \(hover:\s*hover\) and \(pointer:\s*fine\)"/, "Practice should define one explicit desktop capability contract.");
+assert.match(workspace, /matchMedia\(PRACTICE_DESKTOP_CAPABILITY\)/, "Practice should evaluate the real viewport and pointer capability instead of user-agent sniffing.");
+assert.match(workspace, /mediaQuery\.addEventListener\("change", updateEligibility\)/, "Practice should react when the device crosses the desktop capability boundary.");
+assert.match(workspace, /mediaQuery\.removeEventListener\("change", updateEligibility\)/, "Practice should clean up its capability listener.");
+assert.match(workspace, /className="practice-availability-gate"/, "Unsupported devices should render the dedicated Practice availability gate.");
+assert.match(workspace, /Practice is built for desktop/, "The availability gate should explain the desktop boundary plainly.");
+assert.match(workspace, /Back to risk desk/, "The availability gate should provide a working return action.");
+assert.match(workspace, /useState<DeskTab>\("positions"\)/, "Practice should own evidence-desk selection above the capability gate so it survives terminal unmounts.");
+assert.match(terminal, /deskTab:\s*DeskTab/, "The terminal should receive evidence-desk selection as controlled state.");
+assert.match(terminal, /onDeskTabChange:\s*\(tab:\s*DeskTab\)\s*=>\s*void/, "The terminal should report evidence-desk selection to Practice.");
+assert.doesNotMatch(terminal, /useState<DeskTab>/, "The capability-gated terminal must not own evidence-desk state that resets when it remounts.");
+assert.match(terminalCss, /\.practice-availability-gate\b/, "The Practice availability gate should have an intentional product surface.");
 assert.match(terminal, /className="backtesting-terminal"/, "Backtesting Lab should use its own terminal layout.");
 assert.match(terminal, /className="backtesting-chart-deck"/, "The replay chart should be the dominant terminal surface.");
 assert.match(terminal, /className="backtesting-order-rail"/, "Native execution controls should live in a fixed right rail.");

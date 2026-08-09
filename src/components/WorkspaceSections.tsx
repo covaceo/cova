@@ -46,7 +46,7 @@ import {
 import { removeScopedStorage, scopedStorageKey } from "../lib/storageScope";
 import { analyze, formatMoney, formatPercent, type RiskRule } from "../lib/risk";
 import { LightweightReplayChart } from "./practice/LightweightReplayChart";
-import { BacktestingTerminal } from "./practice/BacktestingTerminal";
+import { BacktestingTerminal, type DeskTab } from "./practice/BacktestingTerminal";
 import { GlassButton } from "./GlassButton";
 import { ImageAtmosphere, SectionShell } from "./LayoutShell";
 
@@ -322,6 +322,23 @@ type PracticeAccountDraft = {
 };
 
 const defaultPracticeDate = "2025-03-14";
+const PRACTICE_DESKTOP_CAPABILITY = "(min-width: 1024px) and (hover: hover) and (pointer: fine)";
+
+function usePracticeDesktopEligibility() {
+  const [eligible, setEligible] = useState(() => (
+    typeof window !== "undefined" && window.matchMedia(PRACTICE_DESKTOP_CAPABILITY).matches
+  ));
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia(PRACTICE_DESKTOP_CAPABILITY);
+    const updateEligibility = () => setEligible(mediaQuery.matches);
+    updateEligibility();
+    mediaQuery.addEventListener("change", updateEligibility);
+    return () => mediaQuery.removeEventListener("change", updateEligibility);
+  }, []);
+
+  return eligible;
+}
 
 const defaultPracticeAccountDraft = (): PracticeAccountDraft => ({
   accountSize: "50000",
@@ -336,6 +353,7 @@ const defaultPracticeAccountDraft = (): PracticeAccountDraft => ({
 });
 
 export function PracticeLab({ go, practiceReps, setPracticeReps }: { go: (section: Section) => void; practiceReps: PracticeRep[]; setPracticeReps: (next: PracticeRep[]) => void }) {
+  const desktopEligible = usePracticeDesktopEligibility();
   const [account, setAccount] = useState<PracticeAccount | null>(() => readPracticeAccount());
   const [simTrades, setSimTrades] = useState<PracticeTrade[]>(() => readPracticeTrades());
   const [setupOpen, setSetupOpen] = useState(() => !readPracticeAccount());
@@ -360,6 +378,7 @@ export function PracticeLab({ go, practiceReps, setPracticeReps }: { go: (sectio
   const [activeSetup, setActiveSetup] = useState(accountDraft.setup);
   const [rulesFollowed, setRulesFollowed] = useState<"yes" | "no">("yes");
   const [mistake, setMistake] = useState("");
+  const [deskTab, setDeskTab] = useState<DeskTab>("positions");
   const [orderQuantity, setOrderQuantity] = useState(() => readPracticeAccount()?.contracts ?? 1);
 
   const previewAccount = useMemo(() => createDefaultPracticeAccount({
@@ -447,7 +466,7 @@ export function PracticeLab({ go, practiceReps, setPracticeReps }: { go: (sectio
   }, [simTrades]);
 
   useEffect(() => {
-    if (!playing) return;
+    if (!desktopEligible || !playing) return;
     const timer = window.setInterval(() => {
       setPlayIndex((current) => {
         if (current >= replayTape.candles.length - 1) {
@@ -458,7 +477,7 @@ export function PracticeLab({ go, practiceReps, setPracticeReps }: { go: (sectio
       });
     }, 460);
     return () => window.clearInterval(timer);
-  }, [playing, replayTape.candles.length, replayTape.id]);
+  }, [desktopEligible, playing, replayTape.candles.length, replayTape.id]);
 
   useEffect(() => {
     setReplayRuntime((runtime) => runtime.tapeId === replayTape.id
@@ -557,6 +576,33 @@ export function PracticeLab({ go, practiceReps, setPracticeReps }: { go: (sectio
     setPlayIndex((current) => Math.max(earliestIndex, Math.min(replayTape.candles.length - 1, current + amount)));
   }
 
+  if (!desktopEligible) {
+    return (
+      <div className="backtesting-lab-shell">
+        <header className="backtesting-lab-topbar">
+          <button aria-label="Back to Cova risk desk" className="backtesting-lab-back" onClick={() => go("dashboard")} type="button">
+            <ArrowLeft className="h-4 w-4" />
+            <img src="/media/wordmark-options/cova-wordmark-option-3-sleek-cropped.png" alt="Cova" />
+          </button>
+          <div className="backtesting-lab-title">
+            <span>Practice environment</span>
+            <strong>Backtesting Lab</strong>
+          </div>
+        </header>
+        <main className="practice-availability-stage">
+          <section aria-labelledby="practice-availability-title" className="practice-availability-gate">
+            <CircleDot aria-hidden="true" className="practice-availability-mark" />
+            <h1 id="practice-availability-title">Practice is built for desktop.</h1>
+            <p>The Backtesting Lab needs a wide screen, keyboard, and precise pointer. Your other Cova routes stay available here.</p>
+            <button onClick={() => go("dashboard")} type="button">
+              Back to risk desk <ArrowUpRight className="h-4 w-4" />
+            </button>
+          </section>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="backtesting-lab-shell">
       <header className="backtesting-lab-topbar">
@@ -577,12 +623,14 @@ export function PracticeLab({ go, practiceReps, setPracticeReps }: { go: (sectio
           analysis={analysis}
           chart={<LightweightReplayChart key={replayTape.id} visibleCandles={visibleCandles} position={position} tape={replayTape} trades={simTrades} />}
           currentCandle={currentCandle}
+          deskTab={deskTab}
           limitStatus={limitStatus}
           mistake={mistake}
           onBackHour={() => stepReplay(-(60 / replayTape.dataSource.resolutionMinutes))}
           onBuy={() => openPracticePosition("Long")}
           onChangeAccount={() => setSetupOpen(true)}
           onClosePosition={closePracticePosition}
+          onDeskTabChange={setDeskTab}
           onMistakeChange={setMistake}
           onPlayToggle={() => setPlaying((current) => !current)}
           onQuantityChange={setOrderQuantity}
@@ -792,6 +840,23 @@ const passportExportPresets: PassportExportPreset[] = [
   { id: "square", label: "Square 1:1", note: "Profile and chat share", width: 1080, height: 1080 },
   { id: "story", label: "Story 9:16", note: "Full-screen vertical", width: 1080, height: 1920 },
 ];
+
+export const PASSPORT_PREFERENCES_STORAGE_KEY = "cova-passport-preferences-v1";
+
+function readPassportPreferences(): { exportPresetId: PassportExportPresetId; shareModeId: PassportShareModeId } {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(scopedStorageKey(PASSPORT_PREFERENCES_STORAGE_KEY)) ?? "null");
+    const shareModeId = passportShareModes.some((mode) => mode.id === parsed?.shareModeId)
+      ? parsed.shareModeId as PassportShareModeId
+      : "flex";
+    const exportPresetId = passportExportPresets.some((preset) => preset.id === parsed?.exportPresetId)
+      ? parsed.exportPresetId as PassportExportPresetId
+      : "feed";
+    return { exportPresetId, shareModeId };
+  } catch {
+    return { exportPresetId: "feed", shareModeId: "flex" };
+  }
+}
 
 function getPassportTier(analysis: ReturnType<typeof analyze>): PassportTier {
   const breachCount = analysis.breaches.length;
@@ -1142,24 +1207,24 @@ function getPrimaryLeak(analysis: ReturnType<typeof analyze>) {
 
 function getPassportProofLine(tier: PassportTier, analysis: ReturnType<typeof analyze>) {
   if (analysis.totalPnl < 0) {
-    return "Red sample · rebuild control";
+    return "Negative result · user-supplied data";
   }
   if (tier.rank === "Diamond") {
-    return "Elite control · high-confidence review";
+    return "Strongest calculated rank · user-supplied data";
   }
   if (tier.rank === "Platinum") {
-    return "Profitable · pressure tested";
+    return "Profitable calculated rank · user-supplied data";
   }
   if (tier.rank === "Gold") {
-    return "Profitable · leaks still visible";
+    return "Profitable sample · user-supplied data";
   }
   if (tier.rank === "Silver") {
-    return "Green · still inconsistent";
+    return "Positive sample · user-supplied data";
   }
   if (tier.rank === "Bronze") {
-    return "Ranked · control needs work";
+    return "Calculated rank · user-supplied data";
   }
-  return `${Math.max(0, 10 - analysis.trades.length)} trades until rank unlock`;
+  return `User-supplied sample · ${Math.max(0, 10 - analysis.trades.length)} trades until rank`;
 }
 
 function getPassportNextTarget(tier: PassportTier, analysis: ReturnType<typeof analyze>) {
@@ -1170,16 +1235,16 @@ function getPassportNextTarget(tier: PassportTier, analysis: ReturnType<typeof a
     return "Top rank · keep the process boring";
   }
   if (tier.rank === "Platinum") {
-    return "Diamond: 90 score · 90% rules held · zero-breach week";
+    return "Diamond: 30 trades · 90 score · 90% rules · ≤1 flag · 0.30R · 1.50 PF";
   }
   if (tier.rank === "Gold") {
-    return "Platinum: 20 trades · 80% rules held · 1.25 PF";
+    return "Platinum: 20 trades · 82 score · 80% rules · ≤2 flags · 0.15R · 1.25 PF";
   }
   if (tier.rank === "Silver") {
-    return "Gold: 68 score · 70% rules held · 1.25 PF";
+    return "Gold: 10 trades · 68 score · 60% rules · positive R · 1.05 PF";
   }
   if (tier.rank === "Bronze") {
-    return "Silver: 60% rules held · PF 1.10 · fewer breaches";
+    return "Silver: move the reviewed sample above $0 net P&L";
   }
   return `${Math.max(0, 10 - analysis.trades.length)} more reviewed trades to unlock rank`;
 }
@@ -1300,8 +1365,9 @@ function getPassportDiamondPreviewStats(mode: PassportShareModeId): PassportStat
 }
 
 export function Passport({ analysis, entitlements, isSampleReview, go, upgradeToPro }: { analysis: ReturnType<typeof analyze>; entitlements: WorkspaceEntitlements; isSampleReview: boolean; go: (section: Section) => void; upgradeToPro: () => void }) {
-  const [shareModeId, setShareModeId] = useState<PassportShareModeId>("flex");
-  const [exportPresetId, setExportPresetId] = useState<PassportExportPresetId>("feed");
+  const initialPreferences = useMemo(() => readPassportPreferences(), []);
+  const [shareModeId, setShareModeId] = useState<PassportShareModeId>(initialPreferences.shareModeId);
+  const [exportPresetId, setExportPresetId] = useState<PassportExportPresetId>(initialPreferences.exportPresetId);
   const cardRef = useRef<HTMLDivElement | null>(null);
   const faceRef = useRef<HTMLDivElement | null>(null);
   const shadowRef = useRef<HTMLDivElement | null>(null);
@@ -1338,6 +1404,14 @@ export function Passport({ analysis, entitlements, isSampleReview, go, upgradeTo
   const ledgerHasFlags = analysis.breaches.length > 0;
   const ledgerStatusCopy = isSampleReview ? "Sample review · demo data" : ledgerHasFlags ? "Rules calculated · flags found" : "Rules calculated · no flags found";
   const ledgerStatusClass = ledgerHasFlags || isSampleReview ? "has-flags" : "is-verified";
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(scopedStorageKey(PASSPORT_PREFERENCES_STORAGE_KEY), JSON.stringify({ exportPresetId, shareModeId }));
+    } catch {
+      // Preference persistence is optional when browser storage is unavailable.
+    }
+  }, [exportPresetId, shareModeId]);
 
   useEffect(() => () => {
     if (frameRef.current !== null) {
@@ -1460,7 +1534,7 @@ export function Passport({ analysis, entitlements, isSampleReview, go, upgradeTo
                         </div>
                         <div className="passport-profile-pills">
                           <span>{shareMode.label}</span>
-                          <span>{isSampleReview ? "Demo" : "Local PNG"}</span>
+                          <span>{isSampleReview ? "Demo" : "User-supplied"}</span>
                         </div>
                       </header>
 
@@ -1469,7 +1543,7 @@ export function Passport({ analysis, entitlements, isSampleReview, go, upgradeTo
                         <div>
                           <span>TRADER {traderNumber}</span>
                           <strong>{marketLine} · {setupLine}</strong>
-                          <small>{isSampleReview ? "Anonymous sample profile" : "Anonymous reviewed profile"}</small>
+                          <small>{isSampleReview ? "Anonymous sample profile" : "Anonymous user-supplied profile"}</small>
                         </div>
                       </div>
 
@@ -1524,7 +1598,7 @@ export function Passport({ analysis, entitlements, isSampleReview, go, upgradeTo
                           <span>{isSampleReview ? "Demo ref" : "Review ref"}</span>
                           <code>{reviewId}</code>
                         </div>
-                        <p>{analysis.latestDate} · local export · user controlled</p>
+                        <p>{getPassportExportDisclosure(isSampleReview)}</p>
                       </footer>
                     </div>
                   </div>
@@ -1647,6 +1721,12 @@ function escapeSvgText(value: string) {
     .replace(/"/g, "&quot;");
 }
 
+function getPassportExportDisclosure(isSampleReview: boolean) {
+  return isSampleReview
+    ? "DEMO DATA · NOT ACCOUNT VERIFIED · LOCAL PNG · USER CONTROLLED"
+    : "USER-SUPPLIED DATA · NOT ACCOUNT VERIFIED · LOCAL PNG · USER CONTROLLED";
+}
+
 function downloadDataUrl(dataUrl: string, filename: string) {
   const link = document.createElement("a");
   link.download = filename;
@@ -1726,7 +1806,7 @@ async function composePassportExport(sourceDataUrl: string, preset: PassportExpo
 
   context.fillStyle = isSampleReview ? palette.accent : "rgba(255,255,255,0.48)";
   context.font = "700 20px Arial, sans-serif";
-  const footerCopy = isSampleReview ? "DEMO DATA · NOT ACCOUNT VERIFIED" : "REVIEWED IMPORT · LOCAL PNG · USER CONTROLLED";
+  const footerCopy = getPassportExportDisclosure(isSampleReview);
   context.fillText(footerCopy, 64, preset.height - 48);
   return canvas.toDataURL("image/png");
 }
@@ -1842,7 +1922,7 @@ async function downloadPassportPng(analysis: ReturnType<typeof analyze>, tier: P
       <text x="252" y="1272" fill="${palette.metal}" font-family="Arial, sans-serif" font-size="${proofFontSize}" font-weight="800" letter-spacing="${proofTracking}">${escapeSvgText(proofLine)}</text>
       ${nextTargetMarkup}
       ${sampleExportWatermark}
-      <text x="92" y="1430" fill="rgba(224,236,248,0.5)" font-family="Arial, sans-serif" font-size="17" font-weight="700" letter-spacing="3">${isSampleReview ? "DEMO · NOT ACCOUNT VERIFIED · " : ""}MODE ${escapeSvgText(shareMode.label.toUpperCase())} · LOCAL PNG · USER CONTROLLED · ${escapeSvgText(reviewId)}</text>
+      <text x="92" y="1430" fill="rgba(224,236,248,0.5)" font-family="Arial, sans-serif" font-size="17" font-weight="700" letter-spacing="3">${escapeSvgText(getPassportExportDisclosure(isSampleReview))} · MODE ${escapeSvgText(shareMode.label.toUpperCase())} · ${escapeSvgText(reviewId)}</text>
     </svg>
   `;
   const image = new Image();
