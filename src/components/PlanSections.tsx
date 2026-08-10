@@ -116,7 +116,7 @@ export function PlanStrip({ compact = false, currentPlan, go, openAuth, proCheck
                   </button>
                 ) : (
                   <button className="plan-primary-action plan-primary-action-free" onClick={() => openAuth("signup")} type="button">
-                    <span>Start free</span><ArrowUpRight aria-hidden="true" />
+                    <span>Sign up</span><ArrowUpRight aria-hidden="true" />
                   </button>
                 )}
 
@@ -180,7 +180,7 @@ export function CtaFooter({ go, isSignedIn, openAuth, openPassport }: { go: (sec
           <p className="cova-closing-summary">Review behavior. Tighten limits. Build proof of discipline.</p>
           <div className="cova-closing-actions">
             <StartFreeButton className="cova-closing-primary" icon onClick={isSignedIn ? () => go("dashboard") : () => openAuth("signup")}>
-              {isSignedIn ? "Open dashboard" : "Start for free"}
+              {isSignedIn ? "Open dashboard" : "Sign up"}
             </StartFreeButton>
             <button className="cova-closing-secondary" onClick={openPassport} type="button">
               {isSignedIn ? "Open Risk Passport" : "Explore Risk Passport"} <ArrowUpRight aria-hidden="true" className="h-3.5 w-3.5" />

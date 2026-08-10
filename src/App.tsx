@@ -11,7 +11,7 @@ import {
   Mail,
   Upload,
 } from "lucide-react";
-import { type FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { type FormEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Session as SupabaseSession } from "@supabase/supabase-js";
 import {
   analyze,
@@ -23,7 +23,7 @@ import {
   sampleTrades,
   Trade,
 } from "./lib/risk";
-import { getSupabaseClient, getSupabaseUserPlan, lockSupabaseLocally, signOutSupabase } from "./lib/supabaseClient";
+import { getSupabaseClient, getSupabaseUserPlan, hasSupabasePasswordRecoveryCallbackMarker, isSupabasePasswordRecoveryCallback, lockSupabaseLocally, signOutSupabase, updateSupabasePassword, verifySupabaseRecoveryIdentity } from "./lib/supabaseClient";
 
 import { Hero } from "./components/MarketingHero";
 import { CsvExplainer } from "./components/CsvExplainer";
@@ -114,12 +114,16 @@ export default function App() {
   const [rules, setRules] = useState<RiskRule[]>(() => loadAuthSession() ? loadState()?.rules ?? defaultRules : defaultRules);
   const [practiceReps, setPracticeReps] = useState<PracticeRep[]>(() => loadAuthSession() ? loadState()?.practiceReps ?? samplePracticeReps : []);
   const [pendingSupabaseSession, setPendingSupabaseSession] = useState<SupabaseSession | null>(null);
+  const [passwordRecoverySession, setPasswordRecoverySession] = useState<SupabaseSession | null>(null);
   const authGenerationRef = useRef(0);
   const identitySwitchGenerationRef = useRef(0);
   const activeProviderUserIdRef = useRef<string | null>(null);
   const pendingPolicyUserIdRef = useRef<string | null>(null);
+  const passwordRecoveryUserIdRef = useRef<string | null>(null);
   const providerSessionRef = useRef<SupabaseSession | null>(null);
   const providerSessionsBlockedRef = useRef(false);
+  const authCeremonyActiveRef = useRef(false);
+  const providerAuthAttemptIdRef = useRef(0);
   const validatedAccessTokenRef = useRef("");
   const isSignedIn = Boolean(authSession);
   const entitlements = planEntitlements[authSession?.plan ?? "free"];
@@ -162,9 +166,10 @@ export default function App() {
     }
 
     let mounted = true;
+    const initialAuthGeneration = authGenerationRef.current;
     client.auth.getSession().then(({ data }) => {
       const session = data.session;
-      if (!mounted) {
+      if (!mounted || initialAuthGeneration !== authGenerationRef.current || providerSessionsBlockedRef.current) {
         return;
       }
       if (!session?.user?.email) {
@@ -172,8 +177,13 @@ export default function App() {
         lockWorkspace(false);
         return;
       }
+      if (isSupabasePasswordRecoveryCallback(session.access_token)) {
+        beginPasswordRecovery(session);
+        return;
+      }
       startSupabaseValidation(session);
     }).catch(() => {
+      if (!mounted || initialAuthGeneration !== authGenerationRef.current || providerSessionsBlockedRef.current) return;
       invalidateProviderSession();
       handleSupabaseAuthFailure();
     });
@@ -182,12 +192,25 @@ export default function App() {
       if (!session?.user?.email) {
         if (event === "SIGNED_OUT") {
           providerSessionsBlockedRef.current = true;
+          passwordRecoveryUserIdRef.current = null;
+          setPasswordRecoverySession(null);
         }
         invalidateProviderSession();
         lockWorkspace(event === "SIGNED_OUT");
         return;
       }
       if (providerSessionsBlockedRef.current) {
+        return;
+      }
+      if (event === "PASSWORD_RECOVERY") {
+        beginPasswordRecovery(session);
+        return;
+      }
+      if (passwordRecoveryUserIdRef.current === session.user.id) {
+        authGenerationRef.current += 1;
+        providerSessionRef.current = session;
+        validatedAccessTokenRef.current = "";
+        setPasswordRecoverySession(session);
         return;
       }
       const sameKnownUser = activeProviderUserIdRef.current === session.user.id || pendingPolicyUserIdRef.current === session.user.id;
@@ -334,6 +357,60 @@ export default function App() {
     setSection(next);
   }
 
+  const openAuth = useCallback((mode: AuthMode) => {
+    setAuthMode(mode);
+  }, []);
+
+  function startProviderAuthAttempt() {
+    invalidateProviderSession();
+    providerSessionsBlockedRef.current = false;
+    authCeremonyActiveRef.current = true;
+    providerAuthAttemptIdRef.current += 1;
+    return providerAuthAttemptIdRef.current;
+  }
+
+  function abortProviderAuthAttempt(attemptId: number) {
+    if (attemptId !== providerAuthAttemptIdRef.current) return;
+    providerAuthAttemptIdRef.current += 1;
+    authCeremonyActiveRef.current = false;
+    providerSessionsBlockedRef.current = true;
+    invalidateProviderSession();
+  }
+
+  function isProviderAuthSessionCurrent(session: SupabaseSession, attemptId: number) {
+    const accepted = providerSessionRef.current;
+    return (
+      attemptId === providerAuthAttemptIdRef.current &&
+      !providerSessionsBlockedRef.current &&
+      (authCeremonyActiveRef.current || accepted?.access_token === session.access_token)
+    );
+  }
+
+  async function discardResolvedAuthSession(session: SupabaseSession) {
+    const client = getSupabaseClient();
+    if (!client) {
+      lockSupabaseLocally();
+      return;
+    }
+
+    let matchesLateSession = false;
+    try {
+      const { data } = await client.auth.getSession();
+      if (data.session?.access_token !== session.access_token) return;
+      matchesLateSession = true;
+      authCeremonyActiveRef.current = false;
+      providerSessionsBlockedRef.current = true;
+      invalidateProviderSession();
+      lockSupabaseLocally();
+      await Promise.race([
+        client.auth.signOut({ scope: "local" }),
+        new Promise((resolve) => window.setTimeout(resolve, 3_000)),
+      ]);
+    } finally {
+      if (matchesLateSession) lockSupabaseLocally();
+    }
+  }
+
   function completeAuth(email: string, mode: AuthMode, source: AuthSession["source"] = "local-preview", planOverride?: PlanTier, userId?: string) {
     const savedSession = loadAuthSession();
     const authIntent = readAuthIntent();
@@ -350,10 +427,13 @@ export default function App() {
     };
     setActiveStorageIdentity(userId || emailAddress);
     const saved = loadState();
+    authCeremonyActiveRef.current = false;
     activeProviderUserIdRef.current = source === "supabase" ? userId || null : null;
     pendingPolicyUserIdRef.current = null;
+    passwordRecoveryUserIdRef.current = null;
     setAuthSession(session);
     setPendingSupabaseSession(null);
+    setPasswordRecoverySession(null);
     setBrokerStatus(readBrokerStatus());
     localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
     localStorage.removeItem(AUTH_INTENT_KEY);
@@ -411,19 +491,81 @@ export default function App() {
   }
 
   function prepareSupabaseIdentity(session: SupabaseSession) {
-    const knownUserId = activeProviderUserIdRef.current || pendingPolicyUserIdRef.current;
+    const knownUserId = activeProviderUserIdRef.current || pendingPolicyUserIdRef.current || passwordRecoveryUserIdRef.current;
     const switchingIdentity = Boolean(knownUserId && knownUserId !== session.user.id);
     if (switchingIdentity) {
       identitySwitchGenerationRef.current += 1;
       authGenerationRef.current += 1;
+      providerAuthAttemptIdRef.current += 1;
+      authCeremonyActiveRef.current = false;
       providerSessionRef.current = null;
       validatedAccessTokenRef.current = "";
       hideWorkspaceForAuthCheck();
       activeProviderUserIdRef.current = null;
       pendingPolicyUserIdRef.current = null;
+      passwordRecoveryUserIdRef.current = null;
       setPendingSupabaseSession(null);
+      setPasswordRecoverySession(null);
       setAuthMode(null);
     }
+  }
+
+  function beginPasswordRecovery(session: SupabaseSession) {
+    authCeremonyActiveRef.current = true;
+    prepareSupabaseIdentity(session);
+    authGenerationRef.current += 1;
+    providerSessionRef.current = session;
+    validatedAccessTokenRef.current = "";
+    activeProviderUserIdRef.current = null;
+    pendingPolicyUserIdRef.current = null;
+    passwordRecoveryUserIdRef.current = session.user.id;
+    setPendingSupabaseSession(null);
+    setPasswordRecoverySession(session);
+    hideWorkspaceForAuthCheck();
+    setAuthMode("login");
+  }
+
+  function isCurrentPasswordRecoveryTask(session: SupabaseSession, generation: number, identityGeneration: number) {
+    const current = providerSessionRef.current;
+    return (
+      !providerSessionsBlockedRef.current &&
+      authGenerationRef.current === generation &&
+      identitySwitchGenerationRef.current === identityGeneration &&
+      passwordRecoveryUserIdRef.current === session.user.id &&
+      current?.user.id === session.user.id &&
+      current.access_token === session.access_token
+    );
+  }
+
+  async function updatePendingPassword(password: string) {
+    const session = providerSessionRef.current;
+    if (!session?.access_token || !session.user.email || passwordRecoveryUserIdRef.current !== session.user.id) {
+      throw new Error("This password reset session expired. Request a new reset link.");
+    }
+    const generation = authGenerationRef.current;
+    const identityGeneration = identitySwitchGenerationRef.current;
+    const verified = await verifySupabaseRecoveryIdentity(session.access_token, session.user.id);
+    if (verified.error) throw verified.error;
+    if (!isCurrentPasswordRecoveryTask(session, generation, identityGeneration)) {
+      throw new Error("This password reset session changed. Request a new reset link.");
+    }
+    const updated = await updateSupabasePassword(password, session.access_token, session.user.id);
+    if (updated.error) throw updated.error;
+    if (!isCurrentPasswordRecoveryTask(session, generation, identityGeneration)) {
+      throw new Error("This password reset session changed. Sign in with your new password.");
+    }
+  }
+
+  function finishPasswordRecovery() {
+    const session = providerSessionRef.current || passwordRecoverySession;
+    if (!session?.user?.email || passwordRecoveryUserIdRef.current !== session.user.id) {
+      announce("This password reset session expired. Request a new reset link.", "warning");
+      return;
+    }
+    passwordRecoveryUserIdRef.current = null;
+    setPasswordRecoverySession(null);
+    window.history.replaceState(null, "", window.location.pathname);
+    startSupabaseValidation(session);
   }
 
   function startSupabaseValidation(session: SupabaseSession) {
@@ -483,11 +625,11 @@ export default function App() {
   async function acceptPendingPolicies() {
     const session = pendingSupabaseSession;
     if (!session?.access_token || !session.user.email) {
-      throw new Error("The verified member session expired. Request a new secure link.");
+      throw new Error("The verified member session expired. Sign in again.");
     }
     const generation = authGenerationRef.current;
     if (!isCurrentSupabaseTask(session, generation)) {
-      throw new Error("The verified member session changed. Request a new secure link.");
+      throw new Error("The verified member session changed. Sign in again.");
     }
     const consent = await fetchPolicyAcceptance(session.access_token, "POST");
     if (!isCurrentSupabaseTask(session, generation) || !consent.accepted) {
@@ -501,7 +643,9 @@ export default function App() {
   }
 
   async function closeAuthSheet() {
-    if (pendingSupabaseSession) {
+    if (pendingSupabaseSession || passwordRecoverySession || authCeremonyActiveRef.current || hasSupabasePasswordRecoveryCallbackMarker()) {
+      passwordRecoveryUserIdRef.current = null;
+      setPasswordRecoverySession(null);
       lockSupabaseLocally();
       lockWorkspace(false);
       const result = await signOutSupabase();
@@ -516,11 +660,11 @@ export default function App() {
   async function inspectPendingProviders() {
     const session = pendingSupabaseSession;
     if (!session?.access_token) {
-      throw new Error("The verified member session expired. Request a new secure link.");
+      throw new Error("The verified member session expired. Sign in again.");
     }
     const generation = authGenerationRef.current;
     if (!isCurrentSupabaseTask(session, generation)) {
-      throw new Error("The verified member session changed. Request a new secure link.");
+      throw new Error("The verified member session changed. Sign in again.");
     }
     const response = await fetch("/api/connectors/status", {
       headers: { Authorization: `Bearer ${session.access_token}` },
@@ -537,11 +681,11 @@ export default function App() {
   async function disconnectPendingProviders() {
     const session = pendingSupabaseSession;
     if (!session?.access_token) {
-      throw new Error("The verified member session expired. Request a new secure link.");
+      throw new Error("The verified member session expired. Sign in again.");
     }
     const generation = authGenerationRef.current;
     if (!isCurrentSupabaseTask(session, generation)) {
-      throw new Error("The verified member session changed. Request a new secure link.");
+      throw new Error("The verified member session changed. Sign in again.");
     }
     const response = await fetch("/api/connectors/disconnect", {
       method: "POST",
@@ -561,7 +705,7 @@ export default function App() {
   async function deletePendingAccount() {
     const session = pendingSupabaseSession;
     if (!session?.access_token || !session.user.id) {
-      throw new Error("The verified member session expired. Request a new secure link.");
+      throw new Error("The verified member session expired. Sign in again.");
     }
     const confirmed = window.confirm("Permanently delete this Cova account, stored connector tokens, and this account's Cova data on this device? This cannot be undone.");
     if (!confirmed) {
@@ -629,9 +773,12 @@ export default function App() {
 
   function lockWorkspace(announceChange = true) {
     providerSessionsBlockedRef.current = true;
+    authCeremonyActiveRef.current = false;
+    providerAuthAttemptIdRef.current += 1;
     invalidateProviderSession();
     activeProviderUserIdRef.current = null;
     pendingPolicyUserIdRef.current = null;
+    passwordRecoveryUserIdRef.current = null;
     try {
       localStorage.removeItem(AUTH_SESSION_KEY);
       localStorage.removeItem(AUTH_INTENT_KEY);
@@ -642,6 +789,7 @@ export default function App() {
     }
     setAuthSession(null);
     setPendingSupabaseSession(null);
+    setPasswordRecoverySession(null);
     setBrokerStatus(null);
     setAuthMode(null);
     setMobileOpen(false);
@@ -757,7 +905,7 @@ export default function App() {
 
   function signInAsDevPreview() {
     if (!isDemoPreviewEnabled()) {
-      setAuthMode("login");
+      openAuth("login");
       return;
     }
     completeAuth(DEV_PREVIEW_EMAIL, "login", "local-preview", "pro");
@@ -771,7 +919,7 @@ export default function App() {
     }
 
     if (!authSession) {
-      setAuthMode("signup");
+      openAuth("signup");
       announce("Create a free account first, then choose Pro.", "info");
       return;
     }
@@ -855,7 +1003,7 @@ export default function App() {
 
   function importCsv(text: string, mode: ImportMode = "append") {
     if (!isSignedIn) {
-      setAuthMode("login");
+      openAuth("login");
       announce("Sign in before importing trades.", "warning");
       return;
     }
@@ -892,7 +1040,7 @@ export default function App() {
   function openPassport() {
     if (!isSignedIn) {
       go("passport");
-      setAuthMode("login");
+      openAuth("login");
       announce("Sign in to open your Risk Passport.", "info");
       return;
     }
@@ -909,7 +1057,7 @@ export default function App() {
         <Navbar
           section={section}
           go={go}
-          openAuth={setAuthMode}
+          openAuth={openAuth}
           mobileOpen={mobileOpen}
           setMobileOpen={setMobileOpen}
           authSession={authSession}
@@ -917,32 +1065,51 @@ export default function App() {
           signOut={signOut}
         />
       )}
-      <AuthSheet authIntentKey={AUTH_INTENT_KEY} mode={authMode} setMode={setAuthMode} close={() => { void closeAuthSheet(); }} onAuthenticated={completeAuth} onDeleteRestrictedAccount={deletePendingAccount} onDevPreview={signInAsDevPreview} onDisconnectProviders={disconnectPendingProviders} onInspectProviders={inspectPendingProviders} onPolicyAccepted={acceptPendingPolicies} pendingPolicyConfirmation={Boolean(pendingSupabaseSession)} openLegal={(legalSection) => { setAuthMode(null); go(legalSection); }} />
+      <AuthSheet
+        authIntentKey={AUTH_INTENT_KEY}
+        mode={authMode}
+        setMode={openAuth}
+        close={() => { void closeAuthSheet(); }}
+        onAuthenticated={completeAuth}
+        onAuthAttemptAborted={abortProviderAuthAttempt}
+        onAuthSessionIsCurrent={isProviderAuthSessionCurrent}
+        onAuthAttemptStarted={startProviderAuthAttempt}
+        onDeleteRestrictedAccount={deletePendingAccount}
+        onDevPreview={signInAsDevPreview}
+        onDiscardAuthSession={discardResolvedAuthSession}
+        onDisconnectProviders={disconnectPendingProviders}
+        onInspectProviders={inspectPendingProviders}
+        onPasswordRecovered={finishPasswordRecovery}
+        onPolicyAccepted={acceptPendingPolicies}
+        onUpdatePassword={updatePendingPassword}
+        passwordRecovery={Boolean(passwordRecoverySession)}
+        pendingPolicyConfirmation={Boolean(pendingSupabaseSession)}
+      />
       <Toast toast={toast} />
 
       <main className="relative z-10">
         <AnimatePresence mode="wait">
           {section === "overview" && (
             <RouteFrame key="overview">
-              <Hero go={go} openAuth={setAuthMode} isSignedIn={isSignedIn} />
+              <Hero go={go} openAuth={openAuth} isSignedIn={isSignedIn} />
               <StoryStrip />
-              <PlanStrip currentPlan={authSession?.plan ?? null} go={go} openAuth={setAuthMode} proCheckoutAvailable={proCheckoutAvailable} upgradeToPro={upgradeToPro} />
-              <CtaFooter go={go} isSignedIn={isSignedIn} openAuth={setAuthMode} openPassport={openPassport} />
+              <PlanStrip currentPlan={authSession?.plan ?? null} go={go} openAuth={openAuth} proCheckoutAvailable={proCheckoutAvailable} upgradeToPro={upgradeToPro} />
+              <CtaFooter go={go} isSignedIn={isSignedIn} openAuth={openAuth} openPassport={openPassport} />
             </RouteFrame>
           )}
           {section === "features" && (
             <RouteFrame key="features">
-              <FeaturesPage go={go} openAuth={setAuthMode} />
+              <FeaturesPage go={go} openAuth={openAuth} />
             </RouteFrame>
           )}
           {section === "pricing" && (
             <RouteFrame key="pricing">
-              <PricingPage currentPlan={authSession?.plan ?? null} go={go} openAuth={setAuthMode} proCheckoutAvailable={proCheckoutAvailable} upgradeToPro={upgradeToPro} />
+              <PricingPage currentPlan={authSession?.plan ?? null} go={go} openAuth={openAuth} proCheckoutAvailable={proCheckoutAvailable} upgradeToPro={upgradeToPro} />
             </RouteFrame>
           )}
           {section === "resources" && (
             <RouteFrame key="resources">
-              <ResourcesPage go={go} openAuth={setAuthMode} />
+              <ResourcesPage go={go} openAuth={openAuth} />
             </RouteFrame>
           )}
           {section === "community" && (
@@ -967,37 +1134,37 @@ export default function App() {
           )}
           {section === "dashboard" && (
             <RouteFrame key="dashboard">
-              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><Dashboard analysis={analysis} brokerStatus={brokerStatus} rules={rules} go={go} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={setAuthMode} onDevPreview={signInAsDevPreview} />}
+              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><Dashboard analysis={analysis} brokerStatus={brokerStatus} rules={rules} go={go} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={openAuth} onDevPreview={signInAsDevPreview} />}
             </RouteFrame>
           )}
           {section === "import" && (
             <RouteFrame key="import">
-              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><ImportDesk entitlements={entitlements} importCsv={importCsv} openFirmOAuth={openFirmOAuth} status={status} reset={() => { const demoTrades = entitlements.plan === "free" ? sampleTrades.slice(0, entitlements.maxStoredTrades) : sampleTrades; setTrades(demoTrades); setRules(defaultRules); clearBrokerStatus(); window.dispatchEvent(new CustomEvent("cova:broker-status")); setStatus("Demo trades restored."); announce("Demo trades restored.", "success"); }} upgradeToPro={upgradeToPro} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={setAuthMode} onDevPreview={signInAsDevPreview} />}
+              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><ImportDesk entitlements={entitlements} importCsv={importCsv} openFirmOAuth={openFirmOAuth} status={status} reset={() => { const demoTrades = entitlements.plan === "free" ? sampleTrades.slice(0, entitlements.maxStoredTrades) : sampleTrades; setTrades(demoTrades); setRules(defaultRules); clearBrokerStatus(); window.dispatchEvent(new CustomEvent("cova:broker-status")); setStatus("Demo trades restored."); announce("Demo trades restored.", "success"); }} upgradeToPro={upgradeToPro} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={openAuth} onDevPreview={signInAsDevPreview} />}
             </RouteFrame>
           )}
           {section === "oauth" && (
             <RouteFrame key="oauth">
-              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><OAuthConnectPage firmId={oauthFirmId} onApprove={completeFirmOAuth} onCancel={cancelFirmOAuth} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={setAuthMode} onDevPreview={signInAsDevPreview} />}
+              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><OAuthConnectPage firmId={oauthFirmId} onApprove={completeFirmOAuth} onCancel={cancelFirmOAuth} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={openAuth} onDevPreview={signInAsDevPreview} />}
             </RouteFrame>
           )}
           {section === "rules" && (
             <RouteFrame key="rules">
-              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><RulesEngine analysis={analysis} entitlements={entitlements} rules={rules} setRules={setRules} go={go} upgradeToPro={upgradeToPro} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={setAuthMode} onDevPreview={signInAsDevPreview} />}
+              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><RulesEngine analysis={analysis} entitlements={entitlements} rules={rules} setRules={setRules} go={go} upgradeToPro={upgradeToPro} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={openAuth} onDevPreview={signInAsDevPreview} />}
             </RouteFrame>
           )}
           {section === "coach" && (
             <RouteFrame key="coach">
-              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><Coach analysis={analysis} entitlements={entitlements} go={go} upgradeToPro={upgradeToPro} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={setAuthMode} onDevPreview={signInAsDevPreview} />}
+              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><Coach analysis={analysis} entitlements={entitlements} go={go} upgradeToPro={upgradeToPro} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={openAuth} onDevPreview={signInAsDevPreview} />}
             </RouteFrame>
           )}
           {section === "practice" && (
             <RouteFrame key="practice">
-              {isSignedIn ? <PracticeLab key={authSession?.userId || authSession?.email} go={go} practiceReps={practiceReps} setPracticeReps={(next) => setPracticeReps(next)} /> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={setAuthMode} onDevPreview={signInAsDevPreview} />}
+              {isSignedIn ? <PracticeLab key={authSession?.userId || authSession?.email} go={go} practiceReps={practiceReps} setPracticeReps={(next) => setPracticeReps(next)} /> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={openAuth} onDevPreview={signInAsDevPreview} />}
             </RouteFrame>
           )}
           {section === "passport" && (
             <RouteFrame key="passport">
-              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><Passport analysis={analysis} entitlements={entitlements} isSampleReview={isSampleReview} go={go} upgradeToPro={upgradeToPro} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={setAuthMode} onDevPreview={signInAsDevPreview} />}
+              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><Passport analysis={analysis} entitlements={entitlements} isSampleReview={isSampleReview} go={go} upgradeToPro={upgradeToPro} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={openAuth} onDevPreview={signInAsDevPreview} />}
             </RouteFrame>
           )}
         </AnimatePresence>

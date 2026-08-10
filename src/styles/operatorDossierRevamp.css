@@ -2755,3 +2755,7 @@ textarea {
     letter-spacing: 0.065em;
   }
 }
+
+.auth-account-tab:not(.terminal-tab-active) {
+  color: rgba(255, 255, 255, 0.65) !important;
+}

@@ -242,7 +242,7 @@ async function main() {
             documentOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
             worstOverflow: worst,
             required: ${JSON.stringify(route.requiredText)}.map((text) => ({ text, present: body.toLowerCase().includes(text.toLowerCase()) })),
-            hasAuthDialog: body.includes('Enter dev preview') || body.includes('Log in to Cova'),
+            hasAuthDialog: body.includes('Enter dev preview') || body.includes('Sign in to Cova'),
             title: document.querySelector('h1,h2')?.textContent?.trim() ?? '',
             pricingActions,
             recommendation: recommendationTab && recommendationCard && recommendationRect && recommendationCardRect ? {
@@ -279,7 +279,7 @@ async function main() {
         await sleep(900);
         const outcome = await cdp.send("Runtime.evaluate", {
           returnByValue: true,
-          expression: `({ hash: location.hash, hasAuthDialog: document.body.innerText.includes('Log in to Cova'), storyTop: document.querySelector('.story-strip-simple')?.getBoundingClientRect().top ?? null })`,
+          expression: `({ hash: location.hash, hasAuthDialog: document.body.innerText.includes('Sign in to Cova'), storyTop: document.querySelector('.story-strip-simple')?.getBoundingClientRect().top ?? null })`,
         });
         actionOutcome = outcome.result.value;
       }
@@ -508,10 +508,10 @@ async function main() {
       ...(result.name === "overview" && result.footer?.reviewsInside ? ["overview: reviews duplicated inside closing CTA"] : []),
       ...(result.name === "overview" && !result.footer?.footerSeparate ? ["overview: normal footer is not separate from closing CTA"] : []),
       ...(result.name === "overview" && result.footer?.legalLabels?.join('|') !== "Privacy|Terms|Security|Support" ? ["overview: public legal or support footer links are missing"] : []),
-      ...(result.name === "overview" && result.footer?.primaryText !== "Start for free" ? ["overview: signed-out footer primary label mismatch"] : []),
-      ...(result.name === "overview" && (!result.footerPrimaryOutcome?.hasAuthDialog || result.footerPrimaryOutcome?.dialogLabel !== "Create Cova account") ? ["overview: signed-out footer primary did not open the signup dialog"] : []),
+      ...(result.name === "overview" && result.footer?.primaryText !== "Sign up" ? ["overview: signed-out footer primary label mismatch"] : []),
+      ...(result.name === "overview" && (!result.footerPrimaryOutcome?.hasAuthDialog || result.footerPrimaryOutcome?.dialogLabel !== "Sign up to Cova") ? ["overview: signed-out footer primary did not open the signup dialog"] : []),
       ...(result.name === "overview" && result.footer?.secondaryText !== "Explore Risk Passport" ? ["overview: signed-out footer Passport label mismatch"] : []),
-      ...(result.name === "overview" && (!result.footerSecondaryOutcome?.hasAuthDialog || result.footerSecondaryOutcome?.dialogLabel !== "Log in to Cova" || result.footerSecondaryOutcome?.hash !== "#passport") ? ["overview: signed-out footer Passport action did not open login with the Passport destination"] : []),
+      ...(result.name === "overview" && (!result.footerSecondaryOutcome?.hasAuthDialog || result.footerSecondaryOutcome?.dialogLabel !== "Sign in to Cova" || result.footerSecondaryOutcome?.hash !== "#passport") ? ["overview: signed-out footer Passport action did not open login with the Passport destination"] : []),
       ...(result.name === "overview-auth" && result.footer?.primaryText !== "Open dashboard" ? ["overview-auth: signed-in footer primary label mismatch"] : []),
       ...(result.name === "overview-auth" && (result.footerPrimaryOutcome?.hasAuthDialog || result.footerPrimaryOutcome?.hash !== "#dashboard") ? ["overview-auth: signed-in footer primary did not open dashboard"] : []),
       ...(result.name === "overview-auth" && result.footer?.secondaryText !== "Open Risk Passport" ? ["overview-auth: signed-in footer Passport label mismatch"] : []),

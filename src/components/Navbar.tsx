@@ -159,7 +159,7 @@ export function Navbar({ section, go, openAuth, mobileOpen, setMobileOpen, authS
                   onClick={() => openAuth("login")}
                   type="button"
                 >
-                  Login
+                  Sign in
                 </button>
                 <StartFreeButton compact onClick={() => openAuth("signup")} />
               </>
@@ -206,7 +206,7 @@ export function Navbar({ section, go, openAuth, mobileOpen, setMobileOpen, authS
             ))}
             <div className="mt-3 grid grid-cols-2 gap-2 border-t border-white/10 pt-3">
               <button className="cova-button cova-button-secondary px-4 py-3 font-body text-sm" onClick={() => { setMobileOpen(false); authSession ? signOut() : openAuth("login"); }} type="button">
-                {authSession ? "Sign out" : "Login"}
+                {authSession ? "Sign out" : "Sign in"}
               </button>
               {!authSession ? (
                 <StartFreeButton compact className="w-full" onClick={() => { setMobileOpen(false); openAuth("signup"); }} />

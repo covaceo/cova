@@ -219,12 +219,12 @@ try {
   await client.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: 350, y: 420, button: "left", clickCount: 1, pointerType: "mouse" });
 
   const cta = await evaluate(client, `(() => {
-    const element = [...document.querySelectorAll('button,a')].find((node) => /start for free/i.test(node.textContent || ''));
+    const element = [...document.querySelectorAll('button,a')].find((node) => /sign up/i.test(node.textContent || ''));
     if (!element) return null;
     const rect = element.getBoundingClientRect();
     return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2, left: rect.left, top: rect.top, width: rect.width, height: rect.height };
   })()`);
-  assert.ok(cta, "Hero/header Start for free control should exist");
+  assert.ok(cta, "Hero/header Sign up control should exist");
   await moveMouse(client, cta.x, cta.y);
   const actionState = await cursorSnapshot(client);
   assert.equal(actionState.state, "action", "Interactive control should expand to action state");
@@ -269,7 +269,7 @@ try {
     const rect = element.getBoundingClientRect();
     return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
   })()`);
-  assert.ok(input, "Clicking Start for free should expose an auth text field");
+  assert.ok(input, "Clicking Sign up should expose an auth email field");
   await moveMouse(client, input.x, input.y);
   const textState = await cursorSnapshot(client);
   assert.equal(textState.state, "text", "Text field should use the custom I-beam state");

@@ -178,7 +178,7 @@ assert.match(ctaFooter, /One better decision at a time/, "The closing CTA must r
 assert.match(ctaFooter, /cova-closing-dock[\s\S]*cova-closing-dock-line[\s\S]*cova-closing-dock-tab[\s\S]*cova-closing-label/, "The closing CTA transition must use the approved engineered docking seam.");
 assert.match(ctaFooter, /Stop repeating the trade[\s\S]*that keeps costing you\./, "The closing CTA must retain the approved pain-first headline.");
 assert.match(ctaFooter, /Review behavior\. Tighten limits\. Build proof of discipline\./, "The closing CTA must keep its concise product summary.");
-assert.match(ctaFooter, /Start for free[\s\S]*Explore Risk Passport/, "The closing CTA must expose the approved primary and secondary actions.");
+assert.match(ctaFooter, /Sign up[\s\S]*Explore Risk Passport/, "The closing CTA must expose conventional signup and Passport actions.");
 assert.match(ctaFooter, /cova-site-footer/, "The normal site footer must remain a separate surface beneath the closing CTA.");
 assert.match(ctaFooter, /mailto:support@covadesk\.com/, "The normal site footer must preserve the verified public support contact.");
 assert.doesNotMatch(ctaFooter, /FooterPerformanceProof|cta-footer-dashboard|What people are saying|testimonial|review-card/i, "The closing CTA must not become a second hero with dashboard or testimonial content.");
@@ -189,9 +189,9 @@ assert.doesNotMatch(ctaDecorationCss, /background-image:\s*linear-gradient/, "Th
 assert.equal((ctaDecorationCss.match(/url\("\/cova-logo-minimal-black\.svg"\)/g) ?? []).length, 4, "Both Liquid Glass logo layers must use the exact Cova mark asset.");
 assert.doesNotMatch(ctaDecorationCss, /\bborder(?:-radius)?\s*:|box-shadow\s*:/, "The closing CTA must not restore the rejected circle, halo, or ring treatment.");
 assert.match(ctaFooter, /openPassport[\s\S]*Explore Risk Passport/, "The homepage Passport action must open the real workspace rather than scroll backward to old proof.");
-assert.match(ctaFooter, /isSignedIn[\s\S]*Open dashboard[\s\S]*Start for free/, "Signed-in visitors must get a dashboard action without changing the approved public CTA.");
+assert.match(ctaFooter, /isSignedIn[\s\S]*Open dashboard[\s\S]*Sign up/, "Signed-in visitors must get a dashboard action while signed-out visitors get a conventional signup action.");
 assert.match(ctaFooter, /isSignedIn[\s\S]*Open Risk Passport[\s\S]*Explore Risk Passport/, "The Passport label must match the authenticated or public outcome.");
-assert.match(app, /function openPassport\(\)[\s\S]*if \(!isSignedIn\)[\s\S]*go\("passport"\);[\s\S]*setAuthMode\("login"\)/, "Unauthenticated Passport actions must preserve Passport as the post-auth destination.");
+assert.match(app, /function openPassport\(\)[\s\S]*if \(!isSignedIn\)[\s\S]*go\("passport"\);[\s\S]*openAuth\("login"\)/, "Unauthenticated Passport actions must preserve Passport as the post-auth destination.");
 assert.match(app, /<CtaFooter[\s\S]*?openPassport=\{openPassport\}/, "App must pass the real Passport flow into the closing CTA.");
 assert.match(app, /<CtaFooter[\s\S]*?isSignedIn=\{isSignedIn\}/, "App must pass authentication state into the closing CTA.");
 assert.match(indexCss, /\.cova-closing-section\s*\{[\s\S]*?#f0bb91/, "The approved closing CTA must retain its peach field.");
@@ -200,7 +200,7 @@ assert.match(indexCss, /\.cova-closing-dock-line\s*\{[\s\S]*?height:\s*1px[\s\S]
 assert.match(indexCss, /\.cova-closing-section \.cova-closing-primary\.native-start-button\s*\{[\s\S]*?font-size:\s*0\.68rem/, "The desktop primary CTA label must remain readable without losing its restrained technical scale.");
 assert.match(indexCss, /\.cova-closing-secondary\s*\{[\s\S]*?font-size:\s*0\.7rem/, "The desktop Passport CTA label must remain readable without overpowering the primary action.");
 assert.match(mobileAudit, /\.cova-closing-section[\s\S]*\.cova-closing-primary[\s\S]*\.cova-closing-secondary/, "The compiled browser audit must target the approved CTA surface and actions.");
-assert.match(mobileAudit, /dialogLabel[\s\S]*Create Cova account[\s\S]*Log in to Cova/, "The compiled browser audit must distinguish signup from login by each dialog's accessible name.");
+assert.match(mobileAudit, /dialogLabel[\s\S]*Sign up to Cova[\s\S]*Sign in to Cova/, "The compiled browser audit must distinguish signup from login by each dialog's accessible name.");
 assert.match(mobileAudit, /footerSeparate[\s\S]*legalLabels[\s\S]*Privacy\|Terms\|Security\|Support/, "The compiled browser audit must enforce footer separation, legal navigation, and support access.");
 assert.match(planSections, /MOST CHOSEN BY ACTIVE TRADERS/, "The Pro plan should retain the exact approved recommendation copy.");
 assert.match(planSections, /plan-card-pro/, "The recommendation treatment should remain attached to the Pro card.");

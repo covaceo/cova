@@ -11,7 +11,7 @@ type StartFreeButtonProps = {
 };
 
 export function StartFreeButton({
-  children = "Start for free",
+  children = "Sign up",
   className = "",
   compact = false,
   icon = false,
