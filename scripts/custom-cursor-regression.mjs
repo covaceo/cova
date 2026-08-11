@@ -9,12 +9,14 @@ async function readSource(path) {
   }
 }
 
-const [cursorSource, cursorCss, appSource, mainSource, browserAudit] = await Promise.all([
+const [cursorSource, cursorCss, operatorCss, appSource, mainSource, browserAudit, releaseBrowserSource] = await Promise.all([
   readSource("src/components/CustomCursor.tsx"),
   readSource("src/styles/customCursor.css"),
+  readSource("src/styles/operatorDossierRevamp.css"),
   readSource("src/App.tsx"),
   readSource("src/main.tsx"),
   readSource("scripts/custom-cursor-browser-audit.mjs"),
+  readSource("scripts/release-browser-regression.mjs"),
 ]);
 
 assert.ok(cursorSource, "CustomCursor component must exist.");
@@ -33,6 +35,8 @@ assert.match(cursorSource, /cancelAnimationFrame/, "Cursor cleanup should cancel
 assert.doesNotMatch(cursorSource, /useState/, "Pointer coordinates should not trigger React state renders.");
 assert.match(cursorSource, /aria-hidden=["']true["']/, "The decorative cursor must stay out of the accessibility tree.");
 assert.match(cursorSource, /pointerType\s*===\s*["']touch["'][\s\S]*pointerType\s*===\s*["']pen["']/, "Touch and pen input should disable the custom pointer.");
+assert.match(mainSource, /navigator\.platform\.startsWith\(["']Win["']\)[\s\S]*classList\.add\(["']cova-platform-windows["']\)/, "Windows clients should receive a scoped performance fallback class before render.");
+assert.match(cursorSource, /classList\.contains\(["']cova-platform-windows["']\)[\s\S]*return;/, "Windows clients should not install the custom cursor event and paint loop.");
 
 for (const state of ["default", "action", "text", "pressed", "disabled", "grab", "grabbing", "hidden"]) {
   assert.match(cursorSource + cursorCss, new RegExp(`(?:data-cursor-state|is-)[:=\\\"'\\s.-]*${state}`), `Custom cursor should define a ${state} state.`);
@@ -45,6 +49,8 @@ assert.doesNotMatch(cursorCss, /^(?![\s\S]*html\.cova-custom-cursor-active)[\s\S
 assert.match(cursorCss, /\.cova-cursor\s*\{[\s\S]*pointer-events:\s*none;/, "The custom cursor layer must never intercept input.");
 assert.doesNotMatch(cursorCss, /user-select:\s*none/, "Custom cursor styling must not disable text selection.");
 assert.match(cursorCss, /\.cova-cursor-frame-geometry\s*\{[\s\S]*?rotate:\s*45deg;/, "The standby reticle should be a 45-degree diamond.");
+assert.match(cursorCss, /html\.cova-platform-windows \.cova-cursor\s*\{\s*display:\s*none\s*!important;/, "Windows fallback should remove the custom cursor from paint.");
+assert.match(operatorCss, /html\.cova-platform-windows \.header-scroll-veil\s*\{[\s\S]*?backdrop-filter:\s*none\s*!important;/, "Windows fallback should disable the fixed header veil blur.");
 assert.match(cursorCss, /\[data-cursor-state=["']action["']\]\s+\.cova-cursor-frame-geometry\s*\{[\s\S]*?rotate:\s*0deg;/, "Interactive hover should rotate the reticle into a square.");
 assert.match(cursorCss, /@media[^{]*(?:prefers-reduced-motion|forced-colors)[\s\S]*html\.cova-custom-cursor-active[\s\S]*cursor:\s*revert\s*!important/, "Accessibility fallback media queries should restore the native cursor without waiting for JavaScript.");
 
@@ -53,5 +59,9 @@ assert.doesNotMatch(browserAudit, /const port\s*=\s*\d+/, "Browser audit must no
 assert.match(browserAudit, /createServer/, "Browser audit should allocate a free CDP port.");
 assert.match(browserAudit, /CDP request timed out/, "Every CDP request should have a bounded timeout.");
 assert.match(browserAudit, /auditTargetToken/, "Browser audit should verify that the page target belongs to its spawned Chrome instance.");
+assert.match(browserAudit, /mkdir\(screenshotDir,\s*\{\s*recursive:\s*true\s*\}\)/, "Browser audit should create its screenshot directory in a clean checkout.");
+assert.match(browserAudit, /Browser\.close[\s\S]*taskkill\.exe[\s\S]*waitForChromeExit/, "Browser audit should close Chrome through CDP with a bounded process-tree fallback.");
+assert.match(browserAudit, /\["EBUSY",\s*"EPERM",\s*"ENOTEMPTY"\]/, "Browser audit should retry transient Windows profile cleanup failures.");
+assert.match(releaseBrowserSource, /runNode\(["']scripts\/custom-cursor-browser-audit\.mjs["']/, "The release browser gate should execute the Windows cursor/performance audit.");
 
 console.log("custom-cursor-regression: all checks passed");

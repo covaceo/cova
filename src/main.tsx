@@ -29,6 +29,10 @@ import "./styles/operatorDossierRevamp.css";
 import "./styles/customCursor.css";
 import "./styles/backtestingLab.css";
 
+if (navigator.platform.startsWith("Win")) {
+  document.documentElement.classList.add("cova-platform-windows");
+}
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <App />
