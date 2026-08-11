@@ -28,6 +28,10 @@
   transition: opacity 90ms linear;
 }
 
+html.cova-platform-windows .cova-cursor {
+  display: none !important;
+}
+
 .cova-cursor.is-visible:not([data-cursor-state="hidden"]) {
   opacity: 1;
 }

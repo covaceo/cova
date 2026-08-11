@@ -42,9 +42,9 @@ for (const heading of [
 assert.match(legalPages, /support@covadesk\.com/g, "Legal pages should publish the verified support contact.");
 assert.match(legalPages, /Rafael Lino, Founder and CEO of Cova/i, "Legal pages should identify the owner-confirmed operator.");
 assert.doesNotMatch(legalPages, /Supabase production setup is pending/i, "Approved auth copy must not describe Supabase as pending.");
-assert.match(legalPages, /Supabase Auth for passwordless magic-link sign-in/i, "Privacy copy should identify the active authentication provider and method.");
+assert.match(legalPages, /Supabase Auth for email and password authentication/i, "Privacy copy should identify the active authentication provider and method.");
 assert.match(legalPages, /records the Terms and Privacy Policy versions accepted with a server timestamp/i, "Privacy copy should disclose durable policy acceptance data.");
-assert.match(legalPages, /Supabase magic-link authentication protects member routes/i, "Security copy should describe the active member gate.");
+assert.match(legalPages, /Supabase email and password authentication protects member routes/i, "Security copy should describe the active member gate.");
 assert.match(legalPages, /current server-recorded Terms and Privacy Policy acceptance/i, "Security copy should disclose the server-owned consent gate.");
 assert.doesNotMatch(legalPages, /Provider access tokens are encrypted before database storage/i, "Security copy must not describe pending token storage as active production behavior.");
 assert.match(legalPages, /18 years of age|at least 18/i, "Terms should require adult users.");
@@ -66,7 +66,7 @@ assert.match(consentHandler, /requireAuthenticatedUser/, "Only an authenticated 
 assert.match(consentHandler, /recordPolicyAcceptance/, "Authenticated signup should write a durable server-owned acceptance row.");
 assert.match(policySchema, /accepted_at timestamptz not null default now\(\)/i, "Policy acceptance time should be assigned by the database.");
 assert.match(policySchema, /auth\.uid\(\) = user_id/i, "Members should only read their own policy acceptance rows.");
-assert.match(supabaseClient, /shouldCreateUser:\s*mode\s*===\s*"signup"/, "Login must not create an unconsented user.");
+assert.match(supabaseClient, /shouldCreateUser:\s*false/, "Passwordless login fallback must not create an unconsented user.");
 assert.doesNotMatch(supabaseClient, /terms_accepted_at|terms_version/, "User-editable Supabase metadata must not be acceptance evidence.");
 assert.doesNotMatch(indexHtml, /fonts\.googleapis\.com|fonts\.gstatic\.com/, "Visitors should not contact Google merely to render typography.");
 assert.doesNotMatch(indexHtml, /<script(?![^>]*\bsrc=)[^>]*>[\s\S]*?<\/script>/i, "The production document should not ship inline executable scripts that its CSP blocks.");

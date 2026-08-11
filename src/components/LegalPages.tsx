@@ -142,7 +142,7 @@ export function PrivacyPage({ go }: LegalPageProps) {
     },
     {
       title: "How we share information",
-      body: <><p>Cova shares information only as needed to operate requested features, secure the service, or comply with law. Current service providers include Vercel for hosting and request delivery, Google Workspace for support email, and Supabase Auth for passwordless magic-link sign-in. Cova receives your email, member identifier, and session metadata, and records the Terms and Privacy Policy versions accepted with a server timestamp. Stripe may process checkout if paid billing is enabled. Direct provider synchronization is not active. Discord and any trading provider you separately choose to use process information under their own terms.</p><p className="mt-4">Cova does not sell personal information and does not share personal information for cross-context behavioral advertising. Cova may disclose information if required by law, to protect users or the service, or as part of a business transfer subject to appropriate safeguards and notice.</p></>,
+      body: <><p>Cova shares information only as needed to operate requested features, secure the service, or comply with law. Current service providers include Vercel for hosting and request delivery, Google Workspace for support email, and Supabase Auth for email and password authentication. Cova receives your email, member identifier, and session metadata, and records the Terms and Privacy Policy versions accepted with a server timestamp. Stripe may process checkout if paid billing is enabled. Direct provider synchronization is not active. Discord and any trading provider you separately choose to use process information under their own terms.</p><p className="mt-4">Cova does not sell personal information and does not share personal information for cross-context behavioral advertising. Cova may disclose information if required by law, to protect users or the service, or as part of a business transfer subject to appropriate safeguards and notice.</p></>,
     },
     {
       title: "Browser storage, cookies, and similar technology",
@@ -185,7 +185,7 @@ export function TermsPage({ go }: LegalPageProps) {
     },
     {
       title: "Eligibility and accounts",
-      body: <><p>You must be at least 18 years of age and legally able to enter a contract. You must provide accurate account information, protect access to your email and devices, and promptly report suspected unauthorized use. You are responsible for activity performed through your account and for confirming that you are authorized to upload or connect the trading data you provide.</p><p className="mt-4">Cova may refuse, suspend, or close accounts used unlawfully, deceptively, or in a manner that risks users, providers, or the service.</p></>,
+      body: <><p>You must be at least 18 years of age and legally able to enter a contract. You must provide accurate account information, use a strong and unique password, protect access to your email and devices, and promptly report suspected unauthorized use. You are responsible for activity performed through your account and for confirming that you are authorized to upload or connect the trading data you provide.</p><p className="mt-4">Cova may refuse, suspend, or close accounts used unlawfully, deceptively, or in a manner that risks users, providers, or the service.</p></>,
     },
     {
       title: "The Cova service",
@@ -264,7 +264,7 @@ export function SecurityPage({ go }: LegalPageProps) {
     },
     {
       title: "Authentication and transport",
-      body: <p>Network traffic to Cova and configured service providers is protected with HTTPS/TLS. Supabase magic-link authentication protects member routes, and Cova requires a current server-recorded Terms and Privacy Policy acceptance before opening the workspace or connector APIs. Supabase manages authentication tokens. Cova does not store member passwords.</p>,
+      body: <p>Network traffic to Cova and configured service providers is protected with HTTPS/TLS. Supabase email and password authentication protects member routes, and optional email sign-in links are available as a fallback. Cova requires a current server-recorded Terms and Privacy Policy acceptance before opening the workspace or connector APIs. Supabase manages authentication credentials and tokens. Cova does not store member passwords.</p>,
     },
     {
       title: "Broker connections",

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile, spawn } from "node:child_process";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -143,11 +143,11 @@ try {
   await send("Page.navigate", { url: `${origin}/?authBrowser=open#overview` });
   await waitFor("document.readyState === 'complete'");
   await evaluate("document.fonts.ready.then(() => true)");
-  await waitFor("Array.from(document.querySelectorAll('button')).some((button) => button.offsetParent && button.textContent.trim().toUpperCase() === 'START FOR FREE')");
+  await waitFor("Array.from(document.querySelectorAll('button')).some((button) => button.offsetParent && button.textContent.trim().toUpperCase() === 'SIGN UP')");
   await sleep(500);
 
   const opener = await evaluate(`(() => {
-    const buttons = Array.from(document.querySelectorAll('button')).filter((button) => button.offsetParent && button.textContent.trim().toUpperCase() === 'START FOR FREE');
+    const buttons = Array.from(document.querySelectorAll('button')).filter((button) => button.offsetParent && button.textContent.trim().toUpperCase() === 'SIGN UP');
     const button = buttons.find((candidate) => { const rect = candidate.getBoundingClientRect(); return rect.top >= 0 && rect.bottom <= innerHeight; }) || buttons[0];
     button.dataset.authBrowserOpener = 'true';
     button.focus();
@@ -184,6 +184,59 @@ try {
   assert.deepEqual(open.lock, { rootOverflow: "hidden", bodyPosition: "fixed", bodyOverflow: "hidden" });
   assert.ok(open.background.count > 0 && open.background.allInert && open.background.allHidden, "Auth modal background must remain inert and hidden.");
 
+  const signupControls = await evaluate(`(() => {
+    const dialog = document.querySelector('[role="dialog"][aria-modal="true"]');
+    const email = dialog.querySelector('#auth-email');
+    const password = dialog.querySelector('#auth-password');
+    const labels = Array.from(dialog.querySelectorAll('button')).map((button) => button.textContent.trim());
+    const legal = Array.from(dialog.querySelectorAll('a')).map((link) => ({ text: link.textContent.trim(), target: link.target }));
+    const inactiveTab = Array.from(dialog.querySelectorAll('[aria-label="Account access"] button')).find((button) => button.textContent.trim() === 'Sign in');
+    return {
+      dialogLabel: dialog.getAttribute('aria-label'),
+      inactiveTabColor: getComputedStyle(inactiveTab).color,
+      email: { type: email?.type, autocomplete: email?.autocomplete },
+      password: { type: password?.type, autocomplete: password?.autocomplete, minLength: password?.minLength },
+      createAccount: labels.includes('Create account'),
+      legal,
+    };
+  })()`);
+  assert.deepEqual(signupControls, {
+    dialogLabel: "Sign up to Cova",
+    inactiveTabColor: "rgba(255, 255, 255, 0.65)",
+    email: { type: "email", autocomplete: "email" },
+    password: { type: "password", autocomplete: "new-password", minLength: 8 },
+    createAccount: true,
+    legal: [{ text: "Terms of Service", target: "_blank" }, { text: "Privacy Policy", target: "_blank" }],
+  }, "Signup must expose conventional email, password, account creation, and legal controls.");
+
+  await evaluate(`(() => {
+    const tabs = document.querySelector('[aria-label="Account access"]');
+    const login = Array.from(tabs.querySelectorAll('button')).find((button) => button.textContent.trim() === 'Sign in');
+    login.click();
+    return true;
+  })()`);
+  await waitFor("document.querySelector('[role=\"dialog\"]')?.getAttribute('aria-label') === 'Sign in to Cova'");
+  const loginControls = await evaluate(`(() => {
+    const dialog = document.querySelector('[role="dialog"]');
+    const password = dialog.querySelector('#auth-password');
+    const labels = Array.from(dialog.querySelectorAll('button')).map((button) => button.textContent.trim());
+    return { autocomplete: password?.autocomplete, forgot: labels.includes('Forgot password?'), login: labels.includes('Sign in') };
+  })()`);
+  assert.deepEqual(loginControls, { autocomplete: "current-password", forgot: true, login: true }, "Login must use a current-password field and a normal recovery action.");
+
+  await evaluate(`(() => {
+    const dialog = document.querySelector('[role="dialog"]');
+    Array.from(dialog.querySelectorAll('button')).find((button) => button.textContent.trim() === 'Forgot password?').click();
+    return true;
+  })()`);
+  await waitFor("document.querySelector('[role=\"dialog\"]')?.getAttribute('aria-label') === 'Reset Cova password' && document.activeElement?.id === 'auth-email'");
+  const recoveryControls = await evaluate(`(() => {
+    const dialog = document.querySelector('[role="dialog"]');
+    const labels = Array.from(dialog.querySelectorAll('button')).map((button) => button.textContent.trim());
+    return { activeId: document.activeElement?.id, emailType: dialog.querySelector('#auth-email')?.type, send: labels.includes('Send reset link'), back: labels.includes('Back to sign in') };
+  })()`);
+  assert.deepEqual(recoveryControls, { activeId: "auth-email", emailType: "email", send: true, back: true }, "Forgot-password view must focus its email field and expose a standard reset-link form.");
+
   await evaluate("document.querySelector('[role=\"dialog\"]').parentElement.scrollTop = document.querySelector('[role=\"dialog\"]').parentElement.scrollHeight");
   await send("Input.dispatchMouseEvent", { type: "mouseWheel", x: 195, y: 610, deltaX: 0, deltaY: 600 });
   await sleep(120);
@@ -208,9 +261,75 @@ try {
   })()`);
   assert.deepEqual(closed, { focused: true, rootOverflow: "", bodyPosition: "", bodyOverflow: "", pageScrollY: opener.scrollY });
 
+  const shortDesktopViewport = { width: 1280, height: 633 };
+  await send("Emulation.setDeviceMetricsOverride", {
+    width: 1280,
+    height: 633,
+    deviceScaleFactor: 1,
+    mobile: false,
+    screenWidth: 1280,
+    screenHeight: 633,
+  });
+
+  await send("Emulation.setTouchEmulationEnabled", { enabled: false });
+  await send("Page.navigate", { url: `${origin}/?authBrowser=short-desktop#overview` });
+  await waitFor("document.readyState === 'complete'");
+
+  await waitFor("Array.from(document.querySelectorAll('button')).some((button) => button.offsetParent && button.textContent.trim().toUpperCase() === 'SIGN UP')");
+  await evaluate("Array.from(document.querySelectorAll('button')).find((button) => button.offsetParent && button.textContent.trim().toUpperCase() === 'SIGN UP').click(); true");
+  await waitFor("document.querySelector('[role=\"dialog\"][aria-modal=\"true\"]')");
+  await sleep(550);
+
+  const shortDesktop = await evaluate(`(() => {
+    const dialog = document.querySelector('[role="dialog"]');
+    const tabs = dialog.querySelector('[aria-label="Account access"]');
+    return { dialogTop: dialog.getBoundingClientRect().top, tabsTop: tabs.getBoundingClientRect().top, tabsBottom: tabs.getBoundingClientRect().bottom };
+  })()`);
+
+  assert.ok(shortDesktop.dialogTop >= 0, "Short desktop must not center a tall auth card above the viewport.");
+  assert.ok(shortDesktop.tabsTop >= 0 && shortDesktop.tabsBottom <= shortDesktopViewport.height, "Short desktop auth tabs must remain visible.");
+
+  if (process.env.AUTH_SCREENSHOT) {
+    await send("Emulation.setDeviceMetricsOverride", {
+      width: 1440,
+      height: 900,
+      deviceScaleFactor: 1,
+      mobile: false,
+      screenWidth: 1440,
+      screenHeight: 900,
+    });
+    await sleep(300);
+    const screenshot = await send("Page.captureScreenshot", { format: "png", fromSurface: true });
+    await writeFile(process.env.AUTH_SCREENSHOT, Buffer.from(screenshot.data, "base64"));
+  }
+
+  await send("Input.dispatchKeyEvent", { type: "rawKeyDown", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 });
+  await send("Input.dispatchKeyEvent", { type: "keyUp", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 });
+  await waitFor("!document.querySelector('[role=\"dialog\"]')", 2_500);
+
+  await send("Page.navigate", { url: `${origin}/?authBrowser=protected-route#passport` });
+  await waitFor("document.readyState === 'complete'");
+  await waitFor("document.querySelector('[role=\"dialog\"]')?.getAttribute('aria-label') === 'Sign in to Cova'");
+  await evaluate(`(() => {
+    const tabs = document.querySelector('[role="dialog"] [aria-label="Account access"]');
+    Array.from(tabs.querySelectorAll('button')).find((button) => button.textContent.trim() === 'Sign up').click();
+    return true;
+  })()`);
+  await waitFor("document.querySelector('[role=\"dialog\"]')?.getAttribute('aria-label') === 'Sign up to Cova'");
+  await sleep(180);
+  const protectedRouteSignup = await evaluate(`(() => ({
+    dialogLabel: document.querySelector('[role="dialog"]')?.getAttribute('aria-label'),
+    heading: document.querySelector('[role="dialog"] h2')?.textContent.trim(),
+  }))()`);
+  assert.deepEqual(protectedRouteSignup, { dialogLabel: "Sign up to Cova", heading: "Create your account" }, "Protected-route AuthGate must not reset a user-selected Sign up form back to Sign in after rerender.");
+
+  await send("Input.dispatchKeyEvent", { type: "rawKeyDown", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 });
+  await send("Input.dispatchKeyEvent", { type: "keyUp", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 });
+  await waitFor("!document.querySelector('[role=\"dialog\"]')", 2_500);
+
   const badEvents = cdp.events.filter((message) => message.method === "Runtime.exceptionThrown" || (message.method === "Log.entryAdded" && message.params?.entry?.level === "error") || (message.method === "Network.loadingFailed" && !message.params?.canceled));
   assert.deepEqual(badEvents, [], "Auth browser regression must finish without runtime, console, or essential network failures.");
-  console.log("auth-modal-browser-regression: 390x640 close visibility, scroll lock, focus, isolation, and restoration passed");
+  console.log("auth-modal-browser-regression: 390x640 mobile and 1280x633 desktop visibility, classic auth controls, focus, isolation, and restoration passed");
 } finally {
   await terminateChrome(cdp);
   cdp?.close();

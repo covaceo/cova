@@ -15,17 +15,21 @@ function listFiles(directory) {
   });
 }
 
-test("login magic links cannot create a new unconsented account", () => {
+test("passwordless login fallback cannot create a new account", () => {
   const source = read("src", "lib", "supabaseClient.ts");
-  assert.match(source, /shouldCreateUser:\s*mode\s*===\s*["']signup["']/);
+  assert.match(source, /export async function sendSupabaseLoginLink/);
+  assert.match(source, /shouldCreateUser:\s*false/);
+  assert.doesNotMatch(source, /shouldCreateUser:\s*mode\s*===/);
 });
 
-test("Supabase magic-link callbacks reserve the URL fragment for auth tokens", () => {
+test("Supabase email callbacks reserve the URL for authentication state", () => {
   const authPanels = read("src", "components", "AuthPanels.tsx");
   const helperSource = authPanels.match(/function buildSupabaseRedirectUrl\(\) \{[\s\S]*?\n\}/)?.[0];
   assert.ok(helperSource, "expected a dedicated callback URL builder");
-  assert.match(authPanels, /sendSupabaseMagicLink\(email, buildSupabaseRedirectUrl\(\), mode\)/);
-  assert.doesNotMatch(authPanels, /sendSupabaseMagicLink\(email, redirectUrl\.toString\(\), mode\)/);
+  assert.match(authPanels, /signUpWithSupabasePassword\(email\.trim\(\), password, buildSupabaseRedirectUrl\(\)\)/);
+  assert.match(authPanels, /sendSupabasePasswordReset\(email\.trim\(\), buildSupabaseRedirectUrl\(\)\)/);
+  assert.match(authPanels, /redirectUrl\.search = ["']["']/);
+  assert.match(authPanels, /redirectUrl\.hash = ["']["']/);
 
   const result = runInNewContext(`
     ${helperSource}
@@ -600,8 +604,12 @@ test("identity preparation synchronously invalidates in-flight deletion cleanup 
     validatedAccessTokenRef: { current: "token-A" },
     activeProviderUserIdRef: { current: "user-A" },
     pendingPolicyUserIdRef: { current: null },
+    passwordRecoveryUserIdRef: { current: null },
+    authCeremonyActiveRef: { current: true },
+    providerAuthAttemptIdRef: { current: 4 },
     hideWorkspaceForAuthCheck: () => events.push("hide-workspace"),
     setPendingSupabaseSession: (value) => events.push(`pending:${value?.user?.id || "none"}`),
+    setPasswordRecoverySession: (value) => events.push(`recovery:${value?.user?.id || "none"}`),
     setAuthMode: (value) => events.push(`mode:${value || "none"}`),
   };
   const executable = prepareSource.replace("session: SupabaseSession", "session");
@@ -613,11 +621,149 @@ test("identity preparation synchronously invalidates in-flight deletion cleanup 
   assert.equal(context.identitySwitchGenerationRef.current, 4);
   assert.equal(context.providerSessionRef.current, null);
   assert.equal(context.validatedAccessTokenRef.current, "");
+  assert.equal(context.authCeremonyActiveRef.current, false);
+  assert.equal(context.providerAuthAttemptIdRef.current, 5);
   assert.equal(
     context.authGenerationRef.current === 11 && context.providerSessionRef.current?.user.id === "user-A",
     false,
   );
-  assert.deepEqual(events, ["hide-workspace", "pending:none", "mode:none"]);
+  assert.deepEqual(events, ["hide-workspace", "pending:none", "recovery:none", "mode:none"]);
+});
+
+test("password recovery pins the mutation to the captured bearer and aborts on identity switch", async () => {
+  const app = read("src", "App.tsx");
+  const guardSource = app.match(/function isCurrentPasswordRecoveryTask\(session: SupabaseSession, generation: number, identityGeneration: number\)\s*\{[\s\S]*?\n  \}/)?.[0] || "";
+  const updateSource = app.match(/async function updatePendingPassword\(password: string\)\s*\{[\s\S]*?\n  \}/)?.[0] || "";
+  assert.ok(guardSource && updateSource);
+
+  let resolveVerification;
+  const updateCalls = [];
+  const context = {
+    authGenerationRef: { current: 7 },
+    identitySwitchGenerationRef: { current: 3 },
+    passwordRecoveryUserIdRef: { current: "user-A" },
+    providerSessionRef: { current: { access_token: "token-A", user: { id: "user-A", email: "a@example.com" } } },
+    providerSessionsBlockedRef: { current: false },
+    verifySupabaseRecoveryIdentity: () => new Promise((resolve) => { resolveVerification = resolve; }),
+    updateSupabasePassword: async (...args) => { updateCalls.push(args); return { data: { user: { id: "user-A" } }, error: null }; },
+  };
+  const executable = `${guardSource
+    .replace("session: SupabaseSession, generation: number, identityGeneration: number", "session, generation, identityGeneration")}\n${updateSource.replace("password: string", "password")}\nglobalThis.updatePendingPassword = updatePendingPassword;`;
+  runInNewContext(executable, context);
+
+  const switched = context.updatePendingPassword("next-password");
+  assert.equal(typeof resolveVerification, "function");
+  context.providerSessionRef.current = { access_token: "token-B", user: { id: "user-B", email: "b@example.com" } };
+  context.passwordRecoveryUserIdRef.current = null;
+  context.identitySwitchGenerationRef.current = 4;
+  resolveVerification({ data: { user: { id: "user-A" } }, error: null });
+  await assert.rejects(switched, /session changed/);
+  assert.equal(updateCalls.length, 0, "Identity switch must stop before the password mutation dispatches.");
+
+  context.authGenerationRef.current = 9;
+  context.identitySwitchGenerationRef.current = 5;
+  context.passwordRecoveryUserIdRef.current = "user-A";
+  context.providerSessionRef.current = { access_token: "token-A", user: { id: "user-A", email: "a@example.com" } };
+  context.verifySupabaseRecoveryIdentity = async () => ({ data: { user: { id: "user-A" } }, error: null });
+  await context.updatePendingPassword("final-password");
+  assert.deepEqual(updateCalls.at(-1), ["final-password", "token-A", "user-A"]);
+});
+
+test("provider auth attempt IDs reject stale responses and stale aborts", () => {
+  const app = read("src", "App.tsx");
+  const startSource = app.match(/function startProviderAuthAttempt\(\) \{[\s\S]*?\n  \}/)?.[0];
+  const abortSource = app.match(/function abortProviderAuthAttempt\(attemptId: number\) \{[\s\S]*?\n  \}/)?.[0]
+    ?.replace("attemptId: number", "attemptId");
+  const currentSource = app.match(/function isProviderAuthSessionCurrent\(session: SupabaseSession, attemptId: number\) \{[\s\S]*?\n  \}/)?.[0]
+    ?.replace("session: SupabaseSession, attemptId: number", "session, attemptId");
+  assert.ok(startSource && abortSource && currentSource, "Provider attempt guards must be extractable.");
+
+  let invalidations = 0;
+  const context = {
+    authCeremonyActiveRef: { current: false },
+    invalidateProviderSession: () => { invalidations += 1; },
+    providerAuthAttemptIdRef: { current: 0 },
+    providerSessionRef: { current: null },
+    providerSessionsBlockedRef: { current: true },
+  };
+  runInNewContext(`${startSource}\n${abortSource}\n${currentSource}\nthis.start = startProviderAuthAttempt; this.abort = abortProviderAuthAttempt; this.isCurrent = isProviderAuthSessionCurrent;`, context);
+
+  const attemptA = context.start();
+  const attemptB = context.start();
+  const sessionA = { access_token: "A", user: { id: "user-A" } };
+  const sessionB = { access_token: "B", user: { id: "user-B" } };
+  assert.equal(context.isCurrent(sessionA, attemptA), false);
+  assert.equal(context.isCurrent(sessionB, attemptB), true);
+
+  context.abort(attemptA);
+  assert.equal(context.providerAuthAttemptIdRef.current, attemptB);
+  assert.equal(context.providerSessionsBlockedRef.current, false);
+
+  context.abort(attemptB);
+  assert.equal(context.providerAuthAttemptIdRef.current, attemptB + 1);
+  assert.equal(context.providerSessionsBlockedRef.current, true);
+  assert.equal(context.authCeremonyActiveRef.current, false);
+  assert.equal(invalidations, 3);
+});
+
+test("late auth cleanup purges only the exact resolved bearer", async () => {
+  const app = read("src", "App.tsx");
+  const functionSource = app.match(/async function discardResolvedAuthSession\(session: SupabaseSession\) \{[\s\S]*?\n  \}/)?.[0];
+  assert.ok(functionSource, "discardResolvedAuthSession must exist");
+
+  const sessionA = { access_token: "token-A", user: { id: "user-A" } };
+  const sessionB = { access_token: "token-B", user: { id: "user-B" } };
+  let currentSession = sessionB;
+  let locks = 0;
+  let invalidations = 0;
+  const signOutScopes = [];
+  const context = {
+    authCeremonyActiveRef: { current: true },
+    providerAuthAttemptIdRef: { current: 4 },
+    providerSessionsBlockedRef: { current: false },
+    getSupabaseClient: () => ({
+      auth: {
+        getSession: async () => ({ data: { session: currentSession } }),
+        signOut: async ({ scope }) => { signOutScopes.push(scope); return { error: null }; },
+      },
+    }),
+    invalidateProviderSession: () => { invalidations += 1; },
+    lockSupabaseLocally: () => { locks += 1; },
+    window: { setTimeout: () => 0 },
+  };
+  runInNewContext(`${functionSource.replace("session: SupabaseSession", "session")}; this.runDiscard = discardResolvedAuthSession;`, context);
+
+  await context.runDiscard(sessionA);
+  assert.equal(locks, 0, "a newer different session must never be purged");
+  assert.equal(invalidations, 0);
+  assert.deepEqual(signOutScopes, []);
+
+  currentSession = sessionA;
+  await context.runDiscard(sessionA);
+  assert.equal(context.authCeremonyActiveRef.current, false);
+  assert.equal(context.providerSessionsBlockedRef.current, true);
+  assert.equal(invalidations, 1);
+  assert.equal(locks, 2, "the matching late bearer must be purged before and after bounded SDK cleanup");
+  assert.deepEqual(signOutScopes, ["local"]);
+});
+
+test("blocked provider events cannot reopen sign-in or password recovery", () => {
+  const app = read("src", "App.tsx");
+  const listenerBody = app.match(/client\.auth\.onAuthStateChange\(\(event, session\) => \{([\s\S]*?)\n    \}\);/)?.[1] || "";
+  assert.ok(listenerBody);
+  const events = [];
+  const context = {
+    providerSessionsBlockedRef: { current: true },
+    beginPasswordRecovery: (session) => events.push(`recovery:${session.user.id}`),
+  };
+  runInNewContext(`globalThis.listener = (event, session) => {${listenerBody}\n};`, context);
+  const session = { access_token: "late", user: { id: "user-A", email: "a@example.com" } };
+  context.listener("PASSWORD_RECOVERY", session);
+  context.listener("SIGNED_IN", session);
+  assert.deepEqual(events, []);
+  context.providerSessionsBlockedRef.current = false;
+  context.listener("PASSWORD_RECOVERY", session);
+  assert.deepEqual(events, ["recovery:user-A"]);
 });
 
 test("auth generation prevents stale validation from reopening a signed-out identity", () => {
@@ -652,9 +798,13 @@ test("same-user refresh and sign-out preserve confirmed deletion cleanup while a
     providerSessionRef: { current: { access_token: "token-A", user: { id: "user-A", email: "a@example.com" } } },
     validatedAccessTokenRef: { current: "token-A" },
     pendingPolicyUserIdRef: { current: null },
+    passwordRecoveryUserIdRef: { current: null },
+    authCeremonyActiveRef: { current: true },
+    providerAuthAttemptIdRef: { current: 4 },
     activeProviderUserIdRef: { current: "user-A" },
     hideWorkspaceForAuthCheck: () => undefined,
     setPendingSupabaseSession: () => undefined,
+    setPasswordRecoverySession: () => undefined,
     setAuthMode: () => undefined,
     setAuthSession: () => undefined,
     getSupabaseUserPlan: () => "free",
@@ -788,9 +938,11 @@ test("scoped deletion never erases an unowned legacy base record", () => {
   assert.doesNotMatch(body, /removeItem\(baseKey\)/);
 });
 
-test("auth dialog starts at the top and scrolls on narrow viewports", () => {
+test("auth dialog top-aligns when tall and centers only when it fits", () => {
   const authPanels = read("src", "components", "AuthPanels.tsx");
-  assert.match(authPanels, /fixed inset-0[^"\n]*items-start[^"\n]*overflow-y-auto[^"\n]*md:items-center/);
+  assert.match(authPanels, /fixed inset-0[^"\n]*items-start[^"\n]*overflow-y-auto[^"\n]*overscroll-y-contain/);
+  assert.match(authPanels, /liquid-glass-strong relative my-auto/);
+  assert.doesNotMatch(authPanels, /md:items-center/);
 });
 
 test("auth dialog locks background scroll and keeps modal isolation through its exit", () => {
@@ -800,7 +952,7 @@ test("auth dialog locks background scroll and keeps modal isolation through its 
   assert.match(authPanels, /document\.body\.style\.position = "fixed"/);
   assert.match(authPanels, /document\.documentElement\.style\.overflow = "hidden"/);
   assert.match(authPanels, /window\.scrollTo\(scrollX, scrollY\)/);
-  assert.match(authPanels, /overscroll-contain/);
+  assert.match(authPanels, /overscroll-y-contain/);
   assert.match(authPanels, /matchMedia\("\(max-width: 767px\)"\)/);
   assert.match(authPanels, /data-auth-mobile-initial-focus/);
 });

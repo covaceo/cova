@@ -76,6 +76,10 @@ export function CustomCursor() {
       return;
     }
 
+    if (document.documentElement.classList.contains("cova-platform-windows")) {
+      return;
+    }
+
     const finePointerQuery = window.matchMedia("(hover: hover) and (pointer: fine)");
     const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     const forcedColorsQuery = window.matchMedia("(forced-colors: active)");

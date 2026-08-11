@@ -1,14 +1,15 @@
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const baseUrl = process.env.COVA_URL || "http://127.0.0.1:4173";
 const chromePath = process.env.CHROME_PATH || "C:/Program Files/Google/Chrome/Application/chrome.exe";
-const screenshotDir = process.env.COVA_CURSOR_SCREENSHOT_DIR || "sketches/operator-dossier";
+const screenshotDir = process.env.COVA_CURSOR_SCREENSHOT_DIR || join(tmpdir(), "cova-cursor-audit-screenshots");
+await mkdir(screenshotDir, { recursive: true });
 const profile = await mkdtemp(join(tmpdir(), "cova-cursor-audit-"));
 const auditTargetToken = `cova-cursor-audit-${randomUUID()}`;
 const port = await allocateFreePort();
@@ -108,6 +109,39 @@ async function moveMouse(client, x, y) {
   await sleep(320);
 }
 
+async function waitForChromeExit(timeoutMs = 5_000) {
+  const started = Date.now();
+  while (chrome.exitCode === null && Date.now() - started < timeoutMs) await sleep(50);
+  return chrome.exitCode !== null;
+}
+
+async function terminateChrome(client) {
+  if (chrome.exitCode === null && client) {
+    await Promise.race([client.send("Browser.close").catch(() => {}), sleep(500)]);
+    if (await waitForChromeExit(3_000)) return;
+  }
+  if (chrome.exitCode === null) {
+    if (process.platform === "win32" && chrome.pid) {
+      await new Promise((resolve, reject) => execFile("taskkill.exe", ["/PID", String(chrome.pid), "/T", "/F"], (error) => error ? reject(error) : resolve()));
+    } else if (!chrome.kill("SIGKILL")) {
+      throw new Error("Owned Chrome process refused forced termination.");
+    }
+  }
+  if (!await waitForChromeExit()) throw new Error("Owned Chrome process did not exit after forced termination.");
+}
+
+async function removeProfile() {
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    try {
+      await rm(profile, { recursive: true, force: true });
+      return;
+    } catch (error) {
+      if (!error || !["EBUSY", "EPERM", "ENOTEMPTY"].includes(error.code) || attempt === 7) throw error;
+      await sleep(150 * (attempt + 1));
+    }
+  }
+}
+
 async function cursorSnapshot(client) {
   return evaluate(client, `(() => {
     const root = document.querySelector('.cova-cursor');
@@ -116,7 +150,10 @@ async function cursorSnapshot(client) {
     const geometry = document.querySelector('.cova-cursor-frame-geometry');
     const pr = point?.getBoundingClientRect();
     const fr = frame?.getBoundingClientRect();
+    const headerVeil = document.querySelector('.header-scroll-veil');
     return {
+      platform: navigator.platform,
+      windowsClass: document.documentElement.classList.contains('cova-platform-windows'),
       activeClass: document.documentElement.classList.contains('cova-custom-cursor-active'),
       visible: root?.classList.contains('is-visible') ?? false,
       state: root?.dataset.cursorState ?? null,
@@ -126,20 +163,24 @@ async function cursorSnapshot(client) {
       point: pr ? { x: pr.left + pr.width / 2, y: pr.top + pr.height / 2, width: pr.width, height: pr.height } : null,
       frame: fr ? { x: fr.left + fr.width / 2, y: fr.top + fr.height / 2, width: fr.width, height: fr.height } : null,
       frameRotate: geometry ? getComputedStyle(geometry).rotate : null,
+      headerVeilBackdrop: headerVeil ? getComputedStyle(headerVeil).backdropFilter : null,
       overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
     };
   })()`);
 }
 
+let client;
 try {
   await getJson(`http://127.0.0.1:${port}/json/version`);
   assert.equal(chrome.exitCode, null, "Spawned Chrome must still own the audit session");
   const targets = await getJson(`http://127.0.0.1:${port}/json/list`);
   const page = targets.find((target) => target.type === "page" && target.url.includes(auditTargetToken));
   assert.ok(page, "Chrome page target must belong to this audit instance");
-  const client = await connect(page.webSocketDebuggerUrl);
+  client = await connect(page.webSocketDebuggerUrl);
   await client.send("Page.enable");
   await client.send("Runtime.enable");
+  const browserUserAgent = await evaluate(client, "navigator.userAgent");
+  await client.send("Emulation.setUserAgentOverride", { userAgent: browserUserAgent, platform: "MacIntel" });
   await client.send("Emulation.setTouchEmulationEnabled", { enabled: false });
   await client.send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false, screenWidth: 1440, screenHeight: 900 });
   await client.send("Emulation.setEmulatedMedia", { media: "", features: [] });
@@ -219,12 +260,12 @@ try {
   await client.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: 350, y: 420, button: "left", clickCount: 1, pointerType: "mouse" });
 
   const cta = await evaluate(client, `(() => {
-    const element = [...document.querySelectorAll('button,a')].find((node) => /start for free/i.test(node.textContent || ''));
+    const element = [...document.querySelectorAll('button,a')].find((node) => /sign up/i.test(node.textContent || ''));
     if (!element) return null;
     const rect = element.getBoundingClientRect();
     return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2, left: rect.left, top: rect.top, width: rect.width, height: rect.height };
   })()`);
-  assert.ok(cta, "Hero/header Start for free control should exist");
+  assert.ok(cta, "Hero/header Sign up control should exist");
   await moveMouse(client, cta.x, cta.y);
   const actionState = await cursorSnapshot(client);
   assert.equal(actionState.state, "action", "Interactive control should expand to action state");
@@ -269,7 +310,7 @@ try {
     const rect = element.getBoundingClientRect();
     return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
   })()`);
-  assert.ok(input, "Clicking Start for free should expose an auth text field");
+  assert.ok(input, "Clicking Sign up should expose an auth email field");
   await moveMouse(client, input.x, input.y);
   const textState = await cursorSnapshot(client);
   assert.equal(textState.state, "text", "Text field should use the custom I-beam state");
@@ -344,6 +385,20 @@ try {
   assert.equal(shortDesktopState.activeClass, true, "Short desktop viewport should retain the custom cursor");
   assert.equal(shortDesktopState.overflow, 0, "Custom cursor should not create overflow at 1280x720");
 
+  stage("windows performance fallback");
+  await client.send("Emulation.setUserAgentOverride", { userAgent: browserUserAgent, platform: "Win32" });
+  await client.send("Emulation.setEmulatedMedia", { media: "", features: [] });
+  await client.send("Emulation.setDeviceMetricsOverride", { width: 2560, height: 1271, deviceScaleFactor: 1, mobile: false, screenWidth: 2560, screenHeight: 1271 });
+  await navigate(client, `${baseUrl}/?cursorAudit=windows-performance#overview`);
+  await moveMouse(client, 640, 520);
+  const windowsState = await cursorSnapshot(client);
+  assert.equal(windowsState.platform, "Win32", "Windows performance coverage must run against a Windows navigator platform");
+  assert.equal(windowsState.windowsClass, true, "Windows clients must receive the scoped compositing fallback class");
+  assert.equal(windowsState.activeClass, false, "Windows fallback must preserve the native cursor instead of repainting a full-page custom layer");
+  assert.notEqual(windowsState.bodyCursor, "none", "Windows fallback must never hide the native cursor");
+  assert.equal(windowsState.rootDisplay, "none", "Windows fallback must remove the custom cursor from paint");
+  assert.equal(windowsState.headerVeilBackdrop, "none", "Windows fallback must not blur the fixed header veil");
+
   stage("complete");
   console.log(JSON.stringify({
     baseUrl,
@@ -362,13 +417,16 @@ try {
     grabState,
     grabbingState,
     shortDesktopState,
+    windowsPerformanceFallback: windowsState,
     touchFallback: { activeClass: touchState.activeClass, bodyCursor: touchState.bodyCursor },
     reducedMotionFallback: { activeClass: reducedState.activeClass, bodyCursor: reducedState.bodyCursor },
     forcedColorsFallback: { activeClass: forcedColorsState.activeClass, bodyCursor: forcedColorsState.bodyCursor },
   }, null, 2));
-  client.close();
 } finally {
-  chrome.kill("SIGTERM");
-  await sleep(250);
-  await rm(profile, { recursive: true, force: true });
+  try {
+    await terminateChrome(client);
+  } finally {
+    client?.close();
+    await removeProfile();
+  }
 }
