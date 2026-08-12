@@ -1,251 +1,178 @@
 import { motion } from "motion/react";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, CalendarDays, Database } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { analyze, formatMoney, formatPercent, type RiskRule, type Trade } from "../lib/risk";
-import { EquityCurve, FlagStack, MetricDock, ScoreCard } from "./DashboardCards";
-import { NextSessionBriefCard } from "./DashboardBriefs";
-import { GlassButton } from "./GlassButton";
+import { analyze, formatMoney, type RiskRule, type Trade } from "../lib/risk";
+import { getTradeSourceLabel } from "../lib/tradeSourceLabel";
+import { EquityCurve, FlagStack, ScoreCard } from "./DashboardCards";
 import { RithmicAttribution } from "./RithmicAttribution";
-import { ImageAtmosphere, SectionShell } from "./LayoutShell";
 
-const DASHBOARD_FOCUS_KEY = "cova-dashboard-focus-v1";
 const DASHBOARD_RANGE_KEY = "cova-dashboard-range-v1";
 
 type Section = "overview" | "features" | "pricing" | "resources" | "community" | "dashboard" | "import" | "oauth" | "rules" | "coach" | "practice" | "passport";
-type DashboardFocus = "health" | "risk" | "performance" | "proof";
 type TimeRange = "today" | "week" | "all";
-type BrokerStatus = {
-  provider: string;
-  connected: boolean;
-  mode?: "linked" | "ephemeral";
-  updatedAt: string;
-};
 
-export function Dashboard({ analysis, brokerStatus, rules, go }: { analysis: ReturnType<typeof analyze>; brokerStatus: BrokerStatus | null; rules: RiskRule[]; go: (section: Section) => void }) {
+const rangeOptions: { id: TimeRange; label: string }[] = [
+  { id: "today", label: "Latest session" },
+  { id: "week", label: "Last 7 days" },
+  { id: "all", label: "All trades" },
+];
+
+export function Dashboard({ analysis, rules, go }: { analysis: ReturnType<typeof analyze>; rules: RiskRule[]; go: (section: Section) => void }) {
   const [range, setRange] = useState<TimeRange>(() => readDashboardRange());
-  const [focus, setFocus] = useState<DashboardFocus>(() => readDashboardFocus());
   const scopedTrades = useMemo(() => filterTradesByRange(analysis.trades, range), [analysis.trades, range]);
   const scopedAnalysis = useMemo(() => analyze(scopedTrades, rules), [scopedTrades, rules]);
-  const hasRithmicTrades = analysis.trades.some((trade) => trade.source?.provider === "Rithmic");
-  const rangeLabel = range === "today" ? `Latest session, ${analysis.latestDate}` : range === "week" ? "Last 7 calendar days" : "All trades";
-  const focusLabel = {
-    health: "Account health",
-    risk: "Rules",
-    performance: "P&L",
-    proof: "Passport proof",
-  }[focus];
+  const hasRithmicTrades = scopedAnalysis.trades.some((trade) => trade.source?.provider === "Rithmic");
+  const sourceLabel = getTradeSourceLabel(scopedAnalysis.trades);
 
   useEffect(() => {
     try {
       localStorage.setItem(DASHBOARD_RANGE_KEY, range);
     } catch {
-      // Ignore storage failures; the dashboard still works for the current session.
+      // The selected range can remain session-only when storage is unavailable.
     }
   }, [range]);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(DASHBOARD_FOCUS_KEY, focus);
-    } catch {
-      // Ignore storage failures; the dashboard still works for the current session.
-    }
-  }, [focus]);
-
   return (
-    <SectionShell
-      eyebrow="Risk desk"
-      title="Review what your trade history shows."
-      variant="workspace"
-      action={<GlassButton onClick={() => go("rules")}>Set rules <ArrowUpRight className="h-4 w-4" /></GlassButton>}
-      backdrop={<ImageAtmosphere src="/media/cova-dashboard-plate.jpg" />}
-    >
-      <DashboardCommandCenter
-        analysis={scopedAnalysis}
-        brokerStatus={brokerStatus}
-        hasRithmicTrades={hasRithmicTrades}
-        go={go}
-      />
+    <section className="dashboard-workspace">
+      <header className="dashboard-workspace-header">
+        <div>
+          <h1>Risk Desk</h1>
+          <p>Review imported trade history, risk pressure, and the evidence that needs attention.</p>
+        </div>
+        <div className="dashboard-range-controls" role="group" aria-label="Dashboard review range">
+          <CalendarDays aria-hidden="true" className="h-4 w-4" />
+          {rangeOptions.map((option) => (
+            <button
+              aria-pressed={range === option.id}
+              className={range === option.id ? "dashboard-range-active" : ""}
+              key={option.id}
+              onClick={() => setRange(option.id)}
+              type="button"
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </header>
+
+      <DashboardSummaryStrip analysis={scopedAnalysis} go={go} sourceLabel={sourceLabel} />
+
       {hasRithmicTrades && (
-        <div className="mb-6">
+        <div className="dashboard-attribution-row">
           <RithmicAttribution compact />
         </div>
       )}
-      <div className="dashboard-simple-grid">
-        <motion.div
-          className="risk-chart-panel risk-os-panel motion-surface p-5 md:p-7"
-          initial={{ opacity: 0, y: 22, filter: "blur(8px)" }}
-          whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-          viewport={{ once: true, margin: "-80px" }}
-          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+
+      <div className="dashboard-instrument-grid">
+        <motion.section
+          className="risk-chart-panel dashboard-equity-instrument motion-surface"
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.42, ease: [0.16, 1, 0.3, 1] }}
         >
-          <div className="flex items-center justify-between gap-5">
+          <div className="dashboard-instrument-header">
             <div>
-              <p className="font-body text-xs uppercase tracking-[0.26em] text-[#18c887]">Account path</p>
-              <h3 className="mt-2 font-body text-2xl font-medium">{focusLabel}</h3>
+              <h2>Equity curve</h2>
+              <p>Net cumulative P&amp;L from the selected imported history.</p>
             </div>
-            <span className="liquid-glass rounded-full px-4 py-2 font-body text-sm text-white/70">{scopedAnalysis.trades.length} trades</span>
+            <span>{scopedAnalysis.trades.length} trades</span>
           </div>
           <EquityCurve points={scopedAnalysis.equityPoints.map((point) => point.value)} />
-          <MetricDock analysis={scopedAnalysis} />
-        </motion.div>
+        </motion.section>
 
-        <aside className="dashboard-simple-side" aria-label="What matters next">
+        <aside className="dashboard-evidence-column" aria-label="Risk evidence">
           <ScoreCard analysis={scopedAnalysis} />
           <FlagStack analysis={scopedAnalysis} />
-          <NextSessionBriefCard analysis={scopedAnalysis} go={go} />
         </aside>
       </div>
-    </SectionShell>
+
+      <DashboardReviewRow analysis={scopedAnalysis} go={go} />
+    </section>
   );
 }
 
-function DashboardCommandCenter({
-  analysis,
-  brokerStatus,
-  hasRithmicTrades,
-  go,
-}: {
-  analysis: ReturnType<typeof analyze>;
-  brokerStatus: BrokerStatus | null;
-  hasRithmicTrades: boolean;
-  go: (section: Section) => void;
-}) {
-  const connected = Boolean(brokerStatus?.connected);
-  const imported = hasRithmicTrades;
-  const provider = imported ? "Rithmic" : brokerStatus?.provider || "Trade history";
-  const updated = brokerStatus?.updatedAt
-    ? new Date(brokerStatus.updatedAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
-    : "Not connected";
-  const hasSampleTrades = analysis.trades.some((trade) => trade.id.startsWith("demo-"));
-  const hasReviewedTrades = analysis.trades.some((trade) => !trade.id.startsWith("demo-"));
-  const sourceLabel = connected ? `${provider} linked` : imported ? `${provider} history imported` : hasSampleTrades ? hasReviewedTrades ? "Sample + CSV review" : "Sample funded review" : analysis.trades.length ? "CSV trade review" : "No trade history";
-  const quickMetrics = [
-    ["P&L", formatMoney(analysis.totalPnl), analysis.totalPnl >= 0 ? "text-emerald-300" : "text-red-300"],
-    ["Biggest dip", formatMoney(-analysis.maxDrawdown), analysis.maxDrawdown > 0 ? "text-red-300" : "text-white"],
-    ["Warnings", String(analysis.breaches.length), analysis.breaches.length ? "text-red-300" : "text-emerald-300"],
+function DashboardSummaryStrip({ analysis, go, sourceLabel }: { analysis: ReturnType<typeof analyze>; go: (section: Section) => void; sourceLabel: string }) {
+  const action = getDashboardSummaryAction(analysis);
+  const cells = [
+    { label: "Review source", value: sourceLabel, tone: "" },
+    { label: "Net P&L", value: formatMoney(analysis.totalPnl), tone: analysis.totalPnl >= 0 ? "positive" : "negative" },
+    { label: "Biggest dip", value: formatMoney(-analysis.maxDrawdown), tone: analysis.maxDrawdown > 0 ? "negative" : "positive" },
+    { label: "Warnings", value: String(analysis.breaches.length), tone: analysis.breaches.length ? "warning" : "positive" },
   ];
-  const sourceReady = connected || imported || analysis.trades.length > 0;
-  const nextAction = !sourceReady
-    ? {
-      label: "Add trade history",
-      target: "import" as Section,
-    }
-    : analysis.breaches.length
-      ? {
-        label: "Review warnings",
-        target: "rules" as Section,
-      }
-      : analysis.evidenceQuality.level !== "high"
-        ? {
-          label: "Add more trades",
-          target: "import" as Section,
-        }
-        : {
-          label: "Open Passport",
-          target: "passport" as Section,
-        };
-
 
   return (
-    <motion.section
-      className="risk-command-center risk-os-panel mb-6 overflow-hidden p-4 md:p-5"
-      initial={{ opacity: 0, y: 18, filter: "blur(8px)" }}
-      whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-      viewport={{ once: true, margin: "-80px" }}
-      transition={{ duration: 0.46, ease: [0.16, 1, 0.3, 1] }}
-    >
-      <div className="risk-command-primary-grid grid gap-4 xl:items-center">
-        <div>
-          <div className="flex flex-wrap items-center gap-3">
-            <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 font-body text-xs ${connected ? "border-emerald-300/24 bg-emerald-400/10 text-emerald-200" : imported ? "border-amber-200/20 bg-amber-300/8 text-amber-100" : "border-white/12 bg-white/[0.035] text-white/52"}`}>
-              <span className={`h-2 w-2 rounded-full ${connected ? "bg-emerald-300" : imported ? "bg-amber-200" : "bg-white/30"}`} />
-              {connected ? "Connected" : imported ? "Imported" : "Not linked"}
-            </span>
-            <span className="font-mono text-xs uppercase tracking-[0.18em] text-white/34">{updated}</span>
-          </div>
-          <h3 className="mt-4 font-body text-2xl font-semibold leading-[1.02] tracking-[-0.035em] text-white md:text-3xl">
-            {sourceLabel}
-          </h3>
-          <div className="mt-4 flex flex-wrap gap-3">
-            <GlassButton strong onClick={() => go("import")}>
-              {connected ? "Manage link" : imported ? "Sync again" : "Link account"} <ArrowUpRight className="h-4 w-4" />
-            </GlassButton>
-            <GlassButton onClick={() => go("passport")}>Passport</GlassButton>
-          </div>
+    <div className="dashboard-summary-strip">
+      {cells.map((cell) => (
+        <div className="dashboard-summary-cell" key={cell.label}>
+          <span>{cell.label}</span>
+          <strong className={cell.tone}>{cell.value}</strong>
         </div>
-
-        <button
-          className="group min-w-[220px] rounded-[24px] border border-[#18c887]/18 bg-[#18c887]/[0.055] p-5 text-left transition hover:border-[#b9f5df]/34 hover:bg-[#18c887]/[0.075]"
-          onClick={() => go(nextAction.target)}
-          type="button"
-        >
-          <p className="font-body text-xs uppercase tracking-[0.18em] text-[#b9f5df]/78">Next</p>
-          <div className="mt-3 flex items-center justify-between gap-4">
-            <h3 className="font-body text-xl font-semibold tracking-[-0.025em] text-white">{nextAction.label}</h3>
-            <ArrowUpRight className="h-4 w-4 shrink-0 text-[#b9f5df] transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-          </div>
+      ))}
+      <div className="dashboard-summary-actions">
+        <button onClick={() => go("import")} type="button">Manage source</button>
+        <button className="dashboard-summary-primary" onClick={() => go(action.target)} type="button">
+          {action.label} <ArrowUpRight aria-hidden="true" className="h-4 w-4" />
         </button>
       </div>
-
-      <div className="mt-5 grid gap-2 md:grid-cols-3">
-        {quickMetrics.map(([metric, value, tone]) => (
-          <div className="flex items-center justify-between rounded-[18px] border border-white/10 bg-white/[0.025] px-4 py-3" key={metric}>
-            <span className="font-body text-sm text-white/52">{metric}</span>
-            <strong className={`font-mono text-lg ${tone}`}>{value}</strong>
-          </div>
-        ))}
-      </div>
-    </motion.section>
+    </div>
   );
+}
+
+function DashboardReviewRow({ analysis, go }: { analysis: ReturnType<typeof analyze>; go: (section: Section) => void }) {
+  const brief = analysis.nextSessionBrief;
+  const watchItem = brief.watchlist[0] || "No active historical warning in this review.";
+  const status = brief.status === "ready" ? "Within limits" : brief.status === "locked" ? "Limit crossed" : "Needs review";
+
+  return (
+    <section className="dashboard-review-row">
+      <header>
+        <div>
+          <h2>Next review</h2>
+          <p>One concise handoff from this imported history.</p>
+        </div>
+        <button onClick={() => go("coach")} type="button">Open insights <ArrowUpRight aria-hidden="true" className="h-4 w-4" /></button>
+      </header>
+      <div className="dashboard-review-grid">
+        <div><span>Focus</span><strong>{brief.headline}</strong></div>
+        <div><span>Evidence</span><strong>{watchItem}</strong></div>
+        <div><span>Review boundary</span><strong>Retrospective analysis only</strong></div>
+        <div><span>Status</span><strong className={`dashboard-review-status dashboard-review-status-${brief.status}`}>{status}</strong></div>
+      </div>
+      <p className="dashboard-review-disclosure"><Database aria-hidden="true" className="h-3.5 w-3.5" />No live orders, broker controls, or future-result prediction.</p>
+    </section>
+  );
+}
+
+function getDashboardSummaryAction(analysis: ReturnType<typeof analyze>): { label: string; target: Section } {
+  if (!analysis.trades.length) return { label: "Add trade history", target: "import" };
+  if (analysis.breaches.length) return { label: "Review warnings", target: "rules" };
+  if (analysis.evidenceQuality.level !== "high") return { label: "Add more trades", target: "import" };
+  return { label: "Open Passport", target: "passport" };
 }
 
 function filterTradesByRange(trades: Trade[], range: TimeRange) {
-  if (range === "all" || trades.length <= 1) {
-    return trades;
-  }
+  if (range === "all" || trades.length <= 1) return trades;
 
   const sorted = [...trades].sort((a, b) => a.date.localeCompare(b.date));
   const latestDate = sorted[sorted.length - 1]?.date;
-  if (!latestDate) {
-    return sorted;
-  }
-
-  if (range === "today") {
-    return sorted.filter((trade) => trade.date === latestDate);
-  }
+  if (!latestDate) return sorted;
+  if (range === "today") return sorted.filter((trade) => trade.date === latestDate);
 
   const end = new Date(`${latestDate}T00:00:00`);
   const start = new Date(end);
   start.setDate(start.getDate() - 6);
-
   return sorted.filter((trade) => {
     const date = new Date(`${trade.date}T00:00:00`);
     return date >= start && date <= end;
   });
 }
 
-
-function readDashboardFocus(): DashboardFocus {
-  try {
-    const value = localStorage.getItem(DASHBOARD_FOCUS_KEY);
-    if (value === "health" || value === "risk" || value === "performance" || value === "proof") {
-      return value;
-    }
-  } catch {
-    return "health";
-  }
-  return "health";
-}
-
 function readDashboardRange(): TimeRange {
   try {
     const value = localStorage.getItem(DASHBOARD_RANGE_KEY);
-    if (value === "today" || value === "week" || value === "all") {
-      return value;
-    }
+    if (value === "today" || value === "week" || value === "all") return value;
   } catch {
     return "all";
   }
   return "all";
 }
-

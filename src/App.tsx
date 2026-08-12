@@ -49,6 +49,7 @@ import { PRACTICE_ACCOUNT_STORAGE_KEY, PRACTICE_TRADES_STORAGE_KEY, samplePracti
 import { buildFirmConnectUrl, canRedirectToFirmProvider, csvExportGuides, getFirmProviderHost, getPropFirm, type PropFirmId } from "./lib/propFirms";
 import { isProtectedSection, sections, useHashSection, type Section } from "./lib/appRoutes";
 import { clearActiveStorageIdentity, removeScopedStorage, scopedStorageKey, setActiveStorageIdentity } from "./lib/storageScope";
+import { getAccountSourceLabel } from "./lib/tradeSourceLabel";
 
 const STORAGE_KEY = "cova-react-risk-os-v2";
 const AUTH_SESSION_KEY = "cova-auth-session-v1";
@@ -130,17 +131,8 @@ export default function App() {
   const proCheckoutAvailable = Boolean(getProCheckoutUrl()) || isDemoPreviewEnabled();
   const analysis = useMemo(() => analyze(trades, rules), [trades, rules]);
   const hasSampleTrades = trades.some((trade) => trade.id.startsWith("demo-"));
-  const hasReviewedTrades = trades.some((trade) => !trade.id.startsWith("demo-"));
   const isSampleReview = hasSampleTrades;
-  const brokerLabel = brokerStatus?.connected
-    ? `${brokerStatus.provider} linked`
-    : brokerStatus?.mode === "ephemeral"
-      ? `${brokerStatus.provider} history imported`
-      : hasSampleTrades
-      ? hasReviewedTrades ? "Sample + CSV review" : "Sample funded review"
-      : trades.length
-        ? "CSV trade review"
-        : "No trade history";
+  const brokerLabel = getAccountSourceLabel(trades, brokerStatus);
 
   useEffect(() => {
     if (isSignedIn) {
@@ -1134,7 +1126,7 @@ export default function App() {
           )}
           {section === "dashboard" && (
             <RouteFrame key="dashboard">
-              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><Dashboard analysis={analysis} brokerStatus={brokerStatus} rules={rules} go={go} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={openAuth} onDevPreview={signInAsDevPreview} />}
+              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><Dashboard analysis={analysis} rules={rules} go={go} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={openAuth} onDevPreview={signInAsDevPreview} />}
             </RouteFrame>
           )}
           {section === "import" && (
