@@ -44,7 +44,10 @@ async function terminateChromeTree(chrome, cdp) {
   if (chrome.exitCode === null) {
     if (process.platform === "win32" && chrome.pid) {
       await new Promise((resolveTerminate, rejectTerminate) => {
-        execFile("taskkill.exe", ["/PID", String(chrome.pid), "/T", "/F"], (error) => error ? rejectTerminate(error) : resolveTerminate());
+        execFile("taskkill.exe", ["/PID", String(chrome.pid), "/T", "/F"], async (error) => {
+          if (!error || await waitForChromeExit(chrome, 1_000)) resolveTerminate();
+          else rejectTerminate(error);
+        });
       });
     } else if (!chrome.kill("SIGTERM")) {
       throw new Error("Owned Chrome process refused SIGTERM.");

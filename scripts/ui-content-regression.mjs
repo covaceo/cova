@@ -9,12 +9,16 @@ const packageJson = JSON.parse(read("package.json"));
 const releaseBrowserPath = join(root, "scripts", "release-browser-regression.mjs");
 const ownedPreviewPath = join(root, "scripts", "owned-vite-preview.mjs");
 const authBrowserPath = join(root, "scripts", "auth-modal-browser-regression.mjs");
+const dashboardBrowserPath = join(root, "scripts", "dashboard-browser-regression.mjs");
+const cursorBrowserPath = join(root, "scripts", "custom-cursor-browser-audit.mjs");
 assert.equal(existsSync(releaseBrowserPath), true, "The canonical browser release gate must be self-contained in the repository.");
 assert.equal(existsSync(ownedPreviewPath), true, "The canonical release gate must ship its owned Vite preview child.");
 assert.equal(existsSync(authBrowserPath), true, "The short-mobile AuthSheet browser regression must ship in the repository.");
 const releaseBrowser = existsSync(releaseBrowserPath) ? readFileSync(releaseBrowserPath, "utf8") : "";
 const ownedPreview = existsSync(ownedPreviewPath) ? readFileSync(ownedPreviewPath, "utf8") : "";
 const authBrowser = existsSync(authBrowserPath) ? readFileSync(authBrowserPath, "utf8") : "";
+const dashboardBrowser = existsSync(dashboardBrowserPath) ? readFileSync(dashboardBrowserPath, "utf8") : "";
+const cursorBrowser = existsSync(cursorBrowserPath) ? readFileSync(cursorBrowserPath, "utf8") : "";
 
 const workspace = read("src", "components", "WorkspaceSections.tsx");
 const workspaceShell = read("src", "components", "WorkspaceShell.tsx");
@@ -67,10 +71,15 @@ assert.match(releaseBrowser, /type:\s*"shutdown"[\s\S]*waitForPortClosed/, "The 
 assert.match(ownedPreview, /preview\([\s\S]*port:\s*0[\s\S]*strictPort:\s*true/, "The owned preview child must use an OS-selected strict port.");
 assert.match(ownedPreview, /process\.send[\s\S]*owned-preview-ready/, "The owned preview child must report readiness through IPC.");
 assert.match(ownedPreview, /server\?\.close|server\.close/, "The owned preview child must support graceful shutdown.");
-for (const chromeHarness of [mobileAudit, authBrowser]) {
+for (const chromeHarness of [mobileAudit, authBrowser, dashboardBrowser]) {
   assert.match(chromeHarness, /--remote-debugging-port=0/, "Chrome QA must request an OS-selected CDP port.");
   assert.match(chromeHarness, /DevToolsActivePort/, "Chrome QA must bind CDP through the spawned run's unique profile.");
 }
+assert.match(cursorBrowser, /allocateFreePort\(\)[\s\S]*?--remote-debugging-port=\$\{port\}/, "Cursor QA must retain its existing socket-allocated owned CDP port.");
+for (const chromeHarness of [mobileAudit, authBrowser, dashboardBrowser, cursorBrowser]) {
+  assert.match(chromeHarness, /taskkill\.exe[\s\S]*?!error \|\| await waitForChromeExit/, "Windows Chrome cleanup must treat an already-exited owned PID as successful while still verifying process exit.");
+}
+assert.match(releaseBrowser, /taskkill\.exe[\s\S]*?!error \|\| await waitForPreviewExit/, "Windows preview cleanup must treat an already-exited owned PID as successful while still verifying process exit and port closure.");
 assert.match(authBrowser, /width:\s*390,\s*height:\s*640[\s\S]*aria-label=.Close.[\s\S]*overlay\.scrollTop[\s\S]*background[\s\S]*allInert/, "The AuthSheet browser regression must verify short-phone close visibility, top scroll position, and background isolation.");
 
 for (const stalePath of [
@@ -124,6 +133,9 @@ for (const script of tempRegressionScripts) {
 }
 
 assert.match(workspace, /Rules calculated · flags found/, "Passport ledger should use factual mixed-state copy when any rules are flagged.");
+assert.doesNotMatch(workspace, /Net P&L/, "Passport live cards, privacy rows, previews, and fallback exports must not label provider-reported gross P&L as net.");
+assert.match(workspace, /Reported P&L/, "Passport must use provider-neutral P&L wording everywhere the reviewed value appears.");
+assert.match(workspace, /Score range", value: Number\.isFinite\(analysis\.score\) \? `\$\{Math\.floor\(analysis\.score \/ 10\) \* 10\}\+` : "Hidden"/, "Passport Ghost mode must preserve a valid score of zero as the 0+ range.");
 assert.match(workspace, /analysis\.breaches\.length/, "Passport ledger heading should be tied to actual breach state, not static verified copy.");
 assert.match(workspace, /Limit warnings/, "Insights should give the warning card a specific scan label.");
 assert.match(workspace, /Review note/, "Insights should frame outputs as retrospective review notes rather than trading directives.");
@@ -212,6 +224,9 @@ assert.match(operatorDossierCss, /@media \(max-width: 767px\)[\s\S]*?\.market-he
 assert.match(operatorDossierCss, /@media \(min-width: 901px\) and \(max-height: 760px\)[\s\S]*?\.market-hero-title[\s\S]*?font-size:\s*4\.45rem[\s\S]*?\.market-hero-actions[\s\S]*?margin-top:\s*1rem/, "The restored hero should keep its actions above the fold on short desktop viewports.");
 assert.match(operatorDossierCss, /\.mobile-hero-dossier\s*\{\s*display:\s*none;/, "The mobile dossier must stay hidden by default so desktop remains unchanged.");
 assert.match(operatorDossierCss, /@media \(max-width: 767px\)[\s\S]*?\.hero-dashboard-stage\s*\{[\s\S]*?display:\s*none\s*!important;[\s\S]*?\.mobile-hero-dossier\s*\{[\s\S]*?display:\s*block;/, "Phones should replace the oversized desktop hero mockup with the mobile dossier.");
+assert.match(appRoutes, /export function isWorkspaceNavActive\(section: Section, itemId: Section\)[\s\S]*?section === "oauth" && itemId === "import"/, "OAuth connector routes must map to Link account / Trade History for every workspace navigation surface");
+assert.match(navbar, /aria-current=\{isWorkspaceNavActive\(section, item\.id\) \? "page" : undefined\}/, "workspace navigation must use the shared route-equivalence helper for aria-current");
+assert.match(workspaceShell, /const active = isWorkspaceNavActive\(section, item\.id\);/, "desktop workspace rail must share the same child-route current-state mapping");
 assert.match(navbar, /const usesWorkspaceChrome = Boolean\(authSession\) && isProtectedSection\(section\);/, "Only authenticated protected routes should select chrome that desktop CSS hides behind the sidebar.");
 assert.match(navbar, /const isAppMode = Boolean\(authSession\) \|\| usesWorkspaceChrome;/, "Signed-in mobile marketing routes should retain their existing app-navigation menu.");
 assert.match(navbar, /usesWorkspaceChrome \? "workspace-top-header"/, "Authentication alone must not hide the marketing header on Overview.");

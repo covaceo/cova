@@ -806,7 +806,7 @@ const passportShareModes: PassportShareMode[] = [
     label: "Flex",
     tagline: "Gains visible, risk proof intact.",
     cardSubtitle: "Gains + discipline proof",
-    reveals: ["Net P&L", "Cova rank", "Risk score", "Rules kept"],
+    reveals: ["Reported P&L", "Cova rank", "Risk score", "Rules kept"],
     hidden: ["Full trade list", "Broker details", "Private notes"],
   },
   {
@@ -815,7 +815,7 @@ const passportShareModes: PassportShareMode[] = [
     tagline: "Show control without flashing P&L.",
     cardSubtitle: "Discipline proof, P&L hidden",
     reveals: ["Cova rank", "Rules kept", "Average R", "Drawdown control"],
-    hidden: ["Net P&L", "Individual trades", "Account size"],
+    hidden: ["Reported P&L", "Individual trades", "Account size"],
   },
   {
     id: "private",
@@ -823,7 +823,7 @@ const passportShareModes: PassportShareMode[] = [
     tagline: "Local export with sensitive stats omitted.",
     cardSubtitle: "Masked export view",
     reveals: ["Review date", "Sample quality", "Risk score range", "Rules kept"],
-    hidden: ["Net P&L", "Win rate", "Trader identity"],
+    hidden: ["Reported P&L", "Win rate", "Trader identity"],
   },
   {
     id: "coach",
@@ -1295,7 +1295,7 @@ function getPassportStats(analysis: ReturnType<typeof analyze>, mode: PassportSh
     }
     if (mode === "private") {
       return [
-        { label: "Score range", value: analysis.score ? `${Math.floor(analysis.score / 10) * 10}+` : "Hidden", tone: "positive" },
+        { label: "Score range", value: Number.isFinite(analysis.score) ? `${Math.floor(analysis.score / 10) * 10}+` : "Hidden", tone: "positive" },
         { label: "Rules held", value: formatPercent(analysis.compliance), tone: analysis.compliance >= 0.75 ? "positive" : "negative" },
         { label: "Sample", value: analysis.evidenceQuality.label, tone: "neutral" },
         { label: "Generated", value: analysis.latestDate, tone: "neutral" },
@@ -1314,7 +1314,7 @@ function getPassportStats(analysis: ReturnType<typeof analyze>, mode: PassportSh
       ];
     }
     return [
-      { label: "Net P&L", value: formatMoney(analysis.totalPnl), tone: analysis.totalPnl >= 0 ? "positive" : "negative" },
+      { label: "Reported P&L", value: formatMoney(analysis.totalPnl), tone: analysis.totalPnl >= 0 ? "positive" : "negative" },
       { label: "Control score", value: `${analysis.score}`, tone: "positive" },
       { label: "Rules held", value: formatPercent(analysis.compliance), tone: analysis.compliance >= 0.75 ? "positive" : "negative" },
       { label: "Trades reviewed", value: `${analysis.trades.length}`, tone: "neutral" },
@@ -1355,7 +1355,7 @@ function getPassportDiamondPreviewStats(mode: PassportShareModeId): PassportStat
     ];
   }
   return [
-    { label: "Net P&L", value: "$18,760", tone: "positive" },
+    { label: "Reported P&L", value: "$18,760", tone: "positive" },
     { label: "Control score", value: "94", tone: "positive" },
     { label: "Rules held", value: "93%", tone: "positive" },
     { label: "Trades reviewed", value: "72", tone: "neutral" },
@@ -1394,7 +1394,7 @@ export function Passport({ analysis, entitlements, isSampleReview, go, upgradeTo
   const heroStat = cardStats[0];
   const profileStats = (shareModeId === "flex" ? [cardStats[2], cardStats[3], cardStats[4], cardStats[5]] : cardStats.slice(1, 5)).filter(Boolean) as PassportStat[];
   const privacyRows = [
-    { label: "Net P&L", visible: shareMode.reveals.includes("Net P&L") },
+    { label: "Reported P&L", visible: shareMode.reveals.includes("Reported P&L") },
     { label: "Broker", visible: false },
     { label: "Notes", visible: false },
     { label: "Rule proof", visible: true },

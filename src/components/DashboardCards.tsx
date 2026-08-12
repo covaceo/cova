@@ -3,7 +3,7 @@ import { analyze, formatMoney } from "../lib/risk";
 export function MetricDock({ analysis }: { analysis: ReturnType<typeof analyze> }) {
   const metrics = [
     ["Score", `${analysis.score}/100`],
-    ["Net P&L", formatMoney(analysis.totalPnl)],
+    ["Reported P&L", formatMoney(analysis.totalPnl)],
     ["Biggest Dip", formatMoney(-analysis.maxDrawdown)],
     ["Profit Factor", Number.isFinite(analysis.profitFactor) ? analysis.profitFactor.toFixed(2) : "∞"],
     ["Average R", `${analysis.avgR.toFixed(2)}R`],

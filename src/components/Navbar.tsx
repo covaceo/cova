@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { ChevronDown, Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { Section } from "../lib/appRoutes";
+import { isWorkspaceNavActive, type Section } from "../lib/appRoutes";
 import { StartFreeButton } from "./StartFreeButton";
 
 type AuthMode = "login" | "signup";
@@ -28,7 +28,7 @@ const marketingNav = [
   { label: "Community", action: "community", hasChevron: true },
 ] satisfies { action: Section; hasChevron?: boolean; label: string }[];
 
-export function Navbar({ section, go, openAuth, mobileOpen, setMobileOpen, authSession, riskScore, signOut }: {
+export function Navbar({ section, go, openAuth, mobileOpen, setMobileOpen, authSession, riskScore, signOut, deleteAccount }: {
   section: Section;
   go: (section: Section) => void;
   openAuth: (mode: AuthMode) => void;
@@ -37,12 +37,11 @@ export function Navbar({ section, go, openAuth, mobileOpen, setMobileOpen, authS
   authSession: AuthSession | null;
   riskScore: number;
   signOut: () => void;
+  deleteAccount: () => void;
 }) {
   const [scrolled, setScrolled] = useState(false);
   const usesWorkspaceChrome = Boolean(authSession) && isProtectedSection(section);
   const isAppMode = Boolean(authSession) || usesWorkspaceChrome;
-  const activeMarketingLabel = marketingNav.find((item) => item.action === section)?.label ?? "Product";
-  const activeAppLabel = appNav.find((item) => item.id === section)?.label ?? "";
   const riskScoreLabel = Number.isFinite(riskScore) ? String(riskScore) : "--";
 
   useEffect(() => {
@@ -94,10 +93,10 @@ export function Navbar({ section, go, openAuth, mobileOpen, setMobileOpen, authS
               appNav.map((item) => (
                 <button
                   key={item.id}
-                  className={`marketing-nav-link font-body text-[14px] font-medium ${section === item.id ? "marketing-nav-link-active" : ""}`}
+                  className={`marketing-nav-link font-body text-[14px] font-medium ${isWorkspaceNavActive(section, item.id) ? "marketing-nav-link-active" : ""}`}
                   onClick={() => { setMobileOpen(false); go(item.id); }}
                   type="button"
-                  aria-current={section === item.id ? "page" : undefined}
+                  aria-current={isWorkspaceNavActive(section, item.id) ? "page" : undefined}
                 >
                   {item.label}
                 </button>
@@ -172,7 +171,14 @@ export function Navbar({ section, go, openAuth, mobileOpen, setMobileOpen, authS
           <img src="/cova-logo-minimal-white.svg" alt="Cova" className="header-brand-mark h-10 w-10 object-contain opacity-95" />
         </button>
 
-        <button className="liquid-glass mobile-menu-toggle operator-mobile-menu-toggle shrink-0 p-3 text-white md:hidden" onClick={() => setMobileOpen(!mobileOpen)} type="button" aria-label="Toggle menu">
+        <button
+          aria-controls="operator-mobile-menu"
+          aria-expanded={mobileOpen}
+          className="liquid-glass mobile-menu-toggle operator-mobile-menu-toggle shrink-0 p-3 text-white md:hidden"
+          onClick={() => setMobileOpen(!mobileOpen)}
+          type="button"
+          aria-label="Toggle menu"
+        >
           {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
       </div>
@@ -180,7 +186,10 @@ export function Navbar({ section, go, openAuth, mobileOpen, setMobileOpen, authS
       <AnimatePresence>
         {mobileOpen && (
           <motion.div
+            aria-label={isAppMode ? "Workspace navigation" : "Site navigation"}
             className="liquid-glass-strong operator-mobile-menu-panel mx-auto mt-3 max-w-7xl p-3 md:hidden"
+            id="operator-mobile-menu"
+            role="navigation"
             initial={{ opacity: 0, y: -10, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.98 }}
@@ -188,7 +197,8 @@ export function Navbar({ section, go, openAuth, mobileOpen, setMobileOpen, authS
             {isAppMode ? appNav.map((item) => (
               <button
                 key={item.id}
-                className={`operator-mobile-menu-link flex w-full items-center justify-between px-4 py-3 text-left font-body text-sm ${activeAppLabel === item.label ? "bg-white/8 text-white" : "text-white/68"}`}
+                aria-current={isWorkspaceNavActive(section, item.id) ? "page" : undefined}
+                className={`operator-mobile-menu-link flex w-full items-center justify-between px-4 py-3 text-left font-body text-sm ${isWorkspaceNavActive(section, item.id) ? "operator-mobile-menu-link-active" : "operator-mobile-menu-link-inactive"}`}
                 onClick={() => { setMobileOpen(false); go(item.id); }}
                 type="button"
               >
@@ -197,7 +207,8 @@ export function Navbar({ section, go, openAuth, mobileOpen, setMobileOpen, authS
             )) : marketingNav.map((item) => (
                 <button
                   key={item.label}
-                  className={`operator-mobile-menu-link flex w-full items-center justify-between px-4 py-3 text-left font-body text-sm ${activeMarketingLabel === item.label ? "bg-white/8 text-white" : "text-white/68"}`}
+                  aria-current={section === item.action ? "page" : undefined}
+                  className={`operator-mobile-menu-link flex w-full items-center justify-between px-4 py-3 text-left font-body text-sm ${section === item.action ? "operator-mobile-menu-link-active" : "operator-mobile-menu-link-inactive"}`}
                   onClick={() => handleMarketingNav(item.action)}
                   type="button"
                 >
@@ -205,7 +216,12 @@ export function Navbar({ section, go, openAuth, mobileOpen, setMobileOpen, authS
                 {item.hasChevron && <ChevronDown className="h-4 w-4" />}
               </button>
             ))}
-            <div className="mt-3 grid grid-cols-2 gap-2 border-t border-white/10 pt-3">
+            <div className="operator-mobile-account-actions mt-3 grid grid-cols-2 gap-2 border-t border-white/10 pt-3">
+              {authSession && (
+                <button className="cova-button cova-button-secondary operator-mobile-delete-account col-span-2 px-4 py-3 font-body text-sm" onClick={() => { setMobileOpen(false); deleteAccount(); }} type="button">
+                  Delete account
+                </button>
+              )}
               <button className="cova-button cova-button-secondary px-4 py-3 font-body text-sm" onClick={() => { setMobileOpen(false); authSession ? signOut() : openAuth("login"); }} type="button">
                 {authSession ? "Sign out" : "Sign in"}
               </button>
