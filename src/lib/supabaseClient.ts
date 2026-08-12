@@ -4,6 +4,7 @@ import { createClient, type SupabaseClient, type User } from "@supabase/supabase
 let supabaseClient: SupabaseClient | null = null;
 export const COVA_SUPABASE_STORAGE_KEY = "cova-supabase-auth-v1";
 const initialAuthCallback = readInitialAuthCallback();
+const consumedPasswordRecoveryAccessTokens = new Set<string>();
 
 function readInitialAuthCallback() {
   if (typeof window === "undefined") return { accessToken: null, type: null };
@@ -26,6 +27,20 @@ export function isSupabasePasswordRecoveryCallback(accessToken: string) {
     Boolean(initialAuthCallback.accessToken) &&
     initialAuthCallback.accessToken === accessToken
   );
+}
+
+function consumeSupabasePasswordRecoveryProof(proven: boolean, accessToken: string) {
+  if (!proven || !accessToken || consumedPasswordRecoveryAccessTokens.has(accessToken)) return false;
+  consumedPasswordRecoveryAccessTokens.add(accessToken);
+  return true;
+}
+
+export function consumeSupabasePasswordRecoveryCallback(accessToken: string) {
+  return consumeSupabasePasswordRecoveryProof(isSupabasePasswordRecoveryCallback(accessToken), accessToken);
+}
+
+export function consumeSupabasePasswordRecoveryEvent(event: string, accessToken: string) {
+  return consumeSupabasePasswordRecoveryProof(event === "PASSWORD_RECOVERY" || isSupabasePasswordRecoveryCallback(accessToken), accessToken);
 }
 
 function readEnv() {

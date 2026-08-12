@@ -25,6 +25,7 @@ test("Supabase client exposes classic password signup, login, recovery, and safe
   assert.match(source, /export async function sendSupabaseLoginLink/);
   assert.match(source, /const initialAuthCallback = readInitialAuthCallback\(\)/);
   assert.match(source, /isSupabasePasswordRecoveryCallback\(accessToken: string\)/);
+  assert.match(source, /consumeSupabasePasswordRecoveryEvent\(event: string, accessToken: string\)/);
   assert.match(source, /initialAuthCallback\.accessToken === accessToken/);
   assert.match(source, /hasSupabasePasswordRecoveryCallbackMarker/);
   assert.match(source, /shouldCreateUser:\s*false/);
@@ -49,6 +50,43 @@ test("recovery callback detection requires the captured bearer", () => {
   assert.equal(evaluate("", "#type=recovery&access_token=token-a", "token-b"), false);
   assert.equal(evaluate("?type=recovery", "", "persisted-token"), false);
   assert.equal(evaluate("?type=recovery", "#type=signup&access_token=token-a", "token-a"), false);
+});
+
+test("a matching implicit recovery callback is consumed before generic SIGNED_IN handling", () => {
+  const clientSource = read("src", "lib", "supabaseClient.ts");
+  const appSource = read("src", "App.tsx");
+  const readCallback = clientSource.match(/function readInitialAuthCallback\(\) \{[\s\S]*?\n\}/)?.[0];
+  const checkCallback = clientSource.match(/export function isSupabasePasswordRecoveryCallback\(accessToken: string\) \{[\s\S]*?\n\}/)?.[0]
+    ?.replace("export ", "")
+    .replace("accessToken: string", "accessToken");
+  const consumeCallback = clientSource.match(/export function consumeSupabasePasswordRecoveryCallback\(accessToken: string\) \{[\s\S]*?\n\}/)?.[0]
+    ?.replace("export ", "")
+    .replace("accessToken: string", "accessToken");
+  const consumeProof = clientSource.match(/function consumeSupabasePasswordRecoveryProof\(proven: boolean, accessToken: string\) \{[\s\S]*?\n\}/)?.[0]
+    ?.replace("proven: boolean, accessToken: string", "proven, accessToken");
+  const classifyEvent = clientSource.match(/export function consumeSupabasePasswordRecoveryEvent\(event: string, accessToken: string\) \{[\s\S]*?\n\}/)?.[0]
+    ?.replace("export ", "")
+    .replace("event: string", "event")
+    .replace("accessToken: string", "accessToken");
+  assert.ok(readCallback && checkCallback && consumeProof && consumeCallback && classifyEvent, "Recovery event helpers must be extractable.");
+
+  const createCheck = (hash) => {
+    const context = { URLSearchParams, window: { location: { hash, search: "" } } };
+    runInNewContext(`${readCallback}\nconst initialAuthCallback = readInitialAuthCallback();\nconst consumedPasswordRecoveryAccessTokens = new Set();\n${checkCallback}\n${consumeProof}\n${consumeCallback}\n${classifyEvent}\nthis.check = consumeSupabasePasswordRecoveryEvent;`, context);
+    return context.check;
+  };
+
+  const implicit = createCheck("#type=recovery&access_token=token-a");
+  assert.equal(implicit("SIGNED_IN", "token-a"), true);
+  assert.equal(implicit("SIGNED_IN", "token-a"), false, "the same generic event must not reopen recovery after the callback is consumed");
+  assert.equal(createCheck("#type=recovery&access_token=token-a")("SIGNED_IN", "token-b"), false);
+  assert.equal(createCheck("")("PASSWORD_RECOVERY", "token-a"), true);
+
+  const listenerStart = appSource.indexOf("client.auth.onAuthStateChange");
+  const blockedCheck = appSource.indexOf("if (providerSessionsBlockedRef.current)", listenerStart);
+  const recoveryCheck = appSource.indexOf("consumeSupabasePasswordRecoveryEvent(event, session.access_token)", listenerStart);
+  const genericSignedIn = appSource.indexOf('event === "SIGNED_IN"', listenerStart);
+  assert.ok(blockedCheck > -1 && recoveryCheck > blockedCheck && genericSignedIn > recoveryCheck, "Bearer-bound recovery classification must run after the blocked latch and before generic SIGNED_IN handling.");
 });
 
 test("auth UI uses conventional signup and login controls and language", () => {
@@ -82,8 +120,8 @@ test("auth UI uses conventional signup and login controls and language", () => {
 
 test("password recovery callback cannot open the workspace before a new password is set", () => {
   const source = read("src", "App.tsx");
-  assert.match(source, /PASSWORD_RECOVERY/);
-  assert.match(source, /isSupabasePasswordRecoveryCallback\(session\.access_token\)/);
+  assert.match(source, /consumeSupabasePasswordRecoveryEvent\(event, session\.access_token\)/);
+  assert.match(source, /consumeSupabasePasswordRecoveryCallback\(session\.access_token\)/);
   assert.doesNotMatch(source, /isSupabasePasswordRecoveryCallback\(\)/);
   assert.match(source, /beginPasswordRecovery/);
   assert.match(source, /passwordRecoveryUserIdRef/);
@@ -101,7 +139,7 @@ test("opening auth never clears the provider sign-out latch", () => {
   assert.doesNotMatch(openAuth, /providerSessionsBlockedRef/);
   assert.match(source, /function startProviderAuthAttempt[\s\S]*providerSessionsBlockedRef\.current = false/);
   const blockedCheck = source.indexOf("if (providerSessionsBlockedRef.current)", source.indexOf("onAuthStateChange"));
-  const recoveryEvent = source.indexOf('event === "PASSWORD_RECOVERY"', source.indexOf("onAuthStateChange"));
+  const recoveryEvent = source.indexOf("consumeSupabasePasswordRecoveryEvent(event, session.access_token)", source.indexOf("onAuthStateChange"));
   assert.ok(blockedCheck > -1 && recoveryEvent > blockedCheck, "Provider events must be rejected before recovery is accepted.");
 });
 

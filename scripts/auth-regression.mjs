@@ -755,6 +755,7 @@ test("blocked provider events cannot reopen sign-in or password recovery", () =>
   const context = {
     providerSessionsBlockedRef: { current: true },
     beginPasswordRecovery: (session) => events.push(`recovery:${session.user.id}`),
+    consumeSupabasePasswordRecoveryEvent: (event) => event === "PASSWORD_RECOVERY",
   };
   runInNewContext(`globalThis.listener = (event, session) => {${listenerBody}\n};`, context);
   const session = { access_token: "late", user: { id: "user-A", email: "a@example.com" } };

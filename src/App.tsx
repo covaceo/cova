@@ -23,7 +23,7 @@ import {
   sampleTrades,
   Trade,
 } from "./lib/risk";
-import { getSupabaseClient, getSupabaseUserPlan, hasSupabasePasswordRecoveryCallbackMarker, isSupabasePasswordRecoveryCallback, lockSupabaseLocally, signOutSupabase, updateSupabasePassword, verifySupabaseRecoveryIdentity } from "./lib/supabaseClient";
+import { consumeSupabasePasswordRecoveryCallback, consumeSupabasePasswordRecoveryEvent, getSupabaseClient, getSupabaseUserPlan, hasSupabasePasswordRecoveryCallbackMarker, lockSupabaseLocally, signOutSupabase, updateSupabasePassword, verifySupabaseRecoveryIdentity } from "./lib/supabaseClient";
 
 import { Hero } from "./components/MarketingHero";
 import { CsvExplainer } from "./components/CsvExplainer";
@@ -169,8 +169,15 @@ export default function App() {
         lockWorkspace(false);
         return;
       }
-      if (isSupabasePasswordRecoveryCallback(session.access_token)) {
+      if (consumeSupabasePasswordRecoveryCallback(session.access_token)) {
         beginPasswordRecovery(session);
+        return;
+      }
+      if (passwordRecoveryUserIdRef.current === session.user.id) {
+        authGenerationRef.current += 1;
+        providerSessionRef.current = session;
+        validatedAccessTokenRef.current = "";
+        setPasswordRecoverySession(session);
         return;
       }
       startSupabaseValidation(session);
@@ -194,7 +201,7 @@ export default function App() {
       if (providerSessionsBlockedRef.current) {
         return;
       }
-      if (event === "PASSWORD_RECOVERY") {
+      if (consumeSupabasePasswordRecoveryEvent(event, session.access_token)) {
         beginPasswordRecovery(session);
         return;
       }
