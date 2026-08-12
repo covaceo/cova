@@ -1055,6 +1055,7 @@ export default function App() {
           authSession={authSession}
           riskScore={analysis.score}
           signOut={signOut}
+          deleteAccount={deleteAccount}
         />
       )}
       <AuthSheet

@@ -1,6 +1,6 @@
 import { Activity, BarChart3, FileUp, Gauge, LogOut, Network, Search, ShieldCheck, Target, Trash2 } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
-import type { Section } from "../lib/appRoutes";
+import { isWorkspaceNavActive, type Section } from "../lib/appRoutes";
 
 type WorkspaceNavItem = {
   icon: typeof BarChart3;
@@ -84,7 +84,7 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
               <div className="workspace-sidebar-group-links">
                 {group.items.map((item) => {
                   const Icon = item.icon;
-                  const active = section === item.id;
+                  const active = isWorkspaceNavActive(section, item.id);
                   return (
                     <button
                       className={`workspace-sidebar-link ${active ? "workspace-sidebar-link-active" : ""}`}

@@ -9,7 +9,7 @@
   --desk-line-strong: rgba(236, 229, 216, 0.25);
   --desk-paper: #eee8de;
   --desk-muted: rgba(238, 232, 222, 0.62);
-  --desk-faint: rgba(238, 232, 222, 0.44);
+  --desk-faint: rgba(238, 232, 222, 0.5);
   --desk-copper: #cc8458;
   --desk-mint: #79d7b1;
   --desk-danger: #f07d61;
@@ -138,6 +138,16 @@
   background: transparent !important;
 }
 
+.operator-workspace .workspace-sidebar-link-active:hover {
+  border-color: transparent !important;
+  background: transparent !important;
+}
+
+.operator-workspace .workspace-sidebar-link:focus-visible {
+  outline: 2px solid var(--desk-copper);
+  outline-offset: -2px;
+}
+
 .operator-workspace .workspace-sidebar-icon {
   display: grid;
   width: 24px;
@@ -208,6 +218,7 @@
 }
 
 .operator-workspace .workspace-account-menu {
+  flex-shrink: 0;
   margin: 14px;
   border: 1px solid var(--desk-line);
   border-radius: 8px;
@@ -299,7 +310,7 @@
 }
 
 .operator-workspace .workspace-sidebar-watermark span {
-  color: rgba(238, 232, 222, 0.45);
+  color: rgba(238, 232, 222, 0.5);
   font: 500 9px/1.35 var(--font-dashboard-ui);
   letter-spacing: 0;
   text-transform: none;
@@ -627,6 +638,29 @@
 
 .dashboard-review-disclosure svg {
   color: var(--desk-copper);
+}
+
+.operator-mobile-menu-link {
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+}
+
+.operator-mobile-menu-link-inactive {
+  color: rgba(238, 232, 222, 0.68);
+}
+
+.operator-mobile-menu-link-active {
+  color: #eee8de;
+  font-weight: 650;
+  text-shadow: 0 0 12px rgba(204, 132, 88, 0.1);
+}
+
+.workspace-top-header .operator-mobile-menu-toggle:focus-visible,
+.workspace-top-header .operator-mobile-menu-link:focus-visible,
+.workspace-top-header .operator-mobile-account-actions button:focus-visible {
+  outline: 2px solid #f0ab7c;
+  outline-offset: 2px;
 }
 
 @media (min-width: 1024px) {

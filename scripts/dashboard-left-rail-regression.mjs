@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import ts from "typescript";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,6 +10,8 @@ const read = (...parts) => readFileSync(join(root, ...parts), "utf8");
 const workspace = read("src", "components", "WorkspaceShell.tsx");
 const navbar = read("src", "components", "Navbar.tsx");
 const dashboard = read("src", "components", "DashboardView.tsx");
+const dashboardCards = read("src", "components", "DashboardCards.tsx");
+const dashboardReviewState = read("src", "lib", "dashboardReviewState.ts");
 const app = read("src", "App.tsx");
 const sourceLabel = read("src", "lib", "tradeSourceLabel.ts");
 const dashboardPreviewCss = read("src", "styles", "dashboardLeftRailPreview.css");
@@ -33,17 +36,63 @@ assert.match(navbar, /const riskScoreLabel = Number\.isFinite\(riskScore\) \? St
 assert.doesNotMatch(navbar, /riskScore \|\| "--"/, "fallback header must not collapse zero into an unavailable placeholder");
 assert.match(workspace, /aria-label=\{`Cova risk score \$\{riskScoreLabel === "--" \? "not available" : riskScoreLabel\}`\}/, "risk-score accessibility copy must preserve zero and distinguish unavailable values");
 assert.doesNotMatch(workspace, /riskScore \|\|/, "risk score rendering must not erase a valid zero");
+assert.match(navbar, /deleteAccount: \(\) => void;/, "collapsed workspace chrome must accept the existing account-deletion handler");
+assert.match(navbar, /aria-expanded=\{mobileOpen\}/, "mobile menu toggle must expose expanded state");
+assert.match(navbar, /aria-controls="operator-mobile-menu"/, "mobile menu toggle must identify its controlled panel");
+assert.match(navbar, /id="operator-mobile-menu"/, "collapsed menu panel must have a stable controlled ID");
+assert.match(navbar, /role="navigation"/, "collapsed panel must expose navigation semantics");
+assert.match(navbar, /aria-label=\{isAppMode \? "Workspace navigation" : "Site navigation"\}/, "collapsed workspace panel must have a useful navigation label");
+assert.match(navbar, /aria-current=\{isWorkspaceNavActive\(section, item\.id\) \? "page" : undefined\}/, "collapsed workspace routes must expose current-page state through the shared route-equivalence helper");
+assert.match(navbar, /operator-mobile-delete-account[\s\S]*?onClick=\{\(\) => \{ setMobileOpen\(false\); deleteAccount\(\); \}\}[\s\S]*?Delete account/, "account deletion must remain reachable below the rail breakpoint");
+assert.match(app, /<Navbar[\s\S]*?deleteAccount=\{deleteAccount\}/, "App must wire account deletion into collapsed workspace chrome");
+assert.doesNotMatch(navbar, /bg-white\/8|text-white\/68/, "collapsed current-state styling must use emitted authored classes rather than absent dynamic Tailwind utilities");
 
 assert.match(dashboard, /<h1[^>]*>Risk Desk<\/h1>/, "dashboard must use the concise approved Risk Desk page title");
 assert.match(dashboard, /dashboard-range-controls/, "dashboard must expose visible review-range controls");
 assert.match(dashboard, /dashboard-summary-strip/, "dashboard must lead with a compact source and risk summary strip");
 assert.match(dashboard, /dashboard-instrument-grid/, "dashboard must use the approved equity-instrument and evidence grid");
 assert.match(dashboard, /dashboard-review-row/, "dashboard must place the next-session review in a full-width lower row");
-assert.match(dashboard, /function getDashboardSummaryAction\(analysis:/, "dashboard summary action must be derived from the selected review state");
-assert.match(dashboard, /if \(!analysis\.trades\.length\) return \{ label: "Add trade history", target: "import" \};/, "an empty review must offer trade-history import rather than claim warnings exist");
-assert.match(dashboard, /if \(analysis\.breaches\.length\) return \{ label: "Review warnings", target: "rules" \};/, "warning review must remain available when selected history actually has breaches");
-assert.match(dashboard, /if \(analysis\.evidenceQuality\.level !== "high"\) return \{ label: "Add more trades", target: "import" \};/, "thin evidence must offer more history rather than fabricate warnings");
-assert.match(dashboard, /return \{ label: "Open Passport", target: "passport" \};/, "high-quality warning-free evidence must retain the Passport path");
+assert.match(dashboard, /getDashboardSummaryAction\(analysis\)/, "dashboard summary action must be derived from the selected review state");
+assert.match(dashboardReviewState, /if \(!analysis\.trades\.length\) return \{ label: "Add trade history", target: "import" \};/, "an empty review must offer trade-history import rather than claim warnings exist");
+assert.match(dashboardReviewState, /if \(analysis\.breaches\.length\) return \{ label: "Review warnings", target: "rules" \};/, "configured rule breaches must remain routed to Limits");
+assert.match(dashboardReviewState, /if \(getActionableReviewCount\(analysis\)\) return \{ label: "Review warnings", target: "coach" \};/, "behavior warnings and caution states must route to Insights");
+assert.match(dashboardReviewState, /if \(analysis\.evidenceQuality\.level !== "high"\) return \{ label: "Add more trades", target: "import" \};/, "thin evidence must offer more history rather than fabricate warnings");
+assert.match(dashboardReviewState, /return \{ label: "Open Passport", target: "passport" \};/, "high-quality warning-free evidence must retain the Passport path");
+const dashboardRuntime = ts.transpileModule(dashboardReviewState, {
+  compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.ES2022, target: ts.ScriptTarget.ES2022 },
+}).outputText;
+const dashboardModule = await import(`data:text/javascript;base64,${Buffer.from(dashboardRuntime).toString("base64")}`);
+const warningReview = {
+  trades: Array.from({ length: 30 }, (_, index) => ({ id: String(index) })),
+  breaches: [],
+  behaviorFlags: [{ severity: "warning" }],
+  nextSessionBrief: { status: "caution" },
+  evidenceQuality: { level: "high" },
+};
+assert.equal(dashboardModule.getActionableReviewCount(warningReview), 1, "warning count must include actionable behavior flags even when no configured rule was breached");
+assert.deepEqual(dashboardModule.getDashboardSummaryAction(warningReview), { label: "Review warnings", target: "coach" }, "a caution review must open insights instead of promoting Passport");
+const emptyReview = {
+  trades: [],
+  breaches: [],
+  behaviorFlags: [],
+  nextSessionBrief: { status: "caution" },
+  evidenceQuality: { level: "none" },
+};
+assert.equal(dashboardModule.getActionableReviewCount(emptyReview), 0, "empty history must not fabricate a warning from its caution brief");
+assert.deepEqual(dashboardModule.getDashboardSummaryAction(emptyReview), { label: "Add trade history", target: "import" }, "empty history must stay on the truthful import action");
+const overlappingWarning = {
+  ...warningReview,
+  breaches: [{ rule: { id: "daily-loss" } }],
+  behaviorFlags: [{ severity: "critical", id: "critical-limit" }],
+  nextSessionBrief: { status: "locked" },
+};
+assert.equal(dashboardModule.getActionableReviewCount(overlappingWarning), 1, "a configured breach and its derived behavior flag must not double-count one warning");
+assert.deepEqual(dashboardModule.getDashboardSummaryAction(overlappingWarning), { label: "Review warnings", target: "rules" }, "configured breaches must still route to Limits");
+assert.match(dashboard, /label: "Reported P&L"/, "dashboard summary must not call provider-reported gross P&L net");
+assert.match(dashboard, /Cumulative reported P&amp;L from the selected trade history\./, "equity explanation must stay truthful across Rithmic, Tradovate, CSV, and sample rows");
+assert.doesNotMatch(dashboard, /Net P&L|Net cumulative P&amp;L|imported trade history/, "Risk Desk copy must stay truthful for gross provider history and sample review rows");
+assert.match(dashboardCards, /\["Reported P&L", formatMoney\(analysis\.totalPnl\)\]/, "shared dashboard metrics must use the same provider-neutral P&L label");
+assert.doesNotMatch(dashboardCards, /\["Net P&L", formatMoney\(analysis\.totalPnl\)\]/, "shared dashboard metrics must not claim Rithmic gross P&L is net");
 assert.match(dashboard, /getTradeSourceLabel\(scopedAnalysis\.trades\)/, "dashboard selected ranges must label only the rows in the selected review");
 assert.match(dashboard, /label: "Review source"/, "the summary cell must state that it labels selected review provenance rather than global account state");
 assert.match(dashboard, /const hasRithmicTrades = scopedAnalysis\.trades\.some/, "Rithmic attribution must follow the selected review rows");
@@ -76,6 +125,12 @@ assert.match(activeStateCss, /background:\s*transparent\s*!important;/, "Option 
 assert.match(activeStateCss, /\.workspace-sidebar-link-active \.workspace-sidebar-copy\s*\{[^}]*font-weight:\s*650;[^}]*text-shadow:\s*0\s+0\s+12px\s+rgba\(204,\s*132,\s*88,\s*0\.1\);/s, "Option A must use restrained type lift and barely-there warmth behind the label");
 assert.match(activeStateCss, /\.workspace-sidebar-link-active \.workspace-sidebar-icon\s*\{[^}]*color:\s*var\(--desk-copper\);/s, "Option A must retain the restrained copper active icon");
 assert.doesNotMatch(activeStateCss, /::before|::after|animation:|box-shadow:/, "Option A must not add lines, indicators, pulses, or glowing boxes");
+assert.match(dashboardPreviewCss, /\.operator-workspace \.workspace-sidebar-link-active:hover\s*\{[^}]*border-color:\s*transparent\s*!important;[^}]*background:\s*transparent\s*!important;/s, "Option A must stay containerless when the active route is hovered");
+assert.match(dashboardPreviewCss, /\.operator-workspace \.workspace-sidebar-link:focus-visible\s*\{[^}]*outline:\s*2px\s+solid\s+var\(--desk-copper\);[^}]*outline-offset:\s*-2px;/s, "desktop workspace routes need a deliberate visible focus indicator");
+assert.match(dashboardPreviewCss, /\.workspace-top-header \.operator-mobile-menu-toggle:focus-visible[\s\S]*?outline:\s*2px\s+solid\s+#f0ab7c;/, "collapsed menu controls need a visible focus indicator");
+assert.match(dashboardPreviewCss, /\.operator-mobile-menu-link-active\s*\{[^}]*color:\s*#eee8de;[^}]*font-weight:\s*650;[^}]*text-shadow:\s*0\s+0\s+12px\s+rgba\(204,\s*132,\s*88,\s*0\.1\);/s, "collapsed current route must be visually distinct without a selection pill");
+assert.match(dashboardPreviewCss, /--desk-faint:\s*rgba\(238,\s*232,\s*222,\s*0\.5\);/, "informative microcopy must meet 4.5:1 contrast on dashboard surfaces");
+assert.match(dashboardPreviewCss, /\.operator-workspace \.workspace-account-menu\s*\{[^}]*flex-shrink:\s*0;/s, "short-height rails must not shrink and clip account lifecycle controls");
 assert.match(main, /import "\.\/styles\/dashboardLeftRailPreview\.css";/, "approved dashboard preview styles must load after the legacy operator system");
 
 assert.equal(packageJson.scripts["test:dashboard-shell"], "node scripts/dashboard-left-rail-regression.mjs");

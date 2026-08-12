@@ -87,7 +87,10 @@ async function terminatePreview() {
   }
   if (!await waitForPreviewExit()) {
     if (process.platform === "win32" && preview.pid) {
-      await new Promise((resolve, reject) => execFile("taskkill.exe", ["/PID", String(preview.pid), "/T", "/F"], (error) => error ? reject(error) : resolve()));
+      await new Promise((resolve, reject) => execFile("taskkill.exe", ["/PID", String(preview.pid), "/T", "/F"], async (error) => {
+        if (!error || await waitForPreviewExit(1_000)) resolve();
+        else reject(error);
+      }));
     } else if (!preview.kill("SIGKILL")) {
       throw new Error("Owned preview process refused forced termination.");
     }
@@ -106,11 +109,12 @@ try {
     COVA_VIEWPORT_WIDTH: "1440",
     COVA_VIEWPORT_HEIGHT: "900",
   });
+  await runNode("scripts/dashboard-browser-regression.mjs");
   await runNode("scripts/auth-modal-browser-regression.mjs");
   await runNode("scripts/custom-cursor-browser-audit.mjs", {
     COVA_CURSOR_SCREENSHOT_DIR: cursorScreenshotDir,
   });
-  console.log(`release-browser-regression: owned preview ${origin}; mobile, desktop, Practice transition, AuthSheet, and Windows cursor/performance checks passed`);
+  console.log(`release-browser-regression: owned preview ${origin}; mobile, desktop, Dashboard lifecycle/accessibility, Practice transition, AuthSheet, and Windows cursor/performance checks passed`);
 } finally {
   try {
     await terminatePreview();

@@ -2,6 +2,7 @@ import { motion } from "motion/react";
 import { ArrowUpRight, CalendarDays, Database } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { analyze, formatMoney, type RiskRule, type Trade } from "../lib/risk";
+import { getActionableReviewCount, getDashboardSummaryAction } from "../lib/dashboardReviewState";
 import { getTradeSourceLabel } from "../lib/tradeSourceLabel";
 import { EquityCurve, FlagStack, ScoreCard } from "./DashboardCards";
 import { RithmicAttribution } from "./RithmicAttribution";
@@ -37,7 +38,7 @@ export function Dashboard({ analysis, rules, go }: { analysis: ReturnType<typeof
       <header className="dashboard-workspace-header">
         <div>
           <h1>Risk Desk</h1>
-          <p>Review imported trade history, risk pressure, and the evidence that needs attention.</p>
+          <p>Review trade history, risk pressure, and the evidence that needs attention.</p>
         </div>
         <div className="dashboard-range-controls" role="group" aria-label="Dashboard review range">
           <CalendarDays aria-hidden="true" className="h-4 w-4" />
@@ -73,7 +74,7 @@ export function Dashboard({ analysis, rules, go }: { analysis: ReturnType<typeof
           <div className="dashboard-instrument-header">
             <div>
               <h2>Equity curve</h2>
-              <p>Net cumulative P&amp;L from the selected imported history.</p>
+              <p>Cumulative reported P&amp;L from the selected trade history.</p>
             </div>
             <span>{scopedAnalysis.trades.length} trades</span>
           </div>
@@ -93,11 +94,12 @@ export function Dashboard({ analysis, rules, go }: { analysis: ReturnType<typeof
 
 function DashboardSummaryStrip({ analysis, go, sourceLabel }: { analysis: ReturnType<typeof analyze>; go: (section: Section) => void; sourceLabel: string }) {
   const action = getDashboardSummaryAction(analysis);
+  const warningCount = getActionableReviewCount(analysis);
   const cells = [
     { label: "Review source", value: sourceLabel, tone: "" },
-    { label: "Net P&L", value: formatMoney(analysis.totalPnl), tone: analysis.totalPnl >= 0 ? "positive" : "negative" },
+    { label: "Reported P&L", value: formatMoney(analysis.totalPnl), tone: analysis.totalPnl >= 0 ? "positive" : "negative" },
     { label: "Biggest dip", value: formatMoney(-analysis.maxDrawdown), tone: analysis.maxDrawdown > 0 ? "negative" : "positive" },
-    { label: "Warnings", value: String(analysis.breaches.length), tone: analysis.breaches.length ? "warning" : "positive" },
+    { label: "Warnings", value: String(warningCount), tone: warningCount ? "warning" : "positive" },
   ];
 
   return (
@@ -128,7 +130,7 @@ function DashboardReviewRow({ analysis, go }: { analysis: ReturnType<typeof anal
       <header>
         <div>
           <h2>Next review</h2>
-          <p>One concise handoff from this imported history.</p>
+          <p>One concise handoff from this trade history.</p>
         </div>
         <button onClick={() => go("coach")} type="button">Open insights <ArrowUpRight aria-hidden="true" className="h-4 w-4" /></button>
       </header>
@@ -141,13 +143,6 @@ function DashboardReviewRow({ analysis, go }: { analysis: ReturnType<typeof anal
       <p className="dashboard-review-disclosure"><Database aria-hidden="true" className="h-3.5 w-3.5" />No live orders, broker controls, or future-result prediction.</p>
     </section>
   );
-}
-
-function getDashboardSummaryAction(analysis: ReturnType<typeof analyze>): { label: string; target: Section } {
-  if (!analysis.trades.length) return { label: "Add trade history", target: "import" };
-  if (analysis.breaches.length) return { label: "Review warnings", target: "rules" };
-  if (analysis.evidenceQuality.level !== "high") return { label: "Add more trades", target: "import" };
-  return { label: "Open Passport", target: "passport" };
 }
 
 function filterTradesByRange(trades: Trade[], range: TimeRange) {
