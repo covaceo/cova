@@ -26,6 +26,7 @@ import "./index.css";
 import "./styles/riskDeskVisualSystem.css";
 import "./styles/workspaceRouteRefinement.css";
 import "./styles/operatorDossierRevamp.css";
+import "./styles/dashboardLeftRailPreview.css";
 import "./styles/customCursor.css";
 import "./styles/backtestingLab.css";
 

@@ -43,6 +43,7 @@ export function Navbar({ section, go, openAuth, mobileOpen, setMobileOpen, authS
   const isAppMode = Boolean(authSession) || usesWorkspaceChrome;
   const activeMarketingLabel = marketingNav.find((item) => item.action === section)?.label ?? "Product";
   const activeAppLabel = appNav.find((item) => item.id === section)?.label ?? "";
+  const riskScoreLabel = Number.isFinite(riskScore) ? String(riskScore) : "--";
 
   useEffect(() => {
     const marker = document.createElement("span");
@@ -149,7 +150,7 @@ export function Navbar({ section, go, openAuth, mobileOpen, setMobileOpen, authS
                 >
                   <span className="header-risk-dot" />
                   <span>Risk</span>
-                  <strong>{riskScore || "--"}</strong>
+                  <strong>{riskScoreLabel}</strong>
                 </button>
               </>
             ) : (
