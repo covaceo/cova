@@ -35,7 +35,7 @@ function customerAuthError(error: unknown, fallback: string) {
   const message = raw.toLowerCase();
   if (message.includes("invalid login credentials")) return "Incorrect email or password.";
   if (message.includes("email not confirmed")) return "Verify your email before signing in.";
-  if (message.includes("user already registered")) return "An account already exists for this email. Sign in instead.";
+  if (message.includes("user already registered")) return "Check your email. If nothing arrives, sign in or reset your password.";
   if (message.includes("password") && (message.includes("weak") || message.includes("least"))) return "Use a password with at least 8 characters.";
   if (message.includes("rate") || message.includes("too many")) return "Too many attempts. Wait a moment and try again.";
   return fallback;
@@ -466,7 +466,7 @@ export function AuthSheet({
         setNotice(customerAuthError(result.error, "Could not resend the email. Try again."));
         return;
       }
-      setNotice("Email sent again.");
+      setNotice("If an email is available for this request, it is on the way.");
     } finally {
       setAuthBusy(false);
     }
@@ -587,11 +587,11 @@ export function AuthSheet({
               ) : view === "email-sent" ? (
                 <div className="text-center">
                   <span className="mx-auto grid h-14 w-14 place-items-center rounded-full border border-[#18c887]/24 bg-[#18c887]/10 text-[#18c887]"><Mail className="h-5 w-5" /></span>
-                  <p className="mt-6 font-body text-xs font-semibold uppercase tracking-[0.2em] text-[#18c887]">Email sent</p>
+                  <p className="mt-6 font-body text-xs font-semibold uppercase tracking-[0.2em] text-[#18c887]">Email requested</p>
                   <h2 data-auth-initial-focus tabIndex={-1} className="mt-3 font-body text-3xl font-semibold tracking-[-0.035em] text-white">Check your email</h2>
                   <p className="mx-auto mt-3 max-w-sm font-body text-sm font-light leading-6 text-white/58">
                     {emailAction === "signup"
-                      ? <>We sent a verification link to <strong className="font-medium text-white/78">{email}</strong>. Open it to finish creating your account.</>
+                      ? <>If this email can receive a verification link, it will arrive at <strong className="font-medium text-white/78">{email}</strong>. If nothing arrives, sign in or reset your password instead.</>
                       : emailAction === "reset"
                         ? <>If an account exists for <strong className="font-medium text-white/78">{email}</strong>, you’ll receive a password reset link.</>
                         : <>If an account exists for <strong className="font-medium text-white/78">{email}</strong>, you’ll receive a sign-in link.</>}
@@ -600,6 +600,12 @@ export function AuthSheet({
                     <RotateCw className="h-4 w-4" />
                     {authBusy ? "Sending..." : emailAction === "signup" ? "Resend verification email" : emailAction === "reset" ? "Resend reset link" : "Resend sign-in link"}
                   </button>
+                  {emailAction === "signup" && (
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                      <button className="cova-button cova-button-secondary inline-flex items-center justify-center rounded-xl px-4 py-2.5 font-body text-sm font-medium disabled:opacity-60" disabled={authBusy} onClick={() => switchMode("login")} type="button">Sign in instead</button>
+                      <button className="cova-button cova-button-secondary inline-flex items-center justify-center rounded-xl px-4 py-2.5 font-body text-sm font-medium disabled:opacity-60" disabled={authBusy} onClick={() => { setNotice(""); setView("forgot-password"); }} type="button">Reset password</button>
+                    </div>
+                  )}
                   <button
                     className="mt-4 font-body text-sm text-[#b9f5df] underline underline-offset-4 disabled:cursor-not-allowed disabled:opacity-50"
                     disabled={authBusy}
@@ -622,7 +628,7 @@ export function AuthSheet({
                   <button className="cova-button cova-button-primary mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl px-6 py-3.5 font-body text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60" disabled={authBusy} type="submit">
                     {authBusy ? "Sending..." : "Send reset link"}<ArrowRight className="h-4 w-4" />
                   </button>
-                  <button className="mt-4 w-full font-body text-sm text-[#b9f5df] underline underline-offset-4" onClick={() => setView("credentials")} type="button">Back to sign in</button>
+                  <button className="mt-4 w-full font-body text-sm text-[#b9f5df] underline underline-offset-4" onClick={() => switchMode("login")} type="button">Back to sign in</button>
                 </form>
               ) : (
                 <form onSubmit={submitCredentials}>
