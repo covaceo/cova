@@ -354,3 +354,78 @@ body::after {
 .dashboard-review-disclosure svg {
   color: var(--cova-silver) !important;
 }
+
+/* Pricing is product chrome, not outcome evidence. Keep mint and copper out of plan selection. */
+.plan-card-pro {
+  border-color: rgba(79, 125, 255, 0.3) !important;
+  background:
+    radial-gradient(circle at 94% 2%, rgba(79, 125, 255, 0.14), transparent 35%),
+    linear-gradient(150deg, rgba(111, 150, 255, 0.035), rgba(255, 255, 255, 0.008) 42%, rgba(0, 0, 0, 0.2)),
+    var(--cova-blue-black) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.025),
+    0 0 58px rgba(79, 125, 255, 0.055) !important;
+}
+
+.plan-card-badge {
+  color: var(--cova-silver) !important;
+}
+
+.plan-card-pro .plan-card-badge {
+  color: var(--cova-cobalt-bright) !important;
+}
+
+.plan-card-pro .plan-primary-action {
+  border-color: rgba(111, 150, 255, 0.72) !important;
+  color: #070a12 !important;
+  background: var(--cova-cobalt) !important;
+  box-shadow: 0 4px 0 rgba(79, 125, 255, 0.14), 0 7px 22px rgba(0, 0, 0, 0.22) !important;
+}
+
+.plan-card-pro .plan-primary-action:hover {
+  background: var(--cova-cobalt-bright) !important;
+}
+
+.plan-primary-action:focus-visible,
+.plan-secondary-action:focus-visible {
+  outline-color: var(--cova-cobalt) !important;
+}
+
+.plan-card-pro .plan-feature-icon-pro {
+  border-color: rgba(79, 125, 255, 0.34) !important;
+  color: var(--cova-cobalt-bright) !important;
+  background: rgba(79, 125, 255, 0.08) !important;
+}
+
+.plan-recommendation-tab {
+  border-color: rgba(111, 150, 255, 0.7) !important;
+  color: #070a12 !important;
+  background: var(--cova-cobalt) !important;
+  box-shadow: 0 0 0 1px rgba(7, 10, 18, 0.12), 0 0 22px rgba(79, 125, 255, 0.18) !important;
+}
+
+.plan-recommendation-dot {
+  background: #070a12 !important;
+}
+
+@media (hover: hover) and (pointer: fine) and (min-width: 901px) {
+  .plan-card:hover {
+    border-color: rgba(79, 125, 255, 0.28) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.035),
+      0 20px 46px rgba(0, 0, 0, 0.36),
+      0 0 34px rgba(79, 125, 255, 0.06) !important;
+  }
+
+  .plan-card-pro:hover {
+    border-color: rgba(111, 150, 255, 0.52) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.045),
+      0 22px 52px rgba(0, 0, 0, 0.4),
+      0 0 58px rgba(79, 125, 255, 0.12) !important;
+  }
+
+  .plan-card:hover .plan-card-rule {
+    background: rgba(79, 125, 255, 0.18) !important;
+  }
+}
