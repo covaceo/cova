@@ -214,7 +214,7 @@ async function desktopVisualState() {
   })()`);
   assert.match(focus.className, /workspace-sidebar-link/, "Tab from workspace search must reach a route control");
   assert.equal(focus.focusVisible, true, "workspace route must match :focus-visible during keyboard navigation");
-  assert.deepEqual({ style: focus.outlineStyle, width: focus.outlineWidth, color: focus.outlineColor }, { style: "solid", width: "2px", color: "rgb(204, 132, 88)" });
+  assert.deepEqual({ style: focus.outlineStyle, width: focus.outlineWidth, color: focus.outlineColor }, { style: "solid", width: "2px", color: "rgb(79, 125, 255)" });
 
   const microcopy = await evaluate(`(() => ({
     account: getComputedStyle(document.querySelector('.workspace-account-copy small')).color,
@@ -265,7 +265,7 @@ async function collapsedWorkspace(width, height) {
   const toggleFocus = await evaluate(`(() => { const node = document.activeElement; const style = getComputedStyle(node); return { toggle: node.matches('.operator-mobile-menu-toggle'), focusVisible: node.matches(':focus-visible'), outline: style.outline, expanded: node.getAttribute('aria-expanded'), controls: node.getAttribute('aria-controls') }; })()`);
   assert.equal(toggleFocus.toggle, true, `${width}px keyboard order must reach the menu toggle`);
   assert.equal(toggleFocus.focusVisible, true);
-  assert.match(toggleFocus.outline, /rgb\(240, 171, 124\).*2px/);
+  assert.match(toggleFocus.outline, /rgb\(79, 125, 255\).*2px/);
   assert.equal(toggleFocus.expanded, "false");
   assert.equal(toggleFocus.controls, "operator-mobile-menu");
   const toggleRect = await evaluate(`(() => { const rect = document.querySelector('.operator-mobile-menu-toggle').getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; })()`);
@@ -300,7 +300,7 @@ async function collapsedWorkspace(width, height) {
   assert.equal(menu.activeBackground, "rgba(0, 0, 0, 0)", "collapsed Option A state must remain containerless");
   assert.equal(menu.focusedCurrent, true);
   assert.equal(menu.focusVisible, true);
-  assert.match(menu.focusOutline, /rgb\(240, 171, 124\).*2px/);
+  assert.match(menu.focusOutline, /rgb\(79, 125, 255\).*2px/);
   assert.equal(menu.deleteVisible, true, `${width}px Delete account must remain visible`);
   assert.equal(menu.deleteHit, true, `${width}px Delete account must receive pointer hit testing`);
 
