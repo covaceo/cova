@@ -31,6 +31,22 @@ test("Supabase client exposes classic password signup, login, recovery, and safe
   assert.doesNotMatch(source, /shouldCreateUser:\s*mode\s*===/);
 });
 
+test("signup confirmation stays non-enumerating and never falsely guarantees email delivery", () => {
+  const client = read("src", "lib", "supabaseClient.ts");
+
+  const panels = read("src", "components", "AuthPanels.tsx");
+  assert.doesNotMatch(`${client}\n${panels}`, /identities[\s\S]{0,120}length\s*===\s*0/);
+  assert.doesNotMatch(panels, /An account already exists for this email/);
+  assert.match(panels, /Check your email\. If nothing arrives, sign in or reset your password\./);
+  assert.doesNotMatch(panels, /We sent a verification link/);
+  assert.doesNotMatch(panels, />Email sent</);
+  assert.match(panels, />Email requested</);
+  assert.match(panels, /If this email can receive a verification link[\s\S]*If nothing arrives, sign in or reset your password instead\./);
+  assert.match(panels, />Sign in instead</);
+  assert.match(panels, />Reset password</);
+  assert.match(panels, /If an email is available for this request, it is on the way\./);
+});
+
 test("recovery callback detection requires the captured bearer", () => {
   const source = read("src", "lib", "supabaseClient.ts");
   const readCallback = source.match(/function readInitialAuthCallback\(\) \{[\s\S]*?\n\}/)?.[0];
