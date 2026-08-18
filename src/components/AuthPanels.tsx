@@ -145,7 +145,6 @@ export function AuthSheet({
   const showDevPreview = isDemoPreviewEnabled();
   const authOpen = Boolean(mode);
   const [modalIsolationActive, setModalIsolationActive] = useState(authOpen);
-  const overlayRef = useRef<HTMLDivElement | null>(null);
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const credentialRequestInFlightRef = useRef(false);
   const openerRef = useRef<HTMLElement | null>(null);
@@ -177,7 +176,7 @@ export function AuthSheet({
   useLayoutEffect(() => {
     if (!modalIsolationActive) return;
 
-    const overlay = overlayRef.current;
+    const overlay = document.querySelector<HTMLElement>("[data-auth-overlay]");
     const dialog = dialogRef.current;
     if (!overlay || !dialog) return;
 
@@ -499,7 +498,7 @@ export function AuthSheet({
     <AnimatePresence onExitComplete={() => setModalIsolationActive(false)}>
       {mode && (
         <motion.div
-          ref={overlayRef}
+          data-auth-overlay
           className="fixed inset-0 z-[90] flex items-start justify-center overflow-y-auto overscroll-y-contain p-3 pt-16 md:p-6"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

@@ -644,6 +644,7 @@ test("password recovery pins the mutation to the captured bearer and aborts on i
     passwordRecoveryUserIdRef: { current: "user-A" },
     providerSessionRef: { current: { access_token: "token-A", user: { id: "user-A", email: "a@example.com" } } },
     providerSessionsBlockedRef: { current: false },
+    isPersistedSupabasePasswordRecoverySession: () => true,
     verifySupabaseRecoveryIdentity: () => new Promise((resolve) => { resolveVerification = resolve; }),
     updateSupabasePassword: async (...args) => { updateCalls.push(args); return { data: { user: { id: "user-A" } }, error: null }; },
   };
@@ -754,7 +755,11 @@ test("blocked provider events cannot reopen sign-in or password recovery", () =>
   const events = [];
   const context = {
     providerSessionsBlockedRef: { current: true },
+    passwordRecoveryUserIdRef: { current: null },
     beginPasswordRecovery: (session) => events.push(`recovery:${session.user.id}`),
+    isPersistedSupabasePasswordRecoverySession: () => false,
+    consumeSupabasePasswordRecoveryEvent: (event) => event === "PASSWORD_RECOVERY",
+    rejectMismatchedPasswordRecoverySession: () => false,
   };
   runInNewContext(`globalThis.listener = (event, session) => {${listenerBody}\n};`, context);
   const session = { access_token: "late", user: { id: "user-A", email: "a@example.com" } };
@@ -764,6 +769,140 @@ test("blocked provider events cannot reopen sign-in or password recovery", () =>
   context.providerSessionsBlockedRef.current = false;
   context.listener("PASSWORD_RECOVERY", session);
   assert.deepEqual(events, ["recovery:user-A"]);
+});
+
+test("a recovery callback rejects a mismatched provider bearer before recovery or ordinary auth", () => {
+  const app = read("src", "App.tsx");
+  const client = read("src", "lib", "supabaseClient.ts");
+  const listenerBody = app.match(/client\.auth\.onAuthStateChange\(\(event, session\) => \{([\s\S]*?)\n    \}\);/)?.[1] || "";
+  const initialBody = app.match(/client\.auth\.getSession\(\)\.then\(\(\{ data \}\) => \{([\s\S]*?)\n    \}\)\.catch/)?.[1] || "";
+  const readCallback = client.match(/function readInitialAuthCallback\(\) \{[\s\S]*?\n\}/)?.[0] || "";
+  const mismatchSource = client.match(/export function hasMismatchedSupabasePasswordRecoveryCallback\(accessToken: string\) \{[\s\S]*?\n\}/)?.[0]
+    ?.replace("export ", "")
+    .replace("accessToken: string", "accessToken") || "";
+  const rejectSource = app.match(/function rejectMismatchedPasswordRecoverySession\(session: SupabaseSession\) \{[\s\S]*?\n  \}/)?.[0]
+    ?.replace("session: SupabaseSession", "session") || "";
+  assert.ok(listenerBody && initialBody && readCallback && mismatchSource && rejectSource, "Both provider-session handlers and the production mismatch guard must be executable.");
+
+  const session = { access_token: "token-B", user: { id: "user-B", email: "b@example.com" } };
+  const run = (body, callbackName, callbackArgs) => {
+    const events = [];
+    const context = {
+      mounted: true,
+      initialAuthGeneration: 4,
+      authGenerationRef: { current: 4 },
+      providerSessionsBlockedRef: { current: false },
+      passwordRecoveryUserIdRef: { current: null },
+      activeProviderUserIdRef: { current: null },
+      pendingPolicyUserIdRef: { current: null },
+      consumeSupabasePasswordRecoveryCallback: () => false,
+      consumeSupabasePasswordRecoveryEvent: () => false,
+      isPersistedSupabasePasswordRecoverySession: () => false,
+      hasPersistedSupabasePasswordRecoverySession: () => false,
+      lockSupabaseLocally: () => events.push("lock-supabase"),
+      lockWorkspace: () => events.push("lock-workspace"),
+      announce: (message, tone) => events.push(`announce:${tone}:${message}`),
+      discardResolvedAuthSession: async (resolved) => events.push(`discard:${resolved.access_token}`),
+      beginPasswordRecovery: () => events.push("begin-recovery"),
+      startSupabaseValidation: () => events.push("ordinary-auth"),
+      prepareSupabaseIdentity: () => events.push("prepare-identity"),
+      adoptSupabaseSession: () => events.push("adopt-session"),
+      invalidateProviderSession: () => events.push("invalidate"),
+      setPasswordRecoverySession: () => events.push("set-recovery"),
+      URLSearchParams,
+      window: {
+        location: { hash: "#type=recovery&access_token=token-A", pathname: "/", search: "" },
+        history: { replaceState: (_state, _title, path) => events.push(`replace-url:${path}`) },
+        setTimeout: (callback) => { events.push("schedule-cleanup"); callback(); },
+      },
+    };
+    runInNewContext(`${readCallback}\nconst initialAuthCallback = readInitialAuthCallback();\nconst consumedPasswordRecoveryAccessTokens = new Set();\n${mismatchSource}\n${rejectSource}\nglobalThis.${callbackName} = ${callbackArgs} => {${body}\n};`, context);
+    context[callbackName](...(callbackName === "listener" ? ["SIGNED_IN", session] : [{ data: { session } }]));
+    return events;
+  };
+
+  const rejected = [
+    "lock-supabase",
+    "lock-workspace",
+    "replace-url:/",
+    "announce:warning:This password reset session changed. Request a new reset link.",
+    "schedule-cleanup",
+    "discard:token-B",
+  ];
+  assert.deepEqual(run(initialBody, "initial", "({ data })"), rejected);
+  assert.deepEqual(run(listenerBody, "listener", "(event, session)"), rejected);
+});
+
+test("same-user recovery refresh preserves recovery before callback mismatch rejection", () => {
+  const app = read("src", "App.tsx");
+  const listenerBody = app.match(/client\.auth\.onAuthStateChange\(\(event, session\) => \{([\s\S]*?)\n    \}\);/)?.[1] || "";
+  const initialBody = app.match(/client\.auth\.getSession\(\)\.then\(\(\{ data \}\) => \{([\s\S]*?)\n    \}\)\.catch/)?.[1] || "";
+  assert.ok(listenerBody && initialBody);
+
+  const refreshed = { access_token: "token-A2", user: { id: "user-A", email: "a@example.com" } };
+  const run = (body, callbackName, callbackArgs) => {
+    const events = [];
+    const context = {
+      mounted: true,
+      initialAuthGeneration: 4,
+      authGenerationRef: { current: 4 },
+      providerSessionRef: { current: { access_token: "token-A1", user: { id: "user-A", email: "a@example.com" } } },
+      providerSessionsBlockedRef: { current: false },
+      passwordRecoveryUserIdRef: { current: "user-A" },
+      validatedAccessTokenRef: { current: "" },
+      rejectMismatchedPasswordRecoverySession: () => { events.push("reject-mismatch"); return true; },
+      consumeSupabasePasswordRecoveryCallback: () => false,
+      consumeSupabasePasswordRecoveryEvent: () => false,
+      setPasswordRecoverySession: (session) => events.push(`recovery:${session.access_token}`),
+      rememberSupabasePasswordRecoverySession: () => true,
+      isPersistedSupabasePasswordRecoverySession: () => true,
+      beginPasswordRecovery: () => events.push("begin-recovery"),
+      startSupabaseValidation: () => events.push("ordinary-auth"),
+      invalidateProviderSession: () => events.push("invalidate"),
+      lockWorkspace: () => events.push("lock-workspace"),
+    };
+    runInNewContext(`globalThis.${callbackName} = ${callbackArgs} => {${body}\n};`, context);
+    context[callbackName](...(callbackName === "listener" ? ["TOKEN_REFRESHED", refreshed] : [{ data: { session: refreshed } }]));
+    assert.equal(context.providerSessionRef.current.access_token, "token-A2");
+    return events;
+  };
+
+  assert.deepEqual(run(initialBody, "initial", "({ data })"), ["recovery:token-A2"]);
+  assert.deepEqual(run(listenerBody, "listener", "(event, session)"), ["recovery:token-A2"]);
+});
+
+test("active recovery rejects another user but a completed callback permits later refresh", () => {
+  const app = read("src", "App.tsx");
+  const rejectSource = app.match(/function rejectMismatchedPasswordRecoverySession\(session: SupabaseSession\) \{[\s\S]*?\n  \}/)?.[0]
+    ?.replace("session: SupabaseSession", "session") || "";
+  assert.ok(rejectSource);
+
+  const run = (passwordRecoveryUserId, callbackMismatch) => {
+    const events = [];
+    const context = {
+      passwordRecoveryUserIdRef: { current: passwordRecoveryUserId },
+      hasMismatchedSupabasePasswordRecoveryCallback: () => callbackMismatch,
+      hasPersistedSupabasePasswordRecoverySession: () => false,
+      isPersistedSupabasePasswordRecoverySession: () => false,
+      lockSupabaseLocally: () => events.push("lock-supabase"),
+      lockWorkspace: () => events.push("lock-workspace"),
+      announce: () => events.push("announce"),
+      discardResolvedAuthSession: async () => events.push("discard"),
+      window: {
+        location: { pathname: "/" },
+        history: { replaceState: () => events.push("replace-url") },
+        setTimeout: (callback) => callback(),
+      },
+    };
+    runInNewContext(`${rejectSource}\nglobalThis.reject = rejectMismatchedPasswordRecoverySession;`, context);
+    return { rejected: context.reject({ access_token: "token-B", user: { id: "user-B" } }), events };
+  };
+
+  assert.deepEqual(run("user-A", false), {
+    rejected: true,
+    events: ["lock-supabase", "lock-workspace", "replace-url", "announce", "discard"],
+  });
+  assert.deepEqual(run(null, false), { rejected: false, events: [] });
 });
 
 test("auth generation prevents stale validation from reopening a signed-out identity", () => {

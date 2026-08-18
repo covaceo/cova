@@ -3,7 +3,9 @@ import { createClient, type SupabaseClient, type User } from "@supabase/supabase
 
 let supabaseClient: SupabaseClient | null = null;
 export const COVA_SUPABASE_STORAGE_KEY = "cova-supabase-auth-v1";
+export const COVA_SUPABASE_RECOVERY_STORAGE_KEY = "cova-supabase-recovery-v1";
 const initialAuthCallback = readInitialAuthCallback();
+const consumedPasswordRecoveryAccessTokens = new Set<string>();
 
 function readInitialAuthCallback() {
   if (typeof window === "undefined") return { accessToken: null, type: null };
@@ -26,6 +28,106 @@ export function isSupabasePasswordRecoveryCallback(accessToken: string) {
     Boolean(initialAuthCallback.accessToken) &&
     initialAuthCallback.accessToken === accessToken
   );
+}
+
+export function isSupabaseAuthCallback(accessToken: string) {
+  return (
+    Boolean(initialAuthCallback.type)
+    && initialAuthCallback.type !== "recovery"
+    && Boolean(initialAuthCallback.accessToken)
+    && initialAuthCallback.accessToken === accessToken
+  );
+}
+
+export function hasMismatchedSupabasePasswordRecoveryCallback(accessToken: string) {
+  const callbackAccessToken = initialAuthCallback.accessToken;
+  if (initialAuthCallback.type !== "recovery" || !callbackAccessToken) {
+    return false;
+  }
+  return !consumedPasswordRecoveryAccessTokens.has(callbackAccessToken) && callbackAccessToken !== accessToken;
+}
+
+function readSupabasePasswordRecoverySession() {
+  if (typeof localStorage === "undefined") return null;
+  try {
+    const stored = JSON.parse(localStorage.getItem(COVA_SUPABASE_RECOVERY_STORAGE_KEY) || "null") as { fingerprint?: unknown; userId?: unknown } | null;
+    if (typeof stored?.fingerprint === "string" && typeof stored.userId === "string") {
+      return stored;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function getSupabaseAuthSessionId(accessToken: string) {
+  const parts = accessToken.split(".");
+  if (parts.length !== 3) return "";
+  try {
+    const payload = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = payload.padEnd(Math.ceil(payload.length / 4) * 4, "=");
+    const claims = JSON.parse(atob(padded)) as { session_id?: unknown };
+    return typeof claims.session_id === "string" ? claims.session_id : "";
+  } catch {
+    return "";
+  }
+}
+
+function supabaseRecoverySessionFingerprint(accessToken: string) {
+  const sessionId = getSupabaseAuthSessionId(accessToken);
+  return sessionId ? `session:${sessionId}` : "";
+}
+
+export function rememberSupabasePasswordRecoverySession(accessToken: string, userId: string) {
+  const fingerprint = supabaseRecoverySessionFingerprint(accessToken);
+  if (typeof localStorage === "undefined" || !fingerprint || !userId) return false;
+  try {
+    localStorage.setItem(COVA_SUPABASE_RECOVERY_STORAGE_KEY, JSON.stringify({ fingerprint, userId }));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function hasPersistedSupabasePasswordRecoverySession() {
+  if (typeof localStorage === "undefined") return false;
+  try {
+    return localStorage.getItem(COVA_SUPABASE_RECOVERY_STORAGE_KEY) !== null;
+  } catch {
+    return true;
+  }
+}
+
+export function isPersistedSupabasePasswordRecoverySession(accessToken: string, userId: string) {
+  const stored = readSupabasePasswordRecoverySession();
+  const fingerprint = supabaseRecoverySessionFingerprint(accessToken);
+  return Boolean(stored && fingerprint && stored.fingerprint === fingerprint && stored.userId === userId);
+}
+
+export function clearPersistedSupabasePasswordRecoverySession() {
+  if (typeof localStorage === "undefined") return false;
+  try {
+    localStorage.removeItem(COVA_SUPABASE_RECOVERY_STORAGE_KEY);
+    return localStorage.getItem(COVA_SUPABASE_RECOVERY_STORAGE_KEY) === null;
+  } catch {
+    return false;
+  }
+}
+
+function consumeSupabasePasswordRecoveryProof(proven: boolean, accessToken: string) {
+  if (!proven || !accessToken || consumedPasswordRecoveryAccessTokens.has(accessToken)) return false;
+  consumedPasswordRecoveryAccessTokens.add(accessToken);
+  return true;
+}
+
+export function consumeSupabasePasswordRecoveryCallback(accessToken: string) {
+  return consumeSupabasePasswordRecoveryProof(isSupabasePasswordRecoveryCallback(accessToken), accessToken);
+}
+
+export function consumeSupabasePasswordRecoveryEvent(event: string, accessToken: string) {
+  const matchesCallback = isSupabasePasswordRecoveryCallback(accessToken);
+  const liveRecovery = event === "PASSWORD_RECOVERY" && !hasMismatchedSupabasePasswordRecoveryCallback(accessToken);
+  return consumeSupabasePasswordRecoveryProof(liveRecovery || matchesCallback, accessToken);
 }
 
 function readEnv() {
