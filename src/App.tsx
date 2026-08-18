@@ -23,7 +23,7 @@ import {
   sampleTrades,
   Trade,
 } from "./lib/risk";
-import { getSupabaseClient, getSupabaseUserPlan, hasSupabasePasswordRecoveryCallbackMarker, isSupabasePasswordRecoveryCallback, lockSupabaseLocally, signOutSupabase, updateSupabasePassword, verifySupabaseRecoveryIdentity } from "./lib/supabaseClient";
+import { clearPersistedSupabasePasswordRecoverySession, consumeSupabasePasswordRecoveryCallback, consumeSupabasePasswordRecoveryEvent, getSupabaseAuthSessionId, getSupabaseClient, getSupabaseUserPlan, hasMismatchedSupabasePasswordRecoveryCallback, hasPersistedSupabasePasswordRecoverySession, hasSupabasePasswordRecoveryCallbackMarker, isPersistedSupabasePasswordRecoverySession, isSupabaseAuthCallback, lockSupabaseLocally, rememberSupabasePasswordRecoverySession, signOutSupabase, updateSupabasePassword, verifySupabaseRecoveryIdentity } from "./lib/supabaseClient";
 
 import { Hero } from "./components/MarketingHero";
 import { CsvExplainer } from "./components/CsvExplainer";
@@ -79,6 +79,7 @@ type AuthSession = {
   source: "local-preview" | "hosted" | "supabase";
   subscriptionStatus?: "active" | "preview" | "none";
   userId?: string;
+  providerSessionId?: string;
 };
 
 const planEntitlements: Record<PlanTier, Entitlements> = {
@@ -169,8 +170,29 @@ export default function App() {
         lockWorkspace(false);
         return;
       }
-      if (isSupabasePasswordRecoveryCallback(session.access_token)) {
+      if (
+        passwordRecoveryUserIdRef.current === session.user.id
+        && isPersistedSupabasePasswordRecoverySession(session.access_token, session.user.id)
+      ) {
+        authGenerationRef.current += 1;
+        providerSessionRef.current = session;
+        validatedAccessTokenRef.current = "";
+        rememberSupabasePasswordRecoverySession(session.access_token, session.user.id);
+        setPasswordRecoverySession(session);
+        return;
+      }
+      if (rejectMismatchedPasswordRecoverySession(session)) {
+        return;
+      }
+      if (isPersistedSupabasePasswordRecoverySession(session.access_token, session.user.id)) {
         beginPasswordRecovery(session);
+        return;
+      }
+      if (consumeSupabasePasswordRecoveryCallback(session.access_token)) {
+        beginPasswordRecovery(session);
+        return;
+      }
+      if (rejectUnprovenSupabaseSession(session)) {
         return;
       }
       startSupabaseValidation(session);
@@ -194,20 +216,34 @@ export default function App() {
       if (providerSessionsBlockedRef.current) {
         return;
       }
-      if (event === "PASSWORD_RECOVERY") {
-        beginPasswordRecovery(session);
-        return;
-      }
-      if (passwordRecoveryUserIdRef.current === session.user.id) {
+      if (
+        passwordRecoveryUserIdRef.current === session.user.id
+        && isPersistedSupabasePasswordRecoverySession(session.access_token, session.user.id)
+      ) {
         authGenerationRef.current += 1;
         providerSessionRef.current = session;
         validatedAccessTokenRef.current = "";
+        rememberSupabasePasswordRecoverySession(session.access_token, session.user.id);
         setPasswordRecoverySession(session);
+        return;
+      }
+      if (rejectMismatchedPasswordRecoverySession(session)) {
+        return;
+      }
+      if (isPersistedSupabasePasswordRecoverySession(session.access_token, session.user.id)) {
+        beginPasswordRecovery(session);
+        return;
+      }
+      if (consumeSupabasePasswordRecoveryEvent(event, session.access_token)) {
+        beginPasswordRecovery(session);
         return;
       }
       const sameKnownUser = activeProviderUserIdRef.current === session.user.id || pendingPolicyUserIdRef.current === session.user.id;
       if ((event === "TOKEN_REFRESHED" || event === "USER_UPDATED" || event === "SIGNED_IN") && sameKnownUser) {
         adoptSupabaseSession(session);
+        return;
+      }
+      if (rejectUnprovenSupabaseSession(session)) {
         return;
       }
       prepareSupabaseIdentity(session);
@@ -416,6 +452,7 @@ export default function App() {
       signedInAt: new Date().toISOString(),
       subscriptionStatus: plan === "pro" ? "active" : "none",
       userId,
+      providerSessionId: source === "supabase" ? getSupabaseAuthSessionId(providerSessionRef.current?.access_token || "") || undefined : undefined,
     };
     setActiveStorageIdentity(userId || emailAddress);
     const saved = loadState();
@@ -502,7 +539,89 @@ export default function App() {
     }
   }
 
+  function hasOrdinarySupabaseAuthAuthority(session: SupabaseSession) {
+    if (authCeremonyActiveRef.current) return true;
+    if (isSupabaseAuthCallback(session.access_token)) return true;
+    try {
+      const saved = JSON.parse(localStorage.getItem(AUTH_SESSION_KEY) || "null") as Partial<AuthSession> | null;
+      const providerSessionId = getSupabaseAuthSessionId(session.access_token);
+      return (
+        saved?.source === "supabase"
+        && saved.userId === session.user.id
+        && Boolean(providerSessionId)
+        && saved.providerSessionId === providerSessionId
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  function clearOrdinarySupabaseAuthAuthority() {
+    if (typeof localStorage === "undefined") return false;
+    try {
+      localStorage.removeItem(AUTH_SESSION_KEY);
+      localStorage.removeItem(AUTH_INTENT_KEY);
+      return localStorage.getItem(AUTH_SESSION_KEY) === null && localStorage.getItem(AUTH_INTENT_KEY) === null;
+    } catch {
+      return false;
+    }
+  }
+
+  function rejectUnprovenSupabaseSession(session: SupabaseSession) {
+    if (hasOrdinarySupabaseAuthAuthority(session)) return false;
+    lockSupabaseLocally();
+    lockWorkspace(false);
+    window.history.replaceState(null, "", window.location.pathname);
+    window.setTimeout(() => {
+      void discardResolvedAuthSession(session).catch(() => lockSupabaseLocally());
+    }, 0);
+    return true;
+  }
+
+  function rejectMismatchedPasswordRecoverySession(session: SupabaseSession) {
+    const callbackMismatch = hasMismatchedSupabasePasswordRecoveryCallback(session.access_token);
+    const activeRecoveryMismatch = Boolean(
+      passwordRecoveryUserIdRef.current
+      && (
+        passwordRecoveryUserIdRef.current !== session.user.id
+        || !isPersistedSupabasePasswordRecoverySession(session.access_token, session.user.id)
+      )
+    );
+    const persistedRecoveryMismatch = hasPersistedSupabasePasswordRecoverySession() && !isPersistedSupabasePasswordRecoverySession(session.access_token, session.user.id);
+    if (!callbackMismatch && !activeRecoveryMismatch && !persistedRecoveryMismatch) {
+      return false;
+    }
+    lockSupabaseLocally();
+    lockWorkspace(false);
+    window.history.replaceState(null, "", window.location.pathname);
+    announce("This password reset session changed. Request a new reset link.", "warning");
+    window.setTimeout(() => {
+      void discardResolvedAuthSession(session).catch(() => lockSupabaseLocally());
+    }, 0);
+    return true;
+  }
+
   function beginPasswordRecovery(session: SupabaseSession) {
+    if (!clearOrdinarySupabaseAuthAuthority()) {
+      lockSupabaseLocally();
+      lockWorkspace(false);
+      window.history.replaceState(null, "", window.location.pathname);
+      announce("This password reset session could not be secured. Request a new reset link.", "warning");
+      window.setTimeout(() => {
+        void discardResolvedAuthSession(session).catch(() => lockSupabaseLocally());
+      }, 0);
+      return;
+    }
+    if (!rememberSupabasePasswordRecoverySession(session.access_token, session.user.id)) {
+      lockSupabaseLocally();
+      lockWorkspace(false);
+      window.history.replaceState(null, "", window.location.pathname);
+      announce("This password reset session could not be secured. Request a new reset link.", "warning");
+      window.setTimeout(() => {
+        void discardResolvedAuthSession(session).catch(() => lockSupabaseLocally());
+      }, 0);
+      return;
+    }
     authCeremonyActiveRef.current = true;
     prepareSupabaseIdentity(session);
     authGenerationRef.current += 1;
@@ -524,6 +643,7 @@ export default function App() {
       authGenerationRef.current === generation &&
       identitySwitchGenerationRef.current === identityGeneration &&
       passwordRecoveryUserIdRef.current === session.user.id &&
+      isPersistedSupabasePasswordRecoverySession(session.access_token, session.user.id) &&
       current?.user.id === session.user.id &&
       current.access_token === session.access_token
     );
@@ -554,9 +674,16 @@ export default function App() {
       announce("This password reset session expired. Request a new reset link.", "warning");
       return;
     }
+    if (!clearPersistedSupabasePasswordRecoverySession()) {
+      lockSupabaseLocally();
+      lockWorkspace(false);
+      announce("Password updated. Sign in with your new password.", "warning");
+      return;
+    }
     passwordRecoveryUserIdRef.current = null;
     setPasswordRecoverySession(null);
     window.history.replaceState(null, "", window.location.pathname);
+    authCeremonyActiveRef.current = true;
     startSupabaseValidation(session);
   }
 
@@ -771,6 +898,7 @@ export default function App() {
     activeProviderUserIdRef.current = null;
     pendingPolicyUserIdRef.current = null;
     passwordRecoveryUserIdRef.current = null;
+    clearPersistedSupabasePasswordRecoverySession();
     try {
       localStorage.removeItem(AUTH_SESSION_KEY);
       localStorage.removeItem(AUTH_INTENT_KEY);
@@ -1225,6 +1353,7 @@ function loadAuthSession(): AuthSession | null {
         source,
         subscriptionStatus: parsed.subscriptionStatus === "active" || parsed.subscriptionStatus === "preview" ? parsed.subscriptionStatus : "none",
         userId,
+        providerSessionId: typeof parsed.providerSessionId === "string" ? parsed.providerSessionId : undefined,
       };
     }
   } catch {

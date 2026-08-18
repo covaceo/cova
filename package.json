@@ -7,7 +7,7 @@
     "dev": "vite --host 127.0.0.1",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "test": "npm run test:risk && npm run test:backtest && npm run test:practice-history && npm run test:practice-datafeed && npm run test:practice-architecture && npm run test:ui-content && npm run test:dashboard-shell && npm run test:custom-cursor && npm run test:legal && npm run test:auth && npm run test:classic-auth && npm run test:api-security && npm run test:tradovate-capability && npm run test:rithmic && npm run test:rithmic-ui && npm run test:auth-email-requested-browser && npm run test:browser-release",
+    "test": "npm run test:risk && npm run test:backtest && npm run test:practice-history && npm run test:practice-datafeed && npm run test:practice-architecture && npm run test:ui-content && npm run test:dashboard-shell && npm run test:custom-cursor && npm run test:legal && npm run test:auth && npm run test:classic-auth && npm run test:api-security && npm run test:tradovate-capability && npm run test:rithmic && npm run test:rithmic-ui && npm run test:auth-email-requested-browser && npm run test:recovery-callback-browser && npm run test:browser-release",
     "test:risk": "node scripts/risk-regression.mjs",
     "test:backtest": "node scripts/backtest-regression.mjs",
     "test:practice-history": "node scripts/practice-history-regression.mjs",
@@ -24,6 +24,7 @@
     "test:rithmic": "node --test scripts/rithmic-service-regression.mjs",
     "test:rithmic-ui": "node scripts/rithmic-ui-regression.mjs",
     "test:auth-email-requested-browser": "node scripts/auth-email-requested-browser-regression.mjs",
+    "test:recovery-callback-browser": "node scripts/recovery-callback-browser-regression.mjs && node scripts/recovery-callback-browser-regression.mjs --mismatched && node scripts/recovery-callback-browser-regression.mjs --reload && node scripts/recovery-callback-browser-regression.mjs --reload-mismatched && node scripts/recovery-callback-browser-regression.mjs --reload-malformed && node scripts/recovery-callback-browser-regression.mjs --reload-missing && node scripts/recovery-callback-browser-regression.mjs --marker-write-failure && node scripts/recovery-callback-browser-regression.mjs --marker-clear-failure && node scripts/recovery-callback-browser-regression.mjs --ordinary-reload",
     "test:browser-release": "npm run build && node scripts/release-browser-regression.mjs",
     "audit:mobile": "node scripts/mobile-audit.mjs",
     "audit:custom-cursor": "node scripts/custom-cursor-browser-audit.mjs"
