@@ -3,6 +3,26 @@
     {
       "source": "/api/tradovate/status",
       "destination": "/api/connectors/status?provider=tradovate"
+    },
+    {
+      "source": "/api/billing/webhook",
+      "destination": "/api/billing-webhook"
+    },
+    {
+      "source": "/api/billing/config",
+      "destination": "/api/billing?action=config"
+    },
+    {
+      "source": "/api/billing/checkout",
+      "destination": "/api/billing?action=checkout"
+    },
+    {
+      "source": "/api/billing/status",
+      "destination": "/api/billing?action=status"
+    },
+    {
+      "source": "/api/billing/portal",
+      "destination": "/api/billing?action=portal"
     }
   ],
   "functions": {

@@ -70,6 +70,7 @@ assert.match(releaseBrowser, /spawn\([\s\S]*owned-vite-preview\.mjs[\s\S]*"ipc"[
 assert.match(releaseBrowser, /type:\s*"shutdown"[\s\S]*waitForPortClosed/, "The release gate must shut down its owned child and verify that its port closes.");
 assert.match(ownedPreview, /preview\([\s\S]*port:\s*0[\s\S]*strictPort:\s*true/, "The owned preview child must use an OS-selected strict port.");
 assert.match(ownedPreview, /process\.send[\s\S]*owned-preview-ready/, "The owned preview child must report readiness through IPC.");
+assert.match(ownedPreview, /\/api\/billing\/config[\s\S]*enabled:\s*false/, "The local release preview must keep unconfigured billing fail-closed without browser 404 noise.");
 assert.match(ownedPreview, /server\?\.close|server\.close/, "The owned preview child must support graceful shutdown.");
 for (const chromeHarness of [mobileAudit, authBrowser, dashboardBrowser]) {
   assert.match(chromeHarness, /--remote-debugging-port=0/, "Chrome QA must request an OS-selected CDP port.");
@@ -273,7 +274,8 @@ assert.doesNotMatch(planSections, /Saved CSV and review history|Unlimited Risk P
 assert.match(planSections, /Unlimited Passport image exports/, "Pro should describe the implemented repeatable export capability.");
 assert.match(planSections, /Direct sync access when configured/, "Pro should describe direct sync as conditional on configured connectors.");
 assert.match(planSections, /currentPlan === "pro" \? \([\s\S]*?Pro active[\s\S]*?\) : \(/, "The active Pro state must render as status, not reuse the checkout action.");
-assert.match(app, /function upgradeToPro\(\)[\s\S]*?const checkoutUrl = getProCheckoutUrl\(\);[\s\S]*?if \(!checkoutUrl && !isDemoPreviewEnabled\(\)\)[\s\S]*?Pro checkout is not open yet[\s\S]*?return;[\s\S]*?if \(!authSession\)/, "An unavailable production checkout must fail closed before asking a visitor to create an account.");
+assert.match(app, /function upgradeToPro\(\)[\s\S]*?go\("checkout"\);[\s\S]*?if \(!authSession\)[\s\S]*?openAuth\("signup"\)[\s\S]*?if \(!billingConfig\.enabled\)/, "Pro upgrades must enter the authenticated Cova checkout and keep unconfigured Stripe visibly fail-closed there.");
+assert.doesNotMatch(app, /getProCheckoutUrl|VITE_STRIPE_PRO_PAYMENT_LINK|VITE_STRIPE_CHECKOUT_URL/, "Pricing must not bypass Cova with a raw unauthenticated Payment Link.");
 assert.match(planSections, /proCheckoutAvailable[\s\S]*?Pro checkout opening soon/, "Pricing must visibly disclose when the advertised Pro checkout is not open.");
 assert.doesNotMatch(app, /maxActivePassports/, "Unused multi-Passport entitlements must not imply a management model that does not exist.");
 assert.match(marketingPages, /resource-action-card/, "Resources should provide actionable routes instead of static explainer cards.");

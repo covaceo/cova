@@ -30,6 +30,7 @@ import "./styles/dashboardLeftRailPreview.css";
 import "./styles/customCursor.css";
 import "./styles/backtestingLab.css";
 import "./styles/cobaltMarket.css";
+import "./styles/checkout.css";
 
 if (navigator.platform.startsWith("Win")) {
   document.documentElement.classList.add("cova-platform-windows");

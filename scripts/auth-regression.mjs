@@ -361,11 +361,16 @@ test("provider status routes share one authenticated function within the Hobby d
     const relative = path.slice(apiRoot.length + 1).replaceAll("\\", "/");
     return relative.endsWith(".js") && !relative.split("/").some((part) => part.startsWith("_"));
   });
-  assert.equal(endpointFiles.length, 10);
+  assert.equal(endpointFiles.length, 12);
 
   const vercel = JSON.parse(read("vercel.json"));
   assert.deepEqual(vercel.rewrites, [
     { source: "/api/tradovate/status", destination: "/api/connectors/status?provider=tradovate" },
+    { source: "/api/billing/webhook", destination: "/api/billing-webhook" },
+    { source: "/api/billing/config", destination: "/api/billing?action=config" },
+    { source: "/api/billing/checkout", destination: "/api/billing?action=checkout" },
+    { source: "/api/billing/status", destination: "/api/billing?action=status" },
+    { source: "/api/billing/portal", destination: "/api/billing?action=portal" },
   ]);
 
   const priorFetch = global.fetch;
@@ -563,6 +568,9 @@ test("account deletion removes the auth owner first and relies on database casca
     if (String(url).endsWith("/auth/v1/user")) {
       return new Response(JSON.stringify({ id: "11111111-1111-4111-8111-111111111111", email: "member@example.com", app_metadata: {} }), { status: 200 });
     }
+    if (String(url).endsWith("/auth/v1/admin/users/11111111-1111-4111-8111-111111111111") && !init.method) {
+      return new Response(JSON.stringify({ id: "11111111-1111-4111-8111-111111111111", email: "member@example.com", app_metadata: {} }), { status: 200 });
+    }
     if (String(url).includes("/auth/v1/admin/users/11111111-1111-4111-8111-111111111111") && init.method === "DELETE") {
       return new Response(null, { status: 204 });
     }
@@ -574,7 +582,7 @@ test("account deletion removes the auth owner first and relies on database casca
     await handler({ method: "DELETE", headers: { authorization: "Bearer member-token" } }, response);
     assert.equal(response.statusCode, 200);
     assert.deepEqual(response.body, { deleted: true });
-    assert.equal(calls.length, 2);
+    assert.equal(calls.length, 3);
     assert.doesNotMatch(String(response.headers["Clear-Site-Data"] || ""), /storage/i);
   } finally {
     global.fetch = priorFetch;

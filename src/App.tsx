@@ -42,6 +42,8 @@ import { Navbar } from "./components/Navbar";
 import { OAuthConnectPage } from "./components/OAuthConnectPage";
 import { Toast } from "./components/Toast";
 import { WorkspaceShell } from "./components/WorkspaceShell";
+import { CheckoutPage } from "./components/CheckoutPage";
+import { fetchBillingConfig, type BillingConfig, type BillingStatus } from "./lib/billing";
 import { getHostedLogoutUrl, isDemoPreviewEnabled } from "./lib/authEnvironment";
 import { CURRENT_PRIVACY_VERSION, CURRENT_TERMS_VERSION } from "./lib/legal";
 import { BROKER_STATUS_KEY, brokerMessageForStatus, clearBrokerStatus, readBrokerStatus, writeBrokerStatus, type BrokerStatus } from "./lib/brokerStatus";
@@ -107,6 +109,7 @@ export default function App() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode | null>(null);
   const [authSession, setAuthSession] = useState<AuthSession | null>(() => loadAuthSession());
+  const [billingConfig, setBillingConfig] = useState<BillingConfig>({ enabled: false });
   const [oauthFirmId, setOauthFirmId] = useState<PropFirmId>(() => readOAuthFirmId() ?? "tradovate");
   const [toast, setToast] = useState<ToastState>(null);
   const [status, setStatus] = useState("Trade history ready.");
@@ -128,7 +131,7 @@ export default function App() {
   const validatedAccessTokenRef = useRef("");
   const isSignedIn = Boolean(authSession);
   const entitlements = planEntitlements[authSession?.plan ?? "free"];
-  const proCheckoutAvailable = Boolean(getProCheckoutUrl()) || isDemoPreviewEnabled();
+  const proCheckoutAvailable = billingConfig.enabled;
   const analysis = useMemo(() => analyze(trades, rules), [trades, rules]);
   const hasSampleTrades = trades.some((trade) => trade.id.startsWith("demo-"));
   const isSampleReview = hasSampleTrades;
@@ -139,6 +142,14 @@ export default function App() {
       localStorage.setItem(scopedStorageKey(STORAGE_KEY), JSON.stringify({ trades, rules, practiceReps }));
     }
   }, [authSession?.email, authSession?.userId, isSignedIn, trades, rules, practiceReps]);
+
+  useEffect(() => {
+    let mounted = true;
+    fetchBillingConfig()
+      .then((config) => { if (mounted) setBillingConfig(config); })
+      .catch(() => { if (mounted) setBillingConfig({ enabled: false }); });
+    return () => { mounted = false; };
+  }, []);
 
   useEffect(() => {
     const refreshBrokerStatus = () => setBrokerStatus(readBrokerStatus());
@@ -348,6 +359,27 @@ export default function App() {
     setMobileOpen(false);
     setSection(next);
   }
+
+  const handleBillingStatus = useCallback((billingStatus: BillingStatus) => {
+    setAuthSession((current) => {
+      if (!current) return current;
+      const next: AuthSession = {
+        ...current,
+        plan: billingStatus.plan,
+        subscriptionStatus: billingStatus.plan === "pro" ? "active" : "none",
+      };
+      try {
+        localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(next));
+      } catch {
+        // The authenticated server status remains authoritative when storage is unavailable.
+      }
+      return next;
+    });
+    const client = getSupabaseClient();
+    if (providerSessionRef.current && client) {
+      void client.auth.refreshSession().catch(() => undefined);
+    }
+  }, []);
 
   const openAuth = useCallback((mode: AuthMode) => {
     setAuthMode(mode);
@@ -904,36 +936,15 @@ export default function App() {
   }
 
   function upgradeToPro() {
-    const checkoutUrl = getProCheckoutUrl();
-    if (!checkoutUrl && !isDemoPreviewEnabled()) {
-      announce("Pro checkout is not open yet. Keep using Free while billing is prepared.", "warning");
-      return;
-    }
-
+    go("checkout");
     if (!authSession) {
       openAuth("signup");
-      announce("Create a free account first, then choose Pro.", "info");
+      announce("Create a free account first, then finish Pro checkout.", "info");
       return;
     }
-
-    if (checkoutUrl) {
-      window.location.assign(checkoutUrl);
-      return;
+    if (!billingConfig.enabled) {
+      announce("The Cova checkout is ready, but Stripe still needs its deployment keys.", "warning");
     }
-
-    if (isDemoPreviewEnabled()) {
-      const nextSession: AuthSession = {
-        ...authSession,
-        plan: "pro",
-        subscriptionStatus: "preview",
-      };
-      setAuthSession(nextSession);
-      localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(nextSession));
-      announce("Pro preview unlocked locally.", "success");
-      return;
-    }
-
-    announce("Pro checkout is not configured yet. Keep using the free preview for now.", "warning");
   }
 
   function openFirmOAuth(firmId: PropFirmId) {
@@ -1086,7 +1097,7 @@ export default function App() {
             <RouteFrame key="overview">
               <Hero go={go} openAuth={openAuth} isSignedIn={isSignedIn} />
               <StoryStrip />
-              <PlanStrip currentPlan={authSession?.plan ?? null} go={go} openAuth={openAuth} proCheckoutAvailable={proCheckoutAvailable} upgradeToPro={upgradeToPro} />
+              <PlanStrip billingPrice={billingConfig.price} currentPlan={authSession?.plan ?? null} go={go} openAuth={openAuth} proCheckoutAvailable={proCheckoutAvailable} upgradeToPro={upgradeToPro} />
               <CtaFooter go={go} isSignedIn={isSignedIn} openAuth={openAuth} openPassport={openPassport} />
             </RouteFrame>
           )}
@@ -1097,7 +1108,7 @@ export default function App() {
           )}
           {section === "pricing" && (
             <RouteFrame key="pricing">
-              <PricingPage currentPlan={authSession?.plan ?? null} go={go} openAuth={openAuth} proCheckoutAvailable={proCheckoutAvailable} upgradeToPro={upgradeToPro} />
+              <PricingPage billingPrice={billingConfig.price} currentPlan={authSession?.plan ?? null} go={go} openAuth={openAuth} proCheckoutAvailable={proCheckoutAvailable} upgradeToPro={upgradeToPro} />
             </RouteFrame>
           )}
           {section === "resources" && (
@@ -1123,6 +1134,11 @@ export default function App() {
           {section === "security" && (
             <RouteFrame key="security">
               <SecurityPage go={go} />
+            </RouteFrame>
+          )}
+          {section === "checkout" && (
+            <RouteFrame key="checkout">
+              {isSignedIn ? <CheckoutPage billingConfig={billingConfig} currentPlan={authSession?.plan ?? "free"} email={authSession?.email} go={go} onBillingStatus={handleBillingStatus} /> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={openAuth} onDevPreview={signInAsDevPreview} />}
             </RouteFrame>
           )}
           {section === "dashboard" && (
@@ -1200,11 +1216,6 @@ async function settleWithin<T>(promise: Promise<T>, timeoutMs: number): Promise<
       window.setTimeout(() => reject(new Error("Operation timed out.")), timeoutMs);
     }),
   ]);
-}
-
-function getProCheckoutUrl() {
-  const env = ((import.meta as unknown as { env?: Record<string, string | undefined> }).env ?? {});
-  return env.VITE_STRIPE_PRO_PAYMENT_LINK || env.VITE_STRIPE_CHECKOUT_URL || "";
 }
 
 function loadAuthSession(): AuthSession | null {

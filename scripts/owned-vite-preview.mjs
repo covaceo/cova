@@ -16,6 +16,20 @@ async function shutdown(exitCode = 0) {
 
 try {
   server = await preview({
+    plugins: [{
+      name: "cova-preview-disabled-billing-config",
+      configurePreviewServer(previewServer) {
+        previewServer.middlewares.use((request, response, next) => {
+          const requestUrl = new URL(request.url || "/", "http://127.0.0.1");
+          if (request.method === "GET" && requestUrl.pathname === "/api/billing/config") {
+            response.writeHead(200, { "Cache-Control": "no-store", "Content-Type": "application/json" });
+            response.end(JSON.stringify({ enabled: false }));
+            return;
+          }
+          next();
+        });
+      },
+    }],
     preview: {
       host: "127.0.0.1",
       port: 0,

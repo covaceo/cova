@@ -2,6 +2,7 @@ import { motion } from "motion/react";
 import { ArrowUpRight, Check, X } from "lucide-react";
 import { GlassButton } from "./GlassButton";
 import { StartFreeButton } from "./StartFreeButton";
+import { formatBillingAmount, formatBillingInterval, type BillingPrice } from "../lib/billing";
 
 type PlanTier = "free" | "pro";
 type PlanRoute = "dashboard" | "import" | "passport";
@@ -57,7 +58,7 @@ const planOptions = [
   },
 ] as const;
 
-export function PlanStrip({ compact = false, currentPlan, go, openAuth, proCheckoutAvailable, upgradeToPro }: { compact?: boolean; currentPlan: PlanTier | null; go: (section: PlanRoute) => void; openAuth: (mode: AuthMode) => void; proCheckoutAvailable: boolean; upgradeToPro: () => void }) {
+export function PlanStrip({ billingPrice, compact = false, currentPlan, go, openAuth, proCheckoutAvailable, upgradeToPro }: { billingPrice?: BillingPrice; compact?: boolean; currentPlan: PlanTier | null; go: (section: PlanRoute) => void; openAuth: (mode: AuthMode) => void; proCheckoutAvailable: boolean; upgradeToPro: () => void }) {
   return (
     <section className={`deferred-paint-section plans-section pricing-showcase ${compact ? "pricing-showcase-compact" : ""}`}>
       <div aria-hidden="true" className="pricing-showcase-top-fade" />
@@ -74,6 +75,8 @@ export function PlanStrip({ compact = false, currentPlan, go, openAuth, proCheck
           {planOptions.map((plan) => {
             const isPro = plan.id === "pro";
             const isCurrentPlan = currentPlan === plan.id;
+            const displayPrice = isPro ? formatBillingAmount(billingPrice) : plan.price;
+            const priceNote = isPro && billingPrice ? [formatBillingInterval(billingPrice), "Stripe Price"] : plan.priceNote;
             return (
               <motion.article
                 className={`plan-card ${isPro ? "plan-card-pro" : "plan-card-free"}`}
@@ -98,9 +101,9 @@ export function PlanStrip({ compact = false, currentPlan, go, openAuth, proCheck
                 <p className="plan-card-description">{plan.description}</p>
 
                 <div className="plan-price-row">
-                  <p className="plan-price">{plan.price}</p>
+                  <p className="plan-price">{displayPrice}</p>
                   <p className="plan-price-note">
-                    {plan.priceNote.map((line) => <span key={line}>{line}</span>)}
+                    {priceNote.map((line) => <span key={line}>{line}</span>)}
                   </p>
                 </div>
 

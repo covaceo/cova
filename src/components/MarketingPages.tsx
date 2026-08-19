@@ -17,6 +17,7 @@ import { CsvExplainer } from "./CsvExplainer";
 import { GlassButton } from "./GlassButton";
 import { ImageAtmosphere, SectionShell } from "./LayoutShell";
 import { PlanStrip } from "./PlanSections";
+import type { BillingPrice } from "../lib/billing";
 import { StartFreeButton } from "./StartFreeButton";
 
 type Section = "overview" | "features" | "pricing" | "resources" | "community" | "dashboard" | "import" | "oauth" | "rules" | "coach" | "practice" | "passport";
@@ -151,10 +152,10 @@ function FeatureActionCard({ title, body, Icon, action, onClick, strong = false 
   );
 }
 
-export function PricingPage({ currentPlan, go, openAuth, proCheckoutAvailable, upgradeToPro }: { currentPlan: PlanTier | null; go: (section: Section) => void; openAuth: (mode: AuthMode) => void; proCheckoutAvailable: boolean; upgradeToPro: () => void }) {
+export function PricingPage({ billingPrice, currentPlan, go, openAuth, proCheckoutAvailable, upgradeToPro }: { billingPrice?: BillingPrice; currentPlan: PlanTier | null; go: (section: Section) => void; openAuth: (mode: AuthMode) => void; proCheckoutAvailable: boolean; upgradeToPro: () => void }) {
   return (
     <div className="relative overflow-hidden">
-      <PlanStrip compact currentPlan={currentPlan} go={go} openAuth={openAuth} proCheckoutAvailable={proCheckoutAvailable} upgradeToPro={upgradeToPro} />
+      <PlanStrip billingPrice={billingPrice} compact currentPlan={currentPlan} go={go} openAuth={openAuth} proCheckoutAvailable={proCheckoutAvailable} upgradeToPro={upgradeToPro} />
       <section className="relative px-5 pb-28 pt-2 md:px-12 lg:px-20">
         <div className="mx-auto grid max-w-7xl gap-5 lg:grid-cols-3">
           {[
