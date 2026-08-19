@@ -279,6 +279,40 @@ export async function hasPolicyAcceptance({ userId, termsVersion, privacyVersion
   return Array.isArray(rows) && rows.length === 1;
 }
 
+export async function getAuthUserById(userId, { fetchImpl = fetch, timeoutMs = 5_000 } = {}) {
+  if (!userId) {
+    throw new Error("Missing account owner id.");
+  }
+  const { supabaseUrl, serviceRoleKey } = getSupabaseConfig();
+  const response = await fetchImpl(`${supabaseUrl}/auth/v1/admin/users/${encodeURIComponent(userId)}`, {
+    headers: supabaseServiceHeaders(serviceRoleKey),
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  await requireSuccess(response, "Authentication provider rejected billing lookup");
+  const payload = await response.json();
+  const user = payload?.user || payload;
+  if (!user?.id || String(user.id) !== String(userId)) {
+    throw new Error("Authentication provider returned the wrong billing owner.");
+  }
+  return user;
+}
+
+export async function updateAuthUserAppMetadata(userId, appMetadata, { fetchImpl = fetch, timeoutMs = 5_000 } = {}) {
+  if (!userId || !appMetadata || typeof appMetadata !== "object") {
+    throw new Error("Missing billing metadata update.");
+  }
+  const { supabaseUrl, serviceRoleKey } = getSupabaseConfig();
+  const response = await fetchImpl(`${supabaseUrl}/auth/v1/admin/users/${encodeURIComponent(userId)}`, {
+    method: "PUT",
+    headers: supabaseServiceHeaders(serviceRoleKey),
+    body: JSON.stringify({ app_metadata: appMetadata }),
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  await requireSuccess(response, "Authentication provider rejected billing update");
+  const payload = await response.json();
+  return payload?.user || payload;
+}
+
 export async function deleteAuthUser(userId) {
   if (!userId) {
     throw new Error("Missing account owner id.");

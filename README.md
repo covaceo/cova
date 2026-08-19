@@ -43,12 +43,24 @@ The app now has a small entitlement layer, so plan copy and behavior stay aligne
 
 Recommended early pilot price: **$29/month** for funded futures traders. The free version should show what Cova does quickly; the paid version should save history, notes, and shareable risk profiles over time.
 
-For Stripe, set one of these client-visible redirect targets:
+Stripe uses a server-owned Checkout Session and webhook entitlement loop. The browser never chooses a Stripe Price or writes its own plan. Configure these server-only values:
 
 ```bash
-VITE_STRIPE_PRO_PAYMENT_LINK=
-VITE_STRIPE_CHECKOUT_URL=
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+STRIPE_PRO_PRICE_ID=
+APP_ORIGIN=https://covadesk.com
 ```
+
+In Stripe test mode:
+
+1. Create an active recurring Cova Pro Price. A recurring `$0` Price is supported by Cova for the first end-to-end account-upgrade test; change `STRIPE_PRO_PRICE_ID` to the paid recurring Price before launch.
+2. Add `https://covadesk.com/api/billing/webhook` as a webhook destination for `checkout.session.completed`, `customer.subscription.updated`, and `customer.subscription.deleted`.
+3. Copy that destination's signing secret into `STRIPE_WEBHOOK_SECRET`.
+4. Enable the Stripe Customer Portal so Pro members can manage or cancel billing.
+5. Set all four values in the Vercel environment and redeploy. Never prefix Stripe secret or webhook values with `VITE_`.
+
+The direct flow is Pricing → Cova order review → Stripe-hosted payment → signed webhook → Supabase `app_metadata.plan=pro` → Cova success confirmation. Checkout is idempotent for repeat clicks, reuses a known Stripe Customer, and account deletion cancels a stored Stripe subscription before deleting the Cova owner.
 
 ## Prop Firm Connect
 

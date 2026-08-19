@@ -1,0 +1,362 @@
+.checkout-page {
+  min-height: 100vh;
+  padding: 8.75rem 1.25rem 5rem;
+  background: #090a0c;
+}
+
+.checkout-shell {
+  width: min(100%, 70rem);
+  margin: 0 auto;
+}
+
+.checkout-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.75rem;
+  padding: 0;
+  border: 0;
+  color: rgba(237, 240, 246, 0.62);
+  background: transparent;
+  font: 600 0.72rem/1 "JetBrains Mono", monospace;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+}
+
+.checkout-back:hover,
+.checkout-back:focus-visible {
+  color: #f3f5f8;
+}
+
+.checkout-kicker {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-top: 2.25rem;
+  color: #8da9dc;
+  font: 600 0.66rem/1 "JetBrains Mono", monospace;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.checkout-kicker span {
+  width: 1.8rem;
+  height: 1px;
+  background: #4e78c4;
+}
+
+.checkout-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(22rem, 0.92fr);
+  gap: 1.15rem;
+  margin-top: 1.35rem;
+}
+
+.checkout-plan-panel,
+.checkout-order-panel {
+  border: 1px solid rgba(176, 190, 215, 0.16);
+  background: #101216;
+}
+
+.checkout-plan-panel {
+  min-height: 36rem;
+  padding: clamp(2rem, 5vw, 4.75rem);
+}
+
+.checkout-plan-label {
+  color: #82a4e1;
+  font: 600 0.72rem/1 "JetBrains Mono", monospace;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.checkout-plan-panel h1 {
+  max-width: 10ch;
+  margin: 0.85rem 0 1.1rem;
+  color: #f2f3f5;
+  font: 400 clamp(3rem, 7vw, 5.75rem)/0.88 "Instrument Serif", serif;
+  letter-spacing: -0.045em;
+}
+
+.checkout-plan-panel > p {
+  max-width: 34rem;
+  margin: 0;
+  color: rgba(235, 239, 246, 0.58);
+  font: 400 0.95rem/1.75 "Manrope", sans-serif;
+}
+
+.checkout-price-lockup {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  margin-top: 2.35rem;
+  padding-top: 1.3rem;
+  border-top: 1px solid rgba(176, 190, 215, 0.13);
+}
+
+.checkout-price-lockup strong {
+  color: #f2f3f5;
+  font: 500 2.7rem/1 "Space Grotesk", sans-serif;
+  letter-spacing: -0.06em;
+}
+
+.checkout-price-lockup span {
+  color: rgba(235, 239, 246, 0.44);
+  font: 500 0.7rem/1 "JetBrains Mono", monospace;
+  text-transform: uppercase;
+}
+
+.checkout-feature-list {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 2.25rem;
+}
+
+.checkout-feature-list > div,
+.checkout-security-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+}
+
+.checkout-feature-list svg {
+  flex: 0 0 auto;
+  margin-top: 0.15rem;
+  color: #7d9fdc;
+}
+
+.checkout-feature-list span {
+  color: rgba(235, 239, 246, 0.72);
+  font: 500 0.84rem/1.5 "Manrope", sans-serif;
+}
+
+.checkout-security-note {
+  margin-top: 2.35rem;
+  padding: 1rem;
+  border: 1px solid rgba(80, 120, 196, 0.25);
+  background: #121722;
+  color: rgba(214, 225, 244, 0.65);
+  font: 500 0.72rem/1.55 "Manrope", sans-serif;
+}
+
+.checkout-security-note svg {
+  flex: 0 0 auto;
+  color: #789adc;
+}
+
+.checkout-order-panel {
+  align-self: start;
+  padding: 1.5rem;
+  border-top: 2px solid #4f76bd;
+}
+
+.checkout-order-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1.35rem;
+  border-bottom: 1px solid rgba(176, 190, 215, 0.14);
+}
+
+.checkout-order-heading > div {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.checkout-order-heading span {
+  color: rgba(235, 239, 246, 0.45);
+  font: 600 0.62rem/1 "JetBrains Mono", monospace;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.checkout-order-heading strong {
+  color: #f2f3f5;
+  font: 600 0.96rem/1.2 "Manrope", sans-serif;
+}
+
+.checkout-order-heading svg {
+  color: #789adc;
+}
+
+.checkout-order-ledger {
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+
+.checkout-order-ledger > div {
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1fr);
+  gap: 1rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid rgba(176, 190, 215, 0.1);
+}
+
+.checkout-order-ledger dt {
+  color: rgba(235, 239, 246, 0.4);
+  font: 600 0.62rem/1.45 "JetBrains Mono", monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.checkout-order-ledger dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: rgba(235, 239, 246, 0.76);
+  font: 500 0.76rem/1.45 "Manrope", sans-serif;
+  text-align: right;
+}
+
+.checkout-order-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 1.25rem 0 1.35rem;
+}
+
+.checkout-order-total span {
+  color: rgba(235, 239, 246, 0.62);
+  font: 600 0.75rem/1 "Manrope", sans-serif;
+}
+
+.checkout-order-total strong {
+  color: #f2f3f5;
+  font: 600 1.6rem/1 "Space Grotesk", sans-serif;
+}
+
+.checkout-consent {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.75rem;
+  padding: 0.95rem;
+  border: 1px solid rgba(176, 190, 215, 0.16);
+  background: #0c0e12;
+  color: rgba(235, 239, 246, 0.72);
+  font: 500 0.72rem/1.55 "Manrope", sans-serif;
+  cursor: pointer;
+}
+
+.checkout-consent input {
+  width: 1rem;
+  height: 1rem;
+  margin: 0.13rem 0 0;
+  accent-color: #5278c1;
+}
+
+.checkout-pay,
+.checkout-active-state button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  width: 100%;
+  min-height: 3rem;
+  margin-top: 0.8rem;
+  border: 1px solid #6b8bc7;
+  background: #3f64aa;
+  color: #fff;
+  font: 700 0.72rem/1 "Manrope", sans-serif;
+  letter-spacing: 0.025em;
+  cursor: pointer;
+}
+
+.checkout-pay:hover:not(:disabled),
+.checkout-active-state button:hover:not(:disabled) {
+  background: #4a70b8;
+}
+
+.checkout-pay:disabled,
+.checkout-active-state button:disabled {
+  border-color: rgba(176, 190, 215, 0.16);
+  background: #23272f;
+  color: rgba(235, 239, 246, 0.35);
+  cursor: not-allowed;
+}
+
+.checkout-processor-copy,
+.checkout-legal-copy {
+  margin: 0.9rem 0 0;
+  color: rgba(235, 239, 246, 0.38);
+  font: 500 0.62rem/1.55 "Manrope", sans-serif;
+  text-align: center;
+}
+
+.checkout-legal-copy button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgba(183, 204, 240, 0.78);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  cursor: pointer;
+}
+
+.checkout-notice,
+.checkout-error {
+  margin-bottom: 0.85rem;
+  padding: 0.85rem;
+  font: 600 0.7rem/1.5 "Manrope", sans-serif;
+}
+
+.checkout-notice {
+  border: 1px solid rgba(80, 120, 196, 0.28);
+  background: #121722;
+  color: #b9cbed;
+}
+
+.checkout-error {
+  border: 1px solid rgba(191, 78, 78, 0.32);
+  background: #211315;
+  color: #e8a7a7;
+}
+
+.checkout-active-state > div {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.7rem;
+  border: 1px solid rgba(80, 120, 196, 0.28);
+  background: #121722;
+  color: #c3d2ed;
+  font: 700 0.72rem/1 "Manrope", sans-serif;
+}
+
+@media (max-width: 800px) {
+  .checkout-page {
+    padding: 6.75rem 1rem 3.5rem;
+  }
+
+  .checkout-kicker {
+    margin-top: 1.35rem;
+  }
+
+  .checkout-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .checkout-plan-panel {
+    min-height: 0;
+    padding: 2rem 1.25rem;
+  }
+
+  .checkout-plan-panel h1 {
+    font-size: clamp(3.2rem, 17vw, 5rem);
+  }
+
+  .checkout-order-panel {
+    padding: 1.2rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .checkout-pay,
+  .checkout-back,
+  .checkout-active-state button {
+    transition: none;
+  }
+}

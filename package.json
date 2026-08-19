@@ -7,7 +7,10 @@
     "dev": "vite --host 127.0.0.1",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "test": "npm run test:risk && npm run test:backtest && npm run test:practice-history && npm run test:practice-datafeed && npm run test:practice-architecture && npm run test:ui-content && npm run test:dashboard-shell && npm run test:custom-cursor && npm run test:legal && npm run test:auth && npm run test:classic-auth && npm run test:api-security && npm run test:tradovate-capability && npm run test:rithmic && npm run test:rithmic-ui && npm run test:auth-email-requested-browser && npm run test:browser-release",
+    "test": "npm run test:risk && npm run test:backtest && npm run test:practice-history && npm run test:practice-datafeed && npm run test:practice-architecture && npm run test:billing && npm run test:checkout-ui && npm run test:checkout-browser && npm run test:ui-content && npm run test:dashboard-shell && npm run test:custom-cursor && npm run test:legal && npm run test:auth && npm run test:classic-auth && npm run test:api-security && npm run test:tradovate-capability && npm run test:rithmic && npm run test:rithmic-ui && npm run test:auth-email-requested-browser && npm run test:browser-release",
+    "test:billing": "node --test scripts/billing-regression.mjs",
+    "test:checkout-ui": "node scripts/checkout-ui-regression.mjs",
+    "test:checkout-browser": "node scripts/checkout-browser-regression.mjs",
     "test:risk": "node scripts/risk-regression.mjs",
     "test:backtest": "node scripts/backtest-regression.mjs",
     "test:practice-history": "node scripts/practice-history-regression.mjs",
@@ -45,6 +48,7 @@
     "motion": "^12.23.24",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "stripe": "^22.5.0",
     "three": "^0.185.1"
   },
   "devDependencies": {
