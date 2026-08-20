@@ -1,5 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import "@fontsource-variable/inter-tight";
+import "@fontsource-variable/geist-mono";
 import "@fontsource/barlow/latin-300.css";
 import "@fontsource/barlow/latin-400.css";
 import "@fontsource/barlow/latin-500.css";
@@ -30,6 +32,7 @@ import "./styles/dashboardLeftRailPreview.css";
 import "./styles/customCursor.css";
 import "./styles/backtestingLab.css";
 import "./styles/cobaltMarket.css";
+import "./styles/dashboardOaDark.css";
 
 if (navigator.platform.startsWith("Win")) {
   document.documentElement.classList.add("cova-platform-windows");

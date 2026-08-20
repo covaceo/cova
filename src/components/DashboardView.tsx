@@ -34,7 +34,7 @@ export function Dashboard({ analysis, rules, go }: { analysis: ReturnType<typeof
   }, [range]);
 
   return (
-    <section className="dashboard-workspace">
+    <section className="dashboard-workspace" data-oa-dashboard="dark">
       <header className="dashboard-workspace-header">
         <div>
           <h1>Risk Desk</h1>
@@ -50,7 +50,15 @@ export function Dashboard({ analysis, rules, go }: { analysis: ReturnType<typeof
               onClick={() => setRange(option.id)}
               type="button"
             >
-              {option.label}
+              {range === option.id && (
+                <motion.span
+                  aria-hidden="true"
+                  className="oa-range-highlight"
+                  layoutId="oa-dashboard-range-highlight"
+                  transition={{ type: "spring", stiffness: 550, damping: 40 }}
+                />
+              )}
+              <span className="dashboard-range-label">{option.label}</span>
             </button>
           ))}
         </div>
@@ -67,9 +75,9 @@ export function Dashboard({ analysis, rules, go }: { analysis: ReturnType<typeof
       <div className="dashboard-instrument-grid">
         <motion.section
           className="risk-chart-panel dashboard-equity-instrument motion-surface"
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.42, ease: [0.16, 1, 0.3, 1] }}
+          initial={{ opacity: 0.4, filter: "blur(4px)" }}
+          animate={{ opacity: 1, filter: "blur(0px)" }}
+          transition={{ duration: 0.18, ease: "easeOut" }}
         >
           <div className="dashboard-instrument-header">
             <div>
@@ -83,7 +91,7 @@ export function Dashboard({ analysis, rules, go }: { analysis: ReturnType<typeof
 
         <aside className="dashboard-evidence-column" aria-label="Risk evidence">
           <ScoreCard analysis={scopedAnalysis} />
-          <FlagStack analysis={scopedAnalysis} />
+          <FlagStack analysis={scopedAnalysis} onReviewRisk={() => go("rules")} />
         </aside>
       </div>
 
