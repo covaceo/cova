@@ -1,4 +1,5 @@
 import { Activity, BarChart3, FileUp, Gauge, LogOut, Network, Search, ShieldCheck, Target, Trash2 } from "lucide-react";
+import { motion } from "motion/react";
 import { useMemo, useState, type ReactNode } from "react";
 import { isWorkspaceNavActive, type Section } from "../lib/appRoutes";
 
@@ -58,7 +59,7 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
   const riskScoreLabel = Number.isFinite(riskScore) ? String(riskScore) : "--";
 
   return (
-    <div className="workspace-shell operator-workspace" data-workspace-section={section}>
+    <div className={`workspace-shell operator-workspace ${section === "dashboard" ? "oa-dashboard-shell" : ""}`} data-workspace-section={section}>
       <aside className="workspace-sidebar" aria-label="Cova workspace navigation">
         <div className="workspace-sidebar-brand">
           <button className="workspace-brand-button" onClick={() => go("dashboard")} type="button" aria-label="Go to Cova risk desk">
@@ -93,6 +94,14 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
                       type="button"
                       aria-current={active ? "page" : undefined}
                     >
+                      {active && section === "dashboard" && (
+                        <motion.span
+                          aria-hidden="true"
+                          className="oa-workspace-nav-highlight"
+                          layoutId="oa-workspace-nav-highlight"
+                          transition={{ type: "spring", stiffness: 550, damping: 40 }}
+                        />
+                      )}
                       <span className="workspace-sidebar-icon"><Icon className="h-4 w-4" /></span>
                       <span className="workspace-sidebar-copy">{item.label}</span>
                     </button>

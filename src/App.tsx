@@ -1040,7 +1040,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className={`min-h-screen bg-black text-white ${section === "dashboard" ? "oa-dashboard-app" : ""}`}>
       <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_70%_20%,rgba(255,255,255,0.055),transparent_30%),linear-gradient(180deg,#000,rgba(1,9,6,0.94))]" />
       <div className="pointer-events-none fixed inset-0 z-0 bg-grid opacity-70" />
       <CustomCursor />

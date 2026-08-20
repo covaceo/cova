@@ -22,30 +22,31 @@ export function MetricDock({ analysis }: { analysis: ReturnType<typeof analyze> 
 
 export function ScoreCard({ analysis }: { analysis: ReturnType<typeof analyze> }) {
   return (
-    <div className="risk-score-panel p-6">
-      <p className="font-body text-xs uppercase tracking-[0.22em] text-[#18c887]">Cova Score</p>
-      <p className="mt-4 font-mono text-7xl text-[#18c887]">{analysis.score}<span className="text-2xl text-white/55">/100</span></p>
-      <p className="mt-3 font-body text-sm text-white/55">{analysis.score >= 80 ? "Strong risk discipline" : analysis.score >= 60 ? "Decent, with room to tighten" : "Risk needs attention"}</p>
-      <p className="mt-3 w-fit rounded-full border border-white/10 bg-black/24 px-3 py-1.5 font-body text-xs text-white/42">
-        {analysis.evidenceQuality.label} | {analysis.trades.length} trades checked
-      </p>
-      <div className="mt-5 space-y-2">
-        {analysis.scoreFactors.slice(0, 3).map((factor) => (
-          <div className="rounded-[18px] border border-white/10 bg-black/20 p-3" key={factor.label}>
-            <div className="flex items-center justify-between gap-3">
-              <p className="font-body text-sm font-medium text-white/78">{factor.label}</p>
-              <span className={`font-mono text-[10px] uppercase tracking-[0.16em] ${factor.impact === "positive" ? "text-emerald-300" : factor.impact === "negative" ? "text-red-300" : "text-white/38"}`}>
-                {factor.impact}
-              </span>
+    <section className="risk-score-panel oa-squircle-card">
+      <header className="oa-card-header">
+        <h2>Cova Score</h2>
+        <span>{analysis.evidenceQuality.label}</span>
+      </header>
+      <div className="oa-card-inset oa-score-inset">
+        <div className="oa-score-reading">
+          <p className="oa-score-value">{analysis.score}<span>/100</span></p>
+          <p className="oa-score-caption">{analysis.score >= 80 ? "Strong risk discipline" : analysis.score >= 60 ? "Decent, with room to tighten" : "Risk needs attention"}</p>
+          <p className="oa-score-sample">{analysis.trades.length} trades checked</p>
+        </div>
+        <div className="oa-factor-list">
+          {analysis.scoreFactors.slice(0, 3).map((factor) => (
+            <div className="oa-factor-row" key={factor.label}>
+              <span>{factor.label}</span>
+              <strong className={`oa-tone-${factor.impact}`}>{factor.impact}</strong>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
-    </div>
+    </section>
   );
 }
 
-export function FlagStack({ analysis }: { analysis: ReturnType<typeof analyze> }) {
+export function FlagStack({ analysis, onReviewRisk }: { analysis: ReturnType<typeof analyze>; onReviewRisk: () => void }) {
   const fallbackItems = analysis.ruleStatuses.slice(0, 3).map((status) => ({
     id: status.rule.id,
     label: status.rule.name,
@@ -62,19 +63,27 @@ export function FlagStack({ analysis }: { analysis: ReturnType<typeof analyze> }
   }));
   const items = behaviorItems.length ? behaviorItems.slice(0, 3) : fallbackItems;
   return (
-    <div className="risk-watch-panel p-6">
-      <p className="font-body text-xs uppercase tracking-[0.22em] text-[#18c887]">What to watch</p>
-      <div className="mt-5 space-y-3">
+    <section className="risk-watch-panel oa-squircle-card">
+      <header className="oa-card-header">
+        <h2>What to watch</h2>
+        <span>{items.length} items</span>
+      </header>
+      <div className="oa-card-inset oa-watch-inset">
         {items.map((item) => (
-          <div className="border-b border-white/10 py-3 last:border-b-0" key={item.id}>
-            <div className="flex items-center justify-between gap-4">
-              <span className="font-body text-sm text-white/75">{item.label}</span>
-              <span className={item.tone}>{item.status}</span>
-            </div>
-          </div>
+          <button
+            aria-label={`Review ${item.label} in Limits`}
+            className="oa-watch-row"
+            data-dashboard-action="review-risk-evidence"
+            key={item.id}
+            onClick={onReviewRisk}
+            type="button"
+          >
+            <span>{item.label}</span>
+            <strong className={item.tone}>{item.status}</strong>
+          </button>
         ))}
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -128,15 +137,9 @@ export function EquityCurve({ points }: { points: number[] }) {
   });
   const path = coords.map(([x, y], index) => `${index ? "L" : "M"} ${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
   return (
-    <svg className="mt-8 h-[320px] w-full overflow-visible rounded-[28px] border border-white/10 bg-black/28 p-5" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
-      <defs>
-        <linearGradient id="curve" x1="0" x2="1" y1="0" y2="0">
-          <stop stopColor="#b9f5df" />
-          <stop offset="1" stopColor="#075f44" />
-        </linearGradient>
-      </defs>
-      {[0.25, 0.5, 0.75].map((line) => <line key={line} x1="0" x2={width} y1={height * line} y2={height * line} stroke="rgba(255,255,255,.10)" strokeDasharray="6 8" />)}
-      <path d={path} fill="none" stroke="url(#curve)" strokeWidth="4" vectorEffect="non-scaling-stroke" />
+    <svg className="dashboard-equity-chart" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" role="img" aria-label="Cumulative reported P&L equity curve">
+      {[0.25, 0.5, 0.75].map((line) => <line key={line} x1="0" x2={width} y1={height * line} y2={height * line} className="dashboard-equity-gridline" />)}
+      <path d={path} fill="none" className="dashboard-equity-path" vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }
