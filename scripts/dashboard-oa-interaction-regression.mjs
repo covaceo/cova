@@ -264,11 +264,39 @@ async function auditDarkDashboard(label) {
       const rect = node.getBoundingClientRect();
       return style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity) > 0.01 && rect.width > 1 && rect.height > 1;
     };
-    const bluePattern = /(?:79,\\s*125,\\s*255|111,\\s*150,\\s*255|48,\\s*93,\\s*222|41,\\s*111,\\s*240|59,\\s*166,\\s*241)/;
-    const blue = [...document.querySelectorAll('.oa-dashboard-app *, .workspace-shell *')].filter(visible).flatMap((node) => {
+    const parseColors = (input) => [...String(input).matchAll(/rgba?\\(([^)]*)\\)|color\\(srgb\\s+([^)]*)\\)/gi)].flatMap((match) => {
+      const source = match[1] ?? match[2];
+      const parts = source.replace(/,/g, ' ').replace(/\\//g, ' / ').trim().split(/\\s+/);
+      const slash = parts.indexOf('/');
+      const rawChannels = parts.slice(0, slash === -1 ? 3 : slash).slice(0, 3);
+      const channels = rawChannels.map((part) => match[2] ? Math.round(Number(part) * 255) : part.endsWith('%') ? Math.round(Number(part.slice(0, -1)) * 2.55) : Math.round(Number(part)));
+      if (channels.length !== 3 || channels.some((channel) => !Number.isFinite(channel))) return [];
+      const alphaPart = slash === -1 ? undefined : parts[slash + 1];
+      const alpha = alphaPart === undefined ? 1 : alphaPart.endsWith('%') ? Number(alphaPart.slice(0, -1)) / 100 : Number(alphaPart);
+      return [[...channels, alpha]];
+    });
+    const forbiddenAccent = ([red, green, blue, alpha]) => {
+      if (alpha <= 0.04) return false;
+      const max = Math.max(red, green, blue);
+      const min = Math.min(red, green, blue);
+      const chroma = max - min;
+      if (chroma <= 12) return false;
+      let hue;
+      if (max === red) hue = ((green - blue) / chroma) % 6;
+      else if (max === green) hue = (blue - red) / chroma + 2;
+      else hue = (red - green) / chroma + 4;
+      hue = (hue * 60 + 360) % 360;
+      return !((hue >= 214 && hue <= 232) || hue >= 345 || hue <= 8);
+    };
+    const forbiddenPalette = [...document.querySelectorAll('.oa-dashboard-app *, .workspace-shell *')].filter(visible).flatMap((node) => {
       const style = getComputedStyle(node);
       const values = [style.color, style.backgroundColor, style.backgroundImage, style.borderColor, style.outlineColor, style.boxShadow, style.fill, style.stroke];
-      return values.some((value) => bluePattern.test(value)) ? [{ tag: node.tagName, className: node.className?.baseVal || node.className || '', values }] : [];
+      const forbidden = values.flatMap(parseColors).filter(forbiddenAccent);
+      return forbidden.length ? [{ tag: node.tagName, className: node.className?.baseVal || node.className || '', values, forbidden }] : [];
+    }).slice(0, 10);
+    const forbiddenClassMarkers = [...document.querySelectorAll('.oa-dashboard-app *, .workspace-shell *')].flatMap((node) => {
+      const className = String(node.className?.baseVal || node.className || '');
+      return /(?:emerald|green|copper|mint)/i.test(className) ? [{ tag: node.tagName, className }] : [];
     }).slice(0, 10);
     const light = [...shell.querySelectorAll('*')].filter(visible).flatMap((node) => {
       const color = parse(getComputedStyle(node).backgroundColor);
@@ -299,7 +327,7 @@ async function auditDarkDashboard(label) {
         if (candidate && candidate.a >= 0.98) bg = candidate;
         parent = parent.parentElement;
       }
-      bg ||= { r: 5, g: 5, b: 5, a: 1 };
+      bg ||= { r: 8, g: 9, b: 12, a: 1 };
       return [{ selector, ratio: contrast(composite(fg, bg), bg), color: getComputedStyle(node).color, background: bg }];
     });
     const brokenImages = [...document.images].filter((image) => image.complete && image.naturalWidth === 0).map((image) => image.src);
@@ -312,7 +340,8 @@ async function auditDarkDashboard(label) {
       viewport: { innerWidth, innerHeight, visualWidth: visualViewport?.width, clientWidth: document.documentElement.clientWidth },
       rootOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
       brokenImages,
-      blue,
+      forbiddenPalette,
+      forbiddenClassMarkers,
       light,
       contrastChecks,
       local,
@@ -320,17 +349,25 @@ async function auditDarkDashboard(label) {
       bodyBackground: getComputedStyle(document.body).backgroundColor,
       shellBackground: getComputedStyle(document.querySelector('.dashboard-workspace')).backgroundColor,
       chartStroke: getComputedStyle(document.querySelector('.dashboard-equity-path')).stroke,
+      primaryBackground: getComputedStyle(document.querySelector('.dashboard-summary-primary')).backgroundColor,
+      primaryColor: getComputedStyle(document.querySelector('.dashboard-summary-primary')).color,
+      positiveColors: [...document.querySelectorAll('.dashboard-summary-cell strong.positive, .oa-tone-positive, .dashboard-review-status-ready')].map((node) => getComputedStyle(node).color),
     };
   })()`);
   assert.equal(audit.marker, "dark", `${label} must render the candidate-specific OA dashboard marker`);
   assert.equal(audit.rootOverflow, 0, `${label} must not overflow horizontally`);
   assert.deepEqual(audit.brokenImages, [], `${label} must not contain broken images`);
-  assert.deepEqual(audit.blue, [], `${label} must not retain OA or cobalt blue`);
+  assert.deepEqual(audit.forbiddenPalette, [], `${label} must not retain copper, green, mint, or gold pixels`);
+  assert.deepEqual(audit.forbiddenClassMarkers, [], `${label} dashboard DOM must not emit copper, green, mint, or emerald class markers`);
   assert.deepEqual(audit.light, [], `${label} must not contain light card surfaces`);
   for (const check of audit.contrastChecks) assert.ok(check.ratio >= 4.5, `${label} ${check.selector} contrast ${check.ratio.toFixed(2)} must meet WCAG AA`);
-  assert.equal(audit.bodyBackground, "rgb(5, 5, 5)");
-  assert.equal(audit.shellBackground, "rgb(5, 5, 5)");
-  assert.equal(audit.chartStroke, "rgb(191, 137, 100)");
+  assert.equal(audit.bodyBackground, "rgb(8, 9, 12)");
+  assert.equal(audit.shellBackground, "rgb(8, 9, 12)");
+  assert.equal(audit.chartStroke, "rgb(79, 125, 255)");
+  assert.equal(audit.primaryBackground, "rgb(79, 125, 255)");
+  assert.equal(audit.primaryColor, "rgb(8, 9, 12)");
+  assert.ok(audit.positiveColors.length > 0, `${label} must expose at least one positive/healthy state`);
+  assert.ok(audit.positiveColors.every((color) => color === "rgb(111, 150, 255)"), `${label} positive/healthy states must use cobalt instead of green: ${audit.positiveColors.join(", ")}`);
   for (const item of audit.local) {
     assert.equal(item.deltaX, 0, `${label} ${item.selector} must not overflow horizontally`);
     assert.ok(item.deltaY <= 1, `${label} ${item.selector} must not clip vertically`);
@@ -535,7 +572,7 @@ try {
   assert.deepEqual(consoleErrors, [], "Dashboard interactions must not emit console errors");
   assert.deepEqual(runtimeErrors, [], "Dashboard interactions must not throw runtime exceptions");
   assert.deepEqual(networkErrors, [], "Dashboard interactions must not fail required network requests");
-  console.log("dashboard-oa-interaction-regression: desktop, short-laptop, mobile, navigation, search, ranges, evidence actions, account controls, visual tokens, and cleanup passed");
+  console.log("dashboard-oa-interaction-regression: desktop, short-laptop, mobile, navigation, search, ranges, evidence actions, account controls, Cobalt Market pixels, and cleanup passed");
 } finally {
   if (cdp) await Promise.race([cdp.send("Browser.close").catch(() => {}), sleep(500)]);
   cdp?.close();

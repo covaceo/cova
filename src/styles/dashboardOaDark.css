@@ -5,27 +5,27 @@
  * one accent, one motion vocabulary, and a 500 weight ceiling.
  */
 .oa-dashboard-app {
-  --oa-ink: #eee7dc;
-  --oa-page: #050505;
-  --oa-inset: #090908;
-  --oa-rail: #0c0c0b;
-  --oa-card: #11110f;
-  --oa-popover: #171612;
+  --oa-ink: #e8eeff;
+  --oa-page: #08090c;
+  --oa-inset: #0d0f14;
+  --oa-rail: #0d0f14;
+  --oa-card: #171a21;
+  --oa-popover: #2b303a;
   --oa-foreground: var(--oa-ink);
   --oa-border: color-mix(in srgb, var(--oa-ink) 14%, transparent);
   --oa-border-strong: color-mix(in srgb, var(--oa-ink) 22%, transparent);
   --oa-input: color-mix(in srgb, var(--oa-ink) 16%, transparent);
   --oa-hover: color-mix(in srgb, var(--oa-ink) 5%, transparent);
-  --oa-muted: rgba(232, 224, 211, 0.66);
-  --oa-quiet: rgba(232, 224, 211, 0.54);
-  --oa-primary: #bf8964;
-  --oa-primary-hover: #cc956d;
-  --oa-primary-foreground: #080706;
-  --oa-ring: #cc956d;
-  --oa-secondary: #171612;
-  --oa-success: #79d7b1;
-  --oa-danger: #f07d61;
-  --oa-warning: #d2a853;
+  --oa-muted: rgba(232, 238, 255, 0.68);
+  --oa-quiet: rgba(232, 238, 255, 0.56);
+  --oa-primary: #4f7dff;
+  --oa-primary-hover: #6f96ff;
+  --oa-primary-foreground: #08090c;
+  --oa-ring: #6f96ff;
+  --oa-secondary: #171a21;
+  --oa-positive: #6f96ff;
+  --oa-danger: #ff6578;
+  --oa-caution: var(--oa-muted);
   --oa-radius: 0.625rem;
   --oa-radius-2xl: calc(var(--oa-radius) * 1.8);
   --oa-radius-3xl: calc(var(--oa-radius) * 2.2);
@@ -44,8 +44,8 @@ html:has(.oa-dashboard-app),
 body:has(.oa-dashboard-app) {
   overflow-x: clip;
   color-scheme: dark;
-  color: #eee7dc !important;
-  background: #050505 !important;
+  color: #e8eeff !important;
+  background: #08090c !important;
 }
 
 body:has(.oa-dashboard-app)::before,
@@ -63,7 +63,7 @@ body:has(.oa-dashboard-app)::after,
 .oa-dashboard-app input:focus-visible {
   outline: none !important;
   outline-color: var(--oa-ring) !important;
-  box-shadow: 0 0 0 3px rgba(204, 149, 109, 0.5) !important;
+  box-shadow: 0 0 0 3px rgba(111, 150, 255, 0.5) !important;
 }
 
 .oa-dashboard-app .oa-dashboard-shell {
@@ -77,8 +77,6 @@ body:has(.oa-dashboard-app)::after,
   --desk-paper: var(--oa-foreground);
   --desk-muted: var(--oa-muted);
   --desk-faint: var(--oa-quiet);
-  --desk-copper: var(--oa-primary);
-  --desk-mint: var(--oa-success);
   --desk-danger: var(--oa-danger);
   min-height: 100vh;
   color: var(--oa-foreground);
@@ -256,7 +254,7 @@ body:has(.oa-dashboard-app)::after,
 }
 
 .oa-dashboard-app .oa-dashboard-shell .workspace-risk-status-copy svg {
-  color: var(--oa-success);
+  color: var(--oa-positive);
 }
 
 .oa-dashboard-app .oa-dashboard-shell .workspace-risk-status strong {
@@ -510,7 +508,7 @@ body:has(.oa-dashboard-app)::after,
 }
 
 .oa-dashboard-app .dashboard-summary-cell strong.positive {
-  color: var(--oa-success);
+  color: var(--oa-positive);
 }
 
 .oa-dashboard-app .dashboard-summary-cell strong.negative,
@@ -550,14 +548,14 @@ body:has(.oa-dashboard-app)::after,
 }
 
 .oa-dashboard-app .dashboard-summary-actions .dashboard-summary-primary {
-  border-color: color-mix(in srgb, var(--oa-primary) 78%, #6a442f) !important;
+  border-color: color-mix(in srgb, var(--oa-primary) 78%, var(--oa-page)) !important;
   color: var(--oa-primary-foreground) !important;
-  background: color-mix(in srgb, var(--oa-primary) 92%, #6a442f) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), inset 0 -1px 0 rgba(74, 42, 26, 0.34) !important;
+  background: var(--oa-primary) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), inset 0 -1px 0 rgba(8, 9, 12, 0.34) !important;
 }
 
 .oa-dashboard-app .dashboard-summary-actions .dashboard-summary-primary:hover {
-  border-color: color-mix(in srgb, var(--oa-primary-hover) 78%, #6a442f) !important;
+  border-color: color-mix(in srgb, var(--oa-primary-hover) 78%, var(--oa-page)) !important;
   background: var(--oa-primary-hover) !important;
 }
 
@@ -787,15 +785,8 @@ body:has(.oa-dashboard-app)::after,
   text-transform: capitalize;
 }
 
-.oa-dashboard-app .oa-watch-row > strong[class*="b9f5df"] {
-  color: var(--oa-muted) !important;
-  outline-color: var(--oa-muted) !important;
-}
-
-.oa-dashboard-app .oa-tone-positive,
-.oa-dashboard-app .text-emerald-300,
-.oa-dashboard-app .text-emerald-400 {
-  color: var(--oa-success) !important;
+.oa-dashboard-app .oa-tone-positive {
+  color: var(--oa-positive) !important;
 }
 
 .oa-dashboard-app .oa-tone-negative,
@@ -808,8 +799,12 @@ body:has(.oa-dashboard-app)::after,
   color: var(--oa-muted);
 }
 
-.oa-dashboard-app .text-amber-200 {
-  color: var(--oa-warning) !important;
+.oa-dashboard-app .oa-tone-caution {
+  color: var(--oa-caution) !important;
+}
+
+.oa-dashboard-app .oa-positive-fill {
+  background: var(--oa-primary) !important;
 }
 
 .oa-dashboard-app .oa-watch-inset {
@@ -863,12 +858,15 @@ body:has(.oa-dashboard-app)::after,
 }
 
 .oa-dashboard-app .dashboard-review-status-ready {
-  color: var(--oa-success) !important;
+  color: var(--oa-positive) !important;
 }
 
-.oa-dashboard-app .dashboard-review-status-caution,
+.oa-dashboard-app .dashboard-review-status-caution {
+  color: var(--oa-caution) !important;
+}
+
 .oa-dashboard-app .dashboard-review-status-locked {
-  color: var(--oa-warning) !important;
+  color: var(--oa-danger) !important;
 }
 
 .oa-dashboard-app .dashboard-review-disclosure {
@@ -966,7 +964,7 @@ body:has(.oa-dashboard-app)::after,
 }
 
 .oa-dashboard-app .workspace-top-header .operator-mobile-account-actions .cova-button-primary {
-  border-color: color-mix(in srgb, var(--oa-primary) 78%, #6a442f) !important;
+  border-color: color-mix(in srgb, var(--oa-primary) 78%, var(--oa-page)) !important;
   color: var(--oa-primary-foreground) !important;
   background: var(--oa-primary) !important;
 }
@@ -976,7 +974,7 @@ body:has(.oa-dashboard-app)::after,
 .oa-dashboard-app .workspace-top-header .operator-mobile-account-actions button:focus-visible {
   outline: none !important;
   outline-color: var(--oa-ring) !important;
-  box-shadow: 0 0 0 3px rgba(204, 149, 109, 0.5) !important;
+  box-shadow: 0 0 0 3px rgba(111, 150, 255, 0.5) !important;
 }
 
 @media (min-width: 1024px) {

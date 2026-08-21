@@ -11,8 +11,8 @@ export function ScoreExplanationStrip({ analysis }: { analysis: ReturnType<typeo
   const toneForImpact = {
     positive: {
       label: "Helping",
-      className: "border-emerald-300/20 bg-emerald-400/10 text-emerald-200",
-      dot: "bg-emerald-300",
+      className: "border-[#4f7dff]/24 bg-[#4f7dff]/10 text-[#6f96ff]",
+      dot: "bg-[#6f96ff]",
     },
     negative: {
       label: "Hurting",
@@ -37,7 +37,7 @@ export function ScoreExplanationStrip({ analysis }: { analysis: ReturnType<typeo
       <div className="grid gap-5 xl:grid-cols-[0.74fr_1.26fr] xl:items-stretch">
         <div className="rounded-[28px] border border-white/10 bg-black/24 p-5">
           <div className="flex flex-wrap items-center gap-3">
-            <span className="inline-flex items-center gap-2 rounded-full border border-[#18c887]/20 bg-[#18c887]/10 px-3 py-1.5 font-body text-xs text-[#b9f5df]">
+            <span className="inline-flex items-center gap-2 rounded-full border border-[#4f7dff]/24 bg-[#4f7dff]/10 px-3 py-1.5 font-body text-xs text-[#6f96ff]">
               <CircleDot className="h-3.5 w-3.5" />
               Score logic
             </span>
@@ -106,8 +106,8 @@ export function NextSessionBriefCard({ analysis, go }: { analysis: ReturnType<ty
     ready: {
       icon: ShieldCheck,
       label: "Within limits",
-      tone: "border-emerald-300/22 bg-emerald-400/10 text-emerald-200",
-      dot: "bg-emerald-300",
+      tone: "border-[#4f7dff]/24 bg-[#4f7dff]/10 text-[#6f96ff]",
+      dot: "bg-[#6f96ff]",
     },
   }[brief.status];
   const Icon = config.icon;
@@ -127,7 +127,7 @@ export function NextSessionBriefCard({ analysis, go }: { analysis: ReturnType<ty
               <span className={`h-2 w-2 rounded-full ${config.dot}`} />
               {config.label}
             </span>
-            <span className="font-body text-xs uppercase tracking-[0.22em] text-[#b9f5df]">Historical risk summary</span>
+            <span className="font-body text-xs uppercase tracking-[0.22em] text-white/68">Historical risk summary</span>
           </div>
           <h3 className="mt-5 max-w-2xl font-heading text-4xl italic leading-[1.02] tracking-normal md:text-5xl">
             {brief.headline}
@@ -143,7 +143,7 @@ export function NextSessionBriefCard({ analysis, go }: { analysis: ReturnType<ty
         <div className="grid gap-3">
           <div className="rounded-[28px] border border-white/10 bg-black/24 p-4">
             <div className="flex items-center gap-3">
-              <Icon className="h-5 w-5 text-[#18c887]" />
+              <Icon className="h-5 w-5 text-[#6f96ff]" />
               <p className="font-body text-xs uppercase tracking-[0.22em] text-white/42">Detected patterns</p>
             </div>
             <div className="mt-4 space-y-2">

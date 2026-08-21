@@ -274,7 +274,7 @@ async function desktopVisualState() {
   assert.match(focus.className, /workspace-sidebar-link/, "Tab from workspace search must reach a route control");
   assert.equal(focus.focusVisible, true, "workspace route must match :focus-visible during keyboard navigation");
   assert.equal(focus.outlineStyle, "none");
-  assert.match(focus.boxShadow, /rgba\(204, 149, 109, 0\.5\).*3px/, "OA dashboard focus must use the approved copper ring");
+  assert.match(focus.boxShadow, /rgba\(111, 150, 255, 0\.5\).*3px/, "OA dashboard focus must use the approved cobalt ring");
 
   const microcopy = await evaluate(`(() => ({
     account: getComputedStyle(document.querySelector('.workspace-account-copy small')).color,
@@ -285,12 +285,12 @@ async function desktopVisualState() {
     review: getComputedStyle(document.querySelector('.dashboard-review-disclosure')).color,
   }))()`);
   assert.deepEqual(microcopy, {
-    account: "rgba(232, 224, 211, 0.66)",
-    disclosure: "rgba(232, 224, 211, 0.54)",
-    range: "rgba(232, 224, 211, 0.66)",
-    summary: "rgba(232, 224, 211, 0.66)",
-    description: "rgba(232, 224, 211, 0.66)",
-    review: "rgba(232, 224, 211, 0.54)",
+    account: "rgba(232, 238, 255, 0.68)",
+    disclosure: "rgba(232, 238, 255, 0.56)",
+    range: "rgba(232, 238, 255, 0.68)",
+    summary: "rgba(232, 238, 255, 0.68)",
+    description: "rgba(232, 238, 255, 0.68)",
+    review: "rgba(232, 238, 255, 0.56)",
   });
   const reviewCopy = await evaluate("document.querySelector('.dashboard-workspace').innerText");
   assert.match(reviewCopy, /Reported P&L/i, "compiled Risk Desk must expose provider-neutral reported P&L");
@@ -331,7 +331,7 @@ async function collapsedWorkspace(width, height) {
   const toggleFocus = await evaluate(`(() => { const node = document.activeElement; const style = getComputedStyle(node); return { toggle: node.matches('.operator-mobile-menu-toggle'), focusVisible: node.matches(':focus-visible'), outline: style.outline, boxShadow: style.boxShadow, expanded: node.getAttribute('aria-expanded'), controls: node.getAttribute('aria-controls') }; })()`);
   assert.equal(toggleFocus.toggle, true, `${width}px keyboard order must reach the menu toggle`);
   assert.equal(toggleFocus.focusVisible, true);
-  assert.match(toggleFocus.boxShadow, /rgba\(204, 149, 109, 0\.5\).*3px/);
+  assert.match(toggleFocus.boxShadow, /rgba\(111, 150, 255, 0\.5\).*3px/);
   assert.equal(toggleFocus.expanded, "false");
   assert.equal(toggleFocus.controls, "operator-mobile-menu");
   const toggleRect = await evaluate(`(() => { const rect = document.querySelector('.operator-mobile-menu-toggle').getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; })()`);
@@ -364,10 +364,10 @@ async function collapsedWorkspace(width, height) {
   assert.equal(menu.currentText, "Dashboard");
   assert.ok(Number(menu.activeWeight) > Number(menu.inactiveWeight));
   assert.equal(menu.activeShadow, "none");
-  assert.equal(menu.activeBackground, "rgb(23, 22, 18)", "collapsed OA state must use the traveling neutral pill");
+  assert.equal(menu.activeBackground, "rgb(23, 26, 33)", "collapsed OA state must use the traveling neutral pill");
   assert.equal(menu.focusedCurrent, true);
   assert.equal(menu.focusVisible, true);
-  assert.match(menu.focusShadow, /rgba\(204, 149, 109, 0\.5\).*3px/);
+  assert.match(menu.focusShadow, /rgba\(111, 150, 255, 0\.5\).*3px/);
   assert.equal(menu.deleteVisible, true, `${width}px Delete account must remain visible`);
   assert.equal(menu.deleteHit, true, `${width}px Delete account must receive pointer hit testing`);
 
