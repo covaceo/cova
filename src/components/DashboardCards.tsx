@@ -13,7 +13,7 @@ export function MetricDock({ analysis }: { analysis: ReturnType<typeof analyze> 
       {metrics.map(([label, value]) => (
         <div className="border-b border-white/10 p-5 md:border-b-0 md:border-r last:border-r-0" key={label}>
           <p className="font-body text-sm text-white/62">{label}</p>
-          <p className={`mt-3 font-mono text-3xl ${String(value).startsWith("-") ? "text-red-400" : "text-[#18c887]"}`}>{value}</p>
+          <p className={`mt-3 font-mono text-3xl ${String(value).startsWith("-") ? "oa-tone-negative" : "oa-tone-positive"}`}>{value}</p>
         </div>
       ))}
     </div>
@@ -52,14 +52,14 @@ export function FlagStack({ analysis, onReviewRisk }: { analysis: ReturnType<typ
     label: status.rule.name,
     status: status.breached ? "Review" : "Good",
     summary: status.evidence[0] ?? status.summary,
-    tone: status.breached ? "text-red-400" : "text-emerald-400",
+    tone: status.breached ? "oa-tone-negative" : "oa-tone-positive",
   }));
   const behaviorItems = analysis.behaviorFlags.map((flag) => ({
     id: flag.id,
     label: flag.label,
     status: flag.severity === "critical" ? "Pause" : flag.severity === "warning" ? "Watch" : flag.severity === "positive" ? "Good" : "Review",
     summary: flag.evidence[0] ?? flag.summary,
-    tone: flag.severity === "critical" ? "text-red-300" : flag.severity === "warning" ? "text-amber-200" : flag.severity === "positive" ? "text-emerald-300" : "text-[#b9f5df]",
+    tone: flag.severity === "critical" ? "oa-tone-negative" : flag.severity === "warning" ? "oa-tone-caution" : flag.severity === "positive" ? "oa-tone-positive" : "oa-tone-neutral",
   }));
   const items = behaviorItems.length ? behaviorItems.slice(0, 3) : fallbackItems;
   return (
@@ -90,13 +90,13 @@ export function FlagStack({ analysis, onReviewRisk }: { analysis: ReturnType<typ
 export function SetupQuality({ analysis }: { analysis: ReturnType<typeof analyze> }) {
   return (
     <div className="liquid-glass rounded-[36px] p-7">
-      <p className="font-body text-xs uppercase tracking-[0.22em] text-[#18c887]">Setups</p>
+      <p className="oa-tone-positive font-body text-xs uppercase tracking-[0.22em]">Setups</p>
       <div className="mt-5 space-y-4">
         {analysis.bySetup.slice(0, 4).map((setup) => (
           <div className="grid grid-cols-[1fr_auto_auto] items-center gap-4 font-body text-sm" key={setup.name}>
             <span>{setup.name}</span>
             <span className="text-white/50">{setup.count} trades</span>
-            <span className={setup.pnl >= 0 ? "text-emerald-400" : "text-red-400"}>{setup.avgR.toFixed(2)}R</span>
+            <span className={setup.pnl >= 0 ? "oa-tone-positive" : "oa-tone-negative"}>{setup.avgR.toFixed(2)}R</span>
           </div>
         ))}
       </div>
@@ -108,15 +108,15 @@ export function MarketExposure({ analysis }: { analysis: ReturnType<typeof analy
   const max = Math.max(...analysis.byMarket.map((market) => market.count), 1);
   return (
     <div className="liquid-glass rounded-[36px] p-7">
-      <p className="font-body text-xs uppercase tracking-[0.22em] text-[#18c887]">Markets traded</p>
+      <p className="oa-tone-positive font-body text-xs uppercase tracking-[0.22em]">Markets traded</p>
       <div className="mt-6 space-y-5">
         {analysis.byMarket.map((market) => (
           <div className="grid grid-cols-[48px_1fr_80px] items-center gap-4" key={market.name}>
             <span className="font-body text-lg">{market.name}</span>
             <div className="h-2 overflow-hidden rounded-full bg-white/10">
-              <div className="h-full rounded-full bg-[#18c887]" style={{ width: `${(market.count / max) * 100}%` }} />
+              <div className="oa-positive-fill h-full rounded-full" style={{ width: `${(market.count / max) * 100}%` }} />
             </div>
-            <span className={market.pnl >= 0 ? "text-emerald-400" : "text-red-400"}>{formatMoney(market.pnl)}</span>
+            <span className={market.pnl >= 0 ? "oa-tone-positive" : "oa-tone-negative"}>{formatMoney(market.pnl)}</span>
           </div>
         ))}
       </div>
