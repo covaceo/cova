@@ -10,15 +10,16 @@ const releaseBrowserPath = join(root, "scripts", "release-browser-regression.mjs
 const ownedPreviewPath = join(root, "scripts", "owned-vite-preview.mjs");
 const authBrowserPath = join(root, "scripts", "auth-modal-browser-regression.mjs");
 const dashboardBrowserPath = join(root, "scripts", "dashboard-browser-regression.mjs");
-const cursorBrowserPath = join(root, "scripts", "custom-cursor-browser-audit.mjs");
+const nativeCursorBrowserPath = join(root, "scripts", "native-cursor-browser-audit.mjs");
 assert.equal(existsSync(releaseBrowserPath), true, "The canonical browser release gate must be self-contained in the repository.");
 assert.equal(existsSync(ownedPreviewPath), true, "The canonical release gate must ship its owned Vite preview child.");
 assert.equal(existsSync(authBrowserPath), true, "The short-mobile AuthSheet browser regression must ship in the repository.");
+assert.equal(existsSync(nativeCursorBrowserPath), true, "The native-cursor browser regression must ship in the repository.");
 const releaseBrowser = existsSync(releaseBrowserPath) ? readFileSync(releaseBrowserPath, "utf8") : "";
 const ownedPreview = existsSync(ownedPreviewPath) ? readFileSync(ownedPreviewPath, "utf8") : "";
 const authBrowser = existsSync(authBrowserPath) ? readFileSync(authBrowserPath, "utf8") : "";
 const dashboardBrowser = existsSync(dashboardBrowserPath) ? readFileSync(dashboardBrowserPath, "utf8") : "";
-const cursorBrowser = existsSync(cursorBrowserPath) ? readFileSync(cursorBrowserPath, "utf8") : "";
+const nativeCursorBrowser = existsSync(nativeCursorBrowserPath) ? readFileSync(nativeCursorBrowserPath, "utf8") : "";
 
 const workspace = read("src", "components", "WorkspaceSections.tsx");
 const workspaceShell = read("src", "components", "WorkspaceShell.tsx");
@@ -71,12 +72,11 @@ assert.match(releaseBrowser, /type:\s*"shutdown"[\s\S]*waitForPortClosed/, "The 
 assert.match(ownedPreview, /preview\([\s\S]*port:\s*0[\s\S]*strictPort:\s*true/, "The owned preview child must use an OS-selected strict port.");
 assert.match(ownedPreview, /process\.send[\s\S]*owned-preview-ready/, "The owned preview child must report readiness through IPC.");
 assert.match(ownedPreview, /server\?\.close|server\.close/, "The owned preview child must support graceful shutdown.");
-for (const chromeHarness of [mobileAudit, authBrowser, dashboardBrowser]) {
+for (const chromeHarness of [mobileAudit, authBrowser, dashboardBrowser, nativeCursorBrowser]) {
   assert.match(chromeHarness, /--remote-debugging-port=0/, "Chrome QA must request an OS-selected CDP port.");
   assert.match(chromeHarness, /DevToolsActivePort/, "Chrome QA must bind CDP through the spawned run's unique profile.");
 }
-assert.match(cursorBrowser, /allocateFreePort\(\)[\s\S]*?--remote-debugging-port=\$\{port\}/, "Cursor QA must retain its existing socket-allocated owned CDP port.");
-for (const chromeHarness of [mobileAudit, authBrowser, dashboardBrowser, cursorBrowser]) {
+for (const chromeHarness of [mobileAudit, authBrowser, dashboardBrowser, nativeCursorBrowser]) {
   assert.match(chromeHarness, /taskkill\.exe[\s\S]*?!error \|\| await waitForChromeExit/, "Windows Chrome cleanup must treat an already-exited owned PID as successful while still verifying process exit.");
 }
 assert.match(releaseBrowser, /taskkill\.exe[\s\S]*?!error \|\| await waitForPreviewExit/, "Windows preview cleanup must treat an already-exited owned PID as successful while still verifying process exit and port closure.");
@@ -187,7 +187,7 @@ assert.equal((marketingHero.match(/rating: 5,/g) ?? []).length, 3, "All three pe
 assert.match(marketingHero, /Cova turns imported trade history into retrospective summaries of behavior, performance, and rule adherence\./, "Homepage hero support copy should describe retrospective analysis without personalized advice.");
 assert.match(marketingHero, /See the[\s\S]*patterns[\s\S]*behind your risk\./, "Homepage hero should retain the original dark risk-pattern message.");
 assert.doesNotMatch(marketingHero, /market-hero-evidence-room/, "The apricot evidence-room treatment must not replace the homepage hero.");
-assert.match(ctaFooter, /cova-closing-section/, "The homepage must end with the dedicated peach closing CTA instead of a second product hero.");
+assert.match(ctaFooter, /cova-closing-section/, "The homepage must end with the dedicated closing CTA instead of a second product hero.");
 assert.match(ctaFooter, /One better decision at a time/, "The closing CTA must retain the approved decision-focused label.");
 assert.match(ctaFooter, /cova-closing-dock[\s\S]*cova-closing-dock-line[\s\S]*cova-closing-dock-tab[\s\S]*cova-closing-label/, "The closing CTA transition must use the approved engineered docking seam.");
 assert.match(ctaFooter, /Stop repeating the trade[\s\S]*that keeps costing you\./, "The closing CTA must retain the approved pain-first headline.");
@@ -198,17 +198,16 @@ assert.match(ctaFooter, /mailto:support@covadesk\.com/, "The normal site footer 
 assert.doesNotMatch(ctaFooter, /FooterPerformanceProof|cta-footer-dashboard|What people are saying|testimonial|review-card/i, "The closing CTA must not become a second hero with dashboard or testimonial content.");
 assert.doesNotMatch(ctaFooter, /<img\s/i, "The closing CTA must use the approved restrained grid treatment without a product screenshot.");
 assert.match(ctaFooter, /<span aria-hidden="true" className="cova-closing-grid" \/>/, "The closing CTA must expose a dedicated decorative texture layer.");
-assert.match(ctaDecorationCss, /background-image:\s*radial-gradient\(circle,/, "The closing CTA texture must use micro dots only.");
-assert.doesNotMatch(ctaDecorationCss, /background-image:\s*linear-gradient/, "The closing CTA must not restore horizontal or vertical grid lines.");
-assert.equal((ctaDecorationCss.match(/url\("\/cova-logo-minimal-black\.svg"\)/g) ?? []).length, 4, "Both Liquid Glass logo layers must use the exact Cova mark asset.");
-assert.doesNotMatch(ctaDecorationCss, /\bborder(?:-radius)?\s*:|box-shadow\s*:/, "The closing CTA must not restore the rejected circle, halo, or ring treatment.");
+assert.match(ctaFooter, /StructureFlowCollection[\s\S]*variant="structure-flow"[\s\S]*cova-closing-structure-flow/, "The closing CTA must mount the approved ThreeUI Structure Flow background.");
+assert.match(ctaDecorationCss, /\.cova-closing-structure-flow\s*\{[\s\S]*position:\s*absolute[\s\S]*inset:\s*0/, "Structure Flow must fill the existing closing background layer.");
+assert.doesNotMatch(ctaDecorationCss, /#f0bb91|cova-logo-minimal-black\.svg/, "The retired peach field and masked Cova logo must stay removed.");
 assert.match(ctaFooter, /openPassport[\s\S]*Explore Risk Passport/, "The homepage Passport action must open the real workspace rather than scroll backward to old proof.");
 assert.match(ctaFooter, /isSignedIn[\s\S]*Open dashboard[\s\S]*Sign up/, "Signed-in visitors must get a dashboard action while signed-out visitors get a conventional signup action.");
 assert.match(ctaFooter, /isSignedIn[\s\S]*Open Risk Passport[\s\S]*Explore Risk Passport/, "The Passport label must match the authenticated or public outcome.");
 assert.match(app, /function openPassport\(\)[\s\S]*if \(!isSignedIn\)[\s\S]*go\("passport"\);[\s\S]*openAuth\("login"\)/, "Unauthenticated Passport actions must preserve Passport as the post-auth destination.");
 assert.match(app, /<CtaFooter[\s\S]*?openPassport=\{openPassport\}/, "App must pass the real Passport flow into the closing CTA.");
 assert.match(app, /<CtaFooter[\s\S]*?isSignedIn=\{isSignedIn\}/, "App must pass authentication state into the closing CTA.");
-assert.match(indexCss, /\.cova-closing-section\s*\{[\s\S]*?#f0bb91/, "The approved closing CTA must retain its peach field.");
+assert.match(indexCss, /\.cova-closing-section\s*\{[\s\S]*?background:\s*#050607/, "The Structure Flow CTA must retain its dark field beneath the renderer.");
 assert.match(indexCss, /\.cova-closing-section\s*\{[\s\S]*?--cova-dock-depth:[\s\S]*?clip-path:\s*polygon/, "The closing CTA must interlock with the dark section through a clipped dock joint.");
 assert.match(indexCss, /\.cova-closing-dock-line\s*\{[\s\S]*?height:\s*1px[\s\S]*?background:/, "The dock joint must retain its restrained one-pixel registration keyline.");
 assert.match(indexCss, /\.cova-closing-section \.cova-closing-primary\.native-start-button\s*\{[\s\S]*?font-size:\s*0\.68rem/, "The desktop primary CTA label must remain readable without losing its restrained technical scale.");

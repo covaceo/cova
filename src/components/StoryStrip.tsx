@@ -55,18 +55,18 @@ export function StoryStrip() {
       <div className="relative z-10 mx-auto max-w-7xl">
         <div className="grid gap-10 lg:grid-cols-[0.78fr_1.22fr] lg:items-end">
           <div>
-            <p className="story-section-kicker font-body font-semibold uppercase tracking-[0.22em] text-[#b9f5df]">How Cova works</p>
+            <p className="story-section-kicker font-body font-semibold uppercase tracking-[0.22em] text-[#6f96ff]">How Cova works</p>
             <h2 className="mt-5 max-w-2xl font-body text-4xl font-semibold leading-[0.98] tracking-[-0.055em] text-white md:text-6xl">
               Import trades. Find the leak. Build proof.
             </h2>
           </div>
           <div className="trade-proof-summary-panel">
             <div>
-              <p className="font-body text-xs uppercase tracking-[0.2em] text-[#18c887]">Sample Risk Passport</p>
+              <p className="font-body text-xs uppercase tracking-[0.2em] text-[#6f96ff]">Sample Risk Passport</p>
               <h3 className="mt-3 font-body text-2xl font-semibold tracking-[-0.035em] text-white">Alex R. · Funded account review</h3>
             </div>
             <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              {[["Net P&L", "+$4,820", "text-emerald-300"], ["Rules kept", "74%", "text-emerald-300"], ["Risk score", "82", "text-white"]].map(([label, value, tone]) => (
+              {[["Net P&L", "+$4,820", "text-[#6f96ff]"], ["Rules kept", "74%", "text-[#6f96ff]"], ["Risk score", "82", "text-white"]].map(([label, value, tone]) => (
                 <div className="rounded-[22px] border border-white/10 bg-black/26 p-4" key={label}>
                   <span className="font-body text-xs uppercase tracking-[0.16em] text-white/38">{label}</span>
                   <strong className={`mt-2 block font-mono text-2xl ${tone}`}>{value}</strong>
@@ -74,10 +74,10 @@ export function StoryStrip() {
               ))}
             </div>
             <div className="mt-6 border-t border-white/10 pt-5">
-              <p className="font-body text-xs uppercase tracking-[0.22em] text-[#18c887]">What Cova caught</p>
+              <p className="font-body text-xs uppercase tracking-[0.22em] text-[#6f96ff]">What Cova caught</p>
               <div className="mt-4 grid gap-3">
                 {covaCaughtRows.map(([label, body]) => (
-                  <div className="grid gap-2 border-l border-[#18c887]/32 pl-4 md:grid-cols-[150px_1fr]" key={label}>
+                  <div className="grid gap-2 border-l border-[#4f7dff]/32 pl-4 md:grid-cols-[150px_1fr]" key={label}>
                     <strong className="font-body text-sm text-white/82">{label}</strong>
                     <span className="font-body text-sm leading-relaxed text-white/52">{body}</span>
                   </div>
@@ -113,17 +113,17 @@ function StoryStepRow({ frame, index }: { frame: StoryFrame; index: number }) {
     >
       <span className="trade-proof-step-index font-mono text-xs uppercase tracking-[0.18em] text-white/36">{frame.num}</span>
       <div className="trade-proof-step-operation">
-        <span className="trade-proof-step-icon grid h-10 w-10 place-items-center border border-[#18c887]/18 bg-[#18c887]/10 text-[#b9f5df]">
+        <span className="trade-proof-step-icon grid h-10 w-10 place-items-center border border-[#4f7dff]/20 bg-[#4f7dff]/10 text-[#e8eeff]">
           <frame.Icon className="h-4 w-4" />
         </span>
         <div>
-          <p className="font-body text-xs uppercase tracking-[0.2em] text-[#b9f5df]/70">{frame.eyebrow}</p>
+          <p className="font-body text-xs uppercase tracking-[0.2em] text-[#6f96ff]/78">{frame.eyebrow}</p>
           <h3 className="mt-2 font-body text-2xl font-semibold tracking-[-0.035em] text-white">{frame.title}</h3>
         </div>
       </div>
       <div className="trade-proof-step-output flex items-center justify-between gap-4">
         <span className="font-body text-sm text-white/58">{frame.metric}</span>
-        <ArrowRight className="h-4 w-4 text-[#18c887]" />
+        <ArrowRight className="h-4 w-4 text-[#6f96ff]" />
       </div>
     </motion.article>
   );

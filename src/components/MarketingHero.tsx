@@ -6,15 +6,15 @@ import {
   ChevronDown,
   ClipboardCheck,
   FileText,
-  Fingerprint,
-  Play,
   Repeat2,
   Settings,
   Target,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { StartFreeButton } from "./StartFreeButton";
+import { CovaDarkGlassSecondaryAction } from "./CovaDarkGlassSecondaryAction";
+import { CovaLiquidMetalSignupButton } from "./CovaLiquidMetalSignupButton";
+import { CovaRibbonField } from "./CovaRibbonField";
 
 export type MarketingSection = "dashboard" | "import";
 export type MarketingAuthMode = "signup";
@@ -134,10 +134,10 @@ export function Hero({ go, openAuth, isSignedIn }: HeroProps) {
 
   return (
     <section
-      className="market-hero relative flex min-h-[100dvh] overflow-hidden px-5 md:px-10 lg:px-[3.1rem]"
+      className="market-hero market-hero-threeui relative flex min-h-[100dvh] overflow-hidden px-5 md:px-10 lg:px-[3.1rem]"
     >
-      <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_75%_38%,rgba(24,200,135,0.13),transparent_38%),radial-gradient(ellipse_at_23%_58%,rgba(185,245,223,0.06),transparent_32%),linear-gradient(180deg,#020403_0%,#07110d_54%,#000_100%)]" />
-      <div className="absolute inset-0 z-[1] bg-[linear-gradient(90deg,rgba(0,0,0,0.98)_0%,rgba(0,0,0,0.72)_34%,rgba(0,0,0,0.2)_72%,rgba(0,0,0,0.46)_100%)]" />
+      <CovaRibbonField className="market-hero-ribbon" brightness={0.92} opacity={0.94} pointerAmount={0.72} smoothing={0.035} speed={0.78} />
+      <div className="absolute inset-0 z-[1] bg-[linear-gradient(90deg,rgba(3,5,11,0.99)_0%,rgba(3,5,11,0.78)_34%,rgba(3,5,11,0.12)_72%,rgba(3,5,11,0.42)_100%)]" />
       <div className="market-hero-grid absolute inset-0 z-[2]" />
       <div className="pointer-events-none absolute inset-x-0 bottom-[-1px] z-[5] h-64 bg-[linear-gradient(180deg,rgba(0,0,0,0)_0%,rgba(0,0,0,0.72)_62%,#000_100%)]" />
 
@@ -148,7 +148,7 @@ export function Hero({ go, openAuth, isSignedIn }: HeroProps) {
           animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
           transition={{ duration: 0.82, ease: [0.16, 1, 0.3, 1] }}
         >
-          <p className="market-hero-eyebrow font-body text-xs font-medium uppercase tracking-[0.28em] text-[#18c887] md:text-sm">
+          <p className="market-hero-eyebrow font-body text-xs font-medium uppercase tracking-[0.28em] text-[#6f96ff] md:text-sm">
             Review what keeps happening
           </p>
 
@@ -161,20 +161,19 @@ export function Hero({ go, openAuth, isSignedIn }: HeroProps) {
             Cova turns imported trade history into retrospective summaries of behavior, performance, and rule adherence.
           </p>
 
-          <div className="market-hero-actions mt-8 flex flex-wrap items-center gap-5">
+          <div className="market-hero-actions mt-8 flex flex-wrap items-center gap-5" data-auth-state={isSignedIn ? "signed-in" : "signed-out"}>
             <span className="hero-primary-cta-wrap">
               {isSignedIn ? (
-                <StartFreeButton icon onClick={() => go("dashboard")}>Open dashboard</StartFreeButton>
+                <CovaLiquidMetalSignupButton text="Open dashboard" onClick={() => go("dashboard")} />
               ) : (
-                <StartFreeButton icon onClick={() => openAuth("signup")} />
+                <CovaLiquidMetalSignupButton text="Sign up" onClick={() => openAuth("signup")} />
               )}
             </span>
-            <button className="market-hero-action flex items-center gap-4 font-body text-base font-light text-white" onClick={isSignedIn ? () => go("import") : scrollHowItWorks} type="button">
-              <span className="market-play-dot grid place-items-center">
-                {isSignedIn ? <Fingerprint className="h-4 w-4 text-[#18c887]" /> : <Play className="h-4 w-4 fill-[#18c887] text-[#18c887]" />}
-              </span>
-              <span className="market-hero-action-label">{isSignedIn ? "Link account" : "See how it works"}</span>
-            </button>
+            <CovaDarkGlassSecondaryAction
+              icon={isSignedIn ? "fingerprint" : "play"}
+              label={isSignedIn ? "Link account" : "See how it works"}
+              onClick={isSignedIn ? () => go("import") : scrollHowItWorks}
+            />
           </div>
           <p className="market-hero-proof mt-5 font-body text-sm text-white/48">
             <span /> {isSignedIn ? "Dashboard ready" : "No credit card required."}
@@ -319,7 +318,7 @@ export function MarketingDashboardProof({ revealStats }: { revealStats: boolean 
               {heroMetrics.map(([label, value]) => (
                 <div className="hero-dashboard-metric" key={label}>
                   <span>{label}</span>
-                  <strong className={label === "Net P&L" || label === "Rules kept" ? "text-[#39e3a6]" : "text-white"}>{value}</strong>
+                  <strong className={label === "Net P&L" || label === "Rules kept" ? "text-[#6f96ff]" : "text-white"}>{value}</strong>
                 </div>
               ))}
             </div>
@@ -347,8 +346,8 @@ export function MarketingDashboardProof({ revealStats }: { revealStats: boolean 
                 {heroDashboardTrades.map(([market, side, pnl]) => (
                   <div className="hero-trade-row" key={`${market}-${pnl}`}>
                     <span>{market}</span>
-                    <span className={side === "Long" ? "text-[#39e3a6]" : side === "Short" ? "text-[#ff5f7b]" : "text-white/54"}>{side}</span>
-                    <strong className={pnl.startsWith("+") ? "text-[#39e3a6]" : pnl.startsWith("-") ? "text-[#ff5f7b]" : "text-white/48"}>{pnl}</strong>
+                    <span className={side === "Long" ? "text-[#6f96ff]" : side === "Short" ? "text-[#ff5f7b]" : "text-white/54"}>{side}</span>
+                    <strong className={pnl.startsWith("+") ? "text-[#6f96ff]" : pnl.startsWith("-") ? "text-[#ff5f7b]" : "text-white/48"}>{pnl}</strong>
                   </div>
                 ))}
               </div>

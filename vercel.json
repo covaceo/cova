@@ -19,7 +19,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; base-uri 'self'; connect-src 'self' https://*.supabase.co; font-src 'self' data:; form-action 'self'; frame-ancestors 'none'; frame-src 'none'; img-src 'self' data: blob:; media-src 'self' blob:; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:; upgrade-insecure-requests"
+          "value": "default-src 'self'; base-uri 'self'; connect-src 'self' https://*.supabase.co; font-src 'self' data:; form-action 'self'; frame-ancestors 'none'; frame-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; object-src 'none'; script-src 'self' 'sha256-IUltFc/qBR/2tws/5H6ogTySNGulhrGdjExmsgqQGFg=' 'sha256-K4+Unu+8g/8gRc2b3UGqjjjmR/ozoRo0jws1XKXvryU='; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:; upgrade-insecure-requests"
         },
         {
           "key": "Cross-Origin-Opener-Policy",

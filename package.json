@@ -7,7 +7,8 @@
     "dev": "vite --host 127.0.0.1",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "test": "npm run test:risk && npm run test:backtest && npm run test:practice-history && npm run test:practice-datafeed && npm run test:practice-architecture && npm run test:ui-content && npm run test:dashboard-shell && npm run test:dashboard-oa && npm run test:custom-cursor && npm run test:legal && npm run test:auth && npm run test:classic-auth && npm run test:api-security && npm run test:tradovate-capability && npm run test:rithmic && npm run test:rithmic-ui && npm run test:auth-email-requested-browser && npm run test:browser-release",
+    "test": "npm run test:risk && npm run test:backtest && npm run test:practice-history && npm run test:practice-datafeed && npm run test:practice-architecture && npm run test:ui-content && npm run test:dashboard-shell && npm run test:dashboard-oa && npm run test:native-cursor && npm run test:legal && npm run test:auth && npm run test:classic-auth && npm run test:api-security && npm run test:tradovate-capability && npm run test:rithmic && npm run test:rithmic-ui && npm run test:auth-email-requested-browser && npm run test:browser-release && npm run test:threeui-landing",
+    "test:threeui-landing": "node scripts/threeui-landing-regression.mjs",
     "test:risk": "node scripts/risk-regression.mjs",
     "test:backtest": "node scripts/backtest-regression.mjs",
     "test:practice-history": "node scripts/practice-history-regression.mjs",
@@ -17,7 +18,7 @@
     "test:dashboard-shell": "node scripts/dashboard-left-rail-regression.mjs",
     "test:dashboard-palette": "node scripts/dashboard-cobalt-palette-regression.mjs",
     "test:dashboard-oa": "npm run build && npm run test:dashboard-palette && node scripts/dashboard-oa-interaction-regression.mjs",
-    "test:custom-cursor": "node scripts/custom-cursor-regression.mjs",
+    "test:native-cursor": "node scripts/native-cursor-regression.mjs",
     "test:legal": "node scripts/legal-trust-regression.mjs",
     "test:auth": "node --test scripts/auth-regression.mjs",
     "test:classic-auth": "node --test scripts/classic-auth-regression.mjs",
@@ -28,12 +29,16 @@
     "test:auth-email-requested-browser": "node scripts/auth-email-requested-browser-regression.mjs",
     "test:browser-release": "npm run build && node scripts/release-browser-regression.mjs",
     "audit:mobile": "node scripts/mobile-audit.mjs",
-    "audit:custom-cursor": "node scripts/custom-cursor-browser-audit.mjs"
+    "audit:threeui-landing": "node scripts/threeui-landing-browser-audit.mjs",
+    "audit:lower-landing": "node scripts/lower-landing-browser-audit.mjs",
+    "audit:native-cursor": "node scripts/native-cursor-browser-audit.mjs"
   },
   "dependencies": {
+    "@fontsource-variable/bricolage-grotesque": "^5.3.0",
     "@fontsource-variable/geist-mono": "^5.3.0",
     "@fontsource-variable/inter-tight": "^5.3.0",
     "@fontsource/barlow": "^5.3.0",
+    "@fontsource/dm-mono": "^5.3.0",
     "@fontsource/instrument-serif": "^5.3.0",
     "@fontsource/inter": "^5.3.0",
     "@fontsource/jetbrains-mono": "^5.3.0",
@@ -49,7 +54,8 @@
     "motion": "^12.23.24",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "three": "^0.185.1"
+    "three": "^0.185.1",
+    "three128": "npm:three@0.160.1"
   },
   "devDependencies": {
     "@types/react": "^18.3.23",

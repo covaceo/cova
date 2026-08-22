@@ -34,7 +34,7 @@ import { RouteFrame } from "./components/LayoutShell";
 import { AuthGate, AuthSheet } from "./components/AuthPanels";
 import { CommunityPage, FeaturesPage, PricingPage, ResourcesPage } from "./components/MarketingPages";
 import { PrivacyPage, SecurityPage, TermsPage } from "./components/LegalPages";
-import { CustomCursor } from "./components/CustomCursor";
+
 import { Coach, PASSPORT_PREFERENCES_STORAGE_KEY, Passport, PracticeLab, RulesEngine } from "./components/WorkspaceSections";
 import { Dashboard } from "./components/DashboardView";
 import { ImportDesk } from "./components/ImportDesk";
@@ -1043,7 +1043,6 @@ export default function App() {
     <div className={`min-h-screen bg-black text-white ${section === "dashboard" ? "oa-dashboard-app" : ""}`}>
       <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_70%_20%,rgba(255,255,255,0.055),transparent_30%),linear-gradient(180deg,#000,rgba(1,9,6,0.94))]" />
       <div className="pointer-events-none fixed inset-0 z-0 bg-grid opacity-70" />
-      <CustomCursor />
 
       {(section !== "practice" || !authSession) && (
         <Navbar
