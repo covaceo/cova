@@ -226,8 +226,9 @@ async function main() {
           });
           const hero = document.querySelector('.market-hero');
           const heroActions = document.querySelector('.market-hero-actions');
-          const heroPrimary = document.querySelector('.market-hero .native-start-button');
-          const heroSecondary = document.querySelector('.market-hero-action');
+          const heroPrimary = document.querySelector('.cova-liquid-metal-signup');
+          const heroSecondary = document.querySelector('.dark-glass-secondary');
+          const heroSecondaryLabel = heroSecondary?.querySelector('.dark-glass-secondary__label');
           const heroPrimaryRect = heroPrimary?.getBoundingClientRect();
           const heroSecondaryRect = heroSecondary?.getBoundingClientRect();
           const heroActionsRect = heroActions?.getBoundingClientRect();
@@ -261,13 +262,20 @@ async function main() {
               actionDirection: getComputedStyle(heroActions).flexDirection,
               actionsBottom: heroActionsRect?.bottom ?? null,
               reactionTop: reaction && getComputedStyle(reaction).display !== 'none' ? reactionRect?.top ?? null : null,
-              primary: { left: heroPrimaryRect.left, right: heroPrimaryRect.right, width: heroPrimaryRect.width },
+              overlaps: Math.min(heroPrimaryRect.right, heroSecondaryRect.right) > Math.max(heroPrimaryRect.left, heroSecondaryRect.left) && Math.min(heroPrimaryRect.bottom, heroSecondaryRect.bottom) > Math.max(heroPrimaryRect.top, heroSecondaryRect.top),
+              primary: {
+                left: heroPrimaryRect.left,
+                right: heroPrimaryRect.right,
+                width: heroPrimaryRect.width,
+                hit: heroPrimary.contains(document.elementFromPoint(heroPrimaryRect.left + heroPrimaryRect.width / 2, heroPrimaryRect.top + heroPrimaryRect.height / 2)),
+              },
               secondary: {
                 left: heroSecondaryRect.left,
                 right: heroSecondaryRect.right,
                 width: heroSecondaryRect.width,
                 color: getComputedStyle(heroSecondary).color,
-                text: heroSecondary.textContent?.trim() ?? '',
+                text: heroSecondaryLabel?.textContent?.trim() ?? '',
+                hit: heroSecondary.contains(document.elementFromPoint(heroSecondaryRect.left + heroSecondaryRect.width / 2, heroSecondaryRect.top + heroSecondaryRect.height / 2)),
               },
             } : null,
           };
@@ -278,7 +286,7 @@ async function main() {
       await writeFile(screenshotPath, Buffer.from(screenshot.data, "base64"));
       let actionOutcome = null;
       if (route.name === "overview" || route.name === "overview-auth") {
-        await cdp.send("Runtime.evaluate", { expression: `document.querySelector('.market-hero-action')?.click();` });
+        await cdp.send("Runtime.evaluate", { expression: `document.querySelector('.dark-glass-secondary')?.click();` });
         await sleep(900);
         const outcome = await cdp.send("Runtime.evaluate", {
           returnByValue: true,
@@ -497,14 +505,16 @@ async function main() {
       ...(result.name === "pricing" && result.recommendation?.cardOverflow !== "visible" ? ["pricing: recommendation tab is clipped by the Pro card"] : []),
       ...(result.name === "pricing" && (!result.recommendation?.fullyInViewport || !result.recommendation?.verticallyVisible || Math.abs(result.recommendation.rightDelta - (viewportWidth < 768 ? 14 : 24)) > 6) ? ["pricing: recommendation tab is not visibly aligned inside the Pro card's upper-right edge"] : []),
       ...(result.name === "pricing" && viewportWidth < 768 ? result.pricingActions.filter((action) => action.height < 44).map((action) => `pricing: “${action.label}” touch target is ${action.height.toFixed(2)}px tall`) : []),
-      ...(result.name === "overview" && result.hero?.secondary.text !== "See how it works" ? ["overview: original secondary CTA label is not visible"] : []),
+      ...(result.name === "overview" && result.hero?.secondary.text !== "See how it works" ? ["overview: approved Dark Glass secondary CTA label is not visible"] : []),
       ...(result.name === "overview" && (result.hero?.secondary.left < 0 || result.hero?.secondary.right > result.width) ? ["overview: secondary CTA overflows the viewport"] : []),
+      ...(result.name.startsWith("overview") && result.hero?.overlaps ? [`${result.name}: hero CTAs overlap`] : []),
+      ...(result.name.startsWith("overview") && result.hero && (!result.hero.primary.hit || !result.hero.secondary.hit) ? [`${result.name}: hero CTA physical hit identity failed`] : []),
       ...(result.name === "overview" && (result.actionOutcome?.hasAuthDialog || result.actionOutcome?.hash !== "#overview" || result.actionOutcome?.storyTop > result.height) ? ["overview: signed-out secondary CTA did not scroll to public proof"] : []),
       ...(result.name === "overview-auth" && (result.actionOutcome?.hasAuthDialog || result.actionOutcome?.hash !== "#import") ? ["overview-auth: signed-in secondary CTA did not preserve Import routing"] : []),
       ...(result.name.startsWith("overview") && viewportHeight <= 760 && result.hero?.actionsBottom > viewportHeight ? [`${result.name}: hero actions fall below the short desktop fold`] : []),
       ...(result.name.startsWith("overview") && result.hero?.reactionTop !== null && result.hero?.actionsBottom > result.hero?.reactionTop ? [`${result.name}: hero actions collide with the testimonial rail`] : []),
       ...(result.name === "overview" && !result.footer ? ["overview: approved closing CTA missing"] : []),
-      ...(result.name === "overview" && result.footer && result.footer.backgroundColor !== "rgb(240, 187, 145)" ? ["overview: approved peach background missing"] : []),
+      ...(result.name === "overview" && result.footer && result.footer.backgroundColor !== "rgb(5, 6, 7)" ? ["overview: approved Structure Flow background field missing"] : []),
       ...(result.name === "overview" && result.footer?.title !== "Stop repeating the trade that keeps costing you." ? ["overview: footer headline mismatch"] : []),
       ...(result.name === "overview" && (result.footer?.overflow ?? 0) > 1 ? [`overview: footer overflow ${result.footer.overflow}px`] : []),
       ...(result.name === "overview" && result.footer?.dashboardInside ? ["overview: dashboard duplicated inside closing CTA"] : []),

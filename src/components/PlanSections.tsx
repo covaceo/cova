@@ -2,6 +2,7 @@ import { motion } from "motion/react";
 import { ArrowUpRight, Check, X } from "lucide-react";
 import { GlassButton } from "./GlassButton";
 import { StartFreeButton } from "./StartFreeButton";
+import { StructureFlowCollection } from "./structureFlow/StructureFlowCollection";
 
 type PlanTier = "free" | "pro";
 type PlanRoute = "dashboard" | "import" | "passport";
@@ -164,6 +165,7 @@ export function CtaFooter({ go, isSignedIn, openAuth, openPassport }: { go: (sec
   return (
     <>
       <section aria-labelledby="cova-closing-title" className="cova-closing-section">
+        <StructureFlowCollection variant="structure-flow" className="cova-closing-structure-flow" />
         <span aria-hidden="true" className="cova-closing-grid" />
         <div className="cova-closing-dock">
           <span aria-hidden="true" className="cova-closing-dock-line" />

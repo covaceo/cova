@@ -1,9 +1,4 @@
 import { execFile, spawn } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-
-const cursorScreenshotDir = await mkdtemp(join(tmpdir(), "cova-cursor-release-"));
 
 const preview = spawn(process.execPath, ["scripts/owned-vite-preview.mjs"], {
   env: process.env,
@@ -111,14 +106,8 @@ try {
   });
   await runNode("scripts/dashboard-browser-regression.mjs");
   await runNode("scripts/auth-modal-browser-regression.mjs");
-  await runNode("scripts/custom-cursor-browser-audit.mjs", {
-    COVA_CURSOR_SCREENSHOT_DIR: cursorScreenshotDir,
-  });
-  console.log(`release-browser-regression: owned preview ${origin}; mobile, desktop, Dashboard lifecycle/accessibility, Practice transition, AuthSheet, and Windows cursor/performance checks passed`);
+  await runNode("scripts/native-cursor-browser-audit.mjs");
+  console.log(`release-browser-regression: owned preview ${origin}; mobile, desktop, Dashboard lifecycle/accessibility, Practice transition, AuthSheet, and native-cursor checks passed`);
 } finally {
-  try {
-    await terminatePreview();
-  } finally {
-    await rm(cursorScreenshotDir, { recursive: true, force: true });
-  }
+  await terminatePreview();
 }

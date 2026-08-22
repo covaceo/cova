@@ -6380,10 +6380,8 @@ body {
   overflow: hidden;
   margin-top: -1.5rem;
   padding: 7rem 1.5rem 6.75rem;
-  border-bottom: 1px solid rgba(22, 16, 12, 0.3);
-  background:
-    radial-gradient(circle at 50% 48%, rgba(198, 126, 76, 0.16), transparent 31rem),
-    #f0bb91;
+  border-bottom: 1px solid rgba(232, 238, 255, 0.12);
+  background: #050607;
   clip-path: polygon(
     0 var(--cova-dock-depth),
     calc(50% - var(--cova-dock-half)) var(--cova-dock-depth),
@@ -6394,55 +6392,49 @@ body {
     100% 100%,
     0 100%
   );
-  color: #090a0a;
+  color: #e8eeff;
 }
 
 .cova-closing-grid {
   position: absolute;
   inset: 0;
   z-index: -3;
-  content: "";
-  background-image: radial-gradient(circle, rgba(43, 27, 18, 0.16) 0 0.8px, transparent 1px);
-  background-position: center;
-  background-size: 18px 18px;
-  -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.16) 10%, rgba(0, 0, 0, 0.68) 24%, #000 39%, #000 61%, rgba(0, 0, 0, 0.68) 76%, rgba(0, 0, 0, 0.16) 90%, transparent 100%);
-  mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.16) 10%, rgba(0, 0, 0, 0.68) 24%, #000 39%, #000 61%, rgba(0, 0, 0, 0.68) 76%, rgba(0, 0, 0, 0.16) 90%, transparent 100%);
-  opacity: 0.62;
+  display: none;
   pointer-events: none;
 }
 
-.cova-closing-section::before {
+.structure-flow-collection-slot {
   position: absolute;
-  z-index: -2;
-  width: min(31rem, 76vw);
-  aspect-ratio: 1;
-  content: "";
-  background:
-    radial-gradient(circle at 27% 20%, rgba(255, 226, 204, 0.4) 0 5%, rgba(255, 217, 189, 0.1) 17%, transparent 39%),
-    linear-gradient(138deg, rgba(255, 226, 205, 0.19), rgba(255, 243, 233, 0.025) 46%, rgba(77, 43, 27, 0.22));
-  -webkit-mask: url("/cova-logo-minimal-black.svg") center / contain no-repeat;
-  mask: url("/cova-logo-minimal-black.svg") center / contain no-repeat;
-  opacity: 0.3;
-  filter:
-    drop-shadow(0 -1px 0 rgba(255, 225, 203, 0.22))
-    drop-shadow(0 16px 25px rgba(84, 48, 29, 0.16));
+  inset: 0;
+  z-index: -3;
+  pointer-events: none;
 }
 
-.cova-closing-section::after {
+.cova-closing-structure-flow {
   position: absolute;
-  z-index: -1;
-  width: min(31rem, 76vw);
-  aspect-ratio: 1;
-  content: "";
-  background: linear-gradient(145deg, rgba(119, 67, 41, 0.08), rgba(111, 62, 37, 0.06) 45%, rgba(66, 37, 23, 0.16));
-  -webkit-mask: url("/cova-logo-minimal-black.svg") center / contain no-repeat;
-  mask: url("/cova-logo-minimal-black.svg") center / contain no-repeat;
-  opacity: 0.72;
-  backdrop-filter: blur(11px) saturate(1.08);
-  -webkit-backdrop-filter: blur(11px) saturate(1.08);
-  filter:
-    drop-shadow(0 1px 0 rgba(72, 39, 24, 0.2))
-    drop-shadow(0 -1px 0 rgba(255, 225, 203, 0.18));
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background: #050607;
+  pointer-events: none;
+}
+
+.cova-closing-structure-flow canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.cova-closing-structure-flow[data-render-state="fallback"] {
+  background:
+    radial-gradient(ellipse at 50% 82%, rgba(232, 238, 255, 0.14), transparent 38%),
+    #050607;
+}
+
+.cova-closing-section::before,
+.cova-closing-section::after {
+  display: none;
+  content: none;
 }
 
 .cova-closing-content {
@@ -6465,13 +6457,13 @@ body {
 
 .cova-closing-dock-line {
   height: 1px;
-  background: rgba(84, 51, 32, 0.4);
+  background: rgba(232, 238, 255, 0.18);
 }
 
 .cova-closing-dock-tab {
   height: 100%;
   padding: 1px 1px 0;
-  background: rgba(84, 51, 32, 0.48);
+  background: rgba(232, 238, 255, 0.24);
   clip-path: polygon(
     var(--cova-dock-chamfer) 0,
     calc(100% - var(--cova-dock-chamfer)) 0,
@@ -6486,14 +6478,14 @@ body {
   align-items: center;
   justify-content: center;
   margin: 0;
-  background: #f0bb91;
+  background: rgba(5, 6, 7, 0.88);
   clip-path: polygon(
     var(--cova-dock-chamfer) 0,
     calc(100% - var(--cova-dock-chamfer)) 0,
     100% 100%,
     0 100%
   );
-  color: rgba(24, 17, 13, 0.72);
+  color: rgba(232, 238, 255, 0.68);
   font-family: var(--font-dashboard-ui);
   font-size: 0.62rem;
   font-weight: 600;
@@ -6504,7 +6496,7 @@ body {
 
 .cova-closing-title {
   margin: 0 auto;
-  color: #080909;
+  color: #e8eeff;
   font-family: "Inter", "Manrope", system-ui, sans-serif;
   font-size: clamp(3.45rem, 5.15vw, 5.25rem);
   font-weight: 600;
@@ -6519,7 +6511,7 @@ body {
 
 .cova-closing-summary {
   margin-top: 1.35rem;
-  color: rgba(20, 15, 12, 0.68);
+  color: rgba(232, 238, 255, 0.78);
   font-family: var(--font-dashboard-ui);
   font-size: 0.75rem;
   line-height: 1.5;
@@ -6537,11 +6529,11 @@ body {
   min-width: 8.65rem;
   min-height: 2.55rem;
   padding-inline: 0.9rem;
-  border: 1px solid #080909 !important;
+  border: 1px solid #e8eeff !important;
   border-radius: 4px !important;
-  background: #080909 !important;
-  color: #f8f4ef !important;
-  box-shadow: 4px 5px 0 rgba(62, 39, 25, 0.2) !important;
+  background: #e8eeff !important;
+  color: #08090c !important;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.34) !important;
   font-family: var(--font-dashboard-ui) !important;
   font-size: 0.68rem !important;
   font-weight: 650 !important;
@@ -6568,7 +6560,7 @@ body {
   gap: 0.45rem;
   padding: 0.2rem 0.35rem;
   border: 0;
-  color: rgba(17, 13, 10, 0.78);
+  color: rgba(232, 238, 255, 0.88);
   font-family: var(--font-dashboard-ui);
   font-size: 0.7rem;
   font-weight: 550;
@@ -6579,13 +6571,13 @@ body {
 }
 
 .cova-closing-secondary:hover {
-  color: #080909;
+  color: #e8eeff;
   transform: translateY(-1px);
 }
 
 .cova-closing-primary:focus-visible,
 .cova-closing-secondary:focus-visible {
-  outline: 2px solid #080909;
+  outline: 2px solid #6f96ff;
   outline-offset: 4px;
 }
 

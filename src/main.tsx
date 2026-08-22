@@ -1,7 +1,10 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import "@fontsource-variable/bricolage-grotesque";
 import "@fontsource-variable/inter-tight";
 import "@fontsource-variable/geist-mono";
+import "@fontsource/dm-mono/latin-400.css";
+import "@fontsource/dm-mono/latin-500.css";
 import "@fontsource/barlow/latin-300.css";
 import "@fontsource/barlow/latin-400.css";
 import "@fontsource/barlow/latin-500.css";
@@ -29,10 +32,10 @@ import "./styles/riskDeskVisualSystem.css";
 import "./styles/workspaceRouteRefinement.css";
 import "./styles/operatorDossierRevamp.css";
 import "./styles/dashboardLeftRailPreview.css";
-import "./styles/customCursor.css";
 import "./styles/backtestingLab.css";
 import "./styles/cobaltMarket.css";
 import "./styles/dashboardOaDark.css";
+import "./styles/threeUiLanding.css";
 
 if (navigator.platform.startsWith("Win")) {
   document.documentElement.classList.add("cova-platform-windows");
