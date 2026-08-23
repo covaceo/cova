@@ -2,6 +2,7 @@ import { motion } from "motion/react";
 import { ArrowUpRight, Check, X } from "lucide-react";
 import { GlassButton } from "./GlassButton";
 import { StartFreeButton } from "./StartFreeButton";
+import { FooterBrandOrbs } from "./FooterBrandOrbs";
 import { StructureFlowCollection } from "./structureFlow/StructureFlowCollection";
 
 type PlanTier = "free" | "pro";
@@ -202,6 +203,7 @@ export function CtaFooter({ go, isSignedIn, openAuth, openPassport }: { go: (sec
               <a href="mailto:support@covadesk.com">Support</a>
             </nav>
           </div>
+          <FooterBrandOrbs />
         </div>
       </footer>
     </>

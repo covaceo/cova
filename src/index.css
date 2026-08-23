@@ -6597,6 +6597,7 @@ body {
   width: min(100%, 80rem);
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 1rem;
   margin: 0 auto;
 }
@@ -6606,6 +6607,12 @@ body {
   display: flex;
   align-items: center;
   gap: 0.85rem;
+}
+
+.cova-site-footer-meta {
+  flex: 1 1 31rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .cova-site-footer-meta nav {
@@ -6641,6 +6648,65 @@ body {
 .cova-site-footer-meta a:focus-visible {
   outline: 2px solid #f0bb91;
   outline-offset: 2px;
+}
+
+.cova-site-footer-orbs {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.18rem;
+  margin-left: auto;
+}
+
+.cova-site-footer-orb {
+  position: relative;
+  display: grid;
+  width: 1.75rem;
+  height: 1.75rem;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  overflow: hidden;
+  text-decoration: none;
+  transition:
+    filter 180ms ease,
+    transform 180ms ease;
+}
+
+.cova-site-footer-orb:hover {
+  filter: brightness(1.16);
+  transform: translateY(-2px);
+}
+
+.cova-site-footer-orb:focus-visible {
+  outline: 2px solid #6f96ff;
+  outline-offset: 3px;
+}
+
+.cova-site-footer-orb iframe,
+.cova-site-footer-orb-placeholder {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  pointer-events: none;
+}
+
+.cova-site-footer-orb-placeholder {
+  background:
+    radial-gradient(circle at 50% 50%, rgba(232, 238, 255, 0.42) 0 1px, transparent 1.5px),
+    #050608;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cova-site-footer-orb,
+  .cova-site-footer-orb:hover {
+    transition: none;
+    transform: none;
+  }
 }
 
 @media (max-width: 700px) {
@@ -6705,12 +6771,19 @@ body {
   }
 
   .cova-site-footer-meta {
+    width: 100%;
     align-items: flex-start;
+    flex: 0 1 auto;
     flex-direction: column;
     gap: 0.25rem;
+    justify-content: flex-start;
   }
 
   .cova-site-footer-meta nav::before {
     display: none;
+  }
+
+  .cova-site-footer-orbs {
+    margin-left: 0;
   }
 }
