@@ -14,7 +14,7 @@ const read = async (path) => {
   }
 };
 
-const [packageJson, app, hero, intro, ribbon, shaders, liquidButton, liquidSource, liquidLicense, darkGlassAction, startFreeButton, css, main, vercelConfig, planSections, storyStrip, indexCss, structureCollection, structureBackground, structureRenderer, structureLicense] = await Promise.all([
+const [packageJson, app, hero, intro, ribbon, shaders, liquidButton, liquidSource, liquidLicense, darkGlassAction, startFreeButton, css, main, vercelConfig, planSections, storyStrip, indexCss, structureCollection, structureBackground, structureRenderer, structureLicense, footerBrandOrbs, brandOrbs, brandOrbsSource, brandOrbsControls, brandOrbsLicense] = await Promise.all([
   read("package.json"),
   read("src/App.tsx"),
   read("src/components/MarketingHero.tsx"),
@@ -36,6 +36,11 @@ const [packageJson, app, hero, intro, ribbon, shaders, liquidButton, liquidSourc
   read("src/components/structureFlow/StructureFlowBackground.tsx"),
   read("src/components/structureFlow/structureFlowRenderer.ts"),
   read("src/components/structureFlow/THIRD_PARTY_LICENSE.md"),
+  read("src/components/FooterBrandOrbs.tsx"),
+  read("src/components/brandOrbs/BrandOrbs.tsx"),
+  read("src/components/brandOrbs/brand-orbs-v2.html"),
+  read("src/components/brandOrbs/brand-orbs-controls.js"),
+  read("src/components/brandOrbs/THIRD_PARTY_LICENSE.md"),
 ]);
 
 assert.match(packageJson, /"test":\s*"[^"]*test:threeui-landing/, "Aggregate test must include the ThreeUI landing contract.");
@@ -153,6 +158,50 @@ assert.match(structureRenderer, /import \* as THREE from "three128"/);
 assert.doesNotMatch(`${structureCollection}\n${structureBackground}\n${structureRenderer}`, /iframe|threeui\.com/);
 assert.match(structureLicense, /MIT License/);
 assert.match(structureLicense, /Structure Flow|ThreeUI|Meng To/i);
+
+assert.match(planSections, /import \{ FooterBrandOrbs \} from "\.\/FooterBrandOrbs";/);
+assert.match(planSections, /<FooterBrandOrbs \/>/);
+assert.match(footerBrandOrbs, /lazy\(\(\) =>[\s\S]*import\("\.\/brandOrbs\/BrandOrbs"\)/, "The authored orb engine must stay out of the initial landing bundle.");
+assert.match(footerBrandOrbs, /rootMargin:\s*"480px 0px"/, "Brand Orbs should mount only as the footer approaches the viewport.");
+assert.equal((footerBrandOrbs.match(/<BrandOrbs/g) ?? []).length, 2, "The footer must render only the requested X and Instagram Brand Orbs.");
+for (const variant of ["x", "instagram"]) {
+  assert.match(footerBrandOrbs, new RegExp(`<BrandOrbs[^>]*variant="${variant}"[^>]*size="small"`), `Missing the compact ${variant} Brand Orb.`);
+}
+assert.doesNotMatch(footerBrandOrbs, /variant="email"|Email Cova support|mailto:support@covadesk\.com/, "The duplicate Email Brand Orb must stay removed.");
+assert.match(footerBrandOrbs, /href="https:\/\/x\.com\/covadesk"/);
+assert.match(footerBrandOrbs, /href="https:\/\/www\.instagram\.com\/covadesk\/"/);
+assert.match(planSections, /<a href="mailto:support@covadesk\.com">Support<\/a>/, "The existing footer Support mail link must remain available.");
+for (const label of ["Cova on X", "Cova on Instagram"]) {
+  assert.match(footerBrandOrbs, new RegExp(`ariaLabel="${label}"`), `Missing accessible footer label: ${label}`);
+}
+assert.match(brandOrbs, /brand-orbs-v2\.html\?raw/);
+assert.match(brandOrbs, /brand-orbs-controls\.js\?raw/);
+assert.match(brandOrbs, /sandbox="allow-scripts"/);
+assert.match(brandOrbs, /IntersectionObserver/);
+assert.match(brandOrbs, /visibilitychange/);
+assert.match(brandOrbsSource, /const reduced = matchMedia\("\(prefers-reduced-motion: reduce\)"\)\.matches/);
+assert.match(brandOrbsSource, /x:\s*\{\s*draw:\s*mk\(\{\s*key:\s*"x"/);
+assert.match(brandOrbsSource, /instagram:\s*\{\s*draw:\s*mk\(\{\s*key:\s*"instagram"/);
+assert.match(brandOrbsSource, /email:\s*\{\s*draw:\s*drawEmail/);
+assert.match(brandOrbsControls, /brand-orbs-controls/);
+assert.match(brandOrbsLicense, /Brand Orbs|ThreeUI|Meng To/i);
+assert.match(brandOrbsLicense, /Thinking Orbs|Jakub Antalik/i);
+assert.match(brandOrbsLicense, /ThreeUI Community MIT license[\s\S]*Copyright \(c\) 2026 Meng To/);
+assert.match(brandOrbsLicense, /Thinking Orbs MIT license[\s\S]*Copyright \(c\) 2026 Jakub Antalik/);
+const brandOrbSourceScripts = [...brandOrbsSource.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].map((match) => match[1]);
+const brandOrbEngine = (brandOrbSourceScripts[brandOrbSourceScripts.length - 1] ?? "")
+  .replace(/<\/script/gi, "<\\/script")
+  .replace(
+    "if (document.visibilityState !== \"hidden\")",
+    "if (document.visibilityState !== \"hidden\" && !window.__BRAND_ORB_PAUSED)",
+  );
+for (const scriptBody of [brandOrbsControls, brandOrbEngine]) {
+  const browserNormalizedBody = scriptBody.replace(/\r\n?/g, "\n");
+  const hash = createHash("sha256").update(browserNormalizedBody).digest("base64");
+  assert.match(vercelConfig, new RegExp(`'sha256-${hash.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}'`), "Deployment CSP must allow only the exact reviewed Brand Orbs script bodies.");
+}
+assert.match(indexCss, /@media \(max-width: 700px\)[\s\S]*\.cova-site-footer-meta\s*\{[\s\S]*flex:\s*0 1 auto;/, "The desktop footer flex basis must not become 31rem of dead vertical space on mobile.");
+assert.match(indexCss, /\.cova-site-footer-orb\s*\{[\s\S]*width:\s*1\.75rem;[\s\S]*height:\s*1\.75rem;/, "Footer Brand Orb hit targets must stay compact beside the footer words.");
 
 assert.doesNotMatch(storyStrip, /#18c887|#b9f5df|text-emerald/i, "How Cova Works must not retain legacy green.");
 assert.match(storyStrip, /#4f7dff|#6f96ff/);
