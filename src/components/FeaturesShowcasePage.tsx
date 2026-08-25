@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -15,6 +15,13 @@ type Section = "overview" | "features" | "pricing" | "resources" | "community" |
 type AuthMode = "login" | "signup";
 type FeatureId = "trade-journal" | "risk-review" | "limits" | "insights" | "passport";
 type FeatureIcon = typeof Gauge;
+
+const OA_LAYOUT_SPRING = { type: "spring", stiffness: 550, damping: 40 } as const;
+const OA_PANEL_VARIANTS = {
+  enter: (direction: number) => ({ opacity: 0.88, x: direction * 12 }),
+  center: { opacity: 1, x: 0 },
+  exit: (direction: number) => ({ opacity: 0.92, x: direction * -12 }),
+};
 
 type FeatureSystem = {
   id: FeatureId;
@@ -257,8 +264,17 @@ function FeatureInstrument({ featureId }: { featureId: FeatureId }) {
 export function FeaturesPage({ go, openAuth }: { go: (section: Section) => void; openAuth: (mode: AuthMode) => void }) {
   const [activeId, setActiveId] = useState<FeatureId>("risk-review");
   const [compactTabs, setCompactTabs] = useState(() => typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches);
+  const reduceMotion = useReducedMotion();
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const activeFeature = featureSystems.find((feature) => feature.id === activeId) ?? featureSystems[1];
+  const activeIndex = featureSystems.indexOf(activeFeature);
+  const previousIndexRef = useRef(activeIndex);
+  const direction = activeIndex >= previousIndexRef.current ? 1 : -1;
+  const layoutTransition = reduceMotion ? { duration: 0 } : OA_LAYOUT_SPRING;
+
+  useEffect(() => {
+    previousIndexRef.current = activeIndex;
+  }, [activeIndex]);
 
   useEffect(() => {
     const query = window.matchMedia("(max-width: 767px)");
@@ -297,8 +313,6 @@ export function FeaturesPage({ go, openAuth }: { go: (section: Section) => void;
         </header>
 
         <div className="features-showcase-frame">
-          <span aria-hidden="true" className="features-frame-corner features-frame-corner-a" />
-          <span aria-hidden="true" className="features-frame-corner features-frame-corner-b" />
           <div className="features-showcase-layout">
             <nav className="features-system-rail" aria-label="Cova product systems" role="tablist" aria-orientation={compactTabs ? "horizontal" : "vertical"}>
               <div className="features-system-rail-heading"><span>System index</span><strong>05 modules</strong></div>
@@ -319,7 +333,15 @@ export function FeaturesPage({ go, openAuth }: { go: (section: Section) => void;
                     tabIndex={isActive ? 0 : -1}
                     type="button"
                   >
-                    <span>{String(index + 1).padStart(2, "0")}</span>
+                    {isActive && (
+                      <motion.span
+                        aria-hidden="true"
+                        className="features-system-tab-highlight"
+                        layoutId="features-oa-active-surface"
+                        transition={layoutTransition}
+                      />
+                    )}
+                    <span className="features-system-tab-index">{String(index + 1).padStart(2, "0")}</span>
                     <Icon aria-hidden="true" />
                     <strong>{feature.label}</strong>
                   </button>
@@ -336,14 +358,16 @@ export function FeaturesPage({ go, openAuth }: { go: (section: Section) => void;
               role="tabpanel"
               tabIndex={0}
             >
-              <AnimatePresence initial={false} mode="wait">
+              <AnimatePresence custom={direction} initial={false} mode="popLayout">
                 <motion.div
-                  animate={{ opacity: 1, x: 0 }}
+                  animate="center"
                   className="features-instrument-transition"
-                  exit={{ opacity: 0.5, x: -8 }}
-                  initial={{ opacity: 0.5, x: 8 }}
+                  custom={direction}
+                  exit={reduceMotion ? undefined : "exit"}
+                  initial={reduceMotion ? false : "enter"}
                   key={activeFeature.id}
-                  transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                  transition={reduceMotion ? { duration: 0 } : { opacity: { duration: 0.12, ease: "easeOut" }, x: OA_LAYOUT_SPRING }}
+                  variants={OA_PANEL_VARIANTS}
                 >
                   <FeatureInstrument featureId={activeFeature.id} />
                 </motion.div>
