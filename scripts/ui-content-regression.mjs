@@ -261,7 +261,9 @@ assert.match(planSections, /currentPlan === "pro" \? \([\s\S]*?Pro active[\s\S]*
 assert.match(app, /function upgradeToPro\(\)[\s\S]*?const checkoutUrl = getProCheckoutUrl\(\);[\s\S]*?if \(!checkoutUrl && !isDemoPreviewEnabled\(\)\)[\s\S]*?Pro checkout is not open yet[\s\S]*?return;[\s\S]*?if \(!authSession\)/, "An unavailable production checkout must fail closed before asking a visitor to create an account.");
 assert.match(planSections, /proCheckoutAvailable[\s\S]*?Pro checkout opening soon/, "Pricing must visibly disclose when the advertised Pro checkout is not open.");
 assert.doesNotMatch(app, /maxActivePassports/, "Unused multi-Passport entitlements must not imply a management model that does not exist.");
-assert.match(marketingPages, /resource-action-card/, "Resources should provide actionable routes instead of static explainer cards.");
+assert.match(marketingPages, /export \{ ResourcesPage \} from "\.\/ResourcesQuickStartPage";/, "Resources should hand the launch-focused quick-start route to its dedicated owner.");
+assert.match(read("src/components/ResourcesQuickStartPage.tsx"), /Start with the trades you already have\./, "Resources should lead with the approved launch-focused headline.");
+assert.match(read("src/components/ResourcesQuickStartPage.tsx"), /Export your trades[\s\S]*Upload and check the file[\s\S]*Review the account[\s\S]*Set your limits[\s\S]*Export your Passport/, "Resources should provide the five-step quick-start path instead of a feature-card grid.");
 assert.doesNotMatch(marketingPages, /title: "OAuth sign-in"[\s\S]*?route: "oauth"/, "Resources must not route a generic OAuth explainer into the default TopstepX API-key flow.");
 assert.match(marketingPages, /https:\/\/discord\.gg\/B83Czu3pAf/, "Community should keep the verified permanent Discord invite.");
 assert.match(marketingPages, /Join Cova on Discord/, "Community should expose a direct Discord action.");

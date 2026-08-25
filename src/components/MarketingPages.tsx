@@ -1,19 +1,15 @@
 import {
   ArrowUpRight,
   BadgeCheck,
-  FileUp,
-  Fingerprint,
-  LockKeyhole,
   ShieldCheck,
   Target,
 } from "lucide-react";
-import { CsvExplainer } from "./CsvExplainer";
 import { GlassButton } from "./GlassButton";
 import { ImageAtmosphere, SectionShell } from "./LayoutShell";
 import { PlanStrip } from "./PlanSections";
-import { StartFreeButton } from "./StartFreeButton";
 
 export { FeaturesPage } from "./FeaturesShowcasePage";
+export { ResourcesPage } from "./ResourcesQuickStartPage";
 
 type Section = "overview" | "features" | "pricing" | "resources" | "community" | "dashboard" | "import" | "oauth" | "rules" | "coach" | "passport";
 type AuthMode = "login" | "signup";
@@ -40,68 +36,6 @@ export function PricingPage({ currentPlan, go, openAuth, proCheckoutAvailable, u
         </div>
       </section>
     </div>
-  );
-}
-
-export function ResourcesPage({ go, openAuth }: { go: (section: Section) => void; openAuth: (mode: AuthMode) => void }) {
-  const resourceCards = [
-    {
-      title: "Prop firm exports",
-      body: "TopstepX, Apex, Tradeify, MFFU, Rithmic, and Tradovate all need slightly different paths. Cova keeps the intake simple.",
-      Icon: FileUp,
-      action: "See import paths",
-      route: "import" as const,
-    },
-    {
-      title: "Connection workspace",
-      body: "CSV works today. Pro connector access appears only when a supported provider is configured; Cova never requests order access.",
-      Icon: LockKeyhole,
-      action: "Open connections workspace",
-      route: "import" as const,
-    },
-    {
-      title: "Risk Passport basics",
-      body: "The Passport is a shareable discipline summary. It is proof of process, not a trading signal.",
-      Icon: Fingerprint,
-      action: "Open Passport workspace",
-      route: "passport" as const,
-    },
-
-  ];
-
-  return (
-    <SectionShell
-      eyebrow="Resources"
-      title="Learn the cleanest way to get trades into Cova."
-      action={<StartFreeButton icon onClick={() => openAuth("signup")} />}
-      backdrop={<ImageAtmosphere src="/media/cova-story-frame-02.png" opacity="opacity-[0.28]" />}
-    >
-      <div className="grid gap-6 lg:grid-cols-[0.82fr_1.18fr]">
-        <div className="liquid-glass-strong rounded-[32px] p-5 md:rounded-[40px] md:p-8">
-          <FileUp className="h-10 w-10 text-[#18c887]" />
-          <h3 className="mt-8 font-body text-4xl font-semibold leading-[1.02] tracking-[-0.035em] text-white">Start with the export you already have.</h3>
-          <p className="mt-5 font-body font-light leading-relaxed text-white/58">Export trades or fills, download the CSV, then upload it for a column and row check before import.</p>
-          <div className="mt-7 border-t border-white/10 pt-6">
-            <CsvExplainer body="You do not need to understand the file. Cova checks the columns and warns you before importing rows." steps={["Find trades or fills", "Download the CSV", "Upload and review"]} />
-          </div>
-          <div className="mt-8">
-            <GlassButton strong onClick={() => go("import")}>Open CSV import <ArrowUpRight className="h-4 w-4" /></GlassButton>
-          </div>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          {resourceCards.map(({ title, body, Icon, action, route }) => (
-            <button className="resource-action-card liquid-glass motion-surface group rounded-[28px] p-5 text-left md:rounded-[32px] md:p-6" key={title} onClick={() => go(route)} type="button">
-              <Icon className="h-7 w-7 text-[#b9f5df]" />
-              <h3 className="mt-5 font-body text-xl font-semibold text-white">{title}</h3>
-              <p className="mt-3 font-body text-sm font-light leading-relaxed text-white/54">{body}</p>
-              <span className="mt-6 inline-flex items-center gap-2 font-body text-sm font-medium text-[#b9f5df]">{action} <ArrowUpRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" /></span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-    </SectionShell>
   );
 }
 

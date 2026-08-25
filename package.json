@@ -11,6 +11,7 @@
     "test:threeui-landing": "node scripts/threeui-landing-regression.mjs",
     "test:features-showcase": "node scripts/features-showcase-regression.mjs",
     "test:features-showcase-browser": "npm run build && node scripts/features-showcase-browser-regression.mjs",
+    "test:resources-quickstart": "node scripts/resources-quickstart-regression.mjs",
     "test:risk": "node scripts/risk-regression.mjs",
     "test:ui-content": "node scripts/ui-content-regression.mjs",
     "test:dashboard-shell": "node scripts/dashboard-left-rail-regression.mjs",
