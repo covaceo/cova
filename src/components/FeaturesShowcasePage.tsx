@@ -7,14 +7,13 @@ import {
   Fingerprint,
   Gauge,
   SlidersHorizontal,
-  Target,
 } from "lucide-react";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { StartFreeButton } from "./StartFreeButton";
 
-type Section = "overview" | "features" | "pricing" | "resources" | "community" | "dashboard" | "import" | "oauth" | "rules" | "coach" | "practice" | "passport";
+type Section = "overview" | "features" | "pricing" | "resources" | "community" | "dashboard" | "import" | "oauth" | "rules" | "coach" | "passport";
 type AuthMode = "login" | "signup";
-type FeatureId = "trade-journal" | "risk-review" | "limits" | "insights" | "practice" | "passport";
+type FeatureId = "trade-journal" | "risk-review" | "limits" | "insights" | "passport";
 type FeatureIcon = typeof Gauge;
 
 type FeatureSystem = {
@@ -74,17 +73,7 @@ const featureSystems = [
     trust: "Insights summarize reviewed history. They are not financial advice or trade calls.",
     Icon: ClipboardCheck,
   },
-  {
-    id: "practice",
-    label: "Practice",
-    route: "practice",
-    action: "Open Practice",
-    outcome: "Rehearse the setup without risking the account.",
-    summary: "Use Cova's desktop replay simulator to reveal a deterministic demo tape, record simulated executions, and review the session.",
-    evidence: ["Chart-first simulated execution", "Session stats and mistake review"],
-    trust: "The current replay is simulated demo data, not historical market data or live execution.",
-    Icon: Target,
-  },
+
   {
     id: "passport",
     label: "Passport",
@@ -236,34 +225,6 @@ function InsightsInstrument() {
   );
 }
 
-function PracticeInstrument() {
-  return (
-    <div className="features-instrument features-practice-instrument">
-      <InstrumentHeader label="SIMULATED DEMO" meta="NQ · SAMPLE TAPE" />
-      <div className="features-practice-workspace">
-        <div className="features-practice-chart">
-          <div className="features-practice-toolbar"><span>NQ 1m</span><span>VWAP</span><span>10:18:00</span></div>
-          <svg aria-hidden="true" viewBox="0 0 620 300" preserveAspectRatio="none">
-            <path className="features-practice-vwap" d="M0,192 C90,182 124,188 180,166 S284,148 340,154 S454,118 620,124" />
-            {[52, 94, 136, 178, 220, 262, 304, 346, 388, 430, 472, 514, 556].map((x, index) => {
-              const up = index % 3 !== 1;
-              const y = 205 - index * 8 + (index % 4) * 17;
-              return <g key={x} className={up ? 'features-candle-up' : 'features-candle-down'}><line x1={x} x2={x} y1={y - 28} y2={y + 36} /><rect x={x - 7} y={up ? y - 12 : y} width="14" height="24" /></g>;
-            })}
-          </svg>
-          <div className="features-practice-transport"><span>Bar 48 / 120</span><strong>PAUSED</strong><span>1×</span></div>
-        </div>
-        <aside className="features-practice-ticket">
-          <span>Simulated ticket</span>
-          <div><small>Quantity</small><strong>2</strong></div>
-          <div className="features-ticket-actions"><button type="button" tabIndex={-1}>Buy</button><button type="button" tabIndex={-1}>Sell</button></div>
-          <dl><div><dt>Practice balance</dt><dd>$50,000</dd></div><div><dt>Session P&L</dt><dd>+$180</dd></div><div><dt>Open position</dt><dd>Flat</dd></div></dl>
-        </aside>
-      </div>
-      <footer className="features-instrument-footer"><span>SIMULATED EXECUTION</span><span>Deterministic demo tape · not historical market data.</span></footer>
-    </div>
-  );
-}
 
 function PassportInstrument() {
   return (
@@ -289,7 +250,6 @@ function FeatureInstrument({ featureId }: { featureId: FeatureId }) {
   if (featureId === "trade-journal") return <TradeJournalInstrument />;
   if (featureId === "limits") return <LimitsInstrument />;
   if (featureId === "insights") return <InsightsInstrument />;
-  if (featureId === "practice") return <PracticeInstrument />;
   if (featureId === "passport") return <PassportInstrument />;
   return <RiskReviewInstrument />;
 }
@@ -331,7 +291,7 @@ export function FeaturesPage({ go, openAuth }: { go: (section: Section) => void;
         <header className="features-showcase-intro">
           <div>
             <h1><span>One account.</span> <em>One review system.</em></h1>
-            <p>Cova turns trade history into risk review, guardrails, practice, and proof.</p>
+            <p>Cova turns trade history into risk review, guardrails, insights, and proof.</p>
           </div>
           <StartFreeButton icon onClick={() => openAuth("signup")} />
         </header>
@@ -341,7 +301,7 @@ export function FeaturesPage({ go, openAuth }: { go: (section: Section) => void;
           <span aria-hidden="true" className="features-frame-corner features-frame-corner-b" />
           <div className="features-showcase-layout">
             <nav className="features-system-rail" aria-label="Cova product systems" role="tablist" aria-orientation={compactTabs ? "horizontal" : "vertical"}>
-              <div className="features-system-rail-heading"><span>System index</span><strong>06 modules</strong></div>
+              <div className="features-system-rail-heading"><span>System index</span><strong>05 modules</strong></div>
               {featureSystems.map((feature, index) => {
                 const isActive = activeFeature.id === feature.id;
                 const Icon = feature.Icon;

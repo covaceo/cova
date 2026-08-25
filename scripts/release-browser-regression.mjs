@@ -107,7 +107,7 @@ try {
   await runNode("scripts/dashboard-browser-regression.mjs");
   await runNode("scripts/auth-modal-browser-regression.mjs");
   await runNode("scripts/native-cursor-browser-audit.mjs");
-  console.log(`release-browser-regression: owned preview ${origin}; mobile, desktop, Dashboard lifecycle/accessibility, Practice transition, AuthSheet, and native-cursor checks passed`);
+  console.log(`release-browser-regression: owned preview ${origin}; mobile, desktop, Dashboard lifecycle/accessibility, AuthSheet, and native-cursor checks passed`);
 } finally {
   await terminatePreview();
 }

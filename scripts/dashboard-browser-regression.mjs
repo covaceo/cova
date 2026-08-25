@@ -298,7 +298,7 @@ async function desktopVisualState() {
 
   const scopedStateKey = await evaluate("Object.keys(localStorage).find((key) => key.startsWith('cova-react-risk-os-v2:'))");
   assert.ok(scopedStateKey, "authenticated preview must have an identity-scoped workspace state key");
-  await evaluate(`localStorage.setItem(${JSON.stringify(scopedStateKey)}, JSON.stringify({ trades: [], rules: [], practiceReps: [] }))`);
+  await evaluate(`localStorage.setItem(${JSON.stringify(scopedStateKey)}, JSON.stringify({ trades: [], rules: [] }))`);
   await cdp.send("Page.navigate", { url: `${origin}/?dashboardEmpty=${Date.now()}#dashboard` });
   await waitFor("document.querySelector('.dashboard-workspace') && document.querySelector('.dashboard-summary-strip')");
   const emptyReview = await evaluate(`(() => {
@@ -384,7 +384,7 @@ async function passportExportTruth() {
   await evaluate(`(() => { const key = 'cova-auth-session-v1'; const session = JSON.parse(localStorage.getItem(key)); localStorage.setItem(key, JSON.stringify({ ...session, plan: 'pro', subscriptionStatus: 'active' })); })()`);
   const scopedStateKey = await evaluate("Object.keys(localStorage).find((key) => key.startsWith('cova-react-risk-os-v2:'))");
   assert.ok(scopedStateKey, "Passport zero-score proof requires the identity-scoped workspace state key");
-  await evaluate(`localStorage.setItem(${JSON.stringify(scopedStateKey)}, JSON.stringify({ trades: [], rules: [], practiceReps: [] }))`);
+  await evaluate(`localStorage.setItem(${JSON.stringify(scopedStateKey)}, JSON.stringify({ trades: [], rules: [] }))`);
   await cdp.send("Page.navigate", { url: `${origin}/?dashboardPassportZero=${Date.now()}#passport` });
   await waitFor("document.querySelector('.passport-card-face') && [...document.querySelectorAll('.passport-mode-row')].some((button) => button.textContent.includes('Ghost'))", 30_000);
   await evaluate("[...document.querySelectorAll('.passport-mode-row')].find((button) => button.textContent.includes('Ghost')).click(); true");

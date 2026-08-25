@@ -634,7 +634,7 @@ export function AuthSheet({
                 <form onSubmit={submitCredentials}>
                   <p className="font-body text-xs font-semibold uppercase tracking-[0.2em] text-[#18c887]">{isSignup ? "New account" : "Welcome back"}</p>
                   <h2 className="mt-3 pr-10 font-body text-3xl font-semibold tracking-[-0.035em] text-white">{isSignup ? "Create your account" : "Sign in to Cova"}</h2>
-                  <p className="mt-3 font-body text-sm font-light leading-6 text-white/58">{isSignup ? "Create a free account to save imports, limits, review notes, and Practice history. No payment required." : "Enter your email and password to continue."}</p>
+                  <p className="mt-3 font-body text-sm font-light leading-6 text-white/58">{isSignup ? "Create a free account to save imports, limits, review notes, and Passport preferences. No payment required." : "Enter your email and password to continue."}</p>
 
                   <EmailField email={email} setEmail={setEmail} inputRef={emailInputRef} />
                   <PasswordField autoComplete={isSignup ? "new-password" : "current-password"} id="auth-password" label="Password" password={password} setPassword={setPassword} showPassword={showPassword} setShowPassword={setShowPassword} />

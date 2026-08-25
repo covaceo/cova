@@ -15,7 +15,7 @@ import { StartFreeButton } from "./StartFreeButton";
 
 export { FeaturesPage } from "./FeaturesShowcasePage";
 
-type Section = "overview" | "features" | "pricing" | "resources" | "community" | "dashboard" | "import" | "oauth" | "rules" | "coach" | "practice" | "passport";
+type Section = "overview" | "features" | "pricing" | "resources" | "community" | "dashboard" | "import" | "oauth" | "rules" | "coach" | "passport";
 type AuthMode = "login" | "signup";
 type PlanTier = "free" | "pro";
 const COVA_DISCORD_INVITE_URL = "https://discord.gg/B83Czu3pAf";
@@ -66,13 +66,7 @@ export function ResourcesPage({ go, openAuth }: { go: (section: Section) => void
       action: "Open Passport workspace",
       route: "passport" as const,
     },
-    {
-      title: "Backtesting scope",
-      body: "Open Cova's in-app replay simulator to drill a setup on a deterministic demo tape and record simulated executions automatically. This preview is not historical market data.",
-      Icon: Target,
-      action: "Open Practice workspace",
-      route: "practice" as const,
-    },
+
   ];
 
   return (

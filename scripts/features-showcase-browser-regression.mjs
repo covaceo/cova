@@ -103,7 +103,7 @@ async function navigate(label) {
   await waitFor("document.readyState === 'complete'");
   await evaluate("document.fonts.ready");
   await waitFor("document.querySelector('[data-features-showcase]')");
-  await waitFor("document.querySelectorAll('[role=tab]').length === 6");
+  await waitFor("document.querySelectorAll('[role=tab]').length === 5");
   await sleep(420);
 }
 

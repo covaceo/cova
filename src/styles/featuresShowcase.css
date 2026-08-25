@@ -503,8 +503,7 @@
 .features-risk-metrics span,
 .features-limits-summary span,
 .features-insight-grid span,
-.features-passport-card span,
-.features-practice-ticket > span {
+.features-passport-card span {
   color: rgba(232, 238, 255, 0.4);
   font-family: var(--features-tech);
   font-size: 0.56rem;
@@ -908,167 +907,6 @@
   font-weight: 570;
 }
 
-/* Practice */
-.features-practice-workspace {
-  display: grid;
-  min-height: 20rem;
-  flex: 1 1 auto;
-  grid-template-columns: minmax(0, 1.85fr) minmax(10rem, 0.65fr);
-}
-
-.features-practice-chart {
-  position: relative;
-  min-width: 0;
-  overflow: hidden;
-  border-right: 1px solid var(--features-line);
-  background:
-    linear-gradient(rgba(232, 238, 255, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(232, 238, 255, 0.045) 1px, transparent 1px),
-    #0b0e13;
-  background-size: 100% 20%, 12.5% 100%, auto;
-}
-
-.features-practice-toolbar,
-.features-practice-transport {
-  position: absolute;
-  right: 0;
-  left: 0;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.6rem 0.75rem;
-  background: rgba(8, 9, 12, 0.88);
-  color: rgba(232, 238, 255, 0.45);
-  font-family: var(--features-tech);
-  font-size: 0.52rem;
-  letter-spacing: 0.06em;
-}
-
-.features-practice-toolbar {
-  top: 0;
-  border-bottom: 1px solid var(--features-line);
-}
-
-.features-practice-transport {
-  bottom: 0;
-  border-top: 1px solid var(--features-line);
-}
-
-.features-practice-transport strong {
-  color: var(--features-cobalt-bright);
-  font-weight: 500;
-}
-
-.features-practice-chart svg {
-  position: absolute;
-  inset: 2.5rem 0 2.35rem;
-  width: 100%;
-  height: calc(100% - 4.85rem);
-}
-
-.features-practice-vwap {
-  fill: none;
-  stroke: rgba(232, 238, 255, 0.3);
-  stroke-dasharray: 5 5;
-  stroke-width: 1;
-  vector-effect: non-scaling-stroke;
-}
-
-.features-candle-up,
-.features-candle-down {
-  stroke-width: 1.2;
-  vector-effect: non-scaling-stroke;
-}
-
-.features-candle-up {
-  fill: rgba(79, 125, 255, 0.72);
-  stroke: var(--features-cobalt-bright);
-}
-
-.features-candle-down {
-  fill: rgba(255, 101, 120, 0.36);
-  stroke: var(--features-loss);
-}
-
-.features-practice-ticket {
-  display: flex;
-  flex-direction: column;
-  padding: 1rem;
-}
-
-.features-practice-ticket > span {
-  padding-bottom: 0.85rem;
-  border-bottom: 1px solid var(--features-line);
-}
-
-.features-practice-ticket > div:not(.features-ticket-actions) {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1rem 0;
-  border-bottom: 1px solid var(--features-line);
-}
-
-.features-practice-ticket small,
-.features-practice-ticket dt {
-  color: rgba(232, 238, 255, 0.4);
-  font-family: var(--features-tech);
-  font-size: 0.51rem;
-  font-weight: 400;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.features-practice-ticket strong {
-  font-family: var(--features-display);
-  font-size: 1.4rem;
-}
-
-.features-ticket-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.45rem;
-  padding: 0.85rem 0;
-  border-bottom: 1px solid var(--features-line);
-}
-
-.features-ticket-actions button {
-  min-height: 2.55rem;
-  border: 1px solid rgba(232, 238, 255, 0.18);
-  background: rgba(232, 238, 255, 0.035);
-  color: rgba(232, 238, 255, 0.7);
-  font-family: var(--features-ui);
-  font-size: 0.66rem;
-}
-
-.features-ticket-actions button:first-child {
-  border-color: rgba(111, 150, 255, 0.5);
-  color: var(--features-cobalt-bright);
-}
-
-.features-practice-ticket dl {
-  display: grid;
-  gap: 0;
-  margin: 0;
-}
-
-.features-practice-ticket dl div {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.6rem;
-  padding: 0.72rem 0;
-  border-bottom: 1px solid var(--features-line);
-}
-
-.features-practice-ticket dd {
-  margin: 0;
-  color: rgba(232, 238, 255, 0.72);
-  font-family: var(--features-tech);
-  font-size: 0.56rem;
-}
-
 /* Passport */
 .features-passport-card {
   position: relative;
@@ -1340,10 +1178,6 @@
     min-height: 13.7rem;
   }
 
-  .features-practice-workspace {
-    min-height: 15rem;
-  }
-
   .features-passport-card {
     min-height: 16rem;
     margin-block: 0.7rem;
@@ -1576,8 +1410,7 @@
   }
 
 
-  .features-risk-canvas,
-  .features-practice-workspace {
+  .features-risk-canvas {
     display: block;
   }
 
@@ -1628,30 +1461,6 @@
 
   .features-insight-action {
     margin: 0.75rem;
-  }
-
-  .features-practice-chart {
-    min-height: 19rem;
-    border-right: 0;
-    border-bottom: 1px solid var(--features-line);
-  }
-
-  .features-practice-ticket {
-    min-height: 13rem;
-  }
-
-  .features-practice-ticket dl {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .features-practice-ticket dl div {
-    display: grid;
-    gap: 0.35rem;
-    padding: 0.7rem 0.45rem;
-  }
-
-  .features-practice-ticket dl div + div {
-    border-left: 1px solid var(--features-line);
   }
 
   .features-passport-card {

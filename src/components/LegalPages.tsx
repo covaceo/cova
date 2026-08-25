@@ -120,13 +120,13 @@ export function PrivacyPage({ go }: LegalPageProps) {
   const sections: LegalSection[] = [
     {
       title: "Scope and operator",
-      body: <><p>This Privacy Policy explains how the Cova service, website, applications, and support channels collect, use, disclose, and protect personal information. Cova is operated by Rafael Lino, Founder and CEO of Cova, as an unincorporated product based in Manhattan, New York, USA. This Policy applies when you visit covadesk.com, import trade history, use Practice or Risk Passport features, contact support, or use an account or supported provider feature when one is available.</p><p className="mt-4">Cova is intended for adults and is not directed to anyone under 18.</p></>,
+      body: <><p>This Privacy Policy explains how the Cova service, website, applications, and support channels collect, use, disclose, and protect personal information. Cova is operated by Rafael Lino, Founder and CEO of Cova, as an unincorporated product based in Manhattan, New York, USA. This Policy applies when you visit covadesk.com, import trade history, use Risk Passport features, contact support, or use an account or supported provider feature when one is available.</p><p className="mt-4">Cova is intended for adults and is not directed to anyone under 18.</p></>,
     },
     {
       title: "Information we collect",
       body: <><p>The information Cova processes depends on the features you use:</p><LegalList>
         <li><strong className="font-medium text-white/82">Account and contact data:</strong> email address, authentication identifier, account plan, signup and policy-acceptance records, support messages, and account preferences.</li>
-        <li><strong className="font-medium text-white/82">Trading and journal data:</strong> CSV contents, trade dates, instruments, direction, quantity, entry and exit values, profit and loss, risk values, setup labels, notes, limits, review results, Passport settings, and simulated Practice activity.</li>
+        <li><strong className="font-medium text-white/82">Trading and journal data:</strong> CSV contents, trade dates, instruments, direction, quantity, entry and exit values, profit and loss, risk values, setup labels, notes, limits, review results, and Passport settings.</li>
         <li><strong className="font-medium text-white/82">Connected-account data, when a provider connection is enabled:</strong> provider username or account label, provider account identifiers, balances, fills, trades, statements, session tokens, provider-granted scope, and expiration information. Cova does not ask for broker passwords. Direct provider synchronization is not currently active in production; provider approval and connector verification remain pending.</li>
         <li><strong className="font-medium text-white/82">Technical data:</strong> IP address, request time, browser and device information, security events, cookie identifiers, and server logs generated when the service is requested.</li>
         <li><strong className="font-medium text-white/82">Billing data:</strong> plan and subscription status. When checkout is enabled, payment-card and billing details are collected by Stripe, not stored by Cova.</li>
@@ -138,7 +138,7 @@ export function PrivacyPage({ go }: LegalPageProps) {
     },
     {
       title: "How we use information",
-      body: <><p>Cova uses information to import and normalize trade history, calculate review metrics, display limits and retrospective insights, operate Practice and Passport features, provide support, prevent abuse, debug failures, secure the service, comply with law, and improve reliability. Authentication protects member access. Direct provider synchronization and paid checkout are used only when those features are configured and available.</p><p className="mt-4">Cova does not use connected-account access to place, modify, or cancel trades, withdraw funds, or manage brokerage settings.</p></>,
+      body: <><p>Cova uses information to import and normalize trade history, calculate review metrics, display limits and retrospective insights, operate Passport features, provide support, prevent abuse, debug failures, secure the service, comply with law, and improve reliability. Authentication protects member access. Direct provider synchronization and paid checkout are used only when those features are configured and available.</p><p className="mt-4">Cova does not use connected-account access to place, modify, or cancel trades, withdraw funds, or manage brokerage settings.</p></>,
     },
     {
       title: "How we share information",
@@ -146,11 +146,11 @@ export function PrivacyPage({ go }: LegalPageProps) {
     },
     {
       title: "Browser storage, cookies, and similar technology",
-      body: <><p>Cova uses first-party browser storage to preserve imported trades, rules, Practice activity, display preferences, and the essential Supabase member session on the device you use. When connector features are enabled, Secure, HttpOnly, SameSite connector cookies may also be used. These technologies support requested features, not advertising.</p><p className="mt-4">You can clear local browser data through Cova’s controls or your browser. Clearing storage may permanently remove locally stored journal and Practice information that has not been exported.</p></>,
+      body: <><p>Cova uses first-party browser storage to preserve imported trades, rules, display preferences, and the essential Supabase member session on the device you use. When connector features are enabled, Secure, HttpOnly, SameSite connector cookies may also be used. These technologies support requested features, not advertising.</p><p className="mt-4">You can clear local browser data through Cova’s controls or your browser. Clearing storage may permanently remove locally stored journal information that has not been exported.</p></>,
     },
     {
       title: "Data retention",
-      body: <><p>Locally stored trade, rule, Passport, and Practice data remains on the device until you remove it or clear browser storage. Account and authentication records are retained for the periods needed to provide member access, maintain security, satisfy legal obligations, or complete a verified deletion request. Connector records are retained only when a connector feature is enabled and requested.</p><p className="mt-4">Operational logs are retained according to configured security needs and the controls of Cova’s infrastructure providers. Cova keeps information only as long as reasonably necessary for the purposes described here.</p></>,
+      body: <><p>Locally stored trade, rule, and Passport data remains on the device until you remove it or clear browser storage. Account and authentication records are retained for the periods needed to provide member access, maintain security, satisfy legal obligations, or complete a verified deletion request. Connector records are retained only when a connector feature is enabled and requested.</p><p className="mt-4">Operational logs are retained according to configured security needs and the controls of Cova’s infrastructure providers. Cova keeps information only as long as reasonably necessary for the purposes described here.</p></>,
     },
     {
       title: "Security",
@@ -189,11 +189,11 @@ export function TermsPage({ go }: LegalPageProps) {
     },
     {
       title: "The Cova service",
-      body: <p>Cova provides tools for importing or synchronizing trade history, reviewing historical behavior, configuring personal review limits, practicing on simulated or demo data, generating retrospective insights, and creating Risk Passport images. Features, limits, beta services, and integrations may change, pause, or be discontinued. Cova does not promise continuous availability of any provider connection.</p>,
+      body: <p>Cova provides tools for importing or synchronizing trade history, reviewing historical behavior, configuring personal review limits, generating retrospective insights, and creating Risk Passport images. Features, limits, beta services, and integrations may change, pause, or be discontinued. Cova does not promise continuous availability of any provider connection.</p>,
     },
     {
       title: "Not financial advice",
-      body: <><p>Cova is an educational, journaling, review, and simulation tool. It does not provide investment, financial, legal, tax, brokerage, or fiduciary advice. Cova does not recommend whether, when, or how you should trade, and no score, limit, insight, Passport, simulation result, or community discussion is a trade signal or permission to use live capital.</p><p className="mt-4">Futures and leveraged trading involve substantial risk, including loss beyond expectations. You remain solely responsible for trading decisions, account rules, taxes, regulatory obligations, and verification of all calculations.</p></>,
+      body: <><p>Cova is an educational, journaling, and review tool. It does not provide investment, financial, legal, tax, brokerage, or fiduciary advice. Cova does not recommend whether, when, or how you should trade, and no score, limit, insight, Passport, or community discussion is a trade signal or permission to use live capital.</p><p className="mt-4">Futures and leveraged trading involve substantial risk, including loss beyond expectations. You remain solely responsible for trading decisions, account rules, taxes, regulatory obligations, and verification of all calculations.</p></>,
     },
     {
       title: "No execution or brokerage relationship",
@@ -212,8 +212,8 @@ export function TermsPage({ go }: LegalPageProps) {
       body: <p>Third-party providers control their own accounts, APIs, availability, scopes, pricing, and approval rules. Your use of those services remains subject to their terms. Cova may suspend a connector when approval, security, licensing, or technical requirements are unresolved. Cova is not responsible for third-party downtime, policy changes, data errors, account action, or loss caused by a third-party service.</p>,
     },
     {
-      title: "Practice, beta, and generated outputs",
-      body: <p>Practice features may use deterministic demo or simulated data and are not historical-market replay unless explicitly labeled otherwise. Beta connectors and previews may be incomplete or unavailable. Calculations, normalized trades, risk metrics, and generated text can contain errors. You must verify important information against original account records before relying on it.</p>,
+      title: "Beta features and generated outputs",
+      body: <p>Beta connectors and previews may be incomplete or unavailable. Calculations, normalized trades, risk metrics, and generated text can contain errors. You must verify important information against original account records before relying on it.</p>,
     },
     {
       title: "Subscriptions and billing",
@@ -272,7 +272,7 @@ export function SecurityPage({ go }: LegalPageProps) {
     },
     {
       title: "Local journal storage",
-      body: <p>Imported CSV trades, review limits, Passport preferences, and Practice activity are currently stored primarily in first-party browser storage on the user’s device. This reduces server-side collection, but means users should protect device access and export anything they need before clearing browser data. Cova account controls clear the local Cova data associated with the session.</p>,
+      body: <p>Imported CSV trades, review limits, and Passport preferences are currently stored primarily in first-party browser storage on the user’s device. This reduces server-side collection, but means users should protect device access and export anything they need before clearing browser data. Cova account controls clear the local Cova data associated with the session.</p>,
     },
     {
       title: "Infrastructure and access",

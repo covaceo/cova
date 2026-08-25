@@ -775,12 +775,7 @@ html.cova-platform-windows .header-scroll-veil {
 
 .operator-workspace .risk-command-center,
 .operator-workspace .risk-chart-panel,
-.operator-workspace .risk-stat-tile,
-.operator-workspace .practice-command-panel,
-.operator-workspace .practice-readiness-panel,
-.operator-workspace .practice-chart-panel,
-.operator-workspace .practice-setups-panel,
-.operator-workspace .practice-recent-panel {
+.operator-workspace .risk-stat-tile {
   border-radius: 5px !important;
   border-color: rgba(232, 224, 211, 0.12) !important;
   background:
@@ -789,7 +784,6 @@ html.cova-platform-windows .header-scroll-veil {
 }
 
 .operator-workspace .risk-command-center,
-.operator-workspace .practice-command-panel,
 .operator-workspace .rules-ledger-summary,
 .operator-workspace .source-primary-choice {
   border-left-color: var(--cova-copper) !important;

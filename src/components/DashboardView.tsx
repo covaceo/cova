@@ -9,7 +9,7 @@ import { RithmicAttribution } from "./RithmicAttribution";
 
 const DASHBOARD_RANGE_KEY = "cova-dashboard-range-v1";
 
-type Section = "overview" | "features" | "pricing" | "resources" | "community" | "dashboard" | "import" | "oauth" | "rules" | "coach" | "practice" | "passport";
+type Section = "overview" | "features" | "pricing" | "resources" | "community" | "dashboard" | "import" | "oauth" | "rules" | "coach" | "passport";
 type TimeRange = "today" | "week" | "all";
 
 const rangeOptions: { id: TimeRange; label: string }[] = [

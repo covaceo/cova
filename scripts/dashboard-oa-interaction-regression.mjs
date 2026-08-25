@@ -386,7 +386,7 @@ async function desktopInteractions() {
     const style = getComputedStyle(node); const rect = node.getBoundingClientRect();
     return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
   }).map((node) => node.tagName === 'INPUT' ? node.getAttribute('aria-label') : node.textContent.trim()))()`);
-  for (const expected of ["Search workspace", "Risk Desk", "Trade History", "Limits", "Insights", "Practice", "Passport", "Latest session", "Last 7 days", "All trades", "Manage source", "Open insights", "Delete account", "Sign out"]) {
+  for (const expected of ["Search workspace", "Risk Desk", "Trade History", "Limits", "Insights", "Passport", "Latest session", "Last 7 days", "All trades", "Manage source", "Open insights", "Delete account", "Sign out"]) {
     assert.ok(inventory.includes(expected) || inventory.some((item) => item.startsWith(expected)), `Desktop control inventory must include ${expected}`);
   }
 
@@ -412,7 +412,7 @@ async function desktopInteractions() {
   await goBack("#dashboard");
   await evaluate("document.querySelector('.workspace-sidebar-search input').focus(); document.querySelector('.workspace-sidebar-search input').select(); true");
   await press("Backspace", "Backspace");
-  await waitFor("document.querySelectorAll('.workspace-sidebar-link').length === 6");
+  await waitFor("document.querySelectorAll('.workspace-sidebar-link').length === 5");
 
   const navTargets = [
     ["Trade History", "#import"],
@@ -425,10 +425,6 @@ async function desktopInteractions() {
     await waitFor(`location.hash === ${JSON.stringify(hash)}`);
     await goBack("#dashboard");
   }
-  await clickSelector(".workspace-sidebar-link", "Practice");
-  await waitFor("location.hash === '#practice'");
-  await evaluate("history.back(); true");
-  await waitFor("location.hash === '#dashboard' && document.querySelector('.dashboard-workspace')");
 
   await clickSelector(".workspace-brand-button");
   assert.equal(await evaluate("location.hash"), "#dashboard");

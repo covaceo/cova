@@ -38,14 +38,14 @@ assert.equal(digest(story), "6a96146d9ac181a74dab8451232dc8c22ea5508f076c711007b
 assert.equal(digest(plans), "48c055862619c8fbd6df999af707be831b462852a89fc151ffcb0eed3d9fa400", "Pricing and footer source must remain byte-stable.");
 assert.equal(digest(landingCss), "51b71de958850cfbc73f0c40ac9fd342ba86d4938f34f7c90109c5896080cf4d", "The approved landing stylesheet must remain byte-stable.");
 const pricingTail = marketingPages.slice(marketingPages.indexOf("export function PricingPage"));
-assert.equal(digest(pricingTail), "d0448575f0ab4656acc8aedb39554833a78a7e422dd4c4de7c934429b13789c5", "Pricing, Resources, and Community must remain byte-stable while Features changes.");
+assert.equal(digest(pricingTail), "0edeababea018720c384ff315dc95863fac718ab4c576ef5dc1cb6d526395019", "Pricing, the updated Resources surface, and Community must remain byte-stable inside this candidate.");
 
 assert.match(marketingPages, /export \{ FeaturesPage \} from "\.\/FeaturesShowcasePage";/, "MarketingPages must hand Features to its dedicated approved owner.");
 assert.doesNotMatch(marketingPages, /featureGroups|FeatureActionCard|Everything a trader needs after the trade closes|Built for review/, "The retired generic Features card grid must leave source truth.");
 
 assert.match(features, /export function FeaturesPage/);
 assert.match(features, /One account\.[\s\S]*One review system\./);
-assert.match(features, /Cova turns trade history into risk review, guardrails, practice, and proof\./);
+assert.match(features, /Cova turns trade history into risk review, guardrails, insights, and proof\./);
 assert.match(features, /useState<FeatureId>\("risk-review"\)/, "Risk Review must be the default selected system from the approved concept.");
 assert.match(features, /role="tablist"/);
 assert.match(features, /aria-orientation=\{compactTabs \? "horizontal" : "vertical"\}/, "ARIA orientation must follow the rendered desktop/mobile selector axis.");
@@ -69,16 +69,14 @@ const expectedFeatures = [
   ["risk-review", "Risk Review", "dashboard", "Review account"],
   ["limits", "Limits", "rules", "Set limits"],
   ["insights", "Insights", "coach", "See insights"],
-  ["practice", "Practice", "practice", "Open Practice"],
   ["passport", "Passport", "passport", "Open Passport"],
 ];
 for (const [id, label, route, action] of expectedFeatures) {
   assert.match(features, new RegExp(`id: "${id}"[\\s\\S]*label: "${label}"[\\s\\S]*route: "${route}"[\\s\\S]*action: "${action}"`), `Missing approved feature wiring for ${label}.`);
 }
-assert.equal((features.match(/id: "(?:trade-journal|risk-review|limits|insights|practice|passport)"/g) ?? []).length, 6, "Features must expose exactly six approved systems.");
+assert.equal((features.match(/id: "(?:trade-journal|risk-review|limits|insights|passport)"/g) ?? []).length, 5, "Features must expose exactly five approved systems.");
 assert.match(features, /SAMPLE REVIEW/);
 assert.match(features, /IMPORTED HISTORY/);
-assert.match(features, /SIMULATED DEMO/);
 assert.match(features, /SAMPLE \/ NOT VERIFIED/);
 assert.match(features, /Cova reviews history only\. No orders\. No money movement\./);
 assert.doesNotMatch(features, /liquid-glass|FeatureActionCard|LucideIcon|rounded-\[/, "The new feature explorer must not regress into generic glass/card primitives.");

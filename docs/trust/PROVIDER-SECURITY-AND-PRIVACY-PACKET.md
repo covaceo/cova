@@ -7,7 +7,7 @@
 
 ## 1. Service boundary
 
-Cova is a retrospective trade-journal, risk-review, simulation, and local Passport-export product. It is not a broker, execution venue, account manager, signal service, investment adviser, or custodian.
+Cova is a retrospective trade-journal, risk-review, and local Passport-export product. It is not a broker, execution venue, account manager, signal service, investment adviser, or custodian.
 
 Cova connector code does not contain order placement, order modification, order cancellation, withdrawal, funds-transfer, or brokerage-settings calls. Provider-issued tokens may nevertheless carry permissions broader than Cova's own endpoint allowlist. Users are instructed to revoke provider authorization separately when available.
 
@@ -17,7 +17,6 @@ Cova connector code does not contain order placement, order modification, order 
 Member browser
   |-- Supabase magic-link authentication
   |-- CSV import -> member-scoped browser storage
-  |-- Practice simulation -> member-scoped browser storage
   |-- authenticated Bearer request -> Cova Vercel API
                                       |-- verifies member with Supabase Auth
                                       |-- calls approved provider endpoints
@@ -76,9 +75,9 @@ The browser never receives the provider access token or the Supabase service-rol
 
 ## 7. Local data and Passport exports
 
-- Imported CSV trades, configured review limits, Practice records, and workspace state are primarily held in browser storage.
+- Imported CSV trades, configured review limits, and workspace state are primarily held in browser storage.
 - Storage keys are namespaced to the verified Supabase user or explicit local demo identity.
-- Switching users remounts Practice state and loads the new identity namespace.
+- Switching users loads the new identity namespace.
 - Sign-out clears that member's local Cova namespace and removes server-side connector records.
 - Risk Passport output is a downloaded local PNG. Cova does not host, revoke, or expire the image after download.
 - Sample/demo Passports are visibly marked as demo data and not account verification.

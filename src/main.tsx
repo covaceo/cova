@@ -32,7 +32,7 @@ import "./styles/riskDeskVisualSystem.css";
 import "./styles/workspaceRouteRefinement.css";
 import "./styles/operatorDossierRevamp.css";
 import "./styles/dashboardLeftRailPreview.css";
-import "./styles/backtestingLab.css";
+
 import "./styles/cobaltMarket.css";
 import "./styles/dashboardOaDark.css";
 import "./styles/threeUiLanding.css";
