@@ -38,6 +38,7 @@ import "./styles/dashboardOaDark.css";
 import "./styles/threeUiLanding.css";
 import "./styles/featuresShowcase.css";
 import "./styles/resourcesQuickStart.css";
+import "./styles/communityDiscordPage.css";
 
 if (navigator.platform.startsWith("Win")) {
   document.documentElement.classList.add("cova-platform-windows");
