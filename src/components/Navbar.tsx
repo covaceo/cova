@@ -8,7 +8,7 @@ type AuthMode = "login" | "signup";
 type AuthSession = { email: string } | null;
 
 function isProtectedSection(section: Section) {
-  return ["dashboard", "import", "oauth", "rules", "coach", "practice", "passport"].includes(section);
+  return ["dashboard", "import", "oauth", "rules", "coach", "passport"].includes(section);
 }
 
 const appNav = [
@@ -16,7 +16,6 @@ const appNav = [
   { id: "import", label: "Link account" },
   { id: "rules", label: "Limits" },
   { id: "coach", label: "Insights" },
-  { id: "practice", label: "Practice" },
   { id: "passport", label: "Passport" },
 ] satisfies { id: Section; label: string }[];
 

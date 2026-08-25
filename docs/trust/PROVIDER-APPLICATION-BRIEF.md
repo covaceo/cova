@@ -9,7 +9,7 @@
 
 ## One-paragraph product description
 
-Cova is a retrospective trade-journal, risk-review, simulation, and local performance-summary product for active futures traders. A member can import CSV history or authorize a supported provider connection, review account and fill history against user-configured limits, and generate a local Risk Passport PNG summarizing the reviewed sample. Cova does not execute, modify, cancel, route, copy, or recommend trades, manage brokerage settings, transfer funds, or custody assets.
+Cova is a retrospective trade-journal, risk-review, and local performance-summary product for active futures traders. A member can import CSV history or authorize a supported provider connection, review account and fill history against user-configured limits, and generate a local Risk Passport PNG summarizing the reviewed sample. Cova does not execute, modify, cancel, route, copy, or recommend trades, manage brokerage settings, transfer funds, or custody assets.
 
 ## Requested provider access
 
@@ -33,7 +33,7 @@ Cova connector code contains no order-placement, order-modification, order-cance
 - Browser receives an opaque Secure, HttpOnly, SameSite connector cookie, not a provider token.
 - Disconnect, sign-out, account deletion, and token-expiry cleanup remove active Cova connector records.
 - Cova does not sell personal information or use advertising trackers for behavioral advertising.
-- Imported journal and Practice data are primarily stored in first-party, member-scoped browser storage.
+- Imported journal data is primarily stored in first-party, member-scoped browser storage.
 - Risk Passport output is a local PNG, not independent verification or a Cova-hosted credential.
 
 A detailed control and data-flow packet is available in `PROVIDER-SECURITY-AND-PRIVACY-PACKET.md`.

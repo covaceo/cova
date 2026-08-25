@@ -35,7 +35,7 @@ import { AuthGate, AuthSheet } from "./components/AuthPanels";
 import { CommunityPage, FeaturesPage, PricingPage, ResourcesPage } from "./components/MarketingPages";
 import { PrivacyPage, SecurityPage, TermsPage } from "./components/LegalPages";
 
-import { Coach, PASSPORT_PREFERENCES_STORAGE_KEY, Passport, PracticeLab, RulesEngine } from "./components/WorkspaceSections";
+import { Coach, Passport, RulesEngine } from "./components/WorkspaceSections";
 import { Dashboard } from "./components/DashboardView";
 import { ImportDesk } from "./components/ImportDesk";
 import { Navbar } from "./components/Navbar";
@@ -45,10 +45,10 @@ import { WorkspaceShell } from "./components/WorkspaceShell";
 import { getHostedLogoutUrl, isDemoPreviewEnabled } from "./lib/authEnvironment";
 import { CURRENT_PRIVACY_VERSION, CURRENT_TERMS_VERSION } from "./lib/legal";
 import { BROKER_STATUS_KEY, brokerMessageForStatus, clearBrokerStatus, readBrokerStatus, writeBrokerStatus, type BrokerStatus } from "./lib/brokerStatus";
-import { PRACTICE_ACCOUNT_STORAGE_KEY, PRACTICE_TRADES_STORAGE_KEY, samplePracticeReps, type PracticeRep } from "./lib/backtesting";
+
 import { buildFirmConnectUrl, canRedirectToFirmProvider, csvExportGuides, getFirmProviderHost, getPropFirm, type PropFirmId } from "./lib/propFirms";
 import { isProtectedSection, sections, useHashSection, type Section } from "./lib/appRoutes";
-import { clearActiveStorageIdentity, removeScopedStorage, scopedStorageKey, setActiveStorageIdentity } from "./lib/storageScope";
+import { clearActiveStorageIdentity, removeCurrentIdentityStorage, scopedStorageKey, setActiveStorageIdentity } from "./lib/storageScope";
 import { getAccountSourceLabel } from "./lib/tradeSourceLabel";
 
 const STORAGE_KEY = "cova-react-risk-os-v2";
@@ -113,7 +113,6 @@ export default function App() {
   const [brokerStatus, setBrokerStatus] = useState<BrokerStatus | null>(() => readBrokerStatus());
   const [trades, setTrades] = useState<Trade[]>(() => loadAuthSession() ? loadState()?.trades ?? sampleTrades : []);
   const [rules, setRules] = useState<RiskRule[]>(() => loadAuthSession() ? loadState()?.rules ?? defaultRules : defaultRules);
-  const [practiceReps, setPracticeReps] = useState<PracticeRep[]>(() => loadAuthSession() ? loadState()?.practiceReps ?? samplePracticeReps : []);
   const [pendingSupabaseSession, setPendingSupabaseSession] = useState<SupabaseSession | null>(null);
   const [passwordRecoverySession, setPasswordRecoverySession] = useState<SupabaseSession | null>(null);
   const authGenerationRef = useRef(0);
@@ -136,9 +135,9 @@ export default function App() {
 
   useEffect(() => {
     if (isSignedIn) {
-      localStorage.setItem(scopedStorageKey(STORAGE_KEY), JSON.stringify({ trades, rules, practiceReps }));
+      localStorage.setItem(scopedStorageKey(STORAGE_KEY), JSON.stringify({ trades, rules }));
     }
-  }, [authSession?.email, authSession?.userId, isSignedIn, trades, rules, practiceReps]);
+  }, [authSession?.email, authSession?.userId, isSignedIn, trades, rules]);
 
   useEffect(() => {
     const refreshBrokerStatus = () => setBrokerStatus(readBrokerStatus());
@@ -431,7 +430,6 @@ export default function App() {
     localStorage.removeItem(AUTH_INTENT_KEY);
     setTrades(saved?.trades?.length ? saved.trades : sampleTrades);
     setRules(saved?.rules ?? defaultRules);
-    setPracticeReps(saved?.practiceReps?.length ? saved.practiceReps : samplePracticeReps);
     setStatus("Signed in. Account stats are unlocked.");
     setAuthMode(null);
     announce("Signed in. Account stats are unlocked.", "success");
@@ -737,7 +735,6 @@ export default function App() {
     setMobileOpen(false);
     setTrades([]);
     setRules(defaultRules);
-    setPracticeReps([]);
     setStatus("Account verification pending.");
     if (isProtectedSection(section)) {
       setSection("overview");
@@ -745,11 +742,7 @@ export default function App() {
   }
 
   function purgeCurrentAccountDeviceData() {
-    removeScopedStorage(STORAGE_KEY);
-    removeScopedStorage(BROKER_STATUS_KEY);
-    removeScopedStorage(PRACTICE_ACCOUNT_STORAGE_KEY);
-    removeScopedStorage(PRACTICE_TRADES_STORAGE_KEY);
-    removeScopedStorage(PASSPORT_PREFERENCES_STORAGE_KEY);
+    removeCurrentIdentityStorage();
     localStorage.removeItem("cova-dashboard-focus-v1");
     localStorage.removeItem("cova-dashboard-range-v1");
   }
@@ -787,7 +780,6 @@ export default function App() {
     setMobileOpen(false);
     setTrades([]);
     setRules(defaultRules);
-    setPracticeReps([]);
     setStatus("Signed out. Account stats are hidden.");
     if (announceChange) {
       announce("Signed out. Account stats are hidden.", "info");
@@ -1044,19 +1036,17 @@ export default function App() {
       <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_70%_20%,rgba(255,255,255,0.055),transparent_30%),linear-gradient(180deg,#000,rgba(1,9,6,0.94))]" />
       <div className="pointer-events-none fixed inset-0 z-0 bg-grid opacity-70" />
 
-      {(section !== "practice" || !authSession) && (
-        <Navbar
-          section={section}
-          go={go}
-          openAuth={openAuth}
-          mobileOpen={mobileOpen}
-          setMobileOpen={setMobileOpen}
-          authSession={authSession}
-          riskScore={analysis.score}
-          signOut={signOut}
-          deleteAccount={deleteAccount}
-        />
-      )}
+      <Navbar
+        section={section}
+        go={go}
+        openAuth={openAuth}
+        mobileOpen={mobileOpen}
+        setMobileOpen={setMobileOpen}
+        authSession={authSession}
+        riskScore={analysis.score}
+        signOut={signOut}
+        deleteAccount={deleteAccount}
+      />
       <AuthSheet
         authIntentKey={AUTH_INTENT_KEY}
         mode={authMode}
@@ -1149,11 +1139,7 @@ export default function App() {
               {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><Coach analysis={analysis} entitlements={entitlements} go={go} upgradeToPro={upgradeToPro} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={openAuth} onDevPreview={signInAsDevPreview} />}
             </RouteFrame>
           )}
-          {section === "practice" && (
-            <RouteFrame key="practice">
-              {isSignedIn ? <PracticeLab key={authSession?.userId || authSession?.email} go={go} practiceReps={practiceReps} setPracticeReps={(next) => setPracticeReps(next)} /> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={openAuth} onDevPreview={signInAsDevPreview} />}
-            </RouteFrame>
-          )}
+
           {section === "passport" && (
             <RouteFrame key="passport">
               {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><Passport analysis={analysis} entitlements={entitlements} isSampleReview={isSampleReview} go={go} upgradeToPro={upgradeToPro} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={openAuth} onDevPreview={signInAsDevPreview} />}
@@ -1266,14 +1252,13 @@ function readAuthIntent(): { email?: string; mode?: AuthMode; returnSection?: Se
   }
 }
 
-function loadState(): { trades: Trade[]; rules: RiskRule[]; practiceReps: PracticeRep[] } | null {
+function loadState(): { trades: Trade[]; rules: RiskRule[] } | null {
   try {
     const parsed = JSON.parse(localStorage.getItem(scopedStorageKey(STORAGE_KEY)) ?? "null");
     if (parsed?.trades && parsed?.rules) {
       return {
         trades: parsed.trades,
         rules: normalizeSavedRules(parsed.rules),
-        practiceReps: normalizeSavedPracticeReps(parsed.practiceReps),
       };
     }
   } catch {
@@ -1282,20 +1267,6 @@ function loadState(): { trades: Trade[]; rules: RiskRule[]; practiceReps: Practi
   return null;
 }
 
-function normalizeSavedPracticeReps(value: unknown): PracticeRep[] {
-  if (!Array.isArray(value)) {
-    return samplePracticeReps;
-  }
-  return value.filter((rep): rep is PracticeRep => (
-    typeof rep?.id === "string" &&
-    typeof rep?.date === "string" &&
-    typeof rep?.market === "string" &&
-    typeof rep?.setup === "string" &&
-    typeof rep?.session === "string" &&
-    (rep?.direction === "Long" || rep?.direction === "Short") &&
-    Number.isFinite(rep?.resultR)
-  ));
-}
 
 function normalizeSavedRules(rules: RiskRule[]) {
   const legacyDefaultLimits = new Map([

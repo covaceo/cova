@@ -1,4 +1,4 @@
-import { Activity, BarChart3, FileUp, Gauge, LogOut, Network, Search, ShieldCheck, Target, Trash2 } from "lucide-react";
+import { Activity, BarChart3, FileUp, Gauge, LogOut, Network, Search, ShieldCheck, Trash2 } from "lucide-react";
 import { motion } from "motion/react";
 import { useMemo, useState, type ReactNode } from "react";
 import { isWorkspaceNavActive, type Section } from "../lib/appRoutes";
@@ -22,7 +22,6 @@ const workspaceNavGroups = [
     items: [
       { id: "rules", label: "Limits", icon: Gauge },
       { id: "coach", label: "Insights", icon: Activity },
-      { id: "practice", label: "Practice", icon: Target },
     ],
   },
   {
@@ -138,7 +137,7 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
           </div>
           <div className="workspace-sidebar-watermark">
             <Network aria-hidden="true" className="h-3.5 w-3.5" />
-            <span>Review + simulated practice. No live brokerage execution.</span>
+            <span>Retrospective review only. No live brokerage execution.</span>
           </div>
         </div>
       </aside>

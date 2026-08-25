@@ -27,3 +27,11 @@ export function scopedStorageKey(baseKey: string) {
 export function removeScopedStorage(baseKey: string) {
   localStorage.removeItem(scopedStorageKey(baseKey));
 }
+
+export function removeCurrentIdentityStorage() {
+  const identity = getActiveStorageIdentity();
+  const suffix = `:${identity || "signed-out"}`;
+  const keys = Array.from({ length: localStorage.length }, (_value, index) => localStorage.key(index))
+    .filter((key): key is string => Boolean(key?.startsWith("cova-") && key.endsWith(suffix)));
+  keys.forEach((key) => localStorage.removeItem(key));
+}

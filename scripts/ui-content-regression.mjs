@@ -31,6 +31,7 @@ const importPanels = read("src", "components", "ImportPanels.tsx");
 const importDesk = read("src", "components", "ImportDesk.tsx");
 const storyStrip = read("src", "components", "StoryStrip.tsx");
 const marketingPages = read("src", "components", "MarketingPages.tsx");
+const featuresShowcase = read("src", "components", "FeaturesShowcasePage.tsx");
 const planSections = read("src", "components", "PlanSections.tsx");
 const ctaFooter = planSections.slice(planSections.indexOf("export function CtaFooter"));
 const propFirms = read("src", "lib", "propFirms.ts");
@@ -46,10 +47,6 @@ const operatorDossierCss = read("src", "styles", "operatorDossierRevamp.css");
 const mobileAudit = read("scripts", "mobile-audit.mjs");
 const indexCss = read("src", "index.css");
 const ctaDecorationCss = indexCss.slice(indexCss.indexOf(".cova-closing-grid"), indexCss.indexOf(".cova-closing-content"));
-const tradingViewHost = read("src", "components", "practice", "LightweightReplayChart.tsx");
-const backtestingTerminal = read("src", "components", "practice", "BacktestingTerminal.tsx");
-const backtestingLabCss = read("src", "styles", "backtestingLab.css");
-const backtesting = read("src", "lib", "backtesting.ts");
 const vercel = read("vercel.json");
 const envExample = read(".env.example");
 const readme = read("README.md");
@@ -58,11 +55,7 @@ const providerBrief = read("docs", "trust", "PROVIDER-APPLICATION-BRIEF.md");
 const ownerChecklist = read("docs", "trust", "COUNSEL-AND-OWNER-CHECKLIST.md");
 const tempRegressionScripts = [
   read("scripts", "risk-regression.mjs"),
-  read("scripts", "backtest-regression.mjs"),
-  read("scripts", "practice-history-regression.mjs"),
-  read("scripts", "practice-datafeed-regression.mjs"),
 ];
-const practiceUi = `${workspace}\n${backtestingTerminal}`;
 
 assert.match(packageJson.scripts.test, /test:browser-release/, "The canonical test aggregate must run the compiled browser release gate.");
 assert.equal(packageJson.scripts["test:browser-release"], "npm run build && node scripts/release-browser-regression.mjs");
@@ -94,11 +87,9 @@ for (const stalePath of [
   "public/cova-mark.svg",
   "public/cova-dashboard.png",
   "public/cova-operator-reference.png",
-  "public/cova-practice.css",
-  "public/cova-practice.png",
-  "public/cova-trading-platform.png",
+
   "public/pricing-copper-room.jpg",
-  "public/trading_platform/README.md",
+
   "public/media/cova-dashboard-plate.png",
   "public/media/cova-hero-candles.png",
   "public/media/cova-hero-centerpiece-v1.png",
@@ -240,12 +231,7 @@ assert.match(operatorDossierCss, /\.hero-dashboard-shell::after\s*\{[\s\S]*?disp
 assert.match(operatorDossierCss, /\.hero-dashboard-shell::before\s*\{[\s\S]*?display:\s*block\s*!important;[\s\S]*?background:\s*linear-gradient/, "The desktop dashboard should retain its restrained top-edge signal line.");
 assert.match(operatorDossierCss, /@media \(min-width: 768px\) and \(max-width: 1100px\)[\s\S]*?\.signed-in-marketing-header-shell \.marketing-header-signed-in\s*\{[\s\S]*?display:\s*none\s*!important;[\s\S]*?\.header-mobile-brand\s*\{[\s\S]*?display:\s*flex\s*!important;[\s\S]*?\.operator-mobile-menu-toggle\s*\{[\s\S]*?display:\s*grid\s*!important;[\s\S]*?\.operator-mobile-menu-panel\s*\{[\s\S]*?display:\s*block\s*!important;/, "Narrow signed-in desktop headers should replace crowded links with an accessible menu, not remove navigation.");
 
-assert.match(marketingPages, /Backtesting lab/, "Backtesting should appear as an active product module.");
-assert.match(marketingPages, /in-app replay simulator/i, "Marketing should describe Cova's current in-app Practice simulator.");
-assert.match(marketingPages, /deterministic demo tape/i, "Practice marketing must disclose that the current replay is deterministic demo data.");
-assert.match(marketingPages, /not historical market data/i, "Practice marketing must not imply real historical replay data is available.");
-assert.doesNotMatch(marketingPages, /Planned workspace/, "Marketing must not describe the active Practice simulator as merely planned.");
-assert.doesNotMatch(marketingPages, /Use TradingView replay/, "Resources must not send users to an external manual replay workflow now that Practice is in-app.");
+assert.equal((featuresShowcase.match(/id: "(?:trade-journal|risk-review|limits|insights|passport)"/g) ?? []).length, 5, "Features should expose the five current product systems.");
 assert.match(planSections, /pricing-showcase-header/, "Pricing should use the approved split editorial header.");
 assert.match(planSections, /Start small enough to prove the workflow\. Upgrade when Cova becomes part of every session review\./, "Pricing should retain the approved concise support copy.");
 assert.doesNotMatch(planSections, /pricing-quick-actions/, "Pricing should not restore the detached CTA row that is absent from the approved reference.");
@@ -283,43 +269,20 @@ assert.match(marketingPages, /#trade-review/, "Community should describe the liv
 assert.match(marketingPages, /#risk-discipline/, "Community should describe the live risk-discipline room.");
 assert.match(marketingPages, /No live entry calls, paid signals, copy trading, account management, broker solicitation/, "Community should preserve the trading-safety boundaries.");
 assert.doesNotMatch(marketingPages, /Product preview · community not open|What this preview proposes|Join the preview/, "Community should not retain obsolete preview-only language.");
-assert.match(appRoutes, /"practice"/, "Practice/backtesting should be a real protected workspace route.");
+assert.match(appRoutes, /\["overview", "features", "pricing", "resources", "community", "privacy", "terms", "security", "dashboard", "import", "oauth", "rules", "coach", "passport"\]/, "The public and workspace route registry should match the current product map.");
 assert.match(appRoutes, /legal-\(privacy\|terms\|security\)-\\d\+/, "Legal table-of-contents anchors must resolve back to their owning legal route.");
 assert.match(appRoutes, /documentAnchor/, "Legal table-of-contents navigation must retain the concrete anchor id.");
 assert.match(appRoutes, /getElementById[\s\S]*?scrollIntoView/, "Legal anchors must scroll after React renders the target section.");
 assert.match(appRoutes, /current\.section === next && !current\.documentAnchor/, "Selecting a legal page from one of its anchors must normalize the route instead of retaining a stale anchor hash.");
-assert.match(workspaceShell, /Practice/, "Workspace sidebar should expose the practice route.");
-assert.match(app, /PracticeLab/, "App should render the PracticeLab route.");
-assert.match(backtestingTerminal, /BacktestingTerminal/, "PracticeLab should render through the dedicated Backtesting terminal.");
-assert.match(workspace, /Set practice account/, "PracticeLab should gate simulator access with a practice-account setup modal.");
-assert.match(backtestingTerminal, /backtesting-chart-deck/, "PracticeLab should make the replay chart the dominant terminal surface.");
-assert.match(workspace, /Choose date/, "PracticeLab should let traders jump to a specific historical date.");
-assert.match(backtestingTerminal, /Buy \/ Long/, "PracticeLab should include a simulated buy action.");
-assert.match(backtestingTerminal, /Sell \/ Short/, "PracticeLab should include a simulated sell action.");
-assert.match(backtestingTerminal, /Close \/ Flatten/, "PracticeLab should close and track simulated practice trades.");
-assert.match(backtestingTerminal, /Account balance/, "PracticeLab should show account balance and stats from simulated trades.");
-assert.match(backtestingTerminal, /analysis\.readiness\.label/, "PracticeLab should summarize simulator evidence without granting live-trading permission.");
-assert.doesNotMatch(practiceUi, /Live permission|earn permission/, "Practice UI must not claim authority over live sizing or trading permission.");
-assert.doesNotMatch(backtesting, /Live-size ready|Building permission|live-trading permission|full live size|calling it live-size ready/, "Practice readiness calculations must remain simulation evidence, not live-trading authorization.");
-assert.match(backtesting, /Practice sample ready/, "A mature simulator sample should be described as practice evidence only.");
 assert.doesNotMatch(workspace, /saved brief history/i, "Insights must not advertise a brief archive that is not implemented.");
-assert.match(workspace, /createPortal/, "Practice setup should render through a document-level portal instead of an overflow-clipped route shell.");
-assert.match(workspace, /document\.body/, "Practice setup portal should mount against the document viewport.");
 assert.match(dashboard, /dashboard-summary-strip/, "Risk Desk should use the approved compact summary grid.");
 assert.match(dashboard, /dashboard-instrument-grid/, "Risk Desk should use a dedicated chart-and-evidence grid.");
 assert.match(dashboardPreviewCss, /@media \(max-width:\s*1023px\)[\s\S]*?\.dashboard-summary-strip\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/, "Risk Desk summary grid should collapse to viewport-safe tracks on tablet and mobile.");
-assert.match(backtestingLabCss, /\.backtesting-workbench\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)/, "Practice should give the chart a shrinkable dominant track.");
-assert.match(backtestingLabCss, /@media \(max-width: 900px\)[\s\S]*?\.backtesting-workbench\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)/, "Practice should collapse to one viewport-safe track on tablet and mobile.");
-assert.match(backtestingLabCss, /\.backtesting-chart-viewport\s*\{[\s\S]*?overflow:\s*hidden;/, "Practice should contain chart overflow at the terminal boundary.");
-assert.match(backtestingLabCss, /\.backtesting-chart-viewport \.practice-tv-container\s*\{[\s\S]*?width:\s*100%;/, "Practice should keep the responsive chart inside its terminal width.");
-assert.match(tradingViewHost, /TradingView Lightweight Charts/, "Practice should identify the active official chart renderer.");
-assert.match(tradingViewHost, /Deterministic demo tape/, "Practice should disclose that the current tape is deterministic demo data.");
-assert.match(tradingViewHost, /not historical market data/, "Practice should preserve the demo-data boundary.");
+
 assert.match(importPanels, /if \(firm\.status === "guided"\)[\s\S]*?if \(!entitlements\.canUseDirectSync\)/, "CSV-guided providers must remain available on Free before direct-sync entitlement checks.");
 assert.match(importPanels, /selectedFirm\.status !== "guided"[\s\S]*?Unlock sync/, "CSV-only provider cards must not advertise an unavailable direct-sync upgrade.");
 assert.match(app, /if \(!entitlements\.canUseDirectSync\)/, "App-level OAuth entry must enforce the direct-sync entitlement.");
-assert.doesNotMatch(tradingViewHost, /Drop `charting_library\.js`/, "Practice must not expose developer installation instructions in the product UI.");
-assert.match(workspaceShell, /No live brokerage execution/, "Workspace safety copy should distinguish simulation from live brokerage execution.");
+assert.match(workspaceShell, /Retrospective review only\. No live brokerage execution\./, "Workspace safety copy should preserve the no-execution boundary.");
 assert.match(app, /const hasSampleTrades = trades\.some\(\(trade\) => trade\.id\.startsWith\("demo-"\)\)/, "Any demo row should keep a mixed Passport visibly sample-derived.");
 assert.match(app, /const isSampleReview = hasSampleTrades/, "Passport should derive sample provenance from any demo rows in the review.");
 assert.match(tradeSourceLabel, /Sample[\s\S]*CSV[\s\S]*sourceLabels\.join\(" \+ "\)/, "Mixed demo and imported rows should disclose both sources.");
@@ -353,7 +316,7 @@ assert.match(indexCss, /@media \(max-width: 860px\)[\s\S]*?\.passport-card-hitbo
 assert.match(indexCss, /@media \(max-width: 1180px\)[\s\S]*?\.passport-share-rail\s*\{[\s\S]*?order:\s*-1/, "Passport controls should appear before the long card preview on narrow screens.");
 assert.match(authPanels, /Enter dev preview/, "Dev preview must remain available for Raf's review flow.");
 assert.doesNotMatch(authPanels, /Passport history/, "Signup must not advertise a Passport archive that does not exist.");
-assert.match(authPanels, /Practice history/, "Signup should name the implemented saved Practice history instead.");
+assert.match(authPanels, /Passport preferences/, "Signup should name the implemented saved Passport preferences.");
 assert.match(authPanels, /dialogRef/, "Auth dialog behavior must be scoped to the rendered modal.");
 assert.match(authPanels, /\.inert\s*=\s*true/, "The open auth modal must make background siblings inert.");
 assert.match(authPanels, /event\.key !== "Tab"/, "The auth modal must trap keyboard tab focus.");

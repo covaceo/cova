@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { runInNewContext } from "node:vm";
+import ts from "typescript";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const read = (...parts) => readFileSync(join(root, ...parts), "utf8");
@@ -586,9 +587,48 @@ test("account deletion removes the auth owner first and relies on database casca
 test("temporary auth validation failures hide data without deleting member-scoped storage", () => {
   const app = read("src", "App.tsx");
   const lockBody = app.match(/function lockWorkspace\([^)]*\)\s*\{([\s\S]*?)\n  \}\n\n  async function signOut/)?.[1] || "";
-  assert.doesNotMatch(lockBody, /removeScopedStorage/);
-  assert.match(app, /function purgeCurrentAccountDeviceData\(\)[\s\S]*removeScopedStorage\(STORAGE_KEY\)/);
+  assert.doesNotMatch(lockBody, /removeCurrentIdentityStorage/);
+  assert.match(app, /function purgeCurrentAccountDeviceData\(\)[\s\S]*removeCurrentIdentityStorage\(\)/);
   assert.match(app, /async function deleteAccount\(\)[\s\S]*tryPurgeCurrentAccountDeviceData\(\)[\s\S]*lockWorkspace/);
+});
+
+test("account deletion removes every Cova record scoped to the current browser identity", () => {
+  const source = read("src", "lib", "storageScope.ts");
+  const compiled = ts.transpileModule(source, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const records = new Map();
+  const localStorage = {
+    get length() { return records.size; },
+    getItem(key) { return records.has(key) ? records.get(key) : null; },
+    key(index) { return [...records.keys()][index] ?? null; },
+    removeItem(key) { records.delete(key); },
+    setItem(key, value) { records.set(key, String(value)); },
+  };
+  const module = { exports: {} };
+  runInNewContext(compiled, { exports: module.exports, localStorage, module });
+  const storageScope = module.exports;
+
+  storageScope.setActiveStorageIdentity("member@example.com");
+  const currentSuffix = ":member%40example.com";
+  localStorage.setItem(`cova-journal-v1${currentSuffix}`, "current");
+  localStorage.setItem(`cova-retired-record-v1${currentSuffix}`, "retired");
+  localStorage.setItem("cova-journal-v1:other%40example.com", "other");
+  localStorage.setItem("cova-global-setting-v1", "global");
+  localStorage.setItem(`third-party-record${currentSuffix}`, "unrelated");
+
+  storageScope.removeCurrentIdentityStorage();
+
+  assert.equal(localStorage.getItem(`cova-journal-v1${currentSuffix}`), null);
+  assert.equal(localStorage.getItem(`cova-retired-record-v1${currentSuffix}`), null);
+  assert.equal(localStorage.getItem("cova-journal-v1:other%40example.com"), "other");
+  assert.equal(localStorage.getItem("cova-global-setting-v1"), "global");
+  assert.equal(localStorage.getItem(`third-party-record${currentSuffix}`), "unrelated");
+
+  const app = read("src", "App.tsx");
+  const purgeBody = app.match(/function purgeCurrentAccountDeviceData\(\)\s*\{([\s\S]*?)\n  \}/)?.[1] || "";
+  assert.match(purgeBody, /removeCurrentIdentityStorage\(\)/);
+  assert.doesNotMatch(purgeBody, /removeScopedStorage/);
 });
 
 test("identity preparation synchronously invalidates in-flight deletion cleanup before deferred validation", () => {

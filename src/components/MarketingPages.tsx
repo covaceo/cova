@@ -1,155 +1,24 @@
-import { motion } from "motion/react";
 import {
   ArrowUpRight,
   BadgeCheck,
-  BookOpen,
-  ClipboardCheck,
   FileUp,
   Fingerprint,
-  Gauge,
   LockKeyhole,
   ShieldCheck,
-  SlidersHorizontal,
   Target,
 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 import { CsvExplainer } from "./CsvExplainer";
 import { GlassButton } from "./GlassButton";
 import { ImageAtmosphere, SectionShell } from "./LayoutShell";
 import { PlanStrip } from "./PlanSections";
 import { StartFreeButton } from "./StartFreeButton";
 
-type Section = "overview" | "features" | "pricing" | "resources" | "community" | "dashboard" | "import" | "oauth" | "rules" | "coach" | "practice" | "passport";
+export { FeaturesPage } from "./FeaturesShowcasePage";
+
+type Section = "overview" | "features" | "pricing" | "resources" | "community" | "dashboard" | "import" | "oauth" | "rules" | "coach" | "passport";
 type AuthMode = "login" | "signup";
 type PlanTier = "free" | "pro";
 const COVA_DISCORD_INVITE_URL = "https://discord.gg/B83Czu3pAf";
-
-export function FeaturesPage({ go, openAuth }: { go: (section: Section) => void; openAuth: (mode: AuthMode) => void }) {
-  const featureGroups = [
-    {
-      title: "Trade journal",
-      body: "Import trades, add notes, and keep one clean record of what actually happened.",
-      Icon: BookOpen,
-      action: "Upload trades",
-      onClick: () => go("import"),
-    },
-    {
-      title: "Performance review",
-      body: "See P&L, win rate, drawdown, profit factor, and setup quality in one view.",
-      Icon: Gauge,
-      action: "Review account",
-      onClick: () => go("dashboard"),
-    },
-    {
-      title: "Risk limits",
-      body: "Set daily loss, single trade loss, size, streak, and consistency limits.",
-      Icon: SlidersHorizontal,
-      action: "Set limits",
-      onClick: () => go("rules"),
-    },
-    {
-      title: "Plain-English insights",
-      body: "Get coaching notes tied to your own trade history, not guesses or signals.",
-      Icon: ClipboardCheck,
-      action: "See insights",
-      onClick: () => go("coach"),
-    },
-    {
-      title: "Prop firm import paths",
-      body: "Start with CSV exports today and prepare for read-only account connections.",
-      Icon: FileUp,
-      action: "View resources",
-      onClick: () => go("resources"),
-    },
-    {
-      title: "Backtesting lab",
-      body: "Cova's in-app replay simulator reveals a deterministic demo tape step by step, records simulated executions, and turns practice into setup stats. It is not historical market data.",
-      Icon: Target,
-      action: "Open Practice",
-      onClick: () => go("practice"),
-    },
-    {
-      title: "Risk Passport",
-      body: "Share proof of discipline without sending your full journal or trade calls.",
-      Icon: Fingerprint,
-      action: "Open passport",
-      onClick: () => go("passport"),
-    },
-  ];
-
-  return (
-    <SectionShell
-      eyebrow="Features"
-      title="Everything a trader needs after the trade closes."
-      action={<StartFreeButton icon onClick={() => openAuth("signup")} />}
-      backdrop={<ImageAtmosphere src="/media/cova-dashboard-plate.jpg" opacity="opacity-[0.26]" />}
-    >
-      <div className="grid gap-6 lg:grid-cols-[1.12fr_0.88fr]">
-        <div className="liquid-glass-strong rounded-[40px] p-7 md:p-9">
-          <p className="font-body text-sm uppercase tracking-[0.22em] text-[#b9f5df]">Built for review</p>
-          <h3 className="mt-5 max-w-[13ch] font-body text-3xl font-semibold leading-[1.04] tracking-[-0.035em] text-white md:max-w-3xl md:text-6xl md:leading-[1.02]">
-            Cova is a trading journal, risk desk, and proof layer in one workspace.
-          </h3>
-          <p className="mt-6 max-w-[31ch] font-body text-base font-light leading-relaxed text-white/62 md:max-w-2xl">
-            The workflow stays simple: upload or connect history, review the account, tighten limits, then share a clean Passport when needed.
-          </p>
-          <div className="mt-8 grid gap-3 sm:grid-cols-3">
-            {[
-              ["No signals", "Cova reviews behavior only."],
-              ["Read-only", "Connections cannot place trades."],
-              ["Prop focused", "Built around funded-account rules."],
-            ].map(([label, body]) => (
-              <div className="rounded-[24px] border border-white/10 bg-black/24 p-4" key={label}>
-                <p className="font-body text-sm font-medium text-white">{label}</p>
-                <p className="mt-2 font-body text-xs leading-relaxed text-white/45">{body}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid gap-4">
-          {featureGroups.slice(0, 2).map(({ title, body, Icon, action, onClick }) => (
-            <FeatureActionCard key={title} title={title} body={body} Icon={Icon} action={action} onClick={onClick} strong />
-          ))}
-        </div>
-      </div>
-
-      <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {featureGroups.slice(2).map(({ title, body, Icon, action, onClick }) => (
-          <FeatureActionCard key={title} title={title} body={body} Icon={Icon} action={action} onClick={onClick} />
-        ))}
-      </div>
-    </SectionShell>
-  );
-}
-
-function FeatureActionCard({ title, body, Icon, action, onClick, strong = false }: {
-  title: string;
-  body: string;
-  Icon: LucideIcon;
-  action: string;
-  onClick: () => void;
-  strong?: boolean;
-}) {
-  return (
-    <motion.article
-      className={`${strong ? "liquid-glass-strong" : "liquid-glass"} motion-surface flex min-h-[220px] flex-col rounded-[34px] p-6`}
-      whileHover={{ y: -3 }}
-      whileTap={{ scale: 0.992 }}
-      transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-    >
-      <span className="grid h-11 w-11 place-items-center rounded-full border border-[#18c887]/24 bg-[#18c887]/10 text-[#b9f5df]">
-        <Icon className="h-5 w-5" />
-      </span>
-      <h3 className="mt-6 font-body text-xl font-semibold text-white">{title}</h3>
-      <p className="mt-3 font-body text-sm font-light leading-relaxed text-white/54">{body}</p>
-      <button className="mt-auto inline-flex w-fit items-center gap-2 pt-6 font-body text-sm font-medium text-[#b9f5df]" onClick={onClick} type="button">
-        {action}
-        <ArrowUpRight className="h-4 w-4" />
-      </button>
-    </motion.article>
-  );
-}
 
 export function PricingPage({ currentPlan, go, openAuth, proCheckoutAvailable, upgradeToPro }: { currentPlan: PlanTier | null; go: (section: Section) => void; openAuth: (mode: AuthMode) => void; proCheckoutAvailable: boolean; upgradeToPro: () => void }) {
   return (
@@ -197,13 +66,7 @@ export function ResourcesPage({ go, openAuth }: { go: (section: Section) => void
       action: "Open Passport workspace",
       route: "passport" as const,
     },
-    {
-      title: "Backtesting scope",
-      body: "Open Cova's in-app replay simulator to drill a setup on a deterministic demo tape and record simulated executions automatically. This preview is not historical market data.",
-      Icon: Target,
-      action: "Open Practice workspace",
-      route: "practice" as const,
-    },
+
   ];
 
   return (
