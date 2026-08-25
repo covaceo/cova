@@ -31,6 +31,7 @@ const importPanels = read("src", "components", "ImportPanels.tsx");
 const importDesk = read("src", "components", "ImportDesk.tsx");
 const storyStrip = read("src", "components", "StoryStrip.tsx");
 const marketingPages = read("src", "components", "MarketingPages.tsx");
+const featuresShowcase = read("src", "components", "FeaturesShowcasePage.tsx");
 const planSections = read("src", "components", "PlanSections.tsx");
 const ctaFooter = planSections.slice(planSections.indexOf("export function CtaFooter"));
 const propFirms = read("src", "lib", "propFirms.ts");
@@ -240,11 +241,11 @@ assert.match(operatorDossierCss, /\.hero-dashboard-shell::after\s*\{[\s\S]*?disp
 assert.match(operatorDossierCss, /\.hero-dashboard-shell::before\s*\{[\s\S]*?display:\s*block\s*!important;[\s\S]*?background:\s*linear-gradient/, "The desktop dashboard should retain its restrained top-edge signal line.");
 assert.match(operatorDossierCss, /@media \(min-width: 768px\) and \(max-width: 1100px\)[\s\S]*?\.signed-in-marketing-header-shell \.marketing-header-signed-in\s*\{[\s\S]*?display:\s*none\s*!important;[\s\S]*?\.header-mobile-brand\s*\{[\s\S]*?display:\s*flex\s*!important;[\s\S]*?\.operator-mobile-menu-toggle\s*\{[\s\S]*?display:\s*grid\s*!important;[\s\S]*?\.operator-mobile-menu-panel\s*\{[\s\S]*?display:\s*block\s*!important;/, "Narrow signed-in desktop headers should replace crowded links with an accessible menu, not remove navigation.");
 
-assert.match(marketingPages, /Backtesting lab/, "Backtesting should appear as an active product module.");
-assert.match(marketingPages, /in-app replay simulator/i, "Marketing should describe Cova's current in-app Practice simulator.");
-assert.match(marketingPages, /deterministic demo tape/i, "Practice marketing must disclose that the current replay is deterministic demo data.");
-assert.match(marketingPages, /not historical market data/i, "Practice marketing must not imply real historical replay data is available.");
-assert.doesNotMatch(marketingPages, /Planned workspace/, "Marketing must not describe the active Practice simulator as merely planned.");
+assert.match(featuresShowcase, /id: "practice"[\s\S]*label: "Practice"/, "Practice should appear as an active product system.");
+assert.match(featuresShowcase, /desktop replay simulator/i, "Marketing should describe Cova's current in-app Practice simulator.");
+assert.match(featuresShowcase, /deterministic demo tape/i, "Practice marketing must disclose that the current replay is deterministic demo data.");
+assert.match(featuresShowcase, /not historical market data/i, "Practice marketing must not imply real historical replay data is available.");
+assert.doesNotMatch(featuresShowcase, /Planned workspace/, "Marketing must not describe the active Practice simulator as merely planned.");
 assert.doesNotMatch(marketingPages, /Use TradingView replay/, "Resources must not send users to an external manual replay workflow now that Practice is in-app.");
 assert.match(planSections, /pricing-showcase-header/, "Pricing should use the approved split editorial header.");
 assert.match(planSections, /Start small enough to prove the workflow\. Upgrade when Cova becomes part of every session review\./, "Pricing should retain the approved concise support copy.");
