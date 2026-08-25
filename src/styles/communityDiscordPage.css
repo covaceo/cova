@@ -1,0 +1,464 @@
+.community-oa-page {
+  --community-bg: #08090c;
+  --community-frame: #0d0f14;
+  --community-panel: #11141a;
+  --community-inset: #171a21;
+  --community-ink: #e8eeff;
+  --community-accent: #4f7dff;
+  --community-accent-bright: #6f96ff;
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  padding: 8.1rem 2rem 4.5rem;
+  background: var(--community-bg);
+  color: var(--community-ink);
+}
+
+.community-oa-atmosphere {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 18% 8%, rgba(79, 125, 255, 0.16), transparent 30rem),
+    radial-gradient(circle at 83% 28%, rgba(111, 150, 255, 0.07), transparent 27rem),
+    linear-gradient(rgba(232, 238, 255, 0.023) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(232, 238, 255, 0.023) 1px, transparent 1px);
+  background-size: auto, auto, 48px 48px, 48px 48px;
+  mask-image: linear-gradient(180deg, #000 0%, transparent 76%);
+  pointer-events: none;
+}
+
+.community-oa-inner {
+  position: relative;
+  width: min(100%, 84rem);
+  margin: 0 auto;
+}
+
+.community-oa-intro {
+  margin-bottom: 1.8rem;
+}
+
+.community-oa-intro > div {
+  max-width: 75rem;
+}
+
+.community-oa-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--community-accent-bright);
+  font-family: "DM Mono", "Geist Mono Variable", monospace;
+  font-size: 0.57rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.community-oa-status::before {
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 50%;
+  background: var(--community-accent-bright);
+  box-shadow: 0 0 0 0.3rem rgba(79, 125, 255, 0.1);
+  content: "";
+}
+
+.community-oa-intro h1 {
+  max-width: 12.5ch;
+  margin: 1rem 0 0;
+  color: var(--community-ink);
+  font-family: "Bricolage Grotesque Variable", "Inter Tight Variable", sans-serif;
+  font-size: clamp(4rem, 7vw, 7rem);
+  font-weight: 500;
+  letter-spacing: -0.075em;
+  line-height: 0.88;
+  text-wrap: balance;
+}
+
+.community-oa-intro p {
+  max-width: 48rem;
+  margin: 1.2rem 0 0;
+  color: rgba(232, 238, 255, 0.62);
+  font-family: "Inter Tight Variable", "Inter", sans-serif;
+  font-size: clamp(0.98rem, 1.2vw, 1.12rem);
+  font-weight: 400;
+  line-height: 1.55;
+}
+
+.community-oa-stage {
+  padding: 4px;
+  border: 0;
+  border-radius: 32px;
+  background: rgba(232, 238, 255, 0.045);
+  box-shadow: 0 34px 90px rgba(0, 0, 0, 0.42);
+  corner-shape: squircle;
+}
+
+.community-oa-board {
+  overflow: hidden;
+  border: 0;
+  border-radius: 27px;
+  background: var(--community-frame);
+  corner-shape: squircle;
+}
+
+.community-oa-hero {
+  background:
+    radial-gradient(circle at 78% 18%, rgba(79, 125, 255, 0.12), transparent 27rem),
+    var(--community-frame);
+}
+
+.community-oa-join-copy {
+  display: flex;
+  min-width: 0;
+  max-width: 66rem;
+  flex-direction: column;
+  justify-content: center;
+  padding: clamp(2rem, 4.8vw, 4.8rem);
+}
+
+.community-oa-brandline {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.community-oa-brand-mark {
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 auto;
+  fill: var(--community-accent-bright);
+  filter: drop-shadow(0 8px 18px rgba(79, 125, 255, 0.18));
+}
+
+.community-oa-brandline > div {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.community-oa-brandline span,
+.community-oa-brandline strong,
+.community-oa-help-flow span,
+.community-oa-rooms-heading span {
+  font-family: "DM Mono", "Geist Mono Variable", monospace;
+}
+
+.community-oa-brandline span {
+  color: rgba(232, 238, 255, 0.52);
+  font-size: 0.55rem;
+  letter-spacing: 0.09em;
+}
+
+.community-oa-brandline strong {
+  color: var(--community-accent-bright);
+  font-size: 0.58rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+}
+
+.community-oa-join-copy h2 {
+  max-width: 18ch;
+  margin: 1.45rem 0 0;
+  color: var(--community-ink);
+  font-family: "Bricolage Grotesque Variable", "Inter Tight Variable", sans-serif;
+  font-size: clamp(2.35rem, 4.2vw, 4.65rem);
+  font-weight: 500;
+  letter-spacing: -0.064em;
+  line-height: 0.93;
+  text-wrap: balance;
+}
+
+.community-oa-join-copy > p {
+  margin: 1.05rem 0 0;
+  color: rgba(232, 238, 255, 0.52);
+  font-family: "Inter Tight Variable", "Inter", sans-serif;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.community-oa-join-copy > p strong {
+  color: rgba(232, 238, 255, 0.8);
+  font-weight: 500;
+}
+
+.community-oa-join {
+  display: grid;
+  width: min(100%, 38rem);
+  min-height: 4.8rem;
+  grid-template-columns: 1.65rem minmax(0, 1fr) 1.1rem;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1.65rem;
+  padding: 0 1.5rem;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #6f96ff, #4f7dff);
+  box-shadow: inset 0 1px 0 rgba(232, 238, 255, 0.38), 0 16px 34px rgba(79, 125, 255, 0.23);
+  color: #08090c;
+  cursor: pointer;
+  font-family: "Inter Tight Variable", "Inter", sans-serif;
+  font-size: clamp(0.92rem, 1.35vw, 1.12rem);
+  font-weight: 500;
+  text-align: left;
+  transition: filter 0.16s ease-out, transform 0.1s ease-out;
+}
+
+.community-oa-join svg {
+  width: 1.65rem;
+  height: 1.65rem;
+  fill: currentColor;
+}
+
+.community-oa-join > svg:last-child {
+  width: 1.05rem;
+  height: 1.05rem;
+  fill: none;
+}
+
+.community-oa-help-flow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2rem;
+  padding: 1.45rem clamp(1.25rem, 3vw, 2.5rem);
+  background: rgba(232, 238, 255, 0.018);
+}
+
+.community-oa-help-flow > div {
+  min-width: 0;
+}
+
+.community-oa-help-flow span {
+  color: rgba(111, 150, 255, 0.78);
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+}
+
+.community-oa-help-flow strong {
+  display: block;
+  margin-top: 0.55rem;
+  color: rgba(232, 238, 255, 0.86);
+  font-family: "Inter Tight Variable", "Inter", sans-serif;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.community-oa-help-flow p {
+  margin: 0.4rem 0 0;
+  color: rgba(232, 238, 255, 0.48);
+  font-family: "Inter Tight Variable", "Inter", sans-serif;
+  font-size: 0.68rem;
+  line-height: 1.45;
+}
+
+.community-oa-rooms {
+  display: grid;
+  grid-template-columns: minmax(15rem, 0.55fr) minmax(0, 1.45fr);
+  gap: clamp(2rem, 4vw, 4rem);
+  padding: clamp(1.8rem, 4vw, 3.2rem);
+  background: var(--community-panel);
+}
+
+.community-oa-rooms-heading span {
+  color: rgba(111, 150, 255, 0.76);
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+}
+
+.community-oa-rooms-heading strong {
+  display: block;
+  max-width: 14ch;
+  margin-top: 0.75rem;
+  color: var(--community-ink);
+  font-family: "Bricolage Grotesque Variable", "Inter Tight Variable", sans-serif;
+  font-size: 1.65rem;
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  line-height: 1.02;
+}
+
+.community-oa-room-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.55rem 2.5rem;
+}
+
+.community-oa-room {
+  min-width: 0;
+}
+
+.community-oa-room strong {
+  color: rgba(232, 238, 255, 0.86);
+  font-family: "DM Mono", "Geist Mono Variable", monospace;
+  font-size: 0.67rem;
+  font-weight: 500;
+}
+
+.community-oa-room p {
+  margin: 0.45rem 0 0;
+  color: rgba(232, 238, 255, 0.5);
+  font-family: "Inter Tight Variable", "Inter", sans-serif;
+  font-size: 0.69rem;
+  line-height: 1.45;
+}
+
+.community-oa-boundary {
+  display: flex;
+  min-height: 4rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1rem 1.2rem;
+  background: rgba(79, 125, 255, 0.045);
+}
+
+.community-oa-boundary p {
+  max-width: 67rem;
+  margin: 0;
+  color: rgba(232, 238, 255, 0.52);
+  font-family: "Inter Tight Variable", "Inter", sans-serif;
+  font-size: 0.7rem;
+  line-height: 1.5;
+}
+
+.community-oa-boundary button {
+  min-height: 2.45rem;
+  flex: 0 0 auto;
+  padding: 0 0.9rem;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(232, 238, 255, 0.055);
+  color: rgba(232, 238, 255, 0.72);
+  cursor: pointer;
+  font-family: "Inter Tight Variable", "Inter", sans-serif;
+  font-size: 0.65rem;
+  font-weight: 500;
+  transition: background-color 0.16s ease-out, transform 0.1s ease-out;
+}
+
+.community-oa-page :where(button, a):focus-visible {
+  outline: 2px solid var(--community-accent-bright);
+  outline-offset: 3px;
+}
+
+.community-oa-join:active,
+.community-oa-boundary button:active {
+  transform: translateY(1px) scale(0.985);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .community-oa-join:hover {
+    filter: brightness(1.07);
+  }
+
+  .community-oa-boundary button:hover {
+    background: rgba(79, 125, 255, 0.1);
+  }
+}
+
+@media (max-width: 900px) {
+  .community-oa-page {
+    padding-inline: 1.5rem;
+  }
+
+  .community-oa-rooms {
+    grid-template-columns: 1fr;
+  }
+
+  .community-oa-rooms-heading strong {
+    max-width: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .community-oa-page {
+    padding: 6.8rem 1rem 3rem;
+  }
+
+  .community-oa-atmosphere {
+    background-size: auto, auto, 32px 32px, 32px 32px;
+  }
+
+  .community-oa-intro {
+    margin-bottom: 1.3rem;
+  }
+
+  .community-oa-intro h1 {
+    max-width: 10ch;
+    font-size: clamp(3.15rem, 14.8vw, 4.25rem);
+    line-height: 0.89;
+  }
+
+  .community-oa-intro p {
+    font-size: 0.92rem;
+  }
+
+  .community-oa-stage {
+    border-radius: 25px;
+  }
+
+  .community-oa-board {
+    border-radius: 20px;
+  }
+
+  .community-oa-join-copy {
+    padding: 1.6rem 1rem;
+  }
+
+  .community-oa-brand-mark {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .community-oa-join-copy h2 {
+    font-size: 2.45rem;
+  }
+
+  .community-oa-join {
+    min-height: 4.5rem;
+    grid-template-columns: 1.45rem minmax(0, 1fr) 1rem;
+    padding-inline: 1rem;
+  }
+
+  .community-oa-help-flow,
+  .community-oa-room-list {
+    grid-template-columns: 1fr;
+  }
+
+  .community-oa-help-flow {
+    gap: 1.35rem;
+    padding: 1.25rem 1rem;
+  }
+
+  .community-oa-rooms {
+    gap: 1.5rem;
+    padding: 1.5rem 1rem;
+  }
+
+  .community-oa-room-list {
+    gap: 1.15rem;
+  }
+
+  .community-oa-boundary {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.8rem;
+  }
+
+  .community-oa-boundary button {
+    min-height: 2.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .community-oa-page *,
+  .community-oa-page *::before,
+  .community-oa-page *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+
+  .community-oa-page button:active {
+    transform: none;
+  }
+}

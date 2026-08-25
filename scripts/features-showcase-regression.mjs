@@ -37,8 +37,8 @@ assert.equal(digest(hero), "e50d30ccb31ea669c6ed0344ce0812fcda20144ca373b8dfc0c9
 assert.equal(digest(story), "6a96146d9ac181a74dab8451232dc8c22ea5508f076c711007b3e8526f93012c", "How Cova Works must remain byte-stable.");
 assert.equal(digest(plans), "48c055862619c8fbd6df999af707be831b462852a89fc151ffcb0eed3d9fa400", "Pricing and footer source must remain byte-stable.");
 assert.equal(digest(landingCss), "51b71de958850cfbc73f0c40ac9fd342ba86d4938f34f7c90109c5896080cf4d", "The approved landing stylesheet must remain byte-stable.");
-const pricingTail = marketingPages.slice(marketingPages.indexOf("export function PricingPage"));
-assert.equal(digest(pricingTail), "0edeababea018720c384ff315dc95863fac718ab4c576ef5dc1cb6d526395019", "Pricing, the updated Resources surface, and Community must remain byte-stable inside this candidate.");
+const pricingSection = marketingPages.slice(marketingPages.indexOf("export function PricingPage"));
+assert.equal(digest(pricingSection), "156ff5563da276ddfba23f45149df79548c1abe2e5deb6461bfb8f3bbcbadc5c", "Pricing must remain byte-stable inside the final marketing release.");
 
 assert.match(marketingPages, /export \{ FeaturesPage \} from "\.\/FeaturesShowcasePage";/, "MarketingPages must hand Features to its dedicated approved owner.");
 assert.doesNotMatch(marketingPages, /featureGroups|FeatureActionCard|Everything a trader needs after the trade closes|Built for review/, "The retired generic Features card grid must leave source truth.");

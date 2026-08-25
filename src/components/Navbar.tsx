@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
-import { ChevronDown, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { isWorkspaceNavActive, type Section } from "../lib/appRoutes";
 import { StartFreeButton } from "./StartFreeButton";
@@ -20,12 +20,12 @@ const appNav = [
 ] satisfies { id: Section; label: string }[];
 
 const marketingNav = [
-  { label: "Product", action: "overview" },
+  { label: "Home", action: "overview" },
   { label: "Features", action: "features" },
   { label: "Pricing", action: "pricing" },
   { label: "Resources", action: "resources" },
-  { label: "Community", action: "community", hasChevron: true },
-] satisfies { action: Section; hasChevron?: boolean; label: string }[];
+  { label: "Community", action: "community" },
+] satisfies { action: Section; label: string }[];
 
 export function Navbar({ section, go, openAuth, mobileOpen, setMobileOpen, authSession, riskScore, signOut, deleteAccount }: {
   section: Section;
@@ -110,7 +110,6 @@ export function Navbar({ section, go, openAuth, mobileOpen, setMobileOpen, authS
                   aria-current={section === item.action ? "page" : undefined}
                 >
                   {item.label}
-                  {item.hasChevron && <ChevronDown className="h-3.5 w-3.5" />}
                 </button>
               ))
             )}
@@ -212,7 +211,6 @@ export function Navbar({ section, go, openAuth, mobileOpen, setMobileOpen, authS
                   type="button"
                 >
                 {item.label}
-                {item.hasChevron && <ChevronDown className="h-4 w-4" />}
               </button>
             ))}
             <div className="operator-mobile-account-actions mt-3 grid grid-cols-2 gap-2 border-t border-white/10 pt-3">
