@@ -17,6 +17,20 @@ const styles = readFileSync(stylesPath, "utf8");
 const marketing = readFileSync(marketingPath, "utf8");
 const main = readFileSync(mainPath, "utf8");
 
+function cssBlock(selector) {
+  const start = styles.indexOf(`${selector} {`);
+  assert.notEqual(start, -1, `Missing CSS owner ${selector}.`);
+  const open = styles.indexOf("{", start);
+  const close = styles.indexOf("}", open);
+  assert.ok(open >= 0 && close > open, `Could not parse CSS owner ${selector}.`);
+  return styles.slice(open + 1, close);
+}
+
+function assertCssDeclaration(selector, property, value, message) {
+  const escapedValue = value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  assert.match(cssBlock(selector), new RegExp(`(?:^|\\n)\\s*${property}:\\s*${escapedValue};`), message);
+}
+
 assert.match(marketing, /export \{ ResourcesPage \} from "\.\/ResourcesQuickStartPage";/, "MarketingPages must hand Resources to its dedicated owner.");
 assert.match(main, /styles\/resourcesQuickStart\.css/, "The Resources stylesheet must load after settled site CSS.");
 assert.match(resources, /Start with the trades you already have\./, "The route must lead with the approved launch-focused headline.");
@@ -49,10 +63,16 @@ assert.match(styles, /padding:\s*4px/, "The OA two-layer surface must use the pa
 assert.match(styles, /border-radius:\s*999px/, "Primary actions must use OA pill anatomy.");
 assert.match(styles, /#4f7dff|#6f96ff/, "Cobalt must be the single accent.");
 assert.match(styles, /prefers-reduced-motion:\s*reduce/, "The stylesheet must include a reduced-motion fallback.");
-assert.match(styles, /\.resources-oa-board-header span[\s\S]*?color:\s*rgba\(232, 238, 255, 0\.58\)[\s\S]*?font-size:\s*0\.68rem/, "Resources header metadata must remain readable and AA-contrast.");
-assert.match(styles, /\.resources-oa-sample-header[\s\S]*?color:\s*rgba\(232, 238, 255, 0\.58\)[\s\S]*?font-size:\s*0\.66rem/, "Sample provenance must remain readable and AA-contrast.");
-assert.match(styles, /\.resources-oa-file-stats dt[\s\S]*?color:\s*rgba\(232, 238, 255, 0\.58\)[\s\S]*?font-size:\s*0\.65rem/, "Import status labels must remain readable and AA-contrast.");
-assert.match(styles, /\.resources-oa-mapping span[\s\S]*?color:\s*rgba\(232, 238, 255, 0\.58\)[\s\S]*?font-size:\s*0\.65rem/, "CSV mapping labels must remain readable and AA-contrast.");
-assert.match(styles, /\.resources-oa-boundary\s*\{[\s\S]*?font-size:\s*0\.65rem/, "The no-orders boundary must remain readable.");
+for (const [selector, size, label] of [
+  [".resources-oa-board-header span", "0.68rem", "Resources header metadata"],
+  [".resources-oa-sample-header", "0.66rem", "Sample provenance"],
+  [".resources-oa-file-stats dt", "0.65rem", "Import status labels"],
+  [".resources-oa-mapping span", "0.65rem", "CSV mapping labels"],
+]) {
+  assertCssDeclaration(selector, "color", "rgba(232, 238, 255, 0.58)", `${label} must remain AA-contrast.`);
+  assertCssDeclaration(selector, "font-size", size, `${label} must remain readable.`);
+}
+assertCssDeclaration(".resources-oa-boundary", "font-size", "0.65rem", "The no-orders boundary must remain readable.");
+assertCssDeclaration(".resources-oa-boundary span", "color", "rgba(232, 238, 255, 0.58)", "The no-orders boundary must remain AA-contrast.");
 
 console.log("Resources OA quick-start regression passed.");
