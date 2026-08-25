@@ -49,5 +49,10 @@ assert.match(styles, /padding:\s*4px/, "The OA two-layer surface must use the pa
 assert.match(styles, /border-radius:\s*999px/, "Primary actions must use OA pill anatomy.");
 assert.match(styles, /#4f7dff|#6f96ff/, "Cobalt must be the single accent.");
 assert.match(styles, /prefers-reduced-motion:\s*reduce/, "The stylesheet must include a reduced-motion fallback.");
+assert.match(styles, /\.resources-oa-board-header span[\s\S]*?color:\s*rgba\(232, 238, 255, 0\.58\)[\s\S]*?font-size:\s*0\.68rem/, "Resources header metadata must remain readable and AA-contrast.");
+assert.match(styles, /\.resources-oa-sample-header[\s\S]*?color:\s*rgba\(232, 238, 255, 0\.58\)[\s\S]*?font-size:\s*0\.66rem/, "Sample provenance must remain readable and AA-contrast.");
+assert.match(styles, /\.resources-oa-file-stats dt[\s\S]*?color:\s*rgba\(232, 238, 255, 0\.58\)[\s\S]*?font-size:\s*0\.65rem/, "Import status labels must remain readable and AA-contrast.");
+assert.match(styles, /\.resources-oa-mapping span[\s\S]*?color:\s*rgba\(232, 238, 255, 0\.58\)[\s\S]*?font-size:\s*0\.65rem/, "CSV mapping labels must remain readable and AA-contrast.");
+assert.match(styles, /\.resources-oa-boundary\s*\{[\s\S]*?font-size:\s*0\.65rem/, "The no-orders boundary must remain readable.");
 
 console.log("Resources OA quick-start regression passed.");

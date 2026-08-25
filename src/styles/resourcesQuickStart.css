@@ -155,8 +155,8 @@
 }
 
 .resources-oa-board-header span {
-  color: rgba(232, 238, 255, 0.42);
-  font-size: 0.61rem;
+  color: rgba(232, 238, 255, 0.58);
+  font-size: 0.68rem;
   letter-spacing: 0.09em;
   text-transform: uppercase;
 }
@@ -256,8 +256,8 @@
   gap: 0.8rem;
   padding-bottom: 0.85rem;
   border-bottom: 1px solid var(--resources-line);
-  color: rgba(232, 238, 255, 0.4);
-  font-size: 0.56rem;
+  color: rgba(232, 238, 255, 0.58);
+  font-size: 0.66rem;
   letter-spacing: 0.08em;
 }
 
@@ -321,8 +321,8 @@
 }
 
 .resources-oa-file-stats dt {
-  color: rgba(232, 238, 255, 0.36);
-  font-size: 0.49rem;
+  color: rgba(232, 238, 255, 0.58);
+  font-size: 0.65rem;
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
@@ -352,8 +352,8 @@
 }
 
 .resources-oa-mapping span {
-  color: rgba(232, 238, 255, 0.4);
-  font-size: 0.53rem;
+  color: rgba(232, 238, 255, 0.58);
+  font-size: 0.65rem;
 }
 
 .resources-oa-mapping strong {
@@ -401,7 +401,7 @@
   border-top: 1px solid var(--resources-line);
   background: rgba(79, 125, 255, 0.04);
   font-family: "DM Mono", "Geist Mono Variable", monospace;
-  font-size: 0.57rem;
+  font-size: 0.65rem;
   letter-spacing: 0.055em;
   text-transform: uppercase;
 }
@@ -412,7 +412,7 @@
 }
 
 .resources-oa-boundary span {
-  color: rgba(232, 238, 255, 0.48);
+  color: rgba(232, 238, 255, 0.58);
 }
 
 .resources-oa-utility {
