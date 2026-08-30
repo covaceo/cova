@@ -91,8 +91,8 @@ assert.deepEqual(dashboardModule.getDashboardSummaryAction(overlappingWarning), 
 assert.match(dashboard, /label: "Reported P&L"/, "dashboard summary must not call provider-reported gross P&L net");
 assert.match(dashboard, /Cumulative reported P&amp;L from the selected trade history\./, "equity explanation must stay truthful across Rithmic, Tradovate, CSV, and sample rows");
 assert.doesNotMatch(dashboard, /Net P&L|Net cumulative P&amp;L|imported trade history/, "Risk Desk copy must stay truthful for gross provider history and sample review rows");
-assert.match(dashboardCards, /\["Reported P&L", formatMoney\(analysis\.totalPnl\)\]/, "shared dashboard metrics must use the same provider-neutral P&L label");
-assert.doesNotMatch(dashboardCards, /\["Net P&L", formatMoney\(analysis\.totalPnl\)\]/, "shared dashboard metrics must not claim Rithmic gross P&L is net");
+assert.match(dashboardCards, /label: "Reported P&L", value: formatMoney\(analysis\.totalPnl\), tone: analysis\.totalPnl > 0 \? "positive" : analysis\.totalPnl < 0 \? "negative" : "neutral"/, "shared dashboard metrics must use provider-neutral P&L wording and neutral breakeven tone");
+assert.doesNotMatch(dashboardCards, /label: "Net P&L"/, "shared dashboard metrics must not claim Rithmic gross P&L is net");
 assert.match(dashboard, /getTradeSourceLabel\(scopedAnalysis\.trades\)/, "dashboard selected ranges must label only the rows in the selected review");
 assert.match(dashboard, /label: "Review source"/, "the summary cell must state that it labels selected review provenance rather than global account state");
 assert.match(dashboard, /const hasRithmicTrades = scopedAnalysis\.trades\.some/, "Rithmic attribution must follow the selected review rows");

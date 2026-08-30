@@ -71,7 +71,7 @@ export type NextSessionBrief = {
 };
 
 export type EvidenceQuality = {
-  label: "No sample" | "Small sample" | "Building sample" | "Good sample" | "High confidence";
+  label: "No sample" | "Small sample" | "Building sample" | "Good sample" | "Large sample";
   level: "none" | "low" | "medium" | "high";
   summary: string;
   caveats: string[];
@@ -188,9 +188,11 @@ export function analyze(trades: Trade[], rules: RiskRule[]) {
     trades: session.trades,
   }));
 
-  const ruleStatuses = rules.filter((rule) => rule.enabled).map((rule) => evaluateRule(rule, sorted, sessions, { profitFactor, avgR, worstLossStreak }));
+  const activeRules = rules.filter((rule) => rule.enabled);
+  const activeRuleCount = activeRules.length;
+  const ruleStatuses = activeRules.map((rule) => evaluateRule(rule, sorted, sessions, { profitFactor, avgR, worstLossStreak }));
   const breaches = ruleStatuses.filter((status) => status.breached);
-  const compliance = ruleStatuses.length ? (ruleStatuses.length - breaches.length) / ruleStatuses.length : 1;
+  const compliance = ruleStatuses.length ? (ruleStatuses.length - breaches.length) / ruleStatuses.length : 0;
   const bySetup = summarize(sorted, (trade) => trade.setup);
   const byMarket = summarize(sorted, (trade) => trade.market);
   const setupConcentration = getConcentration(bySetup, sorted.length);
@@ -203,7 +205,7 @@ export function analyze(trades: Trade[], rules: RiskRule[]) {
   const concentrationPenalty = setupConcentration && setupConcentration.share >= 0.45 && setupConcentration.avgR < 0 ? 4 : 0;
   const sessionPenalty = Math.min(10, worstSessionLoss / 700);
   const samplePenalty = getSamplePenalty(sorted.length);
-  const evidenceQuality = buildEvidenceQuality(sorted.length, rules.filter((rule) => rule.enabled).length, sorted);
+  const evidenceQuality = buildEvidenceQuality(sorted.length, activeRuleCount, sorted);
   const rawScore = sorted.length
     ? clamp(
       Math.round(
@@ -226,8 +228,9 @@ export function analyze(trades: Trade[], rules: RiskRule[]) {
       100,
     )
     : 0;
-  const score = applyEvidenceScoreCap(rawScore, evidenceQuality);
+  const score = activeRuleCount ? applyEvidenceScoreCap(rawScore, evidenceQuality) : 0;
   const scoreFactors = buildScoreFactors({
+    activeRuleCount,
     avgR,
     breaches,
     compliance,
@@ -252,6 +255,7 @@ export function analyze(trades: Trade[], rules: RiskRule[]) {
     setupConcentration,
   });
   const nextSessionBrief = buildNextSessionBrief({
+    activeRuleCount,
     behaviorFlags,
     breaches,
     latestSession,
@@ -283,6 +287,7 @@ export function analyze(trades: Trade[], rules: RiskRule[]) {
     sessions,
     latestSession,
     daily,
+    activeRuleCount,
     ruleStatuses,
     breaches,
     behaviorFlags,
@@ -513,6 +518,7 @@ function buildBehaviorFlags({
 }
 
 function buildNextSessionBrief({
+  activeRuleCount,
   behaviorFlags,
   breaches,
   latestSession,
@@ -523,6 +529,7 @@ function buildNextSessionBrief({
   score,
   sorted,
 }: {
+  activeRuleCount: number;
   behaviorFlags: BehaviorFlag[];
   breaches: RuleStatus[];
   latestSession: SessionSummary | null;
@@ -546,11 +553,13 @@ function buildNextSessionBrief({
     .filter((flag) => flag.severity !== "positive")
     .map((flag) => flag.label)
     .slice(0, 3);
-  const guardrails = [
-    `Configured daily-loss limit: ${formatMoney(dailyLimit)}.`,
-    `Configured size limit: ${maxContracts} contract${maxContracts === 1 ? "" : "s"}.`,
-    `Configured loss-streak threshold: ${lossStreakLimit} trade${lossStreakLimit === 1 ? "" : "s"}.`,
-  ];
+  const guardrails = activeRuleCount
+    ? [
+        `Configured daily-loss limit: ${formatMoney(dailyLimit)}.`,
+        `Configured size limit: ${maxContracts} contract${maxContracts === 1 ? "" : "s"}.`,
+        `Configured loss-streak threshold: ${lossStreakLimit} trade${lossStreakLimit === 1 ? "" : "s"}.`,
+      ]
+    : ["No active review thresholds are enabled."];
   const evidence = [
     latestSession ? `Latest session: ${formatMoney(latestSession.pnl)} across ${latestSession.trades} trade${latestSession.trades === 1 ? "" : "s"}` : "No latest session yet",
     sorted.length ? `Recent 7-trade average: ${recentAvgR.toFixed(2)}R` : "Upload trades to calculate recent R",
@@ -563,6 +572,17 @@ function buildNextSessionBrief({
       headline: "Upload trades to generate a historical review.",
       summary: "Cova needs trade history before it can summarize patterns against your configured limits.",
       watchlist: ["No trade history yet"],
+      guardrails,
+      evidence,
+    };
+  }
+
+  if (!activeRuleCount) {
+    return {
+      status: "caution",
+      headline: "Enable a review threshold before relying on rule proof.",
+      summary: "Rule compliance is not scored while every review threshold is disabled.",
+      watchlist: ["No active review thresholds"],
       guardrails,
       evidence,
     };
@@ -769,14 +789,15 @@ function buildEvidenceQuality(tradeCount: number, activeRuleCount: number, trade
   }
 
   return {
-    label: "High confidence",
+    label: "Large sample",
     level: "high",
-    summary: "The sample is large enough for stronger risk and behavior evidence.",
+    summary: "More rows are available for review, but sample size alone does not establish confidence.",
     caveats,
   };
 }
 
 function buildScoreFactors({
+  activeRuleCount,
   avgR,
   avgRTrend,
   breaches,
@@ -789,6 +810,7 @@ function buildScoreFactors({
   score,
   sorted,
 }: {
+  activeRuleCount: number;
   avgR: number;
   avgRTrend: number;
   breaches: RuleStatus[];
@@ -817,11 +839,13 @@ function buildScoreFactors({
   const factors: ScoreFactor[] = [
     {
       label: "Rule discipline",
-      impact: breaches.length ? "negative" : "positive",
-      summary: breaches.length
-        ? `${breaches.length} active limit warning${breaches.length === 1 ? "" : "s"} pulled the score down.`
-        : "Active limits are clean in this sample.",
-      evidence: `${Math.round(compliance * 100)}% limits followed`,
+      impact: !activeRuleCount ? "neutral" : breaches.length ? "negative" : "positive",
+      summary: !activeRuleCount
+        ? "Rule discipline is unavailable until at least one review threshold is enabled."
+        : breaches.length
+          ? `${breaches.length} active limit warning${breaches.length === 1 ? "" : "s"} pulled the score down.`
+          : "Active limits are clean in this sample.",
+      evidence: activeRuleCount ? `${Math.round(compliance * 100)}% limits followed` : "Not scored · no active limits",
     },
     {
       label: "Recent behavior",
@@ -869,7 +893,7 @@ function buildScoreFactors({
     });
   }
 
-  if (score >= 85) {
+  if (activeRuleCount && score >= 85) {
     factors.unshift({
       label: "Score support",
       impact: "positive",

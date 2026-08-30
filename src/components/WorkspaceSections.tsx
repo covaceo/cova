@@ -34,7 +34,22 @@ type WorkspaceEntitlements = {
   plan: "free" | "pro";
 };
 
+function normalizeRuleLimit(rawValue: string, currentValue: number, minimum: number, maximum: number, step: number) {
+  if (!rawValue.trim()) {
+    return currentValue;
+  }
+  const parsed = Number(rawValue);
+  if (!Number.isFinite(parsed)) {
+    return currentValue;
+  }
+  const clamped = Math.min(maximum, Math.max(minimum, parsed));
+  const snapped = minimum + Math.round((clamped - minimum) / step) * step;
+  const precision = (String(step).split(".")[1] ?? "").length;
+  return Number(Math.min(maximum, Math.max(minimum, snapped)).toFixed(precision));
+}
+
 export function RulesEngine({ analysis, entitlements, rules, setRules, go, upgradeToPro }: { analysis: ReturnType<typeof analyze>; entitlements: WorkspaceEntitlements; rules: RiskRule[]; setRules: (rules: RiskRule[]) => void; go: (section: Section) => void; upgradeToPro: () => void }) {
+  const hasActiveRules = analysis.activeRuleCount > 0;
   return (
     <SectionShell
       eyebrow="Guardrails"
@@ -56,12 +71,14 @@ export function RulesEngine({ analysis, entitlements, rules, setRules, go, upgra
             </div>
             <div className="rules-ledger-stat p-5">
               <p className="font-body text-xs uppercase tracking-[0.22em] text-white/40">Rules followed</p>
-              <p className="mt-2 font-body text-4xl text-emerald-400">{formatPercent(analysis.compliance)}</p>
+              <p className={`mt-2 font-body text-4xl ${hasActiveRules ? "text-emerald-400" : "text-white/55"}`}>
+                {hasActiveRules ? formatPercent(analysis.compliance) : "Not scored"}
+              </p>
             </div>
           </div>
-          <div className={`mt-4 border p-4 ${analysis.breaches.length ? "border-red-400/20 bg-red-400/[0.045]" : "border-emerald-300/16 bg-emerald-300/[0.035]"}`}>
-            <p className={`font-body text-sm font-semibold ${analysis.breaches.length ? "text-red-200" : "text-emerald-200"}`}>
-              {analysis.breaches.length ? `${analysis.breaches.length} warning${analysis.breaches.length === 1 ? " needs" : "s need"} a decision.` : "The imported history is inside your active limits."}
+          <div className={`mt-4 border p-4 ${!hasActiveRules ? "border-white/12 bg-white/[0.025]" : analysis.breaches.length ? "border-red-400/20 bg-red-400/[0.045]" : "border-emerald-300/16 bg-emerald-300/[0.035]"}`}>
+            <p className={`font-body text-sm font-semibold ${!hasActiveRules ? "text-white/65" : analysis.breaches.length ? "text-red-200" : "text-emerald-200"}`}>
+              {!hasActiveRules ? "Enable at least one rule to calculate compliance." : analysis.breaches.length ? `${analysis.breaches.length} warning${analysis.breaches.length === 1 ? " needs" : "s need"} a decision.` : "The imported history is inside your active limits."}
             </p>
             <p className="mt-2 font-body text-xs leading-relaxed text-white/48">Changing a threshold can change which warnings appear. It re-checks the same imported history; it does not rewrite a trade.</p>
             {analysis.breaches.length > 0 && (
@@ -85,6 +102,9 @@ export function RulesEngine({ analysis, entitlements, rules, setRules, go, upgra
             const ruleState = !rule.enabled ? "off" : status?.breached ? "breach" : "inside";
             const ruleStateLabel = ruleState === "off" ? "Not checked" : ruleState === "breach" ? "Breach in history" : "Inside limit";
             const ruleStateClass = ruleState === "off" ? "bg-white/7 text-white/45" : ruleState === "breach" ? "bg-red-500/15 text-red-300" : "bg-emerald-400/15 text-emerald-300";
+            const updateLimit = (rawValue: string) => setRules(rules.map((item) => item.id === rule.id
+              ? { ...item, limit: normalizeRuleLimit(rawValue, item.limit, rangeMin, rangeMax, rangeStep) }
+              : item));
             return (
               <motion.article
                 key={rule.id}
@@ -130,9 +150,10 @@ export function RulesEngine({ analysis, entitlements, rules, setRules, go, upgra
                     max={rangeMax}
                     step={rangeStep}
                     value={rule.limit}
-                    onChange={(event) => setRules(rules.map((item) => item.id === rule.id ? { ...item, limit: Number(event.target.value) } : item))}
+                    onChange={(event) => updateLimit(event.target.value)}
                     disabled={locked}
                     className="cova-range"
+                    aria-label={rule.name}
                   />
                   <label className="grid gap-1">
                     <span className="font-body text-[10px] uppercase tracking-[0.18em] text-white/35">Limit</span>
@@ -143,7 +164,7 @@ export function RulesEngine({ analysis, entitlements, rules, setRules, go, upgra
                       step={rangeStep}
                       type="number"
                       value={rule.limit}
-                      onChange={(event) => setRules(rules.map((item) => item.id === rule.id ? { ...item, limit: Number(event.target.value) } : item))}
+                      onChange={(event) => updateLimit(event.target.value)}
                       disabled={locked}
                       aria-label={`${rule.name} limit`}
                     />
@@ -380,6 +401,18 @@ function getPassportTier(analysis: ReturnType<typeof analyze>): PassportTier {
   const profitable = analysis.totalPnl > 0;
   const inTheRed = analysis.totalPnl < 0;
   const positiveExpectancy = analysis.avgR > 0 && analysis.profitFactor >= 1.05;
+
+  if (!analysis.activeRuleCount) {
+    return {
+      badge: "UR",
+      rank: "Unranked",
+      skin: "Rule proof unavailable",
+      headline: "Enable a review threshold first",
+      summary: "Cova does not calculate a discipline rank while every review threshold is disabled.",
+      className: "passport-tier-u",
+      cardClass: "passport-card-skin-u",
+    };
+  }
 
   if (
     profitable &&
@@ -715,12 +748,16 @@ function PassportDiamondThree({ active }: { active: boolean }) {
 }
 
 function getPrimaryLeak(analysis: ReturnType<typeof analyze>) {
+  if (!analysis.activeRuleCount) return "No active rules";
   return analysis.behaviorFlags.find((flag) => flag.severity === "critical" || flag.severity === "warning")?.label
     ?? analysis.breaches[0]?.rule.name
     ?? "No major leak";
 }
 
 function getPassportProofLine(tier: PassportTier, analysis: ReturnType<typeof analyze>) {
+  if (!analysis.activeRuleCount) {
+    return "No active rules · rule compliance not scored";
+  }
   if (analysis.totalPnl < 0) {
     return "Negative result · user-supplied data";
   }
@@ -743,6 +780,9 @@ function getPassportProofLine(tier: PassportTier, analysis: ReturnType<typeof an
 }
 
 function getPassportNextTarget(tier: PassportTier, analysis: ReturnType<typeof analyze>) {
+  if (!analysis.activeRuleCount) {
+    return "No active rules · enable one review threshold to calculate rank";
+  }
   if (analysis.totalPnl < 0) {
     return "Reset: 5 clean trades · zero daily-loss breaches";
   }
@@ -767,6 +807,7 @@ function getPassportNextTarget(tier: PassportTier, analysis: ReturnType<typeof a
 function getPassportMoodLine(tier: PassportTier, analysis: ReturnType<typeof analyze>) {
   const leakCount = analysis.breaches.length;
   const leaks = `${leakCount} leak${leakCount === 1 ? "" : "s"}`;
+  if (!analysis.activeRuleCount) return "No rule proof yet. Enable a review threshold.";
   if (analysis.totalPnl < 0) return "Red. Reset before the next click.";
   if (tier.rank === "Diamond") return "Locked in. No chaos required.";
   if (tier.rank === "Platinum") return leakCount ? `Sharp. ${leaks} left.` : "Clean money. Clean process.";
@@ -797,21 +838,47 @@ function getPassportMarketLine(analysis: ReturnType<typeof analyze>) {
   return markets.length ? markets.join(" / ") : "MULTI-MARKET";
 }
 
+function getSignedTone(value: number): NonNullable<PassportStat["tone"]> {
+  return value > 0 ? "positive" : value < 0 ? "negative" : "neutral";
+}
+
+function getRulesHeldStat(analysis: ReturnType<typeof analyze>): PassportStat {
+  if (!analysis.activeRuleCount) {
+    return { label: "Rules held", value: "Not scored", tone: "neutral" };
+  }
+  return {
+    label: "Rules held",
+    value: formatPercent(analysis.compliance),
+    tone: analysis.compliance >= 0.75 ? "positive" : "negative",
+  };
+}
+
+function getControlScoreStat(analysis: ReturnType<typeof analyze>, label = "Control score", range = false): PassportStat {
+  if (!analysis.activeRuleCount) {
+    return { label, value: "Not scored", tone: "neutral" };
+  }
+  return {
+    label,
+    value: range ? `${Math.floor(analysis.score / 10) * 10}+` : `${analysis.score}`,
+    tone: getSignedTone(analysis.score),
+  };
+}
+
 function getPassportStats(analysis: ReturnType<typeof analyze>, mode: PassportShareModeId): PassportStat[] {
     if (mode === "discipline") {
       return [
-        { label: "Control score", value: `${analysis.score}`, tone: "positive" },
-        { label: "Rules held", value: formatPercent(analysis.compliance), tone: analysis.compliance >= 0.75 ? "positive" : "negative" },
-        { label: "Average R", value: `${analysis.avgR.toFixed(2)}R`, tone: analysis.avgR >= 0 ? "positive" : "negative" },
+        getControlScoreStat(analysis),
+        getRulesHeldStat(analysis),
+        { label: "Average R", value: `${analysis.avgR.toFixed(2)}R`, tone: getSignedTone(analysis.avgR) },
         { label: "Max DD", value: formatMoney(Math.round(analysis.maxDrawdown)), tone: analysis.maxDrawdown > 0 ? "neutral" : "positive" },
         { label: "Trades reviewed", value: `${analysis.trades.length}`, tone: "neutral" },
-        { label: "Breaches", value: `${analysis.breaches.length}`, tone: analysis.breaches.length ? "negative" : "positive" },
+        { label: "Breaches", value: `${analysis.breaches.length}`, tone: !analysis.activeRuleCount ? "neutral" : analysis.breaches.length ? "negative" : "positive" },
       ];
     }
     if (mode === "private") {
       return [
-        { label: "Score range", value: Number.isFinite(analysis.score) ? `${Math.floor(analysis.score / 10) * 10}+` : "Hidden", tone: "positive" },
-        { label: "Rules held", value: formatPercent(analysis.compliance), tone: analysis.compliance >= 0.75 ? "positive" : "negative" },
+        getControlScoreStat(analysis, "Score range", true),
+        getRulesHeldStat(analysis),
         { label: "Sample", value: analysis.evidenceQuality.label, tone: "neutral" },
         { label: "Generated", value: analysis.latestDate, tone: "neutral" },
         { label: "Trades reviewed", value: `${analysis.trades.length}`, tone: "neutral" },
@@ -820,21 +887,21 @@ function getPassportStats(analysis: ReturnType<typeof analyze>, mode: PassportSh
     }
     if (mode === "coach") {
       return [
-        { label: "Control score", value: `${analysis.score}`, tone: "neutral" },
-        { label: "Flags", value: `${analysis.breaches.length}`, tone: analysis.breaches.length ? "negative" : "positive" },
-        { label: "Top leak", value: getPrimaryLeak(analysis), tone: analysis.breaches.length ? "negative" : "positive" },
-        { label: "Next", value: analysis.nextSessionBrief.status.toUpperCase(), tone: analysis.nextSessionBrief.status === "ready" ? "positive" : "negative" },
-        { label: "Profit factor", value: analysis.profitFactor.toFixed(2), tone: analysis.profitFactor >= 1 ? "positive" : "negative" },
-        { label: "Average R", value: `${analysis.avgR.toFixed(2)}R`, tone: analysis.avgR >= 0 ? "positive" : "negative" },
+        getControlScoreStat(analysis),
+        { label: "Flags", value: `${analysis.breaches.length}`, tone: !analysis.activeRuleCount ? "neutral" : analysis.breaches.length ? "negative" : "positive" },
+        { label: "Top leak", value: getPrimaryLeak(analysis), tone: !analysis.activeRuleCount ? "neutral" : analysis.breaches.length ? "negative" : "positive" },
+        { label: "Next", value: analysis.nextSessionBrief.status.toUpperCase(), tone: !analysis.activeRuleCount ? "neutral" : analysis.nextSessionBrief.status === "ready" ? "positive" : "negative" },
+        { label: "Profit factor", value: analysis.profitFactor.toFixed(2), tone: getSignedTone(analysis.profitFactor - 1) },
+        { label: "Average R", value: `${analysis.avgR.toFixed(2)}R`, tone: getSignedTone(analysis.avgR) },
       ];
     }
     return [
-      { label: "Reported P&L", value: formatMoney(analysis.totalPnl), tone: analysis.totalPnl >= 0 ? "positive" : "negative" },
-      { label: "Control score", value: `${analysis.score}`, tone: "positive" },
-      { label: "Rules held", value: formatPercent(analysis.compliance), tone: analysis.compliance >= 0.75 ? "positive" : "negative" },
+      { label: "Reported P&L", value: formatMoney(analysis.totalPnl), tone: getSignedTone(analysis.totalPnl) },
+      getControlScoreStat(analysis),
+      getRulesHeldStat(analysis),
       { label: "Trades reviewed", value: `${analysis.trades.length}`, tone: "neutral" },
-      { label: "Profit factor", value: analysis.profitFactor.toFixed(2), tone: analysis.profitFactor >= 1 ? "positive" : "negative" },
-      { label: "Breaches", value: `${analysis.breaches.length}`, tone: analysis.breaches.length ? "negative" : "positive" },
+      { label: "Profit factor", value: analysis.profitFactor.toFixed(2), tone: getSignedTone(analysis.profitFactor - 1) },
+      { label: "Breaches", value: `${analysis.breaches.length}`, tone: !analysis.activeRuleCount ? "neutral" : analysis.breaches.length ? "negative" : "positive" },
     ];
     }
 
@@ -900,6 +967,11 @@ export function Passport({ analysis, entitlements, isSampleReview, go, upgradeTo
   const displayScore = previewingDiamond ? 94 : analysis.score;
   const displayVerifiedRules = previewingDiamond ? 6 : verifiedRules;
   const displayRuleCount = previewingDiamond ? 6 : analysis.ruleStatuses.length;
+  const displayRuleProof = previewingDiamond
+    ? "6/6 rules held"
+    : analysis.activeRuleCount
+      ? `${displayVerifiedRules}/${displayRuleCount} rules held`
+      : "No active rules";
   const reviewId = `COVA-${analysis.latestDate.replace(/-/g, "").slice(2)}-${displayScore}${displayVerifiedRules}`;
   const traderNumber = reviewId.replace(/\D/g, "").slice(-4).padStart(4, "0");
   const marketLine = previewingDiamond ? "NQ / OPENING RANGE" : getPassportMarketLine(analysis);
@@ -917,8 +989,8 @@ export function Passport({ analysis, entitlements, isSampleReview, go, upgradeTo
     { label: "Open positions", visible: false },
   ];
   const ledgerHasFlags = analysis.breaches.length > 0;
-  const ledgerStatusCopy = isSampleReview ? "Sample review · demo data" : ledgerHasFlags ? "Rules calculated · flags found" : "Rules calculated · no flags found";
-  const ledgerStatusClass = ledgerHasFlags || isSampleReview ? "has-flags" : "is-verified";
+  const ledgerStatusCopy = isSampleReview ? "Sample review · demo data" : !analysis.activeRuleCount ? "Rule proof unavailable · no active limits" : ledgerHasFlags ? "Rules calculated · flags found" : "Rules calculated · no flags found";
+  const ledgerStatusClass = ledgerHasFlags || !analysis.activeRuleCount || isSampleReview ? "has-flags" : "is-verified";
 
   useEffect(() => {
     try {
@@ -1071,7 +1143,7 @@ export function Passport({ analysis, entitlements, isSampleReview, go, upgradeTo
                         <div className={`passport-profile-hero-stat passport-stat-${heroStat.tone ?? "neutral"}`}>
                           <span>{heroStat.label}</span>
                           <strong>{heroStat.value}</strong>
-                          <small>{displayVerifiedRules}/{displayRuleCount} rules held</small>
+                          <small>{displayRuleProof}</small>
                         </div>
                       </div>
 

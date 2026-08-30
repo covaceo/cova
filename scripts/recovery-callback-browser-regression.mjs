@@ -339,7 +339,7 @@ try {
   await send("Page.navigate", { url: navigationUrl });
   await waitFor("document.readyState === 'complete'", 45_000);
   if (ordinaryReload) {
-    await waitFor("Boolean(document.querySelector('.workspace-sidebar'))", 45_000);
+    await waitFor("Boolean(document.querySelector('.workspace-sidebar')) && !document.querySelector('[role=\"dialog\"]') && location.hash === '#dashboard' && localStorage.getItem('cova-auth-session-v1') !== null", 45_000);
   } else if (mismatchedRecovery || recoveryMarkerWriteFailure) {
     await waitFor("document.querySelector('#root')?.childElementCount > 0 && (window.__covaRecoveryEverRendered || (location.hash === '' && localStorage.getItem('cova-supabase-auth-v1') === null))", 45_000);
   } else {

@@ -13,7 +13,7 @@ const read = async (path) => {
     throw error;
   }
 };
-const digest = (source) => createHash("sha256").update(source).digest("hex");
+const digest = (source) => createHash("sha256").update(source.replace(/\r\n/g, "\n")).digest("hex");
 
 const [packageJson, marketingPages, features, css, main, hero, story, plans, landingCss, browserAudit] = await Promise.all([
   read("package.json"),
@@ -33,12 +33,12 @@ assert.match(packageJson, /"test:features-showcase":\s*"node scripts\/features-s
 assert.match(packageJson, /"test":\s*"[^"]*test:features-showcase-browser/, "The aggregate suite must run rendered Features behavior.");
 assert.match(packageJson, /"test:features-showcase-browser":\s*"npm run build && node scripts\/features-showcase-browser-regression\.mjs"/);
 
-assert.equal(digest(hero), "e50d30ccb31ea669c6ed0344ce0812fcda20144ca373b8dfc0c93a83a25ec31e", "The completed landing hero must remain byte-stable.");
-assert.equal(digest(story), "6a96146d9ac181a74dab8451232dc8c22ea5508f076c711007b3e8526f93012c", "How Cova Works must remain byte-stable.");
-assert.equal(digest(plans), "48c055862619c8fbd6df999af707be831b462852a89fc151ffcb0eed3d9fa400", "Pricing and footer source must remain byte-stable.");
-assert.equal(digest(landingCss), "51b71de958850cfbc73f0c40ac9fd342ba86d4938f34f7c90109c5896080cf4d", "The approved landing stylesheet must remain byte-stable.");
+assert.equal(digest(hero), "454b49c9ee258b227e51c7404f106aafac853d365f6eac2c3417b317900fb921", "The completed landing hero must remain byte-stable across checkout line endings.");
+assert.equal(digest(story), "4bdc845a708791a0307b6411b7a3d87969ea2a174b06ded14b2c496784025b96", "How Cova Works must remain byte-stable across checkout line endings.");
+assert.equal(digest(plans), "6e7c7dbb2679c5da68436bc8573ffd6bedaae2510965a40137ec77482f256ae8", "Pricing and footer source must remain byte-stable across checkout line endings.");
+assert.equal(digest(landingCss), "4db289a9218f473065245da68623ceefc66fa82266c4d1607be438df65b457d8", "The approved landing stylesheet must remain byte-stable across checkout line endings.");
 const pricingSection = marketingPages.slice(marketingPages.indexOf("export function PricingPage"));
-assert.equal(digest(pricingSection), "156ff5563da276ddfba23f45149df79548c1abe2e5deb6461bfb8f3bbcbadc5c", "Pricing must remain byte-stable inside the final marketing release.");
+assert.equal(digest(pricingSection), "0ddba4859a94c283a84fe564c0a262ff99eb599aafd3d26def1daab577c5300b", "Pricing must remain byte-stable inside the final marketing release across checkout line endings.");
 
 assert.match(marketingPages, /export \{ FeaturesPage \} from "\.\/FeaturesShowcasePage";/, "MarketingPages must hand Features to its dedicated approved owner.");
 assert.doesNotMatch(marketingPages, /featureGroups|FeatureActionCard|Everything a trader needs after the trade closes|Built for review/, "The retired generic Features card grid must leave source truth.");

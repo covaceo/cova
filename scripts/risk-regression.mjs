@@ -206,6 +206,60 @@ const overtradingAnalysis = analyze(Array.from({ length: 9 }, (_, index) => make
 })), defaultRules);
 assert.ok(overtradingAnalysis.behaviorFlags.some((flag) => flag.id === "overtrading-session"), "Behavior flags should call out high-count red sessions.");
 
+const allRulesDisabled = defaultRules.map((rule) => ({ ...rule, enabled: false }));
+const noRuleAnalysis = analyze(cleanTrades, allRulesDisabled);
+assert.equal(noRuleAnalysis.activeRuleCount, 0, "Analysis must expose that no risk rules are active.");
+assert.equal(noRuleAnalysis.compliance, 0, "No active rules must not manufacture 100% compliance.");
+assert.equal(noRuleAnalysis.score, 0, "No active rules must make the Cova Score unavailable instead of preserving a positive score.");
+assert.equal(noRuleAnalysis.nextSessionBrief.status, "caution", "No active rules must not produce a ready next-session brief.");
+assert.ok(noRuleAnalysis.scoreFactors.some((factor) => factor.label === "Rule discipline" && factor.impact === "neutral" && /not scored/i.test(factor.evidence)), "Rule discipline must be unavailable rather than positive when every rule is disabled.");
+assert.equal(noRuleAnalysis.scoreFactors.some((factor) => factor.label === "Score support"), false, "No active rules must never produce positive Cova Score support.");
+
+const breachingNoRuleFixture = [
+  ...cleanTrades.slice(0, 18),
+  makeTrade({ id: "all-off-critical", date: "2026-06-15", contracts: 6, pnl: -3200, risk: 600, setup: "Revenge trade" }),
+];
+const breachingWithRules = analyze(breachingNoRuleFixture, defaultRules);
+const breachingWithoutRules = analyze(breachingNoRuleFixture, allRulesDisabled);
+assert.ok(breachingWithRules.breaches.length >= 3, "The no-rule score comparison must begin from a genuinely breaching ledger.");
+assert.equal(breachingWithoutRules.score, 0, "Disabling every rule on a breaching ledger must make the score unavailable.");
+assert.ok(breachingWithoutRules.score <= breachingWithRules.score, "Disabling every rule must never improve the Cova Score.");
+
+const highCountAnalysis = analyze(Array.from({ length: 50 }, (_, index) => makeTrade({
+  id: `large-sample-${index}`,
+  date: `2026-07-${String(1 + Math.floor(index / 2)).padStart(2, "0")}`,
+  pnl: index % 5 === 4 ? -180 : 420,
+  risk: 250,
+})), defaultRules);
+assert.equal(highCountAnalysis.evidenceQuality.label, "Large sample", "Trade count alone must not claim High confidence.");
+assert.doesNotMatch(`${highCountAnalysis.evidenceQuality.label} ${highCountAnalysis.evidenceQuality.summary}`, /high confidence/i, "Evidence quality must avoid unsupported confidence claims.");
+
+const neutralSessionRules = defaultRules.map((rule) => ({
+  ...rule,
+  enabled: rule.metric === "maxContracts",
+  limit: rule.metric === "maxContracts" ? 10 : rule.limit,
+}));
+const sessionSequence = [
+  makeTrade({ id: "session-1", date: "2026-07-01", pnl: -1000, risk: 500 }),
+  makeTrade({ id: "session-2", date: "2026-07-02", pnl: -1000, risk: 500 }),
+  makeTrade({ id: "session-3", date: "2026-07-03", pnl: -1000, risk: 500 }),
+  ...Array.from({ length: 37 }, (_, index) => makeTrade({
+    id: `session-win-${index}`,
+    date: new Date(Date.UTC(2026, 6, 4 + index)).toISOString().slice(0, 10),
+    pnl: 200,
+    risk: 500,
+  })),
+];
+const spreadSessionLoss = analyze(sessionSequence, neutralSessionRules);
+const groupedSessionLoss = analyze(sessionSequence.map((trade, index) => index < 3 ? { ...trade, date: "2026-07-01" } : trade), neutralSessionRules);
+assert.equal(spreadSessionLoss.activeRuleCount, 1, "The session-loss sign probe must retain one neutral active rule so the score remains available.");
+assert.equal(groupedSessionLoss.totalPnl, spreadSessionLoss.totalPnl, "Session grouping must preserve total P&L.");
+assert.equal(groupedSessionLoss.avgR, spreadSessionLoss.avgR, "Session grouping must preserve average R.");
+assert.equal(groupedSessionLoss.maxDrawdown, spreadSessionLoss.maxDrawdown, "Session grouping must preserve drawdown path.");
+assert.equal(groupedSessionLoss.compliance, spreadSessionLoss.compliance, "Session grouping must preserve rule compliance.");
+assert.ok(Math.min(...groupedSessionLoss.sessions.map((session) => session.pnl)) < Math.min(...spreadSessionLoss.sessions.map((session) => session.pnl)), "The grouped fixture must produce a strictly worse session loss.");
+assert.ok(groupedSessionLoss.score < spreadSessionLoss.score, "A strictly larger worst-session loss must strictly reduce the uncapped Cova Score.");
+
 for (const setup of ["__proto__", "constructor"]) {
   const prototypeSensitive = parseCsvDetailed(`date,market,side,contracts,entry,exit,pnl,risk,setup,notes
 2026-08-02,NQ,Long,1,19000,19010,200,100,${setup},Imported fixture`);

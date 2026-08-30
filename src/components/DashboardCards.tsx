@@ -1,19 +1,20 @@
 import { analyze, formatMoney } from "../lib/risk";
 
 export function MetricDock({ analysis }: { analysis: ReturnType<typeof analyze> }) {
+  const scoreAvailable = analysis.activeRuleCount > 0;
   const metrics = [
-    ["Score", `${analysis.score}/100`],
-    ["Reported P&L", formatMoney(analysis.totalPnl)],
-    ["Biggest Dip", formatMoney(-analysis.maxDrawdown)],
-    ["Profit Factor", Number.isFinite(analysis.profitFactor) ? analysis.profitFactor.toFixed(2) : "∞"],
-    ["Average R", `${analysis.avgR.toFixed(2)}R`],
+    { label: "Score", value: scoreAvailable ? `${analysis.score}/100` : "Not scored", tone: scoreAvailable && analysis.score > 0 ? "positive" : "neutral" },
+    { label: "Reported P&L", value: formatMoney(analysis.totalPnl), tone: analysis.totalPnl > 0 ? "positive" : analysis.totalPnl < 0 ? "negative" : "neutral" },
+    { label: "Biggest Dip", value: formatMoney(-analysis.maxDrawdown), tone: analysis.maxDrawdown > 0 ? "negative" : "neutral" },
+    { label: "Profit Factor", value: Number.isFinite(analysis.profitFactor) ? analysis.profitFactor.toFixed(2) : "∞", tone: analysis.profitFactor > 1 ? "positive" : analysis.profitFactor < 1 ? "negative" : "neutral" },
+    { label: "Average R", value: `${analysis.avgR.toFixed(2)}R`, tone: analysis.avgR > 0 ? "positive" : analysis.avgR < 0 ? "negative" : "neutral" },
   ];
   return (
     <div className="mt-5 grid overflow-hidden rounded-[28px] border border-white/10 md:grid-cols-5">
-      {metrics.map(([label, value]) => (
+      {metrics.map(({ label, value, tone }) => (
         <div className="border-b border-white/10 p-5 md:border-b-0 md:border-r last:border-r-0" key={label}>
           <p className="font-body text-sm text-white/62">{label}</p>
-          <p className={`mt-3 font-mono text-3xl ${String(value).startsWith("-") ? "oa-tone-negative" : "oa-tone-positive"}`}>{value}</p>
+          <p className={`mt-3 font-mono text-3xl oa-tone-${tone}`}>{value}</p>
         </div>
       ))}
     </div>
@@ -21,17 +22,22 @@ export function MetricDock({ analysis }: { analysis: ReturnType<typeof analyze> 
 }
 
 export function ScoreCard({ analysis }: { analysis: ReturnType<typeof analyze> }) {
+  const scoreAvailable = analysis.activeRuleCount > 0;
   return (
     <section className="risk-score-panel oa-squircle-card">
       <header className="oa-card-header">
         <h2>Cova Score</h2>
-        <span>{analysis.evidenceQuality.label}</span>
+        <span>{scoreAvailable ? analysis.evidenceQuality.label : "Not scored"}</span>
       </header>
       <div className="oa-card-inset oa-score-inset">
         <div className="oa-score-reading">
-          <p className="oa-score-value">{analysis.score}<span>/100</span></p>
-          <p className="oa-score-caption">{analysis.score >= 80 ? "Strong risk discipline" : analysis.score >= 60 ? "Decent, with room to tighten" : "Risk needs attention"}</p>
-          <p className="oa-score-sample">{analysis.trades.length} trades checked</p>
+          <p className="oa-score-value">{scoreAvailable ? <>{analysis.score}<span>/100</span></> : "Not scored"}</p>
+          <p className="oa-score-caption">
+            {scoreAvailable
+              ? analysis.score >= 80 ? "Strong risk discipline" : analysis.score >= 60 ? "Decent, with room to tighten" : "Risk needs attention"
+              : "Enable at least one rule to calculate the Cova Score."}
+          </p>
+          <p className="oa-score-sample">{scoreAvailable ? `${analysis.trades.length} trades checked` : "Cova Score requires at least one active rule."}</p>
         </div>
         <div className="oa-factor-list">
           {analysis.scoreFactors.slice(0, 3).map((factor) => (

@@ -386,18 +386,192 @@ async function collapsedWorkspace(width, height) {
   assert.deepEqual(oauthCurrent, { count: 1, text: "Link account", active: true }, `${width}x${height} OAuth must retain Link account current-route state`);
 }
 
+async function rulesControlsTruth() {
+  await openDashboard(1440, 900);
+  await evaluate(`(() => {
+    const key = "cova-auth-session-v1";
+    const session = JSON.parse(localStorage.getItem(key));
+    localStorage.setItem(key, JSON.stringify({ ...session, plan: "pro", subscriptionStatus: "active" }));
+  })()`);
+  await cdp.send("Page.navigate", { url: `${origin}/?dashboardRules=${Date.now()}#rules` });
+  await waitFor("document.querySelector(\".rule-control-card input[type='range']\")", 30_000);
+
+  const expectedSliderNames = [
+    "Daily loss limit",
+    "Single-trade loss limit",
+    "Max contracts",
+    "Pause after loss streak",
+    "Minimum profit factor",
+    "Minimum average R",
+  ];
+  const sliderControls = await evaluate(`Array.from(document.querySelectorAll(".rule-control-card input[type='range']"), (node) => ({
+    name: node.getAttribute("aria-label") ?? "",
+    disabled: node.disabled,
+  }))`);
+  assert.deepEqual(
+    sliderControls.map(({ name }) => name).sort(),
+    [...expectedSliderNames].sort(),
+    "Every visible rule slider must carry its rule name.",
+  );
+  const axTree = await cdp.send("Accessibility.getFullAXTree");
+  const sliderNames = axTree.nodes
+    .filter((node) => node.role?.value === "slider")
+    .map((node) => node.name?.value ?? "")
+    .filter((name) => expectedSliderNames.includes(name));
+  assert.deepEqual(
+    [...sliderNames].sort(),
+    [...expectedSliderNames].sort(),
+    "Every rule slider must expose its rule name in the accessibility tree.",
+  );
+
+  const originalValue = await evaluate(`document.querySelector(".rule-control-card input[type='number']")?.value`);
+  assert.equal(originalValue, "2500", "Expected the Daily loss limit control first.");
+
+  const setFirstNumber = async (value) => {
+    await evaluate(`(() => {
+      const input = document.querySelector(".rule-control-card input[type='number']");
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
+      setter.call(input, ${JSON.stringify(value)});
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    })()`);
+    await sleep(180);
+    return evaluate(`document.querySelector(".rule-control-card input[type='number']")?.value`);
+  };
+
+  assert.equal(await setFirstNumber(""), originalValue, "Clearing a rule number must preserve the last valid limit.");
+  assert.equal(await setFirstNumber("99"), "100", "Rule numbers must clamp to the declared minimum.");
+  assert.equal(await setFirstNumber("163"), "150", "Rule numbers must snap to the declared step.");
+  assert.equal(await setFirstNumber("10037"), "10000", "Rule numbers must clamp to the declared maximum.");
+  assert.equal(await setFirstNumber(originalValue), originalValue, "Rule number restoration failed.");
+
+  const initialSwitchStates = await evaluate(`Array.from(document.querySelectorAll(".rule-control-card [role='switch']"), (node) => node.getAttribute("aria-checked"))`);
+  let activeSwitchCount = initialSwitchStates.filter((state) => state === "true").length;
+  while (activeSwitchCount > 0) {
+    await evaluate(`Array.from(document.querySelectorAll(".rule-control-card [role='switch']")).find((node) => node.getAttribute("aria-checked") === "true")?.click()`);
+    activeSwitchCount -= 1;
+    await waitFor(`Array.from(document.querySelectorAll(".rule-control-card [role='switch']")).filter((node) => node.getAttribute("aria-checked") === "true").length === ${activeSwitchCount}`);
+  }
+  const disabledSummary = await evaluate(`document.querySelector(".rules-summary-card")?.textContent ?? ""`);
+  assert.match(disabledSummary, /Rules followed\s*Not scored/i, "All-disabled rules must render compliance as unavailable.");
+  assert.doesNotMatch(disabledSummary, /Rules followed\s*100%/i, "All-disabled rules must not render perfect compliance.");
+
+  await evaluate(`location.hash = "#dashboard"`);
+  await waitFor("document.querySelector('.oa-score-value')", 10_000);
+  const disabledDashboardScore = await evaluate(`(() => {
+    return {
+      cardValue: document.querySelector('.oa-score-value')?.textContent?.trim(),
+      caption: document.querySelector('.oa-score-caption')?.textContent?.trim(),
+      sidebarValue: document.querySelector('.workspace-risk-status strong')?.textContent?.trim(),
+      scoreSupport: Array.from(document.querySelectorAll('.oa-factor-row span')).some((node) => node.textContent?.trim() === 'Score support'),
+    };
+  })()`);
+  assert.equal(disabledDashboardScore.cardValue, "Not scored", "Dashboard score card must not render a numeric Cova Score without active rules.");
+  assert.match(disabledDashboardScore.caption, /enable at least one rule/i, "Dashboard score card must explain how to make the score available.");
+  assert.equal(disabledDashboardScore.sidebarValue, "--", "Workspace chrome must render risk score as unavailable without active rules.");
+  assert.equal(disabledDashboardScore.scoreSupport, false, "Unavailable Dashboard score must not render positive Score support.");
+
+  await evaluate(`location.hash = "#passport"`);
+  await waitFor("document.querySelector('.passport-profile-card')", 10_000);
+  const disabledPassport = await evaluate(`({
+    rank: document.querySelector(".passport-profile-rank h3")?.textContent?.trim(),
+    rulesHeld: Array.from(document.querySelectorAll(".passport-profile-stat")).find((node) => node.querySelector("span")?.textContent?.trim() === "Rules held")?.querySelector("strong")?.textContent?.trim(),
+    heroProof: document.querySelector(".passport-profile-hero-stat small")?.textContent?.trim(),
+  })`);
+  assert.equal(disabledPassport.rank, "Unranked", "Passport must not award a rank without active rules.");
+  assert.equal(disabledPassport.rulesHeld, "Not scored", "Passport rule compliance must be unavailable without active rules.");
+  assert.equal(disabledPassport.heroProof, "No active rules", "Passport hero proof must disclose that no rules are active.");
+
+  await evaluate("[...document.querySelectorAll('.passport-mode-row')].find((button) => button.textContent.includes('Discipline')).click(); true");
+  await waitFor("document.querySelector('.passport-profile-hero-stat span')?.textContent.trim() === 'Control score'");
+  const disabledDiscipline = await evaluate(`(() => {
+    const hero = document.querySelector('.passport-profile-hero-stat');
+    return {
+      value: hero?.querySelector('strong')?.textContent?.trim(),
+      className: hero?.className,
+      nextTarget: document.querySelector('.passport-rank-progress strong')?.textContent?.trim(),
+    };
+  })()`);
+  assert.equal(disabledDiscipline.value, "Not scored", "Passport Control score must be unavailable without active rules.");
+  assert.match(disabledDiscipline.className, /passport-stat-neutral/, "Unavailable Passport Control score must render neutrally.");
+  assert.match(disabledDiscipline.nextTarget, /No active rules/i, "Passport next-rank proof must explicitly say that no rules are active.");
+
+  await evaluate("[...document.querySelectorAll('.passport-export-row')].find((button) => button.textContent.includes('Feed 4:5')).click(); true");
+  await waitFor("[...document.querySelectorAll('.passport-export-row')].some((button) => button.textContent.includes('Feed 4:5') && button.getAttribute('aria-pressed') === 'true')");
+  await clearDownloadedPngs();
+  await evaluate("[...document.querySelectorAll('button')].find((button) => button.textContent.includes('Download PNG')).click(); true");
+  const normalNoRulePng = await waitForDownloadedPng();
+  assert.deepEqual({ width: normalNoRulePng.width, height: normalNoRulePng.height }, { width: 1080, height: 1350 }, "No-rule normal Passport export must retain Feed dimensions.");
+  assert.ok(normalNoRulePng.size > 10_000, "No-rule normal Passport export must contain rendered card pixels.");
+
+  await clearDownloadedPngs();
+  await evaluate(`(() => {
+    const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
+    const originalCreateObjectURL = URL.createObjectURL;
+    window.__noRuleFallbackInjected = false;
+    window.__noRuleFallbackSvg = '';
+    HTMLCanvasElement.prototype.toDataURL = function(...args) {
+      if (!window.__noRuleFallbackInjected && (this.width !== 1080 || this.height !== 1350)) {
+        window.__noRuleFallbackInjected = true;
+        HTMLCanvasElement.prototype.toDataURL = originalToDataURL;
+        throw new Error('Cova QA forced no-rule DOM export fallback');
+      }
+      return originalToDataURL.apply(this, args);
+    };
+    URL.createObjectURL = function(blob) {
+      if (blob?.type === 'image/svg+xml') blob.text().then((text) => { window.__noRuleFallbackSvg = text; });
+      return originalCreateObjectURL.call(this, blob);
+    };
+    window.__restoreNoRuleFallbackProbe = () => {
+      HTMLCanvasElement.prototype.toDataURL = originalToDataURL;
+      URL.createObjectURL = originalCreateObjectURL;
+    };
+    return true;
+  })()`);
+  await evaluate("[...document.querySelectorAll('button')].find((button) => button.textContent.includes('Download PNG')).click(); true");
+  const fallbackNoRulePng = await waitForDownloadedPng();
+  await waitFor("window.__noRuleFallbackInjected === true && window.__noRuleFallbackSvg.includes('USER-CONFIGURED THRESHOLDS · NOT STANDARDIZED')", 30_000);
+  const fallbackNoRuleTruth = await evaluate(`(() => {
+    const text = window.__noRuleFallbackSvg.toLowerCase();
+    return {
+      unranked: text.includes('unranked'),
+      notScored: text.includes('not scored'),
+      noActiveRules: text.includes('no active rules'),
+    };
+  })()`);
+  assert.deepEqual(fallbackNoRuleTruth, { unranked: true, notScored: true, noActiveRules: true }, "No-rule fallback export must preserve rank, score, and active-rule truth.");
+  assert.deepEqual({ width: fallbackNoRulePng.width, height: fallbackNoRulePng.height }, { width: 1080, height: 1350 }, "No-rule fallback Passport export must retain Feed dimensions.");
+  await evaluate("window.__restoreNoRuleFallbackProbe?.(); true");
+
+  await evaluate(`location.hash = "#rules"`);
+  await waitFor("document.querySelector(\".rule-control-card [role='switch']\")", 10_000);
+  for (const [index, initialState] of initialSwitchStates.entries()) {
+    if (initialState !== "true") continue;
+    await evaluate(`document.querySelectorAll(".rule-control-card [role='switch']")[${index}]?.click()`);
+    await waitFor(`document.querySelectorAll(".rule-control-card [role='switch']")[${index}]?.getAttribute("aria-checked") === "true"`);
+  }
+}
+
 async function passportExportTruth() {
   await setViewport(1440, 1000);
   await evaluate(`(() => { const key = 'cova-auth-session-v1'; const session = JSON.parse(localStorage.getItem(key)); localStorage.setItem(key, JSON.stringify({ ...session, plan: 'pro', subscriptionStatus: 'active' })); })()`);
   const scopedStateKey = await evaluate("Object.keys(localStorage).find((key) => key.startsWith('cova-react-risk-os-v2:'))");
   assert.ok(scopedStateKey, "Passport zero-score proof requires the identity-scoped workspace state key");
-  await evaluate(`localStorage.setItem(${JSON.stringify(scopedStateKey)}, JSON.stringify({ trades: [], rules: [] }))`);
+  await evaluate(`(() => { const key = ${JSON.stringify(scopedStateKey)}; const state = JSON.parse(localStorage.getItem(key)); localStorage.setItem(key, JSON.stringify({ ...state, trades: [] })); })()`);
   await cdp.send("Page.navigate", { url: `${origin}/?dashboardPassportZero=${Date.now()}#passport` });
   await waitFor("document.querySelector('.passport-card-face') && [...document.querySelectorAll('.passport-mode-row')].some((button) => button.textContent.includes('Ghost'))", 30_000);
   await evaluate("[...document.querySelectorAll('.passport-mode-row')].find((button) => button.textContent.includes('Ghost')).click(); true");
   await waitFor("document.querySelector('.passport-profile-hero-stat span')?.textContent.trim() === 'Score range'");
   const ghostZero = await evaluate(`(() => { const stat = document.querySelector('.passport-profile-hero-stat'); return { label: stat.querySelector('span').textContent.trim(), value: stat.querySelector('strong').textContent.trim() }; })()`);
   assert.deepEqual(ghostZero, { label: "Score range", value: "0+" }, "Passport Ghost mode must preserve a valid score of zero instead of rendering Hidden");
+  await evaluate("[...document.querySelectorAll('.passport-mode-row')].find((button) => button.textContent.includes('Flex')).click(); true");
+  await waitFor("document.querySelector('.passport-profile-hero-stat span')?.textContent.trim() === 'Reported P&L'");
+  const zeroPnlTone = await evaluate("document.querySelector('.passport-profile-hero-stat')?.className");
+  assert.match(zeroPnlTone, /passport-stat-neutral/, "Breakeven P&L must render neutral, not positive.");
+  await evaluate("[...document.querySelectorAll('.passport-mode-row')].find((button) => button.textContent.includes('Discipline')).click(); true");
+  await waitFor("document.querySelector('.passport-profile-hero-stat span')?.textContent.trim() === 'Control score'");
+  const zeroAverageRTone = await evaluate(`Array.from(document.querySelectorAll('.passport-profile-stat')).find((node) => node.querySelector('span')?.textContent?.trim() === 'Average R')?.className`);
+  assert.match(zeroAverageRTone, /passport-stat-neutral/, "Breakeven average R must render neutral, not positive.");
   await evaluate(`localStorage.removeItem(${JSON.stringify(scopedStateKey)})`);
   await cdp.send("Page.navigate", { url: `${origin}/?dashboardPassport=${Date.now()}#passport` });
   await waitFor("document.querySelector('.passport-card-face') && [...document.querySelectorAll('button')].some((button) => button.textContent.includes('Download PNG'))", 30_000);
@@ -557,10 +731,11 @@ try {
   for (const [width, height] of [[1440, 900], [390, 844]]) await pricingColorState(width, height);
   await desktopVisualState();
   await csvImportInteraction();
+  await rulesControlsTruth();
   for (const [width, height] of [[1023, 900], [800, 900], [390, 844], [390, 640]]) await collapsedWorkspace(width, height);
   await passportExportTruth();
   for (const height of [760, 625, 520, 400]) await shortHeight(height);
-  console.log("dashboard-browser-regression: pricing color roles, active hover/focus, AA microcopy, CSV replace import, normal and forced-fallback Passport preset PNGs, collapsed lifecycle semantics, and short-height account controls passed");
+  console.log("dashboard-browser-regression: pricing color roles, active hover/focus, AA microcopy, CSV replace import, Limits AX/value normalization, no-rule Dashboard/Passport proof, normal and forced-fallback Passport preset PNGs, collapsed lifecycle semantics, and short-height account controls passed");
 } finally {
   await terminateChrome().catch(() => {});
   cdp?.close();

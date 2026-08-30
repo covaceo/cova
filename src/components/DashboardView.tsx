@@ -105,8 +105,8 @@ function DashboardSummaryStrip({ analysis, go, sourceLabel }: { analysis: Return
   const warningCount = getActionableReviewCount(analysis);
   const cells = [
     { label: "Review source", value: sourceLabel, tone: "" },
-    { label: "Reported P&L", value: formatMoney(analysis.totalPnl), tone: analysis.totalPnl >= 0 ? "positive" : "negative" },
-    { label: "Biggest dip", value: formatMoney(-analysis.maxDrawdown), tone: analysis.maxDrawdown > 0 ? "negative" : "positive" },
+    { label: "Reported P&L", value: formatMoney(analysis.totalPnl), tone: analysis.totalPnl > 0 ? "positive" : analysis.totalPnl < 0 ? "negative" : "" },
+    { label: "Biggest dip", value: formatMoney(-analysis.maxDrawdown), tone: analysis.maxDrawdown > 0 ? "negative" : "" },
     { label: "Warnings", value: String(warningCount), tone: warningCount ? "warning" : "positive" },
   ];
 

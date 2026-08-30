@@ -6,7 +6,10 @@ import { GlassButton } from "./GlassButton";
 type Section = "overview" | "features" | "pricing" | "resources" | "community" | "dashboard" | "import" | "oauth" | "rules" | "coach" | "passport";
 
 export function ScoreExplanationStrip({ analysis }: { analysis: ReturnType<typeof analyze> }) {
-  const factors = analysis.scoreFactors.slice(0, 4);
+  const scoreAvailable = analysis.activeRuleCount > 0;
+  const factors = scoreAvailable
+    ? analysis.scoreFactors.slice(0, 4)
+    : analysis.scoreFactors.filter((factor) => factor.label === "Rule discipline").slice(0, 1);
   const topFlag = analysis.behaviorFlags.find((flag) => flag.severity === "critical" || flag.severity === "warning") ?? analysis.behaviorFlags[0];
   const toneForImpact = {
     positive: {
@@ -39,17 +42,19 @@ export function ScoreExplanationStrip({ analysis }: { analysis: ReturnType<typeo
           <div className="flex flex-wrap items-center gap-3">
             <span className="inline-flex items-center gap-2 rounded-full border border-[#4f7dff]/24 bg-[#4f7dff]/10 px-3 py-1.5 font-body text-xs text-[#6f96ff]">
               <CircleDot className="h-3.5 w-3.5" />
-              Score logic
+              {scoreAvailable ? "Score logic" : "Score unavailable"}
             </span>
             <span className="font-mono text-xs uppercase tracking-[0.18em] text-white/36">
-              {analysis.evidenceQuality.label}
+              {scoreAvailable ? analysis.evidenceQuality.label : "Not scored"}
             </span>
           </div>
           <h3 className="mt-4 font-body text-3xl font-semibold leading-[1.02] tracking-[-0.04em] text-white">
-            Why Cova scored this {analysis.score}/100.
+            {scoreAvailable ? `Why Cova scored this ${analysis.score}/100.` : "Cova Score is not available."}
           </h3>
           <p className="mt-3 font-body text-sm font-light leading-relaxed text-white/56">
-            Cova weighs limit discipline, recent R, drawdown, and sample quality. It is a review system, not a signal.
+            {scoreAvailable
+              ? "Cova weighs limit discipline, recent R, drawdown, and sample quality. It is a review system, not a signal."
+              : "Enable at least one review rule before Cova calculates score proof. Trade evidence remains retrospective and is not a signal."}
           </p>
           {topFlag && (
             <div className="mt-4 rounded-[22px] border border-white/10 bg-white/[0.025] p-4">
