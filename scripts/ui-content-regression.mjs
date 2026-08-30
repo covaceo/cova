@@ -299,6 +299,8 @@ assert.doesNotMatch(workspace, /high-confidence review|pressure tested|zero-brea
 assert.match(workspace, /USER-SUPPLIED DATA · NOT ACCOUNT VERIFIED/, "Imported Passport exports must disclose that source data is user supplied and not account verified.");
 assert.match(workspace, /function getPassportExportDisclosure[\s\S]*DEMO DATA · NOT ACCOUNT VERIFIED · LOCAL PNG · USER CONTROLLED[\s\S]*USER-SUPPLIED DATA · NOT ACCOUNT VERIFIED · LOCAL PNG · USER CONTROLLED/, "Passport needs one canonical lifecycle disclosure for sample and user-supplied exports.");
 assert.ok((workspace.match(/getPassportExportDisclosure\(isSampleReview\)/g) || []).length >= 3, "Passport card, composed PNG, and fallback export must use the same lifecycle disclosure.");
+assert.match(workspace, /const PASSPORT_THRESHOLD_DISCLOSURE = "USER-CONFIGURED THRESHOLDS · NOT STANDARDIZED"/, "Passport must own the exact non-standardized threshold disclosure as one canonical constant.");
+assert.ok((workspace.match(/PASSPORT_THRESHOLD_DISCLOSURE/g) || []).length >= 4, "Passport card, composed PNG, and fallback export must all render the threshold disclosure.");
 assert.match(workspace, /PASSPORT_PREFERENCES_STORAGE_KEY/, "Implemented Passport preferences must have an owner-scoped persistence key matching the Privacy disclosure.");
 assert.doesNotMatch(workspace, /rank: "Blown"/, "Passport ranks should not shame a red account with a non-strategy tier.");
 assert.doesNotMatch(workspace, /passport-(?:tier|card-skin)-blown/, "Passport internals should use rebuild language for red Bronze states.");

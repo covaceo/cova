@@ -25,6 +25,7 @@ test("Supabase client exposes classic password signup, login, recovery, and safe
   assert.match(source, /export async function sendSupabaseLoginLink/);
   assert.match(source, /const initialAuthCallback = readInitialAuthCallback\(\)/);
   assert.match(source, /isSupabasePasswordRecoveryCallback\(accessToken: string\)/);
+  assert.match(source, /consumeSupabasePasswordRecoveryEvent\(event: string, accessToken: string\)/);
   assert.match(source, /initialAuthCallback\.accessToken === accessToken/);
   assert.match(source, /hasSupabasePasswordRecoveryCallbackMarker/);
   assert.match(source, /shouldCreateUser:\s*false/);
@@ -98,14 +99,16 @@ test("auth UI uses conventional signup and login controls and language", () => {
 
 test("password recovery callback cannot open the workspace before a new password is set", () => {
   const source = read("src", "App.tsx");
-  assert.match(source, /PASSWORD_RECOVERY/);
-  assert.match(source, /isSupabasePasswordRecoveryCallback\(session\.access_token\)/);
+  assert.match(source, /consumeSupabasePasswordRecoveryEvent\(event, session\.access_token\)/);
+  assert.match(source, /consumeSupabasePasswordRecoveryCallback\(session\.access_token\)/);
   assert.doesNotMatch(source, /isSupabasePasswordRecoveryCallback\(\)/);
   assert.match(source, /beginPasswordRecovery/);
   assert.match(source, /passwordRecoveryUserIdRef/);
   assert.match(source, /finishPasswordRecovery/);
   assert.match(source, /passwordRecovery=\{Boolean\(passwordRecoverySession\)\}/);
   assert.match(source, /onPasswordRecovered=\{finishPasswordRecovery\}/);
+  assert.match(source, /function finishPasswordRecovery[\s\S]*if \(!clearPersistedSupabasePasswordRecoverySession\(\)\)[\s\S]*lockSupabaseLocally\(\)[\s\S]*lockWorkspace\(false\)[\s\S]*return[\s\S]*startSupabaseValidation\(session\)/);
+  assert.match(source, /function isCurrentPasswordRecoveryTask[\s\S]*isPersistedSupabasePasswordRecoverySession\(session\.access_token, session\.user\.id\)/);
   assert.match(source, /verifySupabaseRecoveryIdentity\(session\.access_token, session\.user\.id\)[\s\S]*isCurrentPasswordRecoveryTask[\s\S]*updateSupabasePassword\(password, session\.access_token, session\.user\.id\)[\s\S]*isCurrentPasswordRecoveryTask/);
 });
 
@@ -117,7 +120,7 @@ test("opening auth never clears the provider sign-out latch", () => {
   assert.doesNotMatch(openAuth, /providerSessionsBlockedRef/);
   assert.match(source, /function startProviderAuthAttempt[\s\S]*providerSessionsBlockedRef\.current = false/);
   const blockedCheck = source.indexOf("if (providerSessionsBlockedRef.current)", source.indexOf("onAuthStateChange"));
-  const recoveryEvent = source.indexOf('event === "PASSWORD_RECOVERY"', source.indexOf("onAuthStateChange"));
+  const recoveryEvent = source.indexOf("consumeSupabasePasswordRecoveryEvent(event, session.access_token)", source.indexOf("onAuthStateChange"));
   assert.ok(blockedCheck > -1 && recoveryEvent > blockedCheck, "Provider events must be rejected before recovery is accepted.");
 });
 

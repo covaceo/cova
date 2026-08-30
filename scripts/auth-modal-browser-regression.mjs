@@ -330,6 +330,41 @@ try {
   await send("Input.dispatchKeyEvent", { type: "keyUp", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 });
   await waitFor("!document.querySelector('[role=\"dialog\"]')", 2_500);
 
+  await send("Page.navigate", { url: `${origin}/?authBrowser=protected-return#passport` });
+  await waitFor("document.readyState === 'complete'");
+  await waitFor("document.querySelector('[role=\"dialog\"]')?.getAttribute('aria-label') === 'Sign in to Cova'");
+  await evaluate(`(() => {
+    history.replaceState(null, "", location.pathname + location.search + "#overview");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    return true;
+  })()`);
+  await waitFor("location.hash === '#overview'");
+  await evaluate("[...document.querySelectorAll('.auth-account-tab')].find((button) => button.textContent.includes('Sign up')).click(); true");
+  await waitFor("document.querySelector('.auth-account-tab.terminal-tab-active')?.textContent.includes('Sign up')");
+  await evaluate("[...document.querySelectorAll('.auth-account-tab')].find((button) => button.textContent.includes('Sign in')).click(); true");
+  await waitFor("document.querySelector('.auth-account-tab.terminal-tab-active')?.textContent.includes('Sign in')");
+  await evaluate(`(() => {
+    const setValue = (input, value) => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(input, value);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    };
+    setValue(document.querySelector("#auth-email"), "protected-return@cova.local");
+    setValue(document.querySelector("input[type=password]"), "correct-horse-battery");
+    return true;
+  })()`);
+  await evaluate(`(() => {
+    const form = document.querySelector('[role="dialog"] form');
+    form.requestSubmit();
+    return true;
+  })()`);
+  await sleep(450);
+  const protectedReturn = await evaluate(`({
+    hash: location.hash,
+    passport: Boolean(document.querySelector('.passport-workbench')),
+    dashboard: Boolean(document.querySelector('.dashboard-workspace')),
+  })`);
+  assert.deepEqual(protectedReturn, { hash: "#passport", passport: true, dashboard: false }, "Auth must preserve the requested protected route when session validation redirects the visible shell before credentials are submitted.");
+
   const badEvents = cdp.events.filter((message) => message.method === "Runtime.exceptionThrown" || (message.method === "Log.entryAdded" && message.params?.entry?.level === "error") || (message.method === "Network.loadingFailed" && !message.params?.canceled));
   assert.deepEqual(badEvents, [], "Auth browser regression must finish without runtime, console, or essential network failures.");
   console.log("auth-modal-browser-regression: 390x640 mobile and 1280x633 desktop visibility, classic auth controls, focus, isolation, and restoration passed");

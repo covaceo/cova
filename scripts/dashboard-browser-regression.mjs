@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile, spawn } from "node:child_process";
-import { copyFile, mkdir, mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -148,6 +148,13 @@ async function waitForDownloadedPng(timeoutMs = 30_000) {
     await sleep(100);
   }
   throw new Error("Passport PNG download did not complete.");
+}
+
+async function clearDownloadedPngs() {
+  const files = await readdir(downloadDir);
+  await Promise.all(files
+    .filter((name) => name.endsWith(".png") || name.endsWith(".crdownload"))
+    .map((name) => rm(join(downloadDir, name), { force: true })));
 }
 
 async function setViewport(width, height) {
@@ -399,12 +406,114 @@ async function passportExportTruth() {
   await sleep(500);
   const copy = await evaluate(`(() => ({ card: document.querySelector('.passport-card-face').innerText, workbench: document.querySelector('.passport-workbench').innerText }))()`);
   assert.match(copy.card, /Reported P&L/i, "live Passport Flex card must use provider-neutral P&L wording");
+  assert.match(copy.card, /USER-CONFIGURED THRESHOLDS · NOT STANDARDIZED/, "live Passport and DOM-captured exports must visibly disclose that thresholds are user configured and not standardized");
   assert.doesNotMatch(copy.workbench, /Net P&L/i, "Passport card and privacy controls must not call reported provider P&L net");
-  await evaluate("[...document.querySelectorAll('button')].find((button) => button.textContent.includes('Download PNG')).click(); true");
-  const png = await waitForDownloadedPng();
-  assert.deepEqual({ width: png.width, height: png.height }, { width: 1080, height: 1350 }, "Passport feed export must retain exact 4:5 dimensions");
-  assert.ok(png.size > 10_000, "Passport PNG export must contain rendered card pixels");
-  if (passportCapturePath) await copyFile(png.path, passportCapturePath);
+  const exportPresets = [
+    { label: "Feed 4:5", width: 1080, height: 1350 },
+    { label: "Square 1:1", width: 1080, height: 1080 },
+    { label: "Story 9:16", width: 1080, height: 1920 },
+  ];
+  for (const preset of exportPresets) {
+    await evaluate(`(() => { const button = [...document.querySelectorAll('.passport-export-row')].find((item) => item.textContent.includes(${JSON.stringify(preset.label)})); button.click(); return true; })()`);
+    await waitFor(`[...document.querySelectorAll('.passport-export-row')].some((button) => button.textContent.includes(${JSON.stringify(preset.label)}) && button.getAttribute('aria-pressed') === 'true')`);
+    await clearDownloadedPngs();
+    await evaluate("[...document.querySelectorAll('button')].find((button) => button.textContent.includes('Download PNG')).click(); true");
+    const png = await waitForDownloadedPng();
+    assert.deepEqual({ width: png.width, height: png.height }, { width: preset.width, height: preset.height }, `Passport ${preset.label} export must retain exact dimensions`);
+    assert.ok(png.size > 10_000, `Passport ${preset.label} export must contain rendered card pixels`);
+    if (passportCapturePath) {
+      const suffix = preset.label.split(" ")[0].toLowerCase();
+      const capturePath = passportCapturePath.toLowerCase().endsWith(".png")
+        ? `${passportCapturePath.slice(0, -4)}-${suffix}.png`
+        : `${passportCapturePath}-${suffix}.png`;
+      await copyFile(png.path, capturePath);
+    }
+  }
+
+  for (const preset of exportPresets) {
+    await evaluate(`(() => { const button = [...document.querySelectorAll('.passport-export-row')].find((item) => item.textContent.includes(${JSON.stringify(preset.label)})); button.click(); return true; })()`);
+    await waitFor(`[...document.querySelectorAll('.passport-export-row')].some((button) => button.textContent.includes(${JSON.stringify(preset.label)}) && button.getAttribute('aria-pressed') === 'true')`);
+    await clearDownloadedPngs();
+    await evaluate(`(() => {
+      const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
+      const originalCreateObjectURL = URL.createObjectURL;
+      window.__passportFallbackInjected = false;
+      window.__passportFallbackSvg = '';
+      HTMLCanvasElement.prototype.toDataURL = function(...args) {
+        if (!window.__passportFallbackInjected && (this.width !== ${preset.width} || this.height !== ${preset.height})) {
+          window.__passportFallbackInjected = true;
+          HTMLCanvasElement.prototype.toDataURL = originalToDataURL;
+          throw new Error('Cova QA forced DOM export fallback');
+        }
+        return originalToDataURL.apply(this, args);
+      };
+      URL.createObjectURL = function(blob) {
+        if (blob?.type === 'image/svg+xml') blob.text().then((text) => { window.__passportFallbackSvg = text; });
+        return originalCreateObjectURL.call(this, blob);
+      };
+      window.__restorePassportFallbackProbe = () => {
+        HTMLCanvasElement.prototype.toDataURL = originalToDataURL;
+        URL.createObjectURL = originalCreateObjectURL;
+      };
+      return true;
+    })()`);
+    await evaluate("[...document.querySelectorAll('button')].find((button) => button.textContent.includes('Download PNG')).click(); true");
+    const png = await waitForDownloadedPng();
+    await waitFor("window.__passportFallbackInjected === true && window.__passportFallbackSvg.includes('USER-CONFIGURED THRESHOLDS · NOT STANDARDIZED')", 30_000);
+    const fallbackTextBounds = await evaluate(`(() => {
+      const doc = new DOMParser().parseFromString(window.__passportFallbackSvg, 'image/svg+xml');
+      const texts = [...doc.querySelectorAll('text')];
+      const band = texts.find((node) => node.textContent.includes('SAMPLE ANALYSIS'));
+      const target = texts.find((node) => /trades.*score.*rules/i.test(node.textContent));
+      const bounds = (node) => ({
+        present: Boolean(node),
+        constrained: Boolean(node?.getAttribute('textLength')),
+        right: node ? Number(node.getAttribute('x')) + Number(node.getAttribute('textLength')) : Infinity,
+      });
+      return { band: bounds(band), target: bounds(target) };
+    })()`);
+    assert.equal(fallbackTextBounds.band.present, true, `Passport ${preset.label} fallback proof band must be present`);
+    assert.equal(fallbackTextBounds.band.constrained, true, `Passport ${preset.label} fallback proof band must have a deterministic width constraint`);
+    assert.ok(fallbackTextBounds.band.right <= 890, `Passport ${preset.label} fallback proof band must stay inside the card`);
+    assert.equal(fallbackTextBounds.target.present, true, `Passport ${preset.label} fallback next-rank copy must be present`);
+    assert.equal(fallbackTextBounds.target.constrained, true, `Passport ${preset.label} fallback next-rank copy must have a deterministic width constraint`);
+    assert.ok(fallbackTextBounds.target.right <= 972, `Passport ${preset.label} fallback next-rank copy must stay inside the card`);
+    assert.deepEqual({ width: png.width, height: png.height }, { width: preset.width, height: preset.height }, `Passport ${preset.label} forced fallback must retain exact dimensions`);
+    assert.ok(png.size > 10_000, `Passport ${preset.label} forced fallback must contain rendered card pixels`);
+    assert.equal(await evaluate("Boolean(document.querySelector('.passport-export-error'))"), false, `Passport ${preset.label} forced fallback must not expose an export error`);
+    if (passportCapturePath) {
+      const suffix = `fallback-${preset.label.split(" ")[0].toLowerCase()}`;
+      const capturePath = passportCapturePath.toLowerCase().endsWith(".png")
+        ? `${passportCapturePath.slice(0, -4)}-${suffix}.png`
+        : `${passportCapturePath}-${suffix}.png`;
+      await copyFile(png.path, capturePath);
+    }
+    await evaluate("window.__restorePassportFallbackProbe(); true");
+  }
+}
+
+async function csvImportInteraction() {
+  await openDashboard(1440, 900);
+  await evaluate("[...document.querySelectorAll('.workspace-sidebar-link')].find((button) => button.textContent.includes('Trade History')).click(); true");
+  await waitFor("location.hash === '#import' && document.querySelector('[data-csv-import] input[type=file]')", 30_000);
+  await evaluate("[...document.querySelectorAll('.terminal-tab')].find((button) => button.textContent.includes('Replace')).click(); true");
+
+  const csvPath = join(profileDir, "qa-import.csv");
+  await writeFile(csvPath, "Date,Symbol,Qty,Entry,Exit,P&L,Risk,Side\n2026-08-28,NQ,1,19000,19010,200,100,Long\n2026-08-29,ES,2,5300,5295,-250,125,Short\n", "utf8");
+  const { root } = await cdp.send("DOM.getDocument");
+  const { nodeId } = await cdp.send("DOM.querySelector", { nodeId: root.nodeId, selector: "[data-csv-import] input[type=file]" });
+  assert.ok(nodeId, "CSV file input must be reachable through the rendered Import surface");
+  await cdp.send("DOM.setFileInputFiles", { files: [csvPath], nodeId });
+  await waitFor("[...document.querySelectorAll('.import-ledger-stat')].some((item) => item.textContent.includes('Rows') && item.textContent.includes('2/2'))", 30_000);
+
+  await evaluate("[...document.querySelectorAll('[data-csv-import] button')].find((button) => button.textContent.includes('Review trades')).click(); true");
+  await waitFor("location.hash === '#dashboard' && document.querySelector('.dashboard-workspace')", 30_000);
+  const imported = await evaluate(`(() => {
+    const key = Object.keys(localStorage).find((item) => item.startsWith('cova-react-risk-os-v2:'));
+    const state = key ? JSON.parse(localStorage.getItem(key)) : null;
+    return { count: state?.trades?.length ?? 0, markets: state?.trades?.map((trade) => trade.market) ?? [] };
+  })()`);
+  assert.deepEqual(imported, { count: 2, markets: ["NQ", "ES"] }, "Replace import must persist exactly the reviewed CSV rows before returning to Dashboard");
 }
 
 async function shortHeight(height) {
@@ -447,10 +556,11 @@ try {
 
   for (const [width, height] of [[1440, 900], [390, 844]]) await pricingColorState(width, height);
   await desktopVisualState();
+  await csvImportInteraction();
   for (const [width, height] of [[1023, 900], [800, 900], [390, 844], [390, 640]]) await collapsedWorkspace(width, height);
   await passportExportTruth();
   for (const height of [760, 625, 520, 400]) await shortHeight(height);
-  console.log("dashboard-browser-regression: pricing color roles, active hover/focus, AA microcopy, collapsed lifecycle semantics, and short-height account controls passed");
+  console.log("dashboard-browser-regression: pricing color roles, active hover/focus, AA microcopy, CSV replace import, normal and forced-fallback Passport preset PNGs, collapsed lifecycle semantics, and short-height account controls passed");
 } finally {
   await terminateChrome().catch(() => {});
   cdp?.close();

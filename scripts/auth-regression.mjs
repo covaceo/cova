@@ -684,6 +684,7 @@ test("password recovery pins the mutation to the captured bearer and aborts on i
     passwordRecoveryUserIdRef: { current: "user-A" },
     providerSessionRef: { current: { access_token: "token-A", user: { id: "user-A", email: "a@example.com" } } },
     providerSessionsBlockedRef: { current: false },
+    isPersistedSupabasePasswordRecoverySession: () => true,
     verifySupabaseRecoveryIdentity: () => new Promise((resolve) => { resolveVerification = resolve; }),
     updateSupabasePassword: async (...args) => { updateCalls.push(args); return { data: { user: { id: "user-A" } }, error: null }; },
   };
@@ -794,7 +795,11 @@ test("blocked provider events cannot reopen sign-in or password recovery", () =>
   const events = [];
   const context = {
     providerSessionsBlockedRef: { current: true },
+    passwordRecoveryUserIdRef: { current: null },
     beginPasswordRecovery: (session) => events.push(`recovery:${session.user.id}`),
+    isPersistedSupabasePasswordRecoverySession: () => false,
+    consumeSupabasePasswordRecoveryEvent: (event) => event === "PASSWORD_RECOVERY",
+    rejectMismatchedPasswordRecoverySession: () => false,
   };
   runInNewContext(`globalThis.listener = (event, session) => {${listenerBody}\n};`, context);
   const session = { access_token: "late", user: { id: "user-A", email: "a@example.com" } };

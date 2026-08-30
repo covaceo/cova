@@ -49,7 +49,9 @@ type AuthGateProps = {
 
 type AuthSheetProps = {
   authIntentKey: string;
+  authReturnSection: string | null;
   close: () => void;
+  initialNotice: string | null;
   mode: AuthMode | null;
   onAuthenticated: (email: string, mode: AuthMode, source?: AuthSource, plan?: PlanTier, userId?: string) => void;
   onAuthAttemptAborted: (attemptId: number) => void;
@@ -60,6 +62,7 @@ type AuthSheetProps = {
   onDevPreview: () => void;
   onDisconnectProviders: () => Promise<void>;
   onInspectProviders: () => Promise<void>;
+  onInitialNoticeConsumed: () => void;
   onPasswordRecovered: () => void;
   onPolicyAccepted: () => Promise<void>;
   onUpdatePassword: (password: string) => Promise<void>;
@@ -112,6 +115,8 @@ export function AuthGate({ devPreviewEmail, openAuth, onDevPreview }: AuthGatePr
 
 export function AuthSheet({
   authIntentKey,
+  authReturnSection,
+  initialNotice,
   mode,
   setMode,
   close,
@@ -124,6 +129,7 @@ export function AuthSheet({
   onDiscardAuthSession,
   onDisconnectProviders,
   onInspectProviders,
+  onInitialNoticeConsumed,
   onPasswordRecovered,
   onPolicyAccepted,
   onUpdatePassword,
@@ -145,22 +151,30 @@ export function AuthSheet({
   const showDevPreview = isDemoPreviewEnabled();
   const authOpen = Boolean(mode);
   const [modalIsolationActive, setModalIsolationActive] = useState(authOpen);
-  const overlayRef = useRef<HTMLDivElement | null>(null);
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const credentialRequestInFlightRef = useRef(false);
+  const appliedInitialNoticeRef = useRef(false);
   const openerRef = useRef<HTMLElement | null>(null);
   const closeRef = useRef(close);
   const emailInputRef = useRef<HTMLInputElement | null>(null);
   closeRef.current = close;
 
   useEffect(() => {
-    setNotice("");
+    if (initialNotice) {
+      appliedInitialNoticeRef.current = true;
+      setNotice(initialNotice);
+      onInitialNoticeConsumed();
+    } else if (appliedInitialNoticeRef.current) {
+      appliedInitialNoticeRef.current = false;
+    } else {
+      setNotice("");
+    }
     setPolicyAccepted(false);
     setPassword("");
     setPasswordConfirmation("");
     setShowPassword(false);
     setView("credentials");
-  }, [mode, passwordRecovery, pendingPolicyConfirmation]);
+  }, [initialNotice, mode, onInitialNoticeConsumed, passwordRecovery, pendingPolicyConfirmation]);
 
   useLayoutEffect(() => {
     if (!authOpen) return;
@@ -177,7 +191,7 @@ export function AuthSheet({
   useLayoutEffect(() => {
     if (!modalIsolationActive) return;
 
-    const overlay = overlayRef.current;
+    const overlay = document.querySelector<HTMLElement>("[data-auth-overlay]");
     const dialog = dialogRef.current;
     if (!overlay || !dialog) return;
 
@@ -262,7 +276,8 @@ export function AuthSheet({
   }, [modalIsolationActive]);
 
   function saveAuthIntent(authMode: AuthMode) {
-    const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash || "#dashboard"}`;
+    const returnHash = authReturnSection ? `#${authReturnSection}` : window.location.hash || "#dashboard";
+    const returnTo = `${window.location.pathname}${window.location.search}${returnHash}`;
     localStorage.setItem(authIntentKey, JSON.stringify({
       email: email.trim(),
       mode: authMode,
@@ -499,7 +514,7 @@ export function AuthSheet({
     <AnimatePresence onExitComplete={() => setModalIsolationActive(false)}>
       {mode && (
         <motion.div
-          ref={overlayRef}
+          data-auth-overlay
           className="fixed inset-0 z-[90] flex items-start justify-center overflow-y-auto overscroll-y-contain p-3 pt-16 md:p-6"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

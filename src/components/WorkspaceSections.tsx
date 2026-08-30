@@ -356,6 +356,7 @@ const passportExportPresets: PassportExportPreset[] = [
 ];
 
 export const PASSPORT_PREFERENCES_STORAGE_KEY = "cova-passport-preferences-v1";
+const PASSPORT_THRESHOLD_DISCLOSURE = "USER-CONFIGURED THRESHOLDS · NOT STANDARDIZED";
 
 function readPassportPreferences(): { exportPresetId: PassportExportPresetId; shareModeId: PassportShareModeId } {
   try {
@@ -1112,7 +1113,10 @@ export function Passport({ analysis, entitlements, isSampleReview, go, upgradeTo
                           <span>{isSampleReview ? "Demo ref" : "Review ref"}</span>
                           <code>{reviewId}</code>
                         </div>
-                        <p>{getPassportExportDisclosure(isSampleReview)}</p>
+                        <div className="passport-profile-disclosures">
+                          <p>{PASSPORT_THRESHOLD_DISCLOSURE}</p>
+                          <p>{getPassportExportDisclosure(isSampleReview)}</p>
+                        </div>
                       </footer>
                     </div>
                   </div>
@@ -1291,7 +1295,7 @@ async function composePassportExport(sourceDataUrl: string, preset: PassportExpo
   }
 
   const headerSpace = preset.id === "feed" ? 24 : preset.id === "square" ? 118 : 270;
-  const footerSpace = preset.id === "feed" ? 24 : preset.id === "square" ? 82 : 230;
+  const footerSpace = preset.id === "feed" ? 88 : preset.id === "square" ? 108 : 230;
   const sidePadding = preset.id === "feed" ? 28 : preset.id === "square" ? 62 : 80;
   const availableWidth = preset.width - sidePadding * 2;
   const availableHeight = preset.height - headerSpace - footerSpace;
@@ -1318,10 +1322,13 @@ async function composePassportExport(sourceDataUrl: string, preset: PassportExpo
     context.fillText(`${tier.rank.toUpperCase()} TRADER PROFILE`, 64, titleY + (preset.id === "story" ? 72 : 48));
   }
 
+  context.fillStyle = palette.accent;
+  context.font = "700 18px Arial, sans-serif";
+  context.fillText(PASSPORT_THRESHOLD_DISCLOSURE, 64, preset.height - 68);
   context.fillStyle = isSampleReview ? palette.accent : "rgba(255,255,255,0.48)";
-  context.font = "700 20px Arial, sans-serif";
+  context.font = "700 16px Arial, sans-serif";
   const footerCopy = getPassportExportDisclosure(isSampleReview);
-  context.fillText(footerCopy, 64, preset.height - 48);
+  context.fillText(footerCopy, 64, preset.height - 38);
   return canvas.toDataURL("image/png");
 }
 
@@ -1357,10 +1364,12 @@ async function downloadPassportPng(analysis: ReturnType<typeof analyze>, tier: P
   const nextTarget = getPassportNextTarget(tier, analysis).toUpperCase();
   const proofFontSize = isDiamondExport ? 22 : 28;
   const proofTracking = isDiamondExport ? 5 : 7;
+  const proofTextLength = Math.min(638, Math.max(320, proofLine.length * 14));
+  const nextTargetTextLength = Math.min(880, Math.max(360, nextTarget.length * 13));
   const nextTargetMarkup = isDiamondExport
     ? `<text x="92" y="1360" fill="${palette.accent}" font-family="Arial, sans-serif" font-size="20" font-weight="800" letter-spacing="4">TOP RANK · PROFIT MADE CLEAN</text>
       <text x="92" y="1392" fill="${palette.accent}" font-family="Arial, sans-serif" font-size="20" font-weight="800" letter-spacing="4">RULES HELD UNDER PRESSURE</text>`
-    : `<text x="92" y="1372" fill="${palette.accent}" font-family="Arial, sans-serif" font-size="23" font-weight="800" letter-spacing="4">${escapeSvgText(nextTarget)}</text>`;
+    : `<text x="92" y="1372" fill="${palette.accent}" font-family="Arial, sans-serif" font-size="23" font-weight="800" letter-spacing="4" textLength="${nextTargetTextLength}" lengthAdjust="spacingAndGlyphs">${escapeSvgText(nextTarget)}</text>`;
   const exportSkin = tier.skin.toUpperCase();
   const exportHeadline = tier.headline.toUpperCase();
   const verifiedRules = analysis.ruleStatuses.length - analysis.breaches.length;
@@ -1433,10 +1442,11 @@ async function downloadPassportPng(analysis: ReturnType<typeof analyze>, tier: P
       ${statCells}
       <rect x="92" y="1202" width="896" height="112" rx="12" fill="rgba(0,0,0,0.32)" stroke="${palette.accent}" stroke-opacity="0.45"/>
       <path d="M138 1258 L178 1236 L218 1258 L178 1290 Z" fill="url(#facet)" stroke="rgba(255,255,255,0.45)"/>
-      <text x="252" y="1272" fill="${palette.metal}" font-family="Arial, sans-serif" font-size="${proofFontSize}" font-weight="800" letter-spacing="${proofTracking}">${escapeSvgText(proofLine)}</text>
+      <text x="252" y="1272" fill="${palette.metal}" font-family="Arial, sans-serif" font-size="${proofFontSize}" font-weight="800" letter-spacing="${proofTracking}" textLength="${proofTextLength}" lengthAdjust="spacingAndGlyphs">${escapeSvgText(proofLine)}</text>
       ${nextTargetMarkup}
       ${sampleExportWatermark}
-      <text x="92" y="1430" fill="rgba(224,236,248,0.5)" font-family="Arial, sans-serif" font-size="17" font-weight="700" letter-spacing="3">${escapeSvgText(getPassportExportDisclosure(isSampleReview))} · MODE ${escapeSvgText(shareMode.label.toUpperCase())} · ${escapeSvgText(reviewId)}</text>
+      <text x="92" y="1418" fill="${palette.accent}" font-family="Arial, sans-serif" font-size="15" font-weight="800" letter-spacing="2">${escapeSvgText(PASSPORT_THRESHOLD_DISCLOSURE)}</text>
+      <text x="92" y="1442" fill="rgba(224,236,248,0.5)" font-family="Arial, sans-serif" font-size="13" font-weight="700" letter-spacing="2">${escapeSvgText(getPassportExportDisclosure(isSampleReview))} · MODE ${escapeSvgText(shareMode.label.toUpperCase())} · ${escapeSvgText(reviewId)}</text>
     </svg>
   `;
   const image = new Image();
