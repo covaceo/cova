@@ -262,7 +262,7 @@ export function ImportDesk({ entitlements, importCsv, prepareImportCsv, openFirm
           status: "imported",
           connected: false,
           mode: "ephemeral",
-          message: `${credentials.systemName} login verified. No completed fill history was returned, and the login was discarded.`,
+          message: `Already up to date. ${credentials.systemName} login verified. No completed fill history was returned for this window, and the login was discarded.`,
           updatedAt: new Date().toISOString(),
         };
         writeBrokerStatus(nextStatus);
@@ -301,7 +301,7 @@ export function ImportDesk({ entitlements, importCsv, prepareImportCsv, openFirm
     } finally {
       if (requestGeneration === rithmicRequestGenerationRef.current) {
         rithmicRequestRef.current = null;
-        if (preparedImport.isCurrent()) setRithmicBusy(false);
+        setRithmicBusy(false);
       }
     }
   }

@@ -408,6 +408,11 @@ export function BrokerConnectPanel({
     setBrokerNotice(`${selectedFirm.name}: use the export guide below to find the cleanest trade file for Cova.`);
   }
 
+  function changeRithmicEnvironment(systemName: RithmicCredentials["systemName"]) {
+    setRithmicAccounts([]);
+    setRithmicCredentials((current) => ({ ...current, accountKey: undefined, systemName }));
+  }
+
   async function submitRithmic(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!entitlements.canUseDirectSync) {
@@ -493,7 +498,7 @@ export function BrokerConnectPanel({
             </div>
             <h4 className="mt-4 font-body text-2xl font-semibold tracking-[-0.03em] text-white">Import Rithmic history.</h4>
             <p className="mt-2 max-w-2xl font-body text-sm leading-relaxed text-white/56">
-              One-time provider login. Cova never stores it. No order access. P&amp;L is gross before commissions.
+              One-time provider login. Cova never stores it. Cova makes no order or funds calls. P&amp;L is gross before commissions.
             </p>
           </div>
 
@@ -503,7 +508,8 @@ export function BrokerConnectPanel({
               <select
                 className="mt-2 h-12 w-full rounded-[16px] border border-white/10 bg-[#111] px-4 font-body text-sm text-white outline-none transition focus:border-emerald-200/32"
                 data-rithmic-environment
-                onChange={(event) => setRithmicCredentials((current) => ({ ...current, systemName: event.target.value as RithmicCredentials["systemName"] }))}
+                disabled={rithmicBusy}
+                onChange={(event) => changeRithmicEnvironment(event.target.value as RithmicCredentials["systemName"])}
                 value={rithmicCredentials.systemName}
               >
                 <option value="Rithmic Paper Trading">Paper Trading</option>
@@ -540,6 +546,8 @@ export function BrokerConnectPanel({
                 <span className="font-body text-xs uppercase tracking-[0.18em] text-white/42">Account</span>
                 <select
                   className="mt-2 h-12 w-full rounded-[16px] border border-white/10 bg-[#111] px-4 font-body text-sm text-white outline-none transition focus:border-emerald-200/32"
+                  data-rithmic-account
+                  disabled={rithmicBusy}
                   onChange={(event) => setRithmicCredentials((current) => ({ ...current, accountKey: event.target.value }))}
                   value={rithmicCredentials.accountKey || ""}
                 >

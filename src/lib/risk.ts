@@ -107,7 +107,13 @@ export type TradeMergeResult = {
 
 export function mergeTradeLedger(existing: Trade[], incoming: Trade[]): TradeMergeResult {
   const trades = [...existing];
-  const indexes = new Map(trades.map((trade, index) => [trade.id, index]));
+  const indexes = new Map<string, number>();
+  for (const [index, trade] of trades.entries()) {
+    if (indexes.has(trade.id)) {
+      throw new Error(`Existing ledger contains duplicate trade id ${trade.id}.`);
+    }
+    indexes.set(trade.id, index);
+  }
   const receipt = { added: 0, corrected: 0, unchanged: 0 };
 
   for (const trade of incoming) {

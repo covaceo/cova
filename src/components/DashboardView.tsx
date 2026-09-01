@@ -23,7 +23,7 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false }:
   const [range, setRange] = useState<TimeRange>(() => readDashboardRange());
   const scopedTrades = useMemo(() => filterTradesByRange(analysis.trades, range), [analysis.trades, range]);
   const scopedAnalysis = useMemo(() => analyze(scopedTrades, rules), [scopedTrades, rules]);
-  const hasRithmicTrades = scopedAnalysis.trades.some((trade) => trade.source?.provider === "Rithmic");
+  const hasRithmicTrades = analysis.trades.some((trade) => trade.source?.provider === "Rithmic");
   const hasRithmicSource = hasRithmicTrades || rithmicSyncAvailable;
   const sourceLabel = getTradeSourceLabel(scopedAnalysis.trades);
 

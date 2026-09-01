@@ -103,6 +103,17 @@ assert.throws(
   "A stable provider trade id must never overwrite a different account.",
 );
 
+assert.throws(
+  () => mergeTradeLedger([olderRithmic, { ...olderRithmic }], []),
+  /existing ledger contains duplicate trade id r-old/i,
+  "Pre-existing duplicate stable ids must fail before a merge receipt is issued.",
+);
+assert.throws(
+  () => mergeTradeLedger([{ ...olderRithmic, source: rithmicAccountB }, olderRithmic], []),
+  /existing ledger contains duplicate trade id r-old/i,
+  "A pre-existing cross-account collision must fail regardless of row order.",
+);
+
 const tradovateParsed = parseCsvDetailed(`date,market,side,contracts,entry,exit,pnl,risk,setup,notes,source_provider,source_account_id,source_trade_id
 2026-08-01,NQ,Long,1,100,101,20,0,Tradovate sync,Synced from NQZ6,Tradovate,account-1,tradovate-pair-42`);
 assert.equal(tradovateParsed.issues.length, 0, `Tradovate provenance must survive CSV parsing: ${JSON.stringify(tradovateParsed.issues)}`);

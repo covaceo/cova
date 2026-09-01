@@ -95,7 +95,7 @@ assert.match(dashboardCards, /\["Reported P&L", formatMoney\(analysis\.totalPnl\
 assert.doesNotMatch(dashboardCards, /\["Net P&L", formatMoney\(analysis\.totalPnl\)\]/, "shared dashboard metrics must not claim Rithmic gross P&L is net");
 assert.match(dashboard, /getTradeSourceLabel\(scopedAnalysis\.trades\)/, "dashboard selected ranges must label only the rows in the selected review");
 assert.match(dashboard, /label: "Review source"/, "the summary cell must state that it labels selected review provenance rather than global account state");
-assert.match(dashboard, /const hasRithmicTrades = scopedAnalysis\.trades\.some/, "Rithmic attribution must follow the selected review rows");
+assert.match(dashboard, /const hasRithmicTrades = analysis\.trades\.some/, "Rithmic resync and required attribution must remain discoverable when provider rows sit outside the selected review range");
 assert.doesNotMatch(dashboard, /brokerStatus/, "connected account state must not overwrite selected-range provenance");
 assert.match(app, /getAccountSourceLabel\(trades, brokerStatus\)/, "workspace account identity must use the account-level connection/source label");
 assert.doesNotMatch(app, /"CSV trade review"|"Sample \+ CSV review"|"Sample funded review"/, "App must not retain a second drifting source-label classifier");
