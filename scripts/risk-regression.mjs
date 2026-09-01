@@ -20,7 +20,7 @@ const compiledPath = join(outDir, "risk.mjs");
 writeFileSync(compiledPath, compiled.outputText);
 
 const risk = await import(`${pathToFileURL(compiledPath).href}?t=${Date.now()}`);
-const { analyze, defaultRules, parseCsvDetailed } = risk;
+const { analyze, defaultRules, mergeTradeLedger, parseCsvDetailed } = risk;
 
 function makeTrade(overrides = {}) {
   return {
@@ -80,6 +80,28 @@ assert.deepEqual(rithmicParsed.trades[0].source, {
 });
 assert.equal(rithmicParsed.trades[0].id, "rithmic-trade-1", "Rithmic deterministic trade ids must survive import.");
 assert.equal(rithmicParsed.trades[0].risk, 0, "Rithmic imports must not invent a risk amount.");
+
+const rithmicAccountA = { provider: "Rithmic", accountKey: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", accountId: "A-1", currency: "USD" };
+const rithmicAccountB = { provider: "Rithmic", accountKey: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", accountId: "B-1", currency: "USD" };
+const olderRithmic = { ...makeTrade({ id: "r-old", date: "2026-01-01", pnl: 100 }), source: rithmicAccountA };
+const correctedRithmic = { ...makeTrade({ id: "r-corrected", date: "2026-07-31", pnl: 50 }), source: rithmicAccountA };
+const otherAccountTrade = { ...makeTrade({ id: "r-other-account", date: "2026-07-31", pnl: 75 }), source: rithmicAccountB };
+const rithmicMerge = mergeTradeLedger(
+  [olderRithmic, correctedRithmic, otherAccountTrade],
+  [
+    { ...olderRithmic },
+    { ...correctedRithmic, pnl: 65, notes: "Provider correction" },
+    { ...makeTrade({ id: "r-new", date: "2026-08-01", pnl: 120 }), source: rithmicAccountA },
+  ],
+);
+assert.deepEqual(rithmicMerge.receipt, { added: 1, corrected: 1, unchanged: 1 }, "Overlapping Rithmic syncs need a truthful merge receipt.");
+assert.deepEqual(rithmicMerge.trades.map((trade) => trade.id), ["r-old", "r-corrected", "r-other-account", "r-new"], "Older history and other accounts must survive a bounded resync.");
+assert.equal(rithmicMerge.trades[1].pnl, 65, "A same-account provider correction must replace the stable trade id in place.");
+assert.throws(
+  () => mergeTradeLedger([olderRithmic], [{ ...olderRithmic, source: rithmicAccountB }]),
+  /different provider account/i,
+  "A stable provider trade id must never overwrite a different account.",
+);
 
 const tradovateParsed = parseCsvDetailed(`date,market,side,contracts,entry,exit,pnl,risk,setup,notes,source_provider,source_account_id,source_trade_id
 2026-08-01,NQ,Long,1,100,101,20,0,Tradovate sync,Synced from NQZ6,Tradovate,account-1,tradovate-pair-42`);

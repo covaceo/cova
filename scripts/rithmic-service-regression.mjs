@@ -84,6 +84,18 @@ test("the real public handlers reject unauthenticated requests before connector 
   assert.equal(statusResponse.statusCode, 401);
 });
 
+test("the public sync boundary accepts only supported Rithmic environments", async () => {
+  const { cleanRithmicSyncBody } = await import("../api/rithmic/sync.js");
+  assert.equal(typeof cleanRithmicSyncBody, "function");
+  for (const systemName of ["Rithmic Paper Trading", "Rithmic 01", "Rithmic Test"]) {
+    assert.equal(cleanRithmicSyncBody({ username: "trader", password: "not-real", lookbackDays: 90, systemName }).systemName, systemName);
+  }
+  assert.throws(
+    () => cleanRithmicSyncBody({ username: "trader", password: "not-real", lookbackDays: 90, systemName: "Rithmic Admin" }),
+    /valid Rithmic environment/i,
+  );
+});
+
 test("derives a validated client IP before rate limiting credential attempts", async () => {
   const { rithmicClientIp } = await import("../api/rithmic/sync.js");
   assert.equal(rithmicClientIp({ headers: { "x-forwarded-for": "203.0.113.7, 10.0.0.1" } }), "203.0.113.7");
@@ -107,12 +119,22 @@ test("checks the signed private connector capability without broker credentials"
     timestamp: 1_785_000_000,
     fetchImpl: async (_url, init) => {
       sentBody = JSON.parse(init.body);
-      return jsonResponse({ ok: true, data: { available: true, environment: "Rithmic Test", version: "0.1.0" } });
+      return jsonResponse({
+        ok: true,
+        data: {
+          available: true,
+          environments: ["Rithmic Paper Trading", "Rithmic 01", "Rithmic Test"],
+          version: "0.2.0",
+        },
+      });
     },
   });
   assert.equal(sentBody.operation, "status");
   assert.equal("user" in sentBody, false);
-  assert.deepEqual(result, { available: true, environment: "Rithmic Test" });
+  assert.deepEqual(result, {
+    available: true,
+    environments: ["Rithmic Paper Trading", "Rithmic 01", "Rithmic Test"],
+  });
 });
 
 test("returns only a strict bounded account-matched ledger", async () => {

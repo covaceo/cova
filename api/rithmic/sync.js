@@ -2,6 +2,7 @@ import { isIP } from "node:net";
 import { ApiError, requirePolicyAcceptedUser, requireProEntitlement, sendApiError } from "../_lib/auth.js";
 import { acquireRithmicSyncPermit } from "../_lib/rithmic-limit.js";
 import { requestRithmicSync } from "../_lib/rithmic-service.js";
+import { isSupportedRithmicSystem } from "../_lib/rithmic-systems.js";
 
 const ALLOWED_LOOKBACK_DAYS = new Set([30, 90, 180]);
 
@@ -13,16 +14,18 @@ export function rithmicClientIp(req) {
   return ipAddress;
 }
 
-function cleanBody(body) {
+export function cleanRithmicSyncBody(body) {
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new ApiError(400, "Enter a valid Rithmic login and history range.");
   const username = String(body.username || "").trim();
   const password = String(body.password || "");
   const accountKey = body.accountKey == null ? undefined : String(body.accountKey).trim();
   const lookbackDays = Number(body.lookbackDays || 90);
+  const systemName = String(body.systemName || "").trim();
   if (!username || username.length > 128 || !password || password.length > 256) throw new ApiError(400, "Enter a valid Rithmic login and history range.");
   if (accountKey && !/^[A-Za-z0-9_-]{20,64}$/.test(accountKey)) throw new ApiError(400, "Enter a valid Rithmic account.");
   if (!ALLOWED_LOOKBACK_DAYS.has(lookbackDays)) throw new ApiError(400, "Choose a valid Rithmic history range.");
-  return { accountKey, lookbackDays, password, username };
+  if (!isSupportedRithmicSystem(systemName)) throw new ApiError(400, "Choose a valid Rithmic environment.");
+  return { accountKey, lookbackDays, password, systemName, username };
 }
 
 export default async function handler(req, res) {
@@ -36,7 +39,7 @@ export default async function handler(req, res) {
   try {
     const user = await requirePolicyAcceptedUser(req);
     requireProEntitlement(user);
-    const input = cleanBody(req.body);
+    const input = cleanRithmicSyncBody(req.body);
     const ipAddress = rithmicClientIp(req);
     const finishIndex = Math.floor(Date.now() / 1000);
     const startIndex = finishIndex - input.lookbackDays * 24 * 60 * 60;
@@ -57,7 +60,7 @@ export default async function handler(req, res) {
         finishIndex,
         password: input.password,
         startIndex,
-        systemName: "Rithmic Test",
+        systemName: input.systemName,
         user: input.username,
       });
     } catch {

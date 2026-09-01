@@ -11,13 +11,14 @@ import {
   Mail,
   Upload,
 } from "lucide-react";
-import { type FormEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type FormEvent, type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Session as SupabaseSession } from "@supabase/supabase-js";
 import {
   analyze,
   defaultRules,
   formatMoney,
   formatPercent,
+  mergeTradeLedger,
   parseCsv,
   RiskRule,
   sampleTrades,
@@ -44,6 +45,7 @@ import { Toast } from "./components/Toast";
 import { WorkspaceShell } from "./components/WorkspaceShell";
 import { getHostedLogoutUrl, isDemoPreviewEnabled } from "./lib/authEnvironment";
 import { CURRENT_PRIVACY_VERSION, CURRENT_TERMS_VERSION } from "./lib/legal";
+import { isImportPrincipalCurrent, toImportPrincipalIdentity, type ImportPrincipal } from "./lib/importGuard";
 import { BROKER_STATUS_KEY, brokerMessageForStatus, clearBrokerStatus, readBrokerStatus, writeBrokerStatus, type BrokerStatus } from "./lib/brokerStatus";
 
 import { buildFirmConnectUrl, canRedirectToFirmProvider, csvExportGuides, getFirmProviderHost, getPropFirm, type PropFirmId } from "./lib/propFirms";
@@ -57,7 +59,7 @@ const AUTH_INTENT_KEY = "cova-auth-intent-v1";
 const OAUTH_FIRM_KEY = "cova-oauth-firm-v1";
 const DEV_PREVIEW_EMAIL = "dev@cova.local";
 type AuthMode = "login" | "signup";
-type ImportMode = "append" | "replace";
+type ImportMode = "append" | "replace" | "merge";
 type ToastTone = "info" | "success" | "warning";
 type ToastState = { message: string; tone?: ToastTone } | null;
 
@@ -107,11 +109,13 @@ export default function App() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode | null>(null);
   const [authSession, setAuthSession] = useState<AuthSession | null>(() => loadAuthSession());
+  const authSessionRef = useRef(authSession);
   const [oauthFirmId, setOauthFirmId] = useState<PropFirmId>(() => readOAuthFirmId() ?? "tradovate");
   const [toast, setToast] = useState<ToastState>(null);
   const [status, setStatus] = useState("Trade history ready.");
   const [brokerStatus, setBrokerStatus] = useState<BrokerStatus | null>(() => readBrokerStatus());
   const [trades, setTrades] = useState<Trade[]>(() => loadAuthSession() ? loadState()?.trades ?? sampleTrades : []);
+  const tradesRef = useRef(trades);
   const [rules, setRules] = useState<RiskRule[]>(() => loadAuthSession() ? loadState()?.rules ?? defaultRules : defaultRules);
   const [pendingSupabaseSession, setPendingSupabaseSession] = useState<SupabaseSession | null>(null);
   const [passwordRecoverySession, setPasswordRecoverySession] = useState<SupabaseSession | null>(null);
@@ -132,6 +136,14 @@ export default function App() {
   const hasSampleTrades = trades.some((trade) => trade.id.startsWith("demo-"));
   const isSampleReview = hasSampleTrades;
   const brokerLabel = getAccountSourceLabel(trades, brokerStatus);
+
+  useLayoutEffect(() => {
+    authSessionRef.current = authSession;
+  }, [authSession]);
+
+  useEffect(() => {
+    tradesRef.current = trades;
+  }, [trades]);
 
   useEffect(() => {
     if (isSignedIn) {
@@ -985,19 +997,47 @@ export default function App() {
     window.setTimeout(() => setToast((current) => current?.message === message ? null : current), 2800);
   }
 
+  function getCurrentImportPrincipal(): ImportPrincipal | null {
+    const session = authSessionRef.current;
+    const identity = toImportPrincipalIdentity(session);
+    if (!identity) return null;
+    return {
+      authGeneration: authGenerationRef.current,
+      identity,
+      identityGeneration: identitySwitchGenerationRef.current,
+    };
+  }
+
+  function prepareImportCsv() {
+    const principalAtStart = getCurrentImportPrincipal();
+    if (!principalAtStart) return null;
+    const isCurrent = () => isImportPrincipalCurrent(principalAtStart, getCurrentImportPrincipal());
+    return {
+      isCurrent,
+      commit: (text: string, mode: ImportMode = "append") => {
+        if (!isCurrent()) {
+          announce("Import canceled because the active Cova account changed.", "warning");
+          return null;
+        }
+        return importCsv(text, mode);
+      },
+    };
+  }
+
   function importCsv(text: string, mode: ImportMode = "append") {
     if (!isSignedIn) {
       openAuth("login");
       announce("Sign in before importing trades.", "warning");
-      return;
+      return null;
     }
     const imported = parseCsv(text);
     if (!imported.length) {
       setStatus("No valid trade rows found.");
       announce("No valid trade rows found.", "warning");
-      return;
+      return null;
     }
-    const existingCount = mode === "append" ? trades.length : 0;
+    const currentTrades = tradesRef.current;
+    const existingCount = mode === "replace" ? 0 : currentTrades.length;
     const slots = Number.isFinite(entitlements.maxStoredTrades) ? Math.max(0, entitlements.maxStoredTrades - existingCount) : imported.length;
     const importLimit = Number.isFinite(entitlements.maxTradesPerImport) ? entitlements.maxTradesPerImport : imported.length;
     const allowedCount = Math.min(imported.length, slots, importLimit);
@@ -1005,20 +1045,28 @@ export default function App() {
     if (allowedCount <= 0) {
       announce(`Free accounts hold ${entitlements.maxStoredTrades} trades. Upgrade to keep adding history.`, "warning");
       setStatus("Free trade limit reached.");
-      return;
+      return null;
     }
 
     const acceptedTrades = imported.slice(0, allowedCount);
-    setTrades((current) => mode === "replace" ? acceptedTrades : [...current, ...acceptedTrades]);
+    const mergeResult = mode === "merge" ? mergeTradeLedger(currentTrades, acceptedTrades) : null;
+    const nextTrades = mode === "replace" ? acceptedTrades : mergeResult?.trades ?? [...currentTrades, ...acceptedTrades];
+    tradesRef.current = nextTrades;
+    setTrades(nextTrades);
     if (mode === "replace" && brokerStatus?.mode === "ephemeral") {
       clearBrokerStatus();
       setBrokerStatus(null);
     }
 
     const limited = acceptedTrades.length < imported.length;
-    setStatus(`${mode === "replace" ? "Replaced trade history with" : "Imported"} ${acceptedTrades.length} trade${acceptedTrades.length === 1 ? "" : "s"}${limited ? " for the free preview" : ""}.`);
-    announce(limited ? `Free preview imported ${acceptedTrades.length}/${imported.length} rows.` : `${mode === "replace" ? "Trade history replaced" : "Trades imported"}: ${acceptedTrades.length} row${acceptedTrades.length === 1 ? "" : "s"}.`, limited ? "warning" : "success");
+    const receipt = mergeResult?.receipt ?? { added: acceptedTrades.length, corrected: 0, unchanged: 0 };
+    const resultLabel = mode === "merge"
+      ? `${receipt.added} new, ${receipt.corrected} corrected, ${receipt.unchanged} unchanged`
+      : `${acceptedTrades.length} trade${acceptedTrades.length === 1 ? "" : "s"}${limited ? " for the free preview" : ""}`;
+    setStatus(`${mode === "replace" ? "Replaced trade history with" : mode === "merge" ? "Synced" : "Imported"} ${resultLabel}.`);
+    announce(limited ? `Free preview imported ${acceptedTrades.length}/${imported.length} rows.` : mode === "merge" ? `Rithmic sync: ${resultLabel}.` : `${mode === "replace" ? "Trade history replaced" : "Trades imported"}: ${acceptedTrades.length} row${acceptedTrades.length === 1 ? "" : "s"}.`, limited ? "warning" : "success");
     go("dashboard");
+    return receipt;
   }
 
   function openPassport() {
@@ -1116,12 +1164,12 @@ export default function App() {
           )}
           {section === "dashboard" && (
             <RouteFrame key="dashboard">
-              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><Dashboard analysis={analysis} rules={rules} go={go} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={openAuth} onDevPreview={signInAsDevPreview} />}
+              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><Dashboard analysis={analysis} rules={rules} go={go} rithmicSyncAvailable={brokerStatus?.provider === "Rithmic" && brokerStatus.status === "imported"} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={openAuth} onDevPreview={signInAsDevPreview} />}
             </RouteFrame>
           )}
           {section === "import" && (
             <RouteFrame key="import">
-              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><ImportDesk entitlements={entitlements} importCsv={importCsv} openFirmOAuth={openFirmOAuth} status={status} reset={() => { const demoTrades = entitlements.plan === "free" ? sampleTrades.slice(0, entitlements.maxStoredTrades) : sampleTrades; setTrades(demoTrades); setRules(defaultRules); clearBrokerStatus(); window.dispatchEvent(new CustomEvent("cova:broker-status")); setStatus("Demo trades restored."); announce("Demo trades restored.", "success"); }} upgradeToPro={upgradeToPro} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={openAuth} onDevPreview={signInAsDevPreview} />}
+              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><ImportDesk entitlements={entitlements} importCsv={importCsv} prepareImportCsv={prepareImportCsv} openFirmOAuth={openFirmOAuth} status={status} reset={() => { const demoTrades = entitlements.plan === "free" ? sampleTrades.slice(0, entitlements.maxStoredTrades) : sampleTrades; setTrades(demoTrades); setRules(defaultRules); clearBrokerStatus(); window.dispatchEvent(new CustomEvent("cova:broker-status")); setStatus("Demo trades restored."); announce("Demo trades restored.", "success"); }} upgradeToPro={upgradeToPro} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={openAuth} onDevPreview={signInAsDevPreview} />}
             </RouteFrame>
           )}
           {section === "oauth" && (

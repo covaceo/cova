@@ -12,7 +12,7 @@ export default async function handler(req, res) {
   try {
     const user = await requirePolicyAcceptedUser(req);
     requireProEntitlement(user);
-    let capability = { available: false, environment: "Rithmic Test" };
+    let capability = { available: false, environments: [] };
     try {
       capability = await requestRithmicStatus();
     } catch {

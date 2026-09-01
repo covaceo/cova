@@ -96,6 +96,56 @@ export type CsvParseResult = {
   rowCount: number;
 };
 
+export type TradeMergeResult = {
+  trades: Trade[];
+  receipt: {
+    added: number;
+    corrected: number;
+    unchanged: number;
+  };
+};
+
+export function mergeTradeLedger(existing: Trade[], incoming: Trade[]): TradeMergeResult {
+  const trades = [...existing];
+  const indexes = new Map(trades.map((trade, index) => [trade.id, index]));
+  const receipt = { added: 0, corrected: 0, unchanged: 0 };
+
+  for (const trade of incoming) {
+    const index = indexes.get(trade.id);
+    if (index === undefined) {
+      indexes.set(trade.id, trades.length);
+      trades.push(trade);
+      receipt.added += 1;
+      continue;
+    }
+
+    const existingTrade = trades[index];
+    const existingAccount = existingTrade.source?.provider === "Rithmic"
+      ? `Rithmic:${existingTrade.source.accountKey}:${existingTrade.source.accountId}`
+      : existingTrade.source
+        ? `${existingTrade.source.provider}:${existingTrade.source.accountId}`
+        : "local";
+    const incomingAccount = trade.source?.provider === "Rithmic"
+      ? `Rithmic:${trade.source.accountKey}:${trade.source.accountId}`
+      : trade.source
+        ? `${trade.source.provider}:${trade.source.accountId}`
+        : "local";
+    if (existingAccount !== incomingAccount) {
+      throw new Error(`Trade ${trade.id} belongs to a different provider account.`);
+    }
+
+    if (JSON.stringify(existingTrade) === JSON.stringify(trade)) {
+      receipt.unchanged += 1;
+      continue;
+    }
+
+    trades[index] = trade;
+    receipt.corrected += 1;
+  }
+
+  return { trades, receipt };
+}
+
 export const defaultRules: RiskRule[] = [
   { id: "daily-loss", name: "Daily loss limit", metric: "maxDailyLoss", limit: 2500, severity: "critical", enabled: true },
   { id: "trade-loss", name: "Single-trade loss limit", metric: "maxTradeLoss", limit: 1600, severity: "critical", enabled: true },
