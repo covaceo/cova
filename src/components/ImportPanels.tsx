@@ -1,12 +1,12 @@
 import { motion } from "motion/react";
 import { type FormEvent, useState } from "react";
 import { ArrowUpRight, ChevronDown, CircleDot, ClipboardCheck, FileUp, SlidersHorizontal, Upload } from "lucide-react";
-import { type CsvParseResult, formatMoney } from "../lib/risk";
+import { type CsvParseResult, formatMoney, type TradeMergeResult } from "../lib/risk";
 import { buildFirmConnectUrl, canRedirectToFirmProvider, csvExportGuides, propFirmOptions, type PropFirmId } from "../lib/propFirms";
 import { GlassButton } from "./GlassButton";
 import { RithmicAttribution } from "./RithmicAttribution";
 
-type ImportMode = "append" | "replace";
+type ImportMode = "append" | "replace" | "merge";
 type ImportEntitlements = {
   canUseDirectSync: boolean;
   maxStoredTrades: number;
@@ -28,6 +28,7 @@ type RithmicCredentials = {
   password: CredentialText;
   accountKey?: string;
   lookbackDays: 30 | 90 | 180;
+  systemName: "Rithmic Paper Trading" | "Rithmic 01" | "Rithmic Test";
 };
 type RithmicSyncResult = {
   selectionRequired?: boolean;
@@ -39,7 +40,7 @@ const providerStatus: Record<PropFirmId, string> = {
   apex: "CSV",
   myfundedfutures: "CSV",
   tradeify: "CSV",
-  rithmic: "Test",
+  rithmic: "SYNC",
   tradovate: "API",
   other: "CSV",
 };
@@ -62,7 +63,7 @@ export function CsvUploadPanel({
   dragActive: boolean;
   entitlements: ImportEntitlements;
   fileName: string;
-  importCsv: (text: string, mode?: ImportMode) => void;
+  importCsv: (text: string, mode?: ImportMode) => TradeMergeResult["receipt"] | null;
   mode: ImportMode;
   parsed: CsvParseResult;
   readFile: (file?: File) => Promise<void>;
@@ -339,7 +340,7 @@ export function BrokerConnectPanel({
   const tradovateUnavailable = selectedFirm.id === "tradovate"
     && entitlements.canUseDirectSync
     && tradovateStatusChecked && !tradovateAvailable;
-  const [rithmicCredentials, setRithmicCredentials] = useState<RithmicCredentials>({ username: "", password: "", lookbackDays: 90 });
+  const [rithmicCredentials, setRithmicCredentials] = useState<RithmicCredentials>({ username: "", password: "", lookbackDays: 90, systemName: "Rithmic Paper Trading" });
   const [rithmicAccounts, setRithmicAccounts] = useState<{ accountKey?: string; accountId?: string; accountName?: string }[]>([]);
 
   function selectFirm(firm: (typeof propFirmOptions)[number]) {
@@ -370,7 +371,7 @@ export function BrokerConnectPanel({
     if (firm.id === "rithmic") {
       document.querySelector("[data-rithmic-connect], [data-rithmic-unavailable]")?.scrollIntoView({ behavior: "smooth", block: "center" });
       if (rithmicStatusChecked && !rithmicAvailable) {
-        setBrokerNotice("Rithmic Test is unavailable here. Use CSV instead.");
+        setBrokerNotice("Rithmic sync is unavailable here. Use CSV instead.");
       }
       return;
     }
@@ -405,6 +406,11 @@ export function BrokerConnectPanel({
   function showExportGuide() {
     document.querySelector("[data-export-guide]")?.scrollIntoView({ behavior: "smooth", block: "center" });
     setBrokerNotice(`${selectedFirm.name}: use the export guide below to find the cleanest trade file for Cova.`);
+  }
+
+  function changeRithmicEnvironment(systemName: RithmicCredentials["systemName"]) {
+    setRithmicAccounts([]);
+    setRithmicCredentials((current) => ({ ...current, accountKey: undefined, systemName }));
   }
 
   async function submitRithmic(event: FormEvent<HTMLFormElement>) {
@@ -471,7 +477,7 @@ export function BrokerConnectPanel({
 
       {selectedFirm.id === "rithmic" && entitlements.canUseDirectSync && (!rithmicStatusChecked || !rithmicAvailable) && (
         <div className="mt-6 rounded-[24px] border border-white/12 bg-white/[0.025] p-5" data-rithmic-unavailable>
-          <p className="font-body text-xs uppercase tracking-[0.2em] text-amber-100/80">Private Test connector</p>
+          <p className="font-body text-xs uppercase tracking-[0.2em] text-amber-100/80">Private Rithmic service</p>
           <h4 className="mt-3 font-body text-xl font-semibold text-white">{rithmicStatusChecked ? "Private sync unavailable." : "Checking connector availability..."}</h4>
           <p className="mt-2 max-w-2xl font-body text-sm leading-relaxed text-white/58">
             {rithmicStatusChecked ? "Cova keeps the credential form disabled until the signed private service and atomic nonce store are reachable. CSV import remains available below." : "Cova is verifying the signed private service before showing any credential fields."}
@@ -487,23 +493,37 @@ export function BrokerConnectPanel({
         >
           <div>
             <div className="flex flex-wrap items-center gap-3">
-              <span className="rounded-full border border-amber-200/18 bg-amber-300/8 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-amber-100">Rithmic Test</span>
+              <span className="rounded-full border border-amber-200/18 bg-amber-300/8 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-amber-100">{rithmicCredentials.systemName}</span>
               <span className="rounded-full border border-emerald-200/16 bg-emerald-300/8 px-3 py-1.5 font-body text-xs text-[#b9f5df]">Read-only</span>
             </div>
             <h4 className="mt-4 font-body text-2xl font-semibold tracking-[-0.03em] text-white">Import Rithmic history.</h4>
             <p className="mt-2 max-w-2xl font-body text-sm leading-relaxed text-white/56">
-              One-time login. Credentials are discarded by Cova when it finishes. No order access. P&amp;L is gross before commissions.
+              One-time provider login. Cova never stores it. Cova makes no order or funds calls. P&amp;L is gross before commissions.
             </p>
           </div>
 
-          <div className={`mt-5 grid gap-3 md:items-end ${rithmicAccounts.length > 0 ? "md:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_180px_auto]" : "md:grid-cols-[1fr_1fr_180px_auto]"}`}>
+          <div className={`mt-5 grid gap-3 md:grid-cols-2 md:items-end ${rithmicAccounts.length > 0 ? "xl:grid-cols-[180px_1fr_1fr_1fr_180px_auto]" : "xl:grid-cols-[180px_1fr_1fr_180px_auto]"}`}>
+            <label className="block">
+              <span className="font-body text-xs uppercase tracking-[0.18em] text-white/42">Environment</span>
+              <select
+                className="mt-2 h-12 w-full rounded-[16px] border border-white/10 bg-[#111] px-4 font-body text-sm text-white outline-none transition focus:border-emerald-200/32"
+                data-rithmic-environment
+                disabled={rithmicBusy}
+                onChange={(event) => changeRithmicEnvironment(event.target.value as RithmicCredentials["systemName"])}
+                value={rithmicCredentials.systemName}
+              >
+                <option value="Rithmic Paper Trading">Paper Trading</option>
+                <option value="Rithmic 01">Live Trading (R01)</option>
+                <option value="Rithmic Test">Rithmic Test</option>
+              </select>
+            </label>
             <label className="block">
               <span className="font-body text-xs uppercase tracking-[0.18em] text-white/42">Username</span>
               <input
                 autoComplete="username"
                 className="mt-2 h-12 w-full rounded-[16px] border border-white/10 bg-black/34 px-4 font-body text-sm text-white outline-none transition placeholder:text-white/24 focus:border-emerald-200/32 focus:bg-black/44"
                 onChange={(event) => setRithmicCredentials((current) => ({ ...current, username: event.target.value }))}
-                placeholder="Test username"
+                placeholder="Rithmic username"
                 required
                 type="text"
                 value={rithmicCredentials.username}
@@ -515,7 +535,7 @@ export function BrokerConnectPanel({
                 autoComplete="current-password"
                 className="mt-2 h-12 w-full rounded-[16px] border border-white/10 bg-black/34 px-4 font-body text-sm text-white outline-none transition placeholder:text-white/24 focus:border-emerald-200/32 focus:bg-black/44"
                 onChange={(event) => setRithmicCredentials((current) => ({ ...current, password: event.target.value }))}
-                placeholder="Test password"
+                placeholder="Rithmic password"
                 required
                 type="password"
                 value={rithmicCredentials.password}
@@ -526,6 +546,8 @@ export function BrokerConnectPanel({
                 <span className="font-body text-xs uppercase tracking-[0.18em] text-white/42">Account</span>
                 <select
                   className="mt-2 h-12 w-full rounded-[16px] border border-white/10 bg-[#111] px-4 font-body text-sm text-white outline-none transition focus:border-emerald-200/32"
+                  data-rithmic-account
+                  disabled={rithmicBusy}
                   onChange={(event) => setRithmicCredentials((current) => ({ ...current, accountKey: event.target.value }))}
                   value={rithmicCredentials.accountKey || ""}
                 >

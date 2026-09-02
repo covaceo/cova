@@ -1,4 +1,5 @@
 import { createHmac, randomUUID } from "node:crypto";
+import { RITHMIC_SYSTEMS } from "./rithmic-systems.js";
 
 const MAX_TRADES = 5_000;
 const MAX_CSV_BYTES = 2 * 1024 * 1024;
@@ -219,17 +220,21 @@ export async function requestRithmicStatus(options = {}) {
       signal: options.signal || AbortSignal.timeout(5_000),
     });
   } catch {
-    return { available: false, environment: "Rithmic Test" };
+    return { available: false, environments: [] };
   }
-  if (!response.ok) return { available: false, environment: "Rithmic Test" };
+  if (!response.ok) return { available: false, environments: [] };
   try {
     const body = await readBoundedJson(response, MAX_STATUS_BYTES);
+    const environments = body?.data?.environments;
+    const supported = Array.isArray(environments)
+      && environments.length === RITHMIC_SYSTEMS.length
+      && environments.every((value, index) => value === RITHMIC_SYSTEMS[index]);
     return {
-      available: body?.ok === true && body?.data?.available === true && body?.data?.environment === "Rithmic Test",
-      environment: "Rithmic Test",
+      available: body?.ok === true && body?.data?.available === true && supported,
+      environments: supported ? [...RITHMIC_SYSTEMS] : [],
     };
   } catch {
-    return { available: false, environment: "Rithmic Test" };
+    return { available: false, environments: [] };
   }
 }
 

@@ -57,7 +57,7 @@ The Upload tab includes a prop-firm selector next to the universal CSV lane. Top
 Current connector strategy:
 
 - **TopstepX, Apex, MyFundedFutures, Tradeify, and other firms:** use CSV or platform exports. No Cova-held provider credentials are required.
-- **Rithmic:** a private, fail-closed Test connector exists for controlled verification only. It is not publicly available and is not a production availability claim. See `docs/rithmic-connector.md`.
+- **Rithmic:** the private, fail-closed connector supports Rithmic Paper Trading, Rithmic 01, and the provider Test environment. Each sync uses a one-time login and merges stable trade IDs without storing credentials. See `docs/rithmic-connector.md`.
 - **Tradovate:** the OAuth scaffold remains available for eligible users with approved API access, but it is not the default path.
 
 The Tradovate OAuth routes live under `api/tradovate/*`, which means they run through Vercel, not the plain Vite development server. Other firm buttons lead users to export guidance unless a reviewed provider URL is explicitly configured.

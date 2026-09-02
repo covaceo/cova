@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { parseCsvDetailed } from "../lib/risk";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { parseCsvDetailed, type TradeMergeResult } from "../lib/risk";
 import { type PropFirmId } from "../lib/propFirms";
 import { clearBrokerStatus, readBrokerStatus, writeBrokerStatus, type BrokerStatus } from "../lib/brokerStatus";
 import { canRedirectToTradovate } from "../lib/tradovateConnect";
@@ -7,7 +7,10 @@ import { authorizedFetch } from "../lib/apiClient";
 import { ImageAtmosphere, SectionShell } from "./LayoutShell";
 import { BrokerConnectPanel, CsvExportGuide, CsvPreview, CsvUploadPanel, ImportNextSteps } from "./ImportPanels";
 
-type ImportMode = "append" | "replace";
+type ImportMode = "append" | "replace" | "merge";
+type ImportCommit = (text: string, mode?: ImportMode) => TradeMergeResult["receipt"] | null;
+type PreparedImport = { commit: ImportCommit; isCurrent: () => boolean };
+type PrepareImportCsv = () => PreparedImport | null;
 type ImportEntitlements = {
   canUseDirectSync: boolean;
   maxStoredTrades: number;
@@ -19,9 +22,21 @@ type RithmicCredentials = {
   password: string;
   accountKey?: string;
   lookbackDays: 30 | 90 | 180;
+  systemName: "Rithmic Paper Trading" | "Rithmic 01" | "Rithmic Test";
 };
 
 const MAX_CSV_FILE_BYTES = 2 * 1024 * 1024;
+const IMPORT_PROVIDER_HINT_KEY = "cova-import-provider-v1";
+
+function readImportProviderHint(): PropFirmId {
+  try {
+    const hint = sessionStorage.getItem(IMPORT_PROVIDER_HINT_KEY);
+    if (hint === "rithmic") return hint;
+  } catch {
+    // A blocked session store should not block the import route.
+  }
+  return "topstepx";
+}
 
 type TradovateStatusResponse = {
   available?: boolean;
@@ -52,7 +67,7 @@ function brokerStatusFromTradovate(data: TradovateStatusResponse): BrokerStatus 
   };
 }
 
-export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, reset, upgradeToPro }: { entitlements: ImportEntitlements; importCsv: (text: string, mode?: ImportMode) => void; openFirmOAuth: (firm: PropFirmId) => void; status: string; reset: () => void; upgradeToPro: () => void }) {
+export function ImportDesk({ entitlements, importCsv, prepareImportCsv, openFirmOAuth, status, reset, upgradeToPro }: { entitlements: ImportEntitlements; importCsv: ImportCommit; prepareImportCsv: PrepareImportCsv; openFirmOAuth: (firm: PropFirmId) => void; status: string; reset: () => void; upgradeToPro: () => void }) {
   const [text, setText] = useState("date,market,side,contracts,entry,exit,pnl,risk,setup,notes\n2026-05-06,NQ,Long,1,18900,18915,300,250,Opening range,Smoke row");
   const [mode, setMode] = useState<ImportMode>("append");
   const [dragActive, setDragActive] = useState(false);
@@ -64,8 +79,42 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
   const [tradovateCapability, setTradovateCapability] = useState({ available: false, checked: false });
   const [brokerNotice, setBrokerNotice] = useState("");
   const [brokerStatus, setBrokerStatus] = useState<BrokerStatus | null>(() => readBrokerStatus());
-  const [selectedFirmId, setSelectedFirmId] = useState<PropFirmId>("topstepx");
+  const [selectedFirmId, setSelectedFirmId] = useState<PropFirmId>(readImportProviderHint);
+  const rithmicRequestRef = useRef<AbortController | null>(null);
+  const rithmicRequestGenerationRef = useRef(0);
   const parsed = useMemo(() => parseCsvDetailed(text), [text]);
+
+  useEffect(() => () => {
+    rithmicRequestGenerationRef.current += 1;
+    rithmicRequestRef.current?.abort();
+    rithmicRequestRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    try {
+      sessionStorage.removeItem(IMPORT_PROVIDER_HINT_KEY);
+    } catch {
+      // Provider selection remains in memory for this route.
+    }
+  }, []);
+
+  useEffect(() => {
+    const selectRequestedProvider = (event: Event) => {
+      if ((event as CustomEvent<string>).detail !== "rithmic") return;
+      setSelectedFirmId("rithmic");
+      window.setTimeout(() => {
+        try {
+          if (sessionStorage.getItem(IMPORT_PROVIDER_HINT_KEY) === "rithmic") {
+            sessionStorage.removeItem(IMPORT_PROVIDER_HINT_KEY);
+          }
+        } catch {
+          // The in-memory selection is already applied.
+        }
+      }, 1_000);
+    };
+    window.addEventListener("cova:import-provider", selectRequestedProvider);
+    return () => window.removeEventListener("cova:import-provider", selectRequestedProvider);
+  }, []);
 
   useEffect(() => {
     const refreshBrokerStatus = () => setBrokerStatus(readBrokerStatus());
@@ -158,6 +207,23 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
   }
 
   async function syncRithmic(credentials: RithmicCredentials) {
+    const preparedImport = prepareImportCsv();
+    if (!preparedImport) {
+      setBrokerNotice("Sign in again before syncing Rithmic history.");
+      return;
+    }
+
+    rithmicRequestRef.current?.abort();
+    const controller = new AbortController();
+    const requestGeneration = rithmicRequestGenerationRef.current + 1;
+    rithmicRequestGenerationRef.current = requestGeneration;
+    rithmicRequestRef.current = controller;
+    const requireCurrentRequest = () => {
+      if (controller.signal.aborted || requestGeneration !== rithmicRequestGenerationRef.current || !preparedImport.isCurrent()) {
+        throw new DOMException("Rithmic sync was canceled.", "AbortError");
+      }
+    };
+
     setRithmicBusy(true);
     setBrokerNotice("");
     try {
@@ -165,7 +231,9 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(credentials),
+        signal: controller.signal,
       });
+      requireCurrentRequest();
       const contentType = response.headers.get("content-type") ?? "";
       if (!contentType.includes("application/json")) {
         throw new Error("Rithmic sync is not reachable from this preview.");
@@ -179,39 +247,62 @@ export function ImportDesk({ entitlements, importCsv, openFirmOAuth, status, res
         selectionRequired?: boolean;
         error?: string;
       };
+      requireCurrentRequest();
       if (!response.ok) {
         throw new Error(data.error || "Rithmic sync failed.");
       }
       if (data.selectionRequired && data.accounts && data.accounts.length > 1) {
-        setBrokerNotice(`Rithmic returned ${data.accounts.length} accounts. Choose one below, re-enter the Test password, and sync again.`);
+        setBrokerNotice(`Rithmic returned ${data.accounts.length} accounts. Choose one below, re-enter your login, and sync again.`);
         return data;
       }
       const tradeCount = data.counts?.trades ?? 0;
       if (!data.csv || tradeCount <= 0) {
-        setBrokerNotice("Rithmic Test login verified. The Test environment returned no fill history, and the login was discarded.");
+        const nextStatus: BrokerStatus = {
+          provider: "Rithmic",
+          status: "imported",
+          connected: false,
+          mode: "ephemeral",
+          message: `Already up to date. ${credentials.systemName} login verified. No completed fill history was returned for this window, and the login was discarded.`,
+          updatedAt: new Date().toISOString(),
+        };
+        writeBrokerStatus(nextStatus);
+        setBrokerStatus(nextStatus);
+        setBrokerNotice(nextStatus.message);
         return data;
       }
       const verified = parseCsvDetailed(data.csv);
       if (verified.issues.length || verified.trades.length !== tradeCount) {
         throw new Error("Rithmic returned an inconsistent trade ledger, so Cova did not import it.");
       }
+      requireCurrentRequest();
+      const mergeReceipt = preparedImport.commit(data.csv, "merge");
+      if (!mergeReceipt) {
+        throw new Error("Rithmic history passed validation but the active Cova account changed before it could be merged.");
+      }
+      const receiptMessage = mergeReceipt.added === 0 && mergeReceipt.corrected === 0
+        ? `Already up to date. ${mergeReceipt.unchanged} Rithmic trade${mergeReceipt.unchanged === 1 ? "" : "s"} checked.`
+        : `Synced ${mergeReceipt.added} new, ${mergeReceipt.corrected} corrected, and ${mergeReceipt.unchanged} unchanged Rithmic trade${tradeCount === 1 ? "" : "s"}.`;
       const nextStatus: BrokerStatus = {
         provider: "Rithmic",
         status: "imported",
         connected: false,
         mode: "ephemeral",
-        message: `Imported ${tradeCount} Rithmic trade${tradeCount === 1 ? "" : "s"}. The login was discarded after sync. P&L is gross before commissions.`,
+        message: `${receiptMessage} Source: ${credentials.systemName}. The login was discarded after sync. P&L is gross before commissions.`,
         updatedAt: new Date().toISOString(),
       };
-      importCsv(data.csv, "replace");
       writeBrokerStatus(nextStatus);
       setBrokerStatus(nextStatus);
       setBrokerNotice(nextStatus.message);
       return data;
     } catch (error) {
+      if (controller.signal.aborted || requestGeneration !== rithmicRequestGenerationRef.current || !preparedImport.isCurrent()) return;
       setBrokerNotice(`${error instanceof Error ? error.message : "Rithmic sync is unavailable right now."} The login was not stored. Use the Rithmic export guide if needed.`);
+      return;
     } finally {
-      setRithmicBusy(false);
+      if (requestGeneration === rithmicRequestGenerationRef.current) {
+        rithmicRequestRef.current = null;
+        setRithmicBusy(false);
+      }
     }
   }
 

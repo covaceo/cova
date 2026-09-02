@@ -8,6 +8,7 @@ import { EquityCurve, FlagStack, ScoreCard } from "./DashboardCards";
 import { RithmicAttribution } from "./RithmicAttribution";
 
 const DASHBOARD_RANGE_KEY = "cova-dashboard-range-v1";
+const IMPORT_PROVIDER_HINT_KEY = "cova-import-provider-v1";
 
 type Section = "overview" | "features" | "pricing" | "resources" | "community" | "dashboard" | "import" | "oauth" | "rules" | "coach" | "passport";
 type TimeRange = "today" | "week" | "all";
@@ -18,12 +19,25 @@ const rangeOptions: { id: TimeRange; label: string }[] = [
   { id: "all", label: "All trades" },
 ];
 
-export function Dashboard({ analysis, rules, go }: { analysis: ReturnType<typeof analyze>; rules: RiskRule[]; go: (section: Section) => void }) {
+export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false }: { analysis: ReturnType<typeof analyze>; rules: RiskRule[]; go: (section: Section) => void; rithmicSyncAvailable?: boolean }) {
   const [range, setRange] = useState<TimeRange>(() => readDashboardRange());
   const scopedTrades = useMemo(() => filterTradesByRange(analysis.trades, range), [analysis.trades, range]);
   const scopedAnalysis = useMemo(() => analyze(scopedTrades, rules), [scopedTrades, rules]);
-  const hasRithmicTrades = scopedAnalysis.trades.some((trade) => trade.source?.provider === "Rithmic");
+  const hasRithmicTrades = analysis.trades.some((trade) => trade.source?.provider === "Rithmic");
+  const hasRithmicSource = hasRithmicTrades || rithmicSyncAvailable;
   const sourceLabel = getTradeSourceLabel(scopedAnalysis.trades);
+
+  function manageSource() {
+    if (hasRithmicSource) {
+      try {
+        sessionStorage.setItem(IMPORT_PROVIDER_HINT_KEY, "rithmic");
+      } catch {
+        // Provider selection falls back to the normal import screen.
+      }
+      window.dispatchEvent(new CustomEvent("cova:import-provider", { detail: "rithmic" }));
+    }
+    go("import");
+  }
 
   useEffect(() => {
     try {
@@ -64,9 +78,9 @@ export function Dashboard({ analysis, rules, go }: { analysis: ReturnType<typeof
         </div>
       </header>
 
-      <DashboardSummaryStrip analysis={scopedAnalysis} go={go} sourceLabel={sourceLabel} />
+      <DashboardSummaryStrip analysis={scopedAnalysis} manageSource={manageSource} manageSourceLabel={hasRithmicSource ? "Sync new trades" : "Manage source"} go={go} sourceLabel={sourceLabel} />
 
-      {hasRithmicTrades && (
+      {hasRithmicSource && (
         <div className="dashboard-attribution-row">
           <RithmicAttribution compact />
         </div>
@@ -100,7 +114,7 @@ export function Dashboard({ analysis, rules, go }: { analysis: ReturnType<typeof
   );
 }
 
-function DashboardSummaryStrip({ analysis, go, sourceLabel }: { analysis: ReturnType<typeof analyze>; go: (section: Section) => void; sourceLabel: string }) {
+function DashboardSummaryStrip({ analysis, go, manageSource, manageSourceLabel, sourceLabel }: { analysis: ReturnType<typeof analyze>; go: (section: Section) => void; manageSource: () => void; manageSourceLabel: string; sourceLabel: string }) {
   const action = getDashboardSummaryAction(analysis);
   const warningCount = getActionableReviewCount(analysis);
   const cells = [
@@ -119,7 +133,7 @@ function DashboardSummaryStrip({ analysis, go, sourceLabel }: { analysis: Return
         </div>
       ))}
       <div className="dashboard-summary-actions">
-        <button onClick={() => go("import")} type="button">Manage source</button>
+        <button onClick={manageSource} type="button">{manageSourceLabel}</button>
         <button className="dashboard-summary-primary" onClick={() => go(action.target)} type="button">
           {action.label} <ArrowUpRight aria-hidden="true" className="h-4 w-4" />
         </button>
