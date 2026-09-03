@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { ArrowUpRight, CalendarDays, Database } from "lucide-react";
+import { ArrowUpRight, CalendarDays, Database, FileUp } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { analyze, formatMoney, type RiskRule, type Trade } from "../lib/risk";
 import { getActionableReviewCount, getDashboardSummaryAction } from "../lib/dashboardReviewState";
@@ -26,6 +26,7 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false }:
   const hasRithmicTrades = analysis.trades.some((trade) => trade.source?.provider === "Rithmic");
   const hasRithmicSource = hasRithmicTrades || rithmicSyncAvailable;
   const sourceLabel = getTradeSourceLabel(scopedAnalysis.trades);
+  const hasTradeHistory = analysis.trades.length > 0;
 
   function manageSource() {
     if (hasRithmicSource) {
@@ -52,9 +53,9 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false }:
       <header className="dashboard-workspace-header">
         <div>
           <h1>Risk Desk</h1>
-          <p>Review trade history, risk pressure, and the evidence that needs attention.</p>
+          <p>{hasTradeHistory ? "Review trade history, risk pressure, and the evidence that needs attention." : "Import trade history to begin your first risk review."}</p>
         </div>
-        <div className="dashboard-range-controls" role="group" aria-label="Dashboard review range">
+        {hasTradeHistory && <div className="dashboard-range-controls" role="group" aria-label="Dashboard review range">
           <CalendarDays aria-hidden="true" className="h-4 w-4" />
           {rangeOptions.map((option) => (
             <button
@@ -75,41 +76,54 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false }:
               <span className="dashboard-range-label">{option.label}</span>
             </button>
           ))}
-        </div>
+        </div>}
       </header>
 
-      <DashboardSummaryStrip analysis={scopedAnalysis} manageSource={manageSource} manageSourceLabel={hasRithmicSource ? "Sync new trades" : "Manage source"} go={go} sourceLabel={sourceLabel} />
-
-      {hasRithmicSource && (
-        <div className="dashboard-attribution-row">
-          <RithmicAttribution compact />
-        </div>
-      )}
-
-      <div className="dashboard-instrument-grid">
-        <motion.section
-          className="risk-chart-panel dashboard-equity-instrument motion-surface"
-          initial={{ opacity: 0.4, filter: "blur(4px)" }}
-          animate={{ opacity: 1, filter: "blur(0px)" }}
-          transition={{ duration: 0.18, ease: "easeOut" }}
-        >
-          <div className="dashboard-instrument-header">
-            <div>
-              <h2>Equity curve</h2>
-              <p>Cumulative reported P&amp;L from the selected trade history.</p>
-            </div>
-            <span>{scopedAnalysis.trades.length} trades</span>
+      {!hasTradeHistory ? (
+        <section className="dashboard-empty-state" data-dashboard-empty="true" aria-labelledby="dashboard-empty-title">
+          <div className="dashboard-empty-panel">
+            <span className="dashboard-empty-icon" aria-hidden="true"><FileUp className="h-5 w-5" /></span>
+            <h2 id="dashboard-empty-title">Import trade history to start your review</h2>
+            <p>Cova keeps a new account blank until you add your own trade data.</p>
+            <button className="dashboard-empty-action" onClick={() => go("import")} type="button">
+              Import trade history <ArrowUpRight aria-hidden="true" className="h-4 w-4" />
+            </button>
           </div>
-          <EquityCurve points={scopedAnalysis.equityPoints.map((point) => point.value)} />
-        </motion.section>
+        </section>
+      ) : <>
+        <DashboardSummaryStrip analysis={scopedAnalysis} manageSource={manageSource} manageSourceLabel={hasRithmicSource ? "Sync new trades" : "Manage source"} go={go} sourceLabel={sourceLabel} />
 
-        <aside className="dashboard-evidence-column" aria-label="Risk evidence">
-          <ScoreCard analysis={scopedAnalysis} />
-          <FlagStack analysis={scopedAnalysis} onReviewRisk={() => go("rules")} />
-        </aside>
-      </div>
+        {hasRithmicSource && (
+          <div className="dashboard-attribution-row">
+            <RithmicAttribution compact />
+          </div>
+        )}
 
-      <DashboardReviewRow analysis={scopedAnalysis} go={go} />
+        <div className="dashboard-instrument-grid">
+          <motion.section
+            className="risk-chart-panel dashboard-equity-instrument motion-surface"
+            initial={{ opacity: 0.4, filter: "blur(4px)" }}
+            animate={{ opacity: 1, filter: "blur(0px)" }}
+            transition={{ duration: 0.18, ease: "easeOut" }}
+          >
+            <div className="dashboard-instrument-header">
+              <div>
+                <h2>Equity curve</h2>
+                <p>Cumulative reported P&amp;L from the selected trade history.</p>
+              </div>
+              <span>{scopedAnalysis.trades.length} trades</span>
+            </div>
+            <EquityCurve points={scopedAnalysis.equityPoints.map((point) => point.value)} />
+          </motion.section>
+
+          <aside className="dashboard-evidence-column" aria-label="Risk evidence">
+            <ScoreCard analysis={scopedAnalysis} />
+            <FlagStack analysis={scopedAnalysis} onReviewRisk={() => go("rules")} />
+          </aside>
+        </div>
+
+        <DashboardReviewRow analysis={scopedAnalysis} go={go} />
+      </>}
     </section>
   );
 }

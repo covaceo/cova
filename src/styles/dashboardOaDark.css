@@ -401,6 +401,86 @@ body:has(.oa-dashboard-app)::after,
   line-height: 1.45;
 }
 
+.oa-dashboard-app .dashboard-empty-state {
+  min-height: min(520px, calc(100vh - 178px));
+  display: grid;
+  place-items: center;
+  padding: 56px 24px;
+  border: 1px solid var(--oa-border);
+  border-radius: var(--oa-radius-4xl);
+  background: var(--oa-card);
+  box-shadow: var(--oa-shadow-resting);
+}
+
+.oa-dashboard-app .dashboard-empty-panel {
+  max-width: 470px;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  text-align: center;
+}
+
+.oa-dashboard-app .dashboard-empty-icon {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--oa-primary) 38%, var(--oa-border));
+  border-radius: 13px;
+  color: var(--oa-primary-hover);
+  background: color-mix(in srgb, var(--oa-primary) 12%, var(--oa-card));
+}
+
+.oa-dashboard-app .dashboard-empty-panel h2 {
+  margin-top: 20px;
+  color: var(--oa-foreground);
+  font-family: inherit;
+  font-size: clamp(22px, 3vw, 30px);
+  font-weight: 500;
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+}
+
+.oa-dashboard-app .dashboard-empty-panel p {
+  max-width: 390px;
+  margin-top: 10px;
+  color: var(--oa-muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.oa-dashboard-app .dashboard-empty-action {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 24px;
+  padding: 9px 16px;
+  border: 1px solid color-mix(in srgb, var(--oa-primary) 78%, var(--oa-page));
+  border-radius: 999px;
+  color: var(--oa-primary-foreground);
+  background: var(--oa-primary);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), inset 0 -1px 0 rgba(8, 9, 12, 0.34);
+  transition: background-color 0.16s ease-out, transform 0.1s ease-out;
+}
+
+.oa-dashboard-app .dashboard-empty-action:hover {
+  background: var(--oa-primary-hover);
+}
+
+.oa-dashboard-app .dashboard-empty-action:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+.oa-dashboard-app .dashboard-empty-action:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(111, 150, 255, 0.5);
+}
+
 .oa-dashboard-app .dashboard-range-controls {
   position: relative;
   isolation: isolate;

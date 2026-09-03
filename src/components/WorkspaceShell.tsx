@@ -38,7 +38,7 @@ type WorkspaceShellProps = {
   deleteAccount: () => void;
   email?: string;
   go: (section: Section) => void;
-  riskScore: number;
+  riskScore: number | null;
   section: Section;
   signOut: () => void;
 };
@@ -55,7 +55,7 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
       }))
       .filter((group) => group.items.length > 0);
   }, [search]);
-  const riskScoreLabel = Number.isFinite(riskScore) ? String(riskScore) : "--";
+  const riskScoreLabel = typeof riskScore === "number" && Number.isFinite(riskScore) ? String(riskScore) : "--";
 
   return (
     <div className={`workspace-shell operator-workspace ${section === "dashboard" ? "oa-dashboard-shell" : ""}`} data-workspace-section={section}>
