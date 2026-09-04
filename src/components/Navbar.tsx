@@ -34,14 +34,14 @@ export function Navbar({ section, go, openAuth, mobileOpen, setMobileOpen, authS
   mobileOpen: boolean;
   setMobileOpen: (open: boolean) => void;
   authSession: AuthSession | null;
-  riskScore: number;
+  riskScore: number | null;
   signOut: () => void;
   deleteAccount: () => void;
 }) {
   const [scrolled, setScrolled] = useState(false);
   const usesWorkspaceChrome = Boolean(authSession) && isProtectedSection(section);
   const isAppMode = Boolean(authSession) || usesWorkspaceChrome;
-  const riskScoreLabel = Number.isFinite(riskScore) ? String(riskScore) : "--";
+  const riskScoreLabel = typeof riskScore === "number" && Number.isFinite(riskScore) ? String(riskScore) : "--";
 
   useEffect(() => {
     const marker = document.createElement("span");

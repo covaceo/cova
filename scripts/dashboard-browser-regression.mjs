@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile, spawn } from "node:child_process";
-import { copyFile, mkdir, mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -8,6 +8,8 @@ const origin = process.env.COVA_URL;
 assert.ok(origin, "COVA_URL is required.");
 const chromePath = process.env.CHROME_PATH || "C:/Program Files/Google/Chrome/Application/chrome.exe";
 const passportCapturePath = process.env.COVA_PASSPORT_CAPTURE || "";
+const emptyDashboardCapturePath = process.env.COVA_EMPTY_DASHBOARD_CAPTURE || "";
+const emptyDashboardMobileCapturePath = process.env.COVA_EMPTY_DASHBOARD_MOBILE_CAPTURE || "";
 const profileDir = await mkdtemp(join(tmpdir(), "cova-dashboard-browser-"));
 const downloadDir = join(profileDir, "downloads");
 await mkdir(downloadDir, { recursive: true });
@@ -300,12 +302,23 @@ async function desktopVisualState() {
   assert.ok(scopedStateKey, "authenticated preview must have an identity-scoped workspace state key");
   await evaluate(`localStorage.setItem(${JSON.stringify(scopedStateKey)}, JSON.stringify({ trades: [], rules: [] }))`);
   await cdp.send("Page.navigate", { url: `${origin}/?dashboardEmpty=${Date.now()}#dashboard` });
-  await waitFor("document.querySelector('.dashboard-workspace') && document.querySelector('.dashboard-summary-strip')");
-  const emptyReview = await evaluate(`(() => {
-    const cells = Object.fromEntries([...document.querySelectorAll('.dashboard-summary-cell')].map((cell) => [cell.querySelector('span').textContent.trim(), cell.querySelector('strong').textContent.trim()]));
-    return { warnings: cells.Warnings, action: document.querySelector('.dashboard-summary-primary').textContent.trim() };
-  })()`);
-  assert.deepEqual(emptyReview, { warnings: "0", action: "Add trade history" }, "compiled empty history must show zero warnings and the truthful import action");
+  await waitFor("document.querySelector('[data-dashboard-empty=\"true\"]')");
+  const emptyReview = await evaluate(`(() => ({
+    action: document.querySelector('.dashboard-empty-action')?.textContent.trim(),
+    heading: document.querySelector('#dashboard-empty-title')?.textContent.trim(),
+    riskStatus: document.querySelector('.workspace-risk-status strong')?.textContent.trim(),
+    statPanels: document.querySelectorAll('.dashboard-summary-strip, .dashboard-instrument-grid, .dashboard-review-row').length,
+  }))()`);
+  assert.deepEqual(emptyReview, {
+    action: "Import trade history",
+    heading: "Import trade history to start your review",
+    riskStatus: "--",
+    statPanels: 0,
+  }, "compiled empty history must show one import-first state and no derived account statistics");
+  if (emptyDashboardCapturePath) {
+    const capture = await cdp.send("Page.captureScreenshot", { captureBeyondViewport: false, format: "png" });
+    await writeFile(emptyDashboardCapturePath, Buffer.from(capture.data, "base64"));
+  }
   await evaluate(`localStorage.removeItem(${JSON.stringify(scopedStateKey)})`);
   await cdp.send("Page.navigate", { url: `${origin}/?dashboardRestore=${Date.now()}#dashboard` });
   await waitFor("document.querySelector('.dashboard-workspace') && document.querySelectorAll('.dashboard-summary-cell')[3]?.querySelector('strong')?.textContent.trim() !== '0'");
@@ -407,6 +420,37 @@ async function passportExportTruth() {
   if (passportCapturePath) await copyFile(png.path, passportCapturePath);
 }
 
+async function mobileEmptyState() {
+  await openDashboard(390, 844);
+  const scopedStateKey = await evaluate("Object.keys(localStorage).find((key) => key.startsWith('cova-react-risk-os-v2:'))");
+  assert.ok(scopedStateKey, "mobile empty-state proof requires the identity-scoped workspace state key");
+  const previousState = await evaluate(`localStorage.getItem(${JSON.stringify(scopedStateKey)})`);
+  await evaluate(`localStorage.setItem(${JSON.stringify(scopedStateKey)}, JSON.stringify({ trades: [], rules: [] }))`);
+  await cdp.send("Page.navigate", { url: `${origin}/?dashboardMobileEmpty=${Date.now()}#dashboard` });
+  await waitFor("document.querySelector('[data-dashboard-empty=\"true\"]')", 30_000);
+  const layout = await evaluate(`(() => {
+    const empty = document.querySelector('[data-dashboard-empty="true"]');
+    const action = document.querySelector('.dashboard-empty-action');
+    const rect = empty.getBoundingClientRect();
+    const actionRect = action.getBoundingClientRect();
+    return {
+      actionHeight: Math.round(actionRect.height),
+      emptyWidth: Math.round(rect.width),
+      overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      visibleRiskStatuses: [...document.querySelectorAll('.header-risk-button, .workspace-risk-status')]
+        .filter((node) => { const style = getComputedStyle(node); const box = node.getBoundingClientRect(); return style.display !== 'none' && style.visibility !== 'hidden' && box.width > 0 && box.height > 0; })
+        .map((node) => node.querySelector('strong')?.textContent.trim()),
+      statPanels: document.querySelectorAll('.dashboard-summary-strip, .dashboard-instrument-grid, .dashboard-review-row').length,
+    };
+  })()`);
+  assert.deepEqual(layout, { actionHeight: 42, emptyWidth: 366, overflow: 0, visibleRiskStatuses: [], statPanels: 0 });
+  if (emptyDashboardMobileCapturePath) {
+    const capture = await cdp.send("Page.captureScreenshot", { captureBeyondViewport: false, format: "png" });
+    await writeFile(emptyDashboardMobileCapturePath, Buffer.from(capture.data, "base64"));
+  }
+  await evaluate(`localStorage.setItem(${JSON.stringify(scopedStateKey)}, ${JSON.stringify(previousState)})`);
+}
+
 async function shortHeight(height) {
   await openDashboard(1440, height);
   const state = await evaluate(`(() => {
@@ -448,6 +492,7 @@ try {
   for (const [width, height] of [[1440, 900], [390, 844]]) await pricingColorState(width, height);
   await desktopVisualState();
   for (const [width, height] of [[1023, 900], [800, 900], [390, 844], [390, 640]]) await collapsedWorkspace(width, height);
+  await mobileEmptyState();
   await passportExportTruth();
   for (const height of [760, 625, 520, 400]) await shortHeight(height);
   console.log("dashboard-browser-regression: pricing color roles, active hover/focus, AA microcopy, collapsed lifecycle semantics, and short-height account controls passed");

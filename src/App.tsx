@@ -24,7 +24,20 @@ import {
   sampleTrades,
   Trade,
 } from "./lib/risk";
-import { getSupabaseClient, getSupabaseUserPlan, hasSupabasePasswordRecoveryCallbackMarker, isSupabasePasswordRecoveryCallback, lockSupabaseLocally, signOutSupabase, updateSupabasePassword, verifySupabaseRecoveryIdentity } from "./lib/supabaseClient";
+import {
+  consumeSupabasePasswordRecoveryCallback,
+  consumeSupabasePasswordRecoveryEvent,
+  getSupabaseAuthSessionId,
+  getSupabaseClient,
+  getSupabaseUserPlan,
+  hasMismatchedSupabasePasswordRecoveryCallback,
+  hasSupabasePasswordRecoveryCallbackMarker,
+  isSupabaseAuthCallback,
+  lockSupabaseLocally,
+  signOutSupabase,
+  updateSupabasePassword,
+  verifySupabaseRecoveryIdentity,
+} from "./lib/supabaseClient";
 
 import { Hero } from "./components/MarketingHero";
 import { CsvExplainer } from "./components/CsvExplainer";
@@ -81,6 +94,7 @@ type AuthSession = {
   source: "local-preview" | "hosted" | "supabase";
   subscriptionStatus?: "active" | "preview" | "none";
   userId?: string;
+  providerSessionId?: string;
 };
 
 const planEntitlements: Record<PlanTier, Entitlements> = {
@@ -114,7 +128,10 @@ export default function App() {
   const [toast, setToast] = useState<ToastState>(null);
   const [status, setStatus] = useState("Trade history ready.");
   const [brokerStatus, setBrokerStatus] = useState<BrokerStatus | null>(() => readBrokerStatus());
-  const [trades, setTrades] = useState<Trade[]>(() => loadAuthSession() ? loadState()?.trades ?? sampleTrades : []);
+  const [trades, setTrades] = useState<Trade[]>(() => {
+    const savedSession = loadAuthSession();
+    return savedSession ? initialTradesForSession(loadState()?.trades, savedSession.source) : [];
+  });
   const tradesRef = useRef(trades);
   const [rules, setRules] = useState<RiskRule[]>(() => loadAuthSession() ? loadState()?.rules ?? defaultRules : defaultRules);
   const [pendingSupabaseSession, setPendingSupabaseSession] = useState<SupabaseSession | null>(null);
@@ -124,6 +141,7 @@ export default function App() {
   const activeProviderUserIdRef = useRef<string | null>(null);
   const pendingPolicyUserIdRef = useRef<string | null>(null);
   const passwordRecoveryUserIdRef = useRef<string | null>(null);
+  const passwordRecoverySessionIdRef = useRef<string | null>(null);
   const providerSessionRef = useRef<SupabaseSession | null>(null);
   const providerSessionsBlockedRef = useRef(false);
   const authCeremonyActiveRef = useRef(false);
@@ -133,6 +151,7 @@ export default function App() {
   const entitlements = planEntitlements[authSession?.plan ?? "free"];
   const proCheckoutAvailable = Boolean(getProCheckoutUrl()) || isDemoPreviewEnabled();
   const analysis = useMemo(() => analyze(trades, rules), [trades, rules]);
+  const visibleRiskScore = trades.length ? analysis.score : null;
   const hasSampleTrades = trades.some((trade) => trade.id.startsWith("demo-"));
   const isSampleReview = hasSampleTrades;
   const brokerLabel = getAccountSourceLabel(trades, brokerStatus);
@@ -180,8 +199,25 @@ export default function App() {
         lockWorkspace(false);
         return;
       }
-      if (isSupabasePasswordRecoveryCallback(session.access_token)) {
+      if (
+        passwordRecoveryUserIdRef.current === session.user.id
+        && passwordRecoverySessionIdRef.current === getSupabaseAuthSessionId(session.access_token)
+      ) {
+        authGenerationRef.current += 1;
+        providerSessionRef.current = session;
+        validatedAccessTokenRef.current = "";
+        setPasswordRecoverySession(session);
+        return;
+      }
+      if (rejectMismatchedPasswordRecoverySession(session)) {
+        return;
+      }
+
+      if (consumeSupabasePasswordRecoveryCallback(session.access_token)) {
         beginPasswordRecovery(session);
+        return;
+      }
+      if (rejectUnprovenSupabaseSession(session)) {
         return;
       }
       startSupabaseValidation(session);
@@ -196,6 +232,7 @@ export default function App() {
         if (event === "SIGNED_OUT") {
           providerSessionsBlockedRef.current = true;
           passwordRecoveryUserIdRef.current = null;
+          passwordRecoverySessionIdRef.current = null;
           setPasswordRecoverySession(null);
         }
         invalidateProviderSession();
@@ -205,20 +242,30 @@ export default function App() {
       if (providerSessionsBlockedRef.current) {
         return;
       }
-      if (event === "PASSWORD_RECOVERY") {
-        beginPasswordRecovery(session);
-        return;
-      }
-      if (passwordRecoveryUserIdRef.current === session.user.id) {
+      if (
+        passwordRecoveryUserIdRef.current === session.user.id
+        && passwordRecoverySessionIdRef.current === getSupabaseAuthSessionId(session.access_token)
+      ) {
         authGenerationRef.current += 1;
         providerSessionRef.current = session;
         validatedAccessTokenRef.current = "";
         setPasswordRecoverySession(session);
         return;
       }
+      if (rejectMismatchedPasswordRecoverySession(session)) {
+        return;
+      }
+
+      if (consumeSupabasePasswordRecoveryEvent(event, session.access_token)) {
+        beginPasswordRecovery(session);
+        return;
+      }
       const sameKnownUser = activeProviderUserIdRef.current === session.user.id || pendingPolicyUserIdRef.current === session.user.id;
       if ((event === "TOKEN_REFRESHED" || event === "USER_UPDATED" || event === "SIGNED_IN") && sameKnownUser) {
         adoptSupabaseSession(session);
+        return;
+      }
+      if (rejectUnprovenSupabaseSession(session)) {
         return;
       }
       prepareSupabaseIdentity(session);
@@ -427,6 +474,7 @@ export default function App() {
       signedInAt: new Date().toISOString(),
       subscriptionStatus: plan === "pro" ? "active" : "none",
       userId,
+      providerSessionId: source === "supabase" ? getSupabaseAuthSessionId(providerSessionRef.current?.access_token || "") || undefined : undefined,
     };
     setActiveStorageIdentity(userId || emailAddress);
     const saved = loadState();
@@ -434,13 +482,14 @@ export default function App() {
     activeProviderUserIdRef.current = source === "supabase" ? userId || null : null;
     pendingPolicyUserIdRef.current = null;
     passwordRecoveryUserIdRef.current = null;
+    passwordRecoverySessionIdRef.current = null;
     setAuthSession(session);
     setPendingSupabaseSession(null);
     setPasswordRecoverySession(null);
     setBrokerStatus(readBrokerStatus());
     localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
     localStorage.removeItem(AUTH_INTENT_KEY);
-    setTrades(saved?.trades?.length ? saved.trades : sampleTrades);
+    setTrades(initialTradesForSession(saved?.trades, source));
     setRules(saved?.rules ?? defaultRules);
     setStatus("Signed in. Account stats are unlocked.");
     setAuthMode(null);
@@ -512,7 +561,91 @@ export default function App() {
     }
   }
 
+  function hasOrdinarySupabaseAuthAuthority(session: SupabaseSession) {
+    if (authCeremonyActiveRef.current) return true;
+    if (isSupabaseAuthCallback(session.access_token)) return true;
+    try {
+      const saved = JSON.parse(localStorage.getItem(AUTH_SESSION_KEY) || "null") as Partial<AuthSession> | null;
+      const providerSessionId = getSupabaseAuthSessionId(session.access_token);
+      return (
+        saved?.source === "supabase"
+        && saved.userId === session.user.id
+        && Boolean(providerSessionId)
+        && saved.providerSessionId === providerSessionId
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  function clearOrdinarySupabaseAuthAuthority() {
+    if (typeof localStorage === "undefined") return false;
+    try {
+      localStorage.removeItem(AUTH_SESSION_KEY);
+      localStorage.removeItem(AUTH_INTENT_KEY);
+      return localStorage.getItem(AUTH_SESSION_KEY) === null && localStorage.getItem(AUTH_INTENT_KEY) === null;
+    } catch {
+      return false;
+    }
+  }
+
+  function rejectUnprovenSupabaseSession(session: SupabaseSession) {
+    if (hasOrdinarySupabaseAuthAuthority(session)) return false;
+    lockSupabaseLocally();
+    lockWorkspace(false);
+    window.history.replaceState(null, "", window.location.pathname);
+    window.setTimeout(() => {
+      void discardResolvedAuthSession(session).catch(() => lockSupabaseLocally());
+    }, 0);
+    return true;
+  }
+
+  function rejectMismatchedPasswordRecoverySession(session: SupabaseSession) {
+    const callbackMismatch = hasMismatchedSupabasePasswordRecoveryCallback(session.access_token);
+    const sessionId = getSupabaseAuthSessionId(session.access_token);
+    const activeRecoveryMismatch = Boolean(
+      passwordRecoveryUserIdRef.current
+      && (
+        passwordRecoveryUserIdRef.current !== session.user.id
+        || !sessionId
+        || passwordRecoverySessionIdRef.current !== sessionId
+      )
+    );
+    if (!callbackMismatch && !activeRecoveryMismatch) {
+      return false;
+    }
+    lockSupabaseLocally();
+    lockWorkspace(false);
+    window.history.replaceState(null, "", window.location.pathname);
+    announce("This password reset session changed. Request a new reset link.", "warning");
+    window.setTimeout(() => {
+      void discardResolvedAuthSession(session).catch(() => lockSupabaseLocally());
+    }, 0);
+    return true;
+  }
+
   function beginPasswordRecovery(session: SupabaseSession) {
+    if (!clearOrdinarySupabaseAuthAuthority()) {
+      lockSupabaseLocally();
+      lockWorkspace(false);
+      window.history.replaceState(null, "", window.location.pathname);
+      announce("This password reset session could not be secured. Request a new reset link.", "warning");
+      window.setTimeout(() => {
+        void discardResolvedAuthSession(session).catch(() => lockSupabaseLocally());
+      }, 0);
+      return;
+    }
+    const recoverySessionId = getSupabaseAuthSessionId(session.access_token);
+    if (!recoverySessionId) {
+      lockSupabaseLocally();
+      lockWorkspace(false);
+      window.history.replaceState(null, "", window.location.pathname);
+      announce("This password reset session could not be secured. Request a new reset link.", "warning");
+      window.setTimeout(() => {
+        void discardResolvedAuthSession(session).catch(() => lockSupabaseLocally());
+      }, 0);
+      return;
+    }
     authCeremonyActiveRef.current = true;
     prepareSupabaseIdentity(session);
     authGenerationRef.current += 1;
@@ -521,6 +654,7 @@ export default function App() {
     activeProviderUserIdRef.current = null;
     pendingPolicyUserIdRef.current = null;
     passwordRecoveryUserIdRef.current = session.user.id;
+    passwordRecoverySessionIdRef.current = recoverySessionId;
     setPendingSupabaseSession(null);
     setPasswordRecoverySession(session);
     hideWorkspaceForAuthCheck();
@@ -534,6 +668,7 @@ export default function App() {
       authGenerationRef.current === generation &&
       identitySwitchGenerationRef.current === identityGeneration &&
       passwordRecoveryUserIdRef.current === session.user.id &&
+      passwordRecoverySessionIdRef.current === getSupabaseAuthSessionId(session.access_token) &&
       current?.user.id === session.user.id &&
       current.access_token === session.access_token
     );
@@ -565,8 +700,10 @@ export default function App() {
       return;
     }
     passwordRecoveryUserIdRef.current = null;
+    passwordRecoverySessionIdRef.current = null;
     setPasswordRecoverySession(null);
     window.history.replaceState(null, "", window.location.pathname);
+    authCeremonyActiveRef.current = true;
     startSupabaseValidation(session);
   }
 
@@ -776,6 +913,7 @@ export default function App() {
     activeProviderUserIdRef.current = null;
     pendingPolicyUserIdRef.current = null;
     passwordRecoveryUserIdRef.current = null;
+    passwordRecoverySessionIdRef.current = null;
     try {
       localStorage.removeItem(AUTH_SESSION_KEY);
       localStorage.removeItem(AUTH_INTENT_KEY);
@@ -1091,7 +1229,7 @@ export default function App() {
         mobileOpen={mobileOpen}
         setMobileOpen={setMobileOpen}
         authSession={authSession}
-        riskScore={analysis.score}
+        riskScore={visibleRiskScore}
         signOut={signOut}
         deleteAccount={deleteAccount}
       />
@@ -1164,33 +1302,33 @@ export default function App() {
           )}
           {section === "dashboard" && (
             <RouteFrame key="dashboard">
-              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><Dashboard analysis={analysis} rules={rules} go={go} rithmicSyncAvailable={brokerStatus?.provider === "Rithmic" && brokerStatus.status === "imported"} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={openAuth} onDevPreview={signInAsDevPreview} />}
+              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={visibleRiskScore} section={section} signOut={signOut}><Dashboard analysis={analysis} rules={rules} go={go} rithmicSyncAvailable={brokerStatus?.provider === "Rithmic" && brokerStatus.status === "imported"} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={openAuth} onDevPreview={signInAsDevPreview} />}
             </RouteFrame>
           )}
           {section === "import" && (
             <RouteFrame key="import">
-              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><ImportDesk entitlements={entitlements} importCsv={importCsv} prepareImportCsv={prepareImportCsv} openFirmOAuth={openFirmOAuth} status={status} reset={() => { const demoTrades = entitlements.plan === "free" ? sampleTrades.slice(0, entitlements.maxStoredTrades) : sampleTrades; setTrades(demoTrades); setRules(defaultRules); clearBrokerStatus(); window.dispatchEvent(new CustomEvent("cova:broker-status")); setStatus("Demo trades restored."); announce("Demo trades restored.", "success"); }} upgradeToPro={upgradeToPro} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={openAuth} onDevPreview={signInAsDevPreview} />}
+              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={visibleRiskScore} section={section} signOut={signOut}><ImportDesk entitlements={entitlements} importCsv={importCsv} prepareImportCsv={prepareImportCsv} openFirmOAuth={openFirmOAuth} status={status} reset={() => { const demoTrades = entitlements.plan === "free" ? sampleTrades.slice(0, entitlements.maxStoredTrades) : sampleTrades; setTrades(demoTrades); setRules(defaultRules); clearBrokerStatus(); window.dispatchEvent(new CustomEvent("cova:broker-status")); setStatus("Demo trades restored."); announce("Demo trades restored.", "success"); }} upgradeToPro={upgradeToPro} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={openAuth} onDevPreview={signInAsDevPreview} />}
             </RouteFrame>
           )}
           {section === "oauth" && (
             <RouteFrame key="oauth">
-              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><OAuthConnectPage firmId={oauthFirmId} onApprove={completeFirmOAuth} onCancel={cancelFirmOAuth} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={openAuth} onDevPreview={signInAsDevPreview} />}
+              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={visibleRiskScore} section={section} signOut={signOut}><OAuthConnectPage firmId={oauthFirmId} onApprove={completeFirmOAuth} onCancel={cancelFirmOAuth} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={openAuth} onDevPreview={signInAsDevPreview} />}
             </RouteFrame>
           )}
           {section === "rules" && (
             <RouteFrame key="rules">
-              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><RulesEngine analysis={analysis} entitlements={entitlements} rules={rules} setRules={setRules} go={go} upgradeToPro={upgradeToPro} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={openAuth} onDevPreview={signInAsDevPreview} />}
+              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={visibleRiskScore} section={section} signOut={signOut}><RulesEngine analysis={analysis} entitlements={entitlements} rules={rules} setRules={setRules} go={go} upgradeToPro={upgradeToPro} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={openAuth} onDevPreview={signInAsDevPreview} />}
             </RouteFrame>
           )}
           {section === "coach" && (
             <RouteFrame key="coach">
-              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><Coach analysis={analysis} entitlements={entitlements} go={go} upgradeToPro={upgradeToPro} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={openAuth} onDevPreview={signInAsDevPreview} />}
+              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={visibleRiskScore} section={section} signOut={signOut}><Coach analysis={analysis} entitlements={entitlements} go={go} upgradeToPro={upgradeToPro} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={openAuth} onDevPreview={signInAsDevPreview} />}
             </RouteFrame>
           )}
 
           {section === "passport" && (
             <RouteFrame key="passport">
-              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={analysis.score} section={section} signOut={signOut}><Passport analysis={analysis} entitlements={entitlements} isSampleReview={isSampleReview} go={go} upgradeToPro={upgradeToPro} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={openAuth} onDevPreview={signInAsDevPreview} />}
+              {isSignedIn ? <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={visibleRiskScore} section={section} signOut={signOut}><Passport analysis={analysis} entitlements={entitlements} isSampleReview={isSampleReview} go={go} upgradeToPro={upgradeToPro} /></WorkspaceShell> : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={openAuth} onDevPreview={signInAsDevPreview} />}
             </RouteFrame>
           )}
         </AnimatePresence>
@@ -1240,6 +1378,10 @@ function getProCheckoutUrl() {
   return env.VITE_STRIPE_PRO_PAYMENT_LINK || env.VITE_STRIPE_CHECKOUT_URL || "";
 }
 
+function initialTradesForSession(savedTrades: Trade[] | undefined, source: AuthSession["source"]) {
+  return savedTrades ?? (source === "local-preview" ? sampleTrades : []);
+}
+
 function loadAuthSession(): AuthSession | null {
   try {
     const parsed = JSON.parse(localStorage.getItem(AUTH_SESSION_KEY) ?? "null");
@@ -1258,6 +1400,7 @@ function loadAuthSession(): AuthSession | null {
         source,
         subscriptionStatus: parsed.subscriptionStatus === "active" || parsed.subscriptionStatus === "preview" ? parsed.subscriptionStatus : "none",
         userId,
+        providerSessionId: typeof parsed.providerSessionId === "string" ? parsed.providerSessionId : undefined,
       };
     }
   } catch {

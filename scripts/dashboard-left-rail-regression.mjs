@@ -31,8 +31,10 @@ assert.match(workspace, /aria-label="Search workspace"/, "workspace search must 
 assert.match(workspace, /workspace-risk-status/, "account risk must render as a compact rail status row");
 assert.doesNotMatch(workspace, /workspace-risk-card/, "the oversized account-risk sidebar card must be removed");
 assert.match(workspace, /workspace-account-menu/, "account identity and account actions must remain pinned in a dedicated bottom area");
-assert.match(workspace, /const riskScoreLabel = Number\.isFinite\(riskScore\) \? String\(riskScore\) : "--";/, "zero must remain a valid rendered risk score");
-assert.match(navbar, /const riskScoreLabel = Number\.isFinite\(riskScore\) \? String\(riskScore\) : "--";/, "tablet and mobile fallback chrome must preserve a legitimate zero risk score");
+assert.match(workspace, /const riskScoreLabel = typeof riskScore === "number" && Number\.isFinite\(riskScore\) \? String\(riskScore\) : "--";/, "zero must remain valid while unavailable accounts render a placeholder");
+assert.match(navbar, /const riskScoreLabel = typeof riskScore === "number" && Number\.isFinite\(riskScore\) \? String\(riskScore\) : "--";/, "tablet and mobile fallback chrome must distinguish zero from unavailable");
+assert.match(app, /const visibleRiskScore = trades\.length \? analysis\.score : null;/, "accounts without trade history must not publish a derived risk score");
+assert.match(dashboard, /data-dashboard-empty="true"[\s\S]*?Import trade history to start your review/, "the Risk Desk must render an import-first empty state before analytics");
 assert.doesNotMatch(navbar, /riskScore \|\| "--"/, "fallback header must not collapse zero into an unavailable placeholder");
 assert.match(workspace, /aria-label=\{`Cova risk score \$\{riskScoreLabel === "--" \? "not available" : riskScoreLabel\}`\}/, "risk-score accessibility copy must preserve zero and distinguish unavailable values");
 assert.doesNotMatch(workspace, /riskScore \|\|/, "risk score rendering must not erase a valid zero");
