@@ -39,6 +39,7 @@ import "./styles/threeUiLanding.css";
 import "./styles/featuresShowcase.css";
 import "./styles/resourcesQuickStart.css";
 import "./styles/communityDiscordPage.css";
+import "./styles/homeStory.css";
 
 if (navigator.platform.startsWith("Win")) {
   document.documentElement.classList.add("cova-platform-windows");

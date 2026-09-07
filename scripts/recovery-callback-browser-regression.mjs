@@ -379,6 +379,14 @@ try {
     recoveryMarkerPresent: false,
     requests: [{ host: "synthetic.supabase.test", path: "/auth/v1/user", method: "GET" }],
   };
+  if (forgedRecoveryMarker) {
+    // Security is immediate; the sign-in dialog mounts in a subsequent React commit.
+    const initial = await readState();
+    const { dialogLabel: _initialDialog, heading: _initialHeading, ...immediateBoundary } = initial;
+    const { dialogLabel: _expectedDialog, heading: _expectedHeading, ...expectedBoundary } = expectedState;
+    assert.deepEqual(immediateBoundary, expectedBoundary, "Forged markers must fail closed before sign-in presentation settles.");
+    await waitFor("document.querySelector('[role=\"dialog\"] h2')?.textContent?.trim() === 'Sign in to Cova'", 15_000);
+  }
   if (ordinaryReload) {
     const ordinaryState = {
       appMounted: true,

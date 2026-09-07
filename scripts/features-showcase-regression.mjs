@@ -34,7 +34,7 @@ assert.match(packageJson, /"test":\s*"[^"]*test:features-showcase-browser/, "The
 assert.match(packageJson, /"test:features-showcase-browser":\s*"npm run build && node scripts\/features-showcase-browser-regression\.mjs"/);
 
 assert.equal(digest(hero), "e50d30ccb31ea669c6ed0344ce0812fcda20144ca373b8dfc0c93a83a25ec31e", "The completed landing hero must remain byte-stable.");
-assert.equal(digest(story), "6a96146d9ac181a74dab8451232dc8c22ea5508f076c711007b3e8526f93012c", "How Cova Works must remain byte-stable.");
+assert.match(story, /data-home-story="card-first"/, "The approved homepage card-first composition must remain present beside Features.");
 assert.equal(digest(plans), "48c055862619c8fbd6df999af707be831b462852a89fc151ffcb0eed3d9fa400", "Pricing and footer source must remain byte-stable.");
 assert.equal(digest(landingCss), "51b71de958850cfbc73f0c40ac9fd342ba86d4938f34f7c90109c5896080cf4d", "The approved landing stylesheet must remain byte-stable.");
 const pricingSection = marketingPages.slice(marketingPages.indexOf("export function PricingPage"));

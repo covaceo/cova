@@ -9,8 +9,8 @@ const outDir = resolve("sketches/mobile-audit-2026-07-08");
 const viewportWidth = Number(process.env.COVA_VIEWPORT_WIDTH || 390);
 const viewportHeight = Number(process.env.COVA_VIEWPORT_HEIGHT || 1200);
 const routes = [
-  { name: "overview", hash: "overview", needsAuth: false, requiredText: ["See the patterns", "behind your risk.", "What Cova caught", "Daily loss breach"] },
-  { name: "overview-auth", hash: "overview", needsAuth: true, requiredText: ["Link account", "Daily loss breach"] },
+  { name: "overview", hash: "overview", needsAuth: false, requiredText: ["See the patterns", "behind your risk.", "Explore the workflow", "DIAMOND", "Sample data · Not account verified"] },
+  { name: "overview-auth", hash: "overview", needsAuth: true, requiredText: ["Link account", "Explore the workflow", "DIAMOND", "Sample data · Not account verified"] },
   { name: "pricing", hash: "pricing", needsAuth: false, requiredText: ["MOST CHOSEN BY ACTIVE TRADERS", "Cova Pro"] },
   { name: "import", hash: "import", needsAuth: true, requiredText: ["Upload CSV first", "TopstepX export", "CSV guide"] },
   { name: "insights", hash: "coach", needsAuth: true, requiredText: ["Current risk review", "Review note"] },

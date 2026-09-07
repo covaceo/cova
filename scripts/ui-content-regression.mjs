@@ -166,9 +166,9 @@ for (const releaseDocument of [envExample, readme, providerPacket, providerBrief
   assert.doesNotMatch(releaseDocument, /ProjectX|TopstepX \/ ProjectX|api\/projectx|PROJECTX_API_BASE_URL|TOPSTEPX_CONNECT/, "Release documentation must not advertise or request approval for the retired TopstepX direct connector.");
 }
 
-assert.match(storyStrip, /What Cova caught/, "Homepage should include concrete product proof, not only process cards.");
-assert.match(storyStrip, /Daily loss breach/, "Homepage proof should show a specific risk issue Cova catches.");
-assert.match(storyStrip, /Passport proof/, "Homepage proof should connect review output to Passport proof.");
+assert.match(storyStrip, /PassportHoloCard/, "Homepage proof must use the actual approved Passport renderer.");
+assert.match(storyStrip, /Sample data · Not account verified/, "Homepage example must retain truthful data provenance.");
+assert.match(storyStrip, /Diamond rank shown for illustration/, "The marketing example must not imply an earned Diamond account.");
 assert.match(marketingHero, /HeroMobileDossier/, "Homepage should render a dedicated mobile risk-review proof instead of shrinking the desktop mockup.");
 assert.match(marketingHero, /What people are saying/i, "Homepage should retain the permissioned customer review rail.");
 assert.match(marketingHero, /Marcus R\.[\s\S]*Daniel C\.[\s\S]*Jasmine B\./, "Permissioned reviews should retain the supplied names.");

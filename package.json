@@ -7,7 +7,7 @@
     "dev": "vite --host 127.0.0.1",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "test": "npm run test:risk && npm run test:ui-content && npm run test:dashboard-shell && npm run test:dashboard-oa && npm run test:native-cursor && npm run test:legal && npm run test:auth && npm run test:classic-auth && npm run test:recovery-callback-browser && npm run test:api-security && npm run test:tradovate-capability && npm run test:rithmic && npm run test:rithmic-ui && npm run test:import-guard && npm run test:auth-email-requested-browser && npm run test:browser-release && npm run test:threeui-landing && npm run test:features-showcase && npm run test:resources-quickstart && npm run test:community-discord && npm run test:features-showcase-browser",
+    "test": "npm run test:risk && npm run test:ui-content && npm run test:dashboard-shell && npm run test:dashboard-oa && npm run test:native-cursor && npm run test:legal && npm run test:auth && npm run test:classic-auth && npm run test:recovery-callback-browser && npm run test:api-security && npm run test:tradovate-capability && npm run test:rithmic && npm run test:rithmic-ui && npm run test:import-guard && npm run test:auth-email-requested-browser && npm run test:browser-release && npm run test:threeui-landing && npm run test:features-showcase && npm run test:resources-quickstart && npm run test:community-discord && npm run test:features-showcase-browser && npm run test:homepage-story && npm run test:homepage-story-browser",
     "test:threeui-landing": "node scripts/threeui-landing-regression.mjs",
     "test:features-showcase": "node scripts/features-showcase-regression.mjs",
     "test:features-showcase-browser": "npm run build && node scripts/features-showcase-browser-regression.mjs",
@@ -33,7 +33,9 @@
     "audit:mobile": "node scripts/mobile-audit.mjs",
     "audit:threeui-landing": "node scripts/threeui-landing-browser-audit.mjs",
     "audit:lower-landing": "node scripts/lower-landing-browser-audit.mjs",
-    "audit:native-cursor": "node scripts/native-cursor-browser-audit.mjs"
+    "audit:native-cursor": "node scripts/native-cursor-browser-audit.mjs",
+    "test:homepage-story": "node scripts/homepage-story-regression.mjs",
+    "test:homepage-story-browser": "npm run build && node scripts/homepage-story-browser-regression.mjs"
   },
   "dependencies": {
     "@fontsource-variable/bricolage-grotesque": "^5.3.0",
