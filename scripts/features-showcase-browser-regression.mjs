@@ -236,6 +236,62 @@ async function exerciseTransitionContinuity(label, rapid = false) {
   return { label, frames: samples.length, switches: 10, maxPanels: Math.max(...samples.map(frame => frame.count)), minOpacity: Math.min(...samples.flatMap(frame => frame.opacity)) };
 }
 
+async function exerciseFeatureLayout() {
+  const cases = [];
+  for (const [width, height] of [[1920, 1080], [1440, 1000], [1366, 768], [1280, 625], [1101, 900], [1100, 900], [1024, 768], [900, 900], [768, 900], [767, 900], [390, 844], [320, 740]]) {
+    await setViewport(width, height, width < 768);
+    await navigate(`layout-${width}-${height}`);
+    for (const id of ['trade-journal', 'risk-review', 'limits', 'insights', 'passport']) {
+      await evaluate(`document.getElementById('feature-tab-${id}').click()`);
+      await sleep(400);
+      const metrics = await evaluate(`(() => {
+        const q = selector => document.querySelector(selector);
+        const rect = node => node.getBoundingClientRect().toJSON();
+        const panel = q('.features-outcome-panel');
+        const action = q('.features-outcome-action');
+        const list = q('.features-outcome-panel ul');
+        if (!panel || !action || !list) throw new Error('Missing required Features layout owners');
+        const a = rect(action), l = rect(list), p = rect(panel);
+        const horizontalOverlap = Math.min(a.right, l.right) - Math.max(a.left, l.left);
+        const labels = [...document.querySelectorAll('.features-system-tab strong')].map(node => ({ text: node.textContent, width: node.clientWidth, scrollWidth: node.scrollWidth }));
+        const heading = q('.features-outcome-panel h2');
+        const railHeading = q('.features-system-rail-heading');
+        const railGap = getComputedStyle(railHeading).display === 'none' ? null : rect(q('.features-system-tab')).top - rect(railHeading).bottom;
+        const nav = q('.marketing-header:not(.product-header)');
+        const headerGroups = nav && getComputedStyle(nav).display !== 'none' ? [...nav.children].map(rect) : [];
+        const headerControls = headerGroups.length ? [...nav.querySelectorAll('button')].map(node => ({ text: node.textContent || node.getAttribute('aria-label'), ...rect(node) })).sort((a, b) => a.left - b.left) : [];
+        return { width: innerWidth, height: innerHeight, id: q('[data-feature-instrument]').dataset.featureInstrument,
+          action: a, panel: p, actionLineGap: horizontalOverlap > 0 ? a.top - l.bottom : a.left - l.right,
+          actionOverflow: action.scrollWidth - action.clientWidth,
+          labels, railGap, headingWidth: heading.clientWidth, headingScrollWidth: heading.scrollWidth,
+          headerGroups, headerControls, overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth };
+      })()`);
+      cases.push(metrics);
+    }
+  }
+  if (screenshotDir) {
+    await mkdir(screenshotDir, { recursive: true });
+    await writeFile(join(screenshotDir, 'layout-matrix.json'), JSON.stringify(cases, null, 2));
+  }
+  assert.equal(cases.length, 60, 'All five feature systems must be checked at every layout width.');
+  const compositionFailures = [];
+  for (const state of cases) {
+    const label = `${state.width}x${state.height}/${state.id}`;
+    assert.ok(state.actionLineGap >= 16, `${label}: button needs at least 16px clearance from the evidence divider; got ${state.actionLineGap}px`);
+    assert.equal(state.actionOverflow, 0, `${label}: action contents must fit their button.`);
+    assert.equal(state.overflow, 0, `${label}: no horizontal page overflow.`);
+    if (state.labels.some(item => item.scrollWidth > item.width + 1)) compositionFailures.push(`${label}: tab label clipped`);
+    if (state.headingScrollWidth > state.headingWidth + 1) compositionFailures.push(`${label}: outcome heading crosses its column`);
+    if (state.railGap !== null && state.railGap < 10) compositionFailures.push(`${label}: first tab touches the rail divider (${state.railGap}px)`);
+    for (let i = 1; i < state.headerControls.length; i++) {
+      const previous = state.headerControls[i - 1], next = state.headerControls[i];
+      if (next.left - previous.right < 8) compositionFailures.push(`${label}: header controls collide: ${previous.text}/${next.text}`);
+    }
+  }
+  assert.deepEqual(compositionFailures, [], 'Every Features control and text column must have usable clearance.');
+  return { cases: cases.length, tabs: [...new Set(cases.map(state => state.id))], minActionLineGap: Math.min(...cases.map(state => state.actionLineGap)) };
+}
+
 async function exerciseFeatureSystems() {
   const expected = [
     ["trade-journal", "Upload trades"],
@@ -314,7 +370,7 @@ try {
   assert.ok(desktopOaBefore.maxWeight <= 500, `OA dashboard type must stop at weight 500; got ${desktopOaBefore.maxWeight}`);
   await evaluate("document.querySelectorAll('[role=tab]')[3].click(); true");
   await waitFor("document.querySelector('[data-feature-instrument]')?.dataset.featureInstrument === 'insights'");
-  await sleep(320);
+  await waitFor("Math.abs(document.querySelector('.features-system-tab-highlight').getBoundingClientRect().top - document.getElementById('feature-tab-insights').getBoundingClientRect().top) < 1");
   const desktopOaAfter = await oaMetrics();
   assert.notEqual(desktopOaAfter.highlightRect.top, desktopOaBefore.highlightRect.top, "The shared OA active surface must travel between desktop rows.");
   await evaluate("document.querySelectorAll('[role=tab]')[1].click(); true");
@@ -404,6 +460,8 @@ try {
   await setViewport(1440, 900, false);
   continuity.push(await exerciseTransitionContinuity('desktop-reduced', true));
   console.log(JSON.stringify({ continuity }));
+  await cdp.send('Emulation.setEmulatedMedia', { features: [] });
+  console.log(JSON.stringify({ layout: await exerciseFeatureLayout() }));
 
   assert.deepEqual(consoleErrors, []);
   assert.deepEqual(runtimeErrors, []);
