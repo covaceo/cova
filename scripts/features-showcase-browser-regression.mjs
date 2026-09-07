@@ -192,6 +192,50 @@ async function oaMetrics() {
   })()`);
 }
 
+async function exerciseTransitionContinuity(label, rapid = false) {
+  // Sample painted frames, not only the settled tab. Retained exit panels can
+  // ghost through a translucent incoming panel even when both end states pass.
+  const samples = await evaluate(`(async () => {
+    const shell = document.querySelector('[role=tabpanel]');
+    if (!shell) throw new Error('Feature panel missing before continuity probe');
+    const frames = [];
+    const sequence = [0, 1, 2, 3, 4, 3, 2, 1, 0, 4];
+    for (const index of sequence) {
+      document.querySelectorAll('[role=tab]')[index].click();
+      const started = performance.now();
+      do {
+        await new Promise(requestAnimationFrame);
+        const panels = [...shell.querySelectorAll('.features-instrument-transition')];
+        frames.push({
+          target: index,
+          stableShell: document.querySelector('[role=tabpanel]') === shell,
+          count: panels.length,
+          opacity: panels.map(node => Number(getComputedStyle(node).opacity)),
+          selected: document.querySelectorAll('[role=tab][aria-selected="true"]').length,
+          instrument: shell.dataset.featureInstrument,
+          headers: panels.map(node => node.querySelector('header')?.textContent),
+          overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        });
+      } while (performance.now() - started < ${rapid ? 45 : 360});
+    }
+    return frames;
+  })()`);
+  if (screenshotDir) {
+    await mkdir(screenshotDir, { recursive: true });
+    await writeFile(join(screenshotDir, `continuity-${label}.json`), JSON.stringify(samples, null, 2));
+  }
+  assert.ok(samples.length >= 20, `${label}: active animation frames must be sampled.`);
+  for (const frame of samples) {
+    assert.equal(frame.count, 1, `${label}: outgoing feature must not linger over the new instrument: ${JSON.stringify(frame)}`);
+    assert.deepEqual(frame.opacity, [1], `${label}: product proof must stay opaque during the switch.`);
+    assert.equal(frame.stableShell, true);
+    assert.equal(frame.selected, 1);
+    assert.equal(frame.overflow, 0);
+    assert.equal(frame.instrument, ['trade-journal', 'risk-review', 'limits', 'insights', 'passport'][frame.target]);
+  }
+  return { label, frames: samples.length, switches: 10, maxPanels: Math.max(...samples.map(frame => frame.count)), minOpacity: Math.min(...samples.flatMap(frame => frame.opacity)) };
+}
+
 async function exerciseFeatureSystems() {
   const expected = [
     ["trade-journal", "Upload trades"],
@@ -279,6 +323,7 @@ try {
   const desktopContrast = await contrastMetrics();
   const desktopScreenshot = await captureScreenshot("cova-features-oa-desktop.png");
   const desktopStates = await exerciseFeatureSystems();
+  const continuity = [await exerciseTransitionContinuity('desktop'), await exerciseTransitionContinuity('desktop-rapid', true)];
 
   await setViewport(1920, 900, false);
   await navigate("wide-desktop");
@@ -351,6 +396,14 @@ try {
   assert.ok(journal.before.scrollWidth > journal.before.clientWidth, "Mobile Trade Journal must own horizontal overflow.");
   assert.ok(journal.after.scrollLeft > journal.before.scrollLeft, "Mobile Trade Journal scrollLeft must move.");
   assert.ok(journal.after.review.left >= journal.after.shell.left - 1 && journal.after.review.right <= journal.after.shell.right + 1, "Review column must be reachable inside the scroll owner.");
+
+  continuity.push(await exerciseTransitionContinuity('mobile'), await exerciseTransitionContinuity('mobile-rapid', true));
+  await cdp.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+  await sleep(100);
+  continuity.push(await exerciseTransitionContinuity('mobile-reduced', true));
+  await setViewport(1440, 900, false);
+  continuity.push(await exerciseTransitionContinuity('desktop-reduced', true));
+  console.log(JSON.stringify({ continuity }));
 
   assert.deepEqual(consoleErrors, []);
   assert.deepEqual(runtimeErrors, []);

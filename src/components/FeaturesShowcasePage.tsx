@@ -1,4 +1,4 @@
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -18,9 +18,8 @@ type FeatureIcon = typeof Gauge;
 
 const OA_LAYOUT_SPRING = { type: "spring", stiffness: 550, damping: 40 } as const;
 const OA_PANEL_VARIANTS = {
-  enter: (direction: number) => ({ opacity: 0.88, x: direction * 12 }),
-  center: { opacity: 1, x: 0 },
-  exit: (direction: number) => ({ opacity: 0.92, x: direction * -12 }),
+  enter: (direction: number) => ({ x: direction * 12 }),
+  center: { x: 0 },
 };
 
 type FeatureSystem = {
@@ -358,20 +357,18 @@ export function FeaturesPage({ go, openAuth }: { go: (section: Section) => void;
               role="tabpanel"
               tabIndex={0}
             >
-              <AnimatePresence custom={direction} initial={false} mode="popLayout">
-                <motion.div
-                  animate="center"
-                  className="features-instrument-transition"
-                  custom={direction}
-                  exit={reduceMotion ? undefined : "exit"}
-                  initial={reduceMotion ? false : "enter"}
-                  key={activeFeature.id}
-                  transition={reduceMotion ? { duration: 0 } : { opacity: { duration: 0.12, ease: "easeOut" }, x: OA_LAYOUT_SPRING }}
-                  variants={OA_PANEL_VARIANTS}
-                >
-                  <FeatureInstrument featureId={activeFeature.id} />
-                </motion.div>
-              </AnimatePresence>
+              {/* Keep one opaque instrument; retained exits ghost through new proof. */}
+              <motion.div
+                animate="center"
+                className="features-instrument-transition"
+                custom={direction}
+                initial={reduceMotion ? false : "enter"}
+                key={activeFeature.id}
+                transition={layoutTransition}
+                variants={OA_PANEL_VARIANTS}
+              >
+                <FeatureInstrument featureId={activeFeature.id} />
+              </motion.div>
             </div>
 
             <aside className="features-outcome-panel" aria-live="polite">
