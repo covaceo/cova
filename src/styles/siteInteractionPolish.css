@@ -1,0 +1,8 @@
+/* Existing motion vocabulary, one geometry owner for shared buttons. */
+.native-start-button, .cova-button { transition: background-color 160ms, color 160ms, border-color 160ms, box-shadow 160ms, transform 160ms !important; }
+.native-start-button:active:not(:disabled), .cova-button:active:not(:disabled) { transform: translateY(1px) scale(.985) !important; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto !important; }
+  .native-start-button, .cova-button { transition: none !important; }
+  .native-start-button:hover, .cova-button:hover, .native-start-button:active, .cova-button:active { transform: none !important; }
+}

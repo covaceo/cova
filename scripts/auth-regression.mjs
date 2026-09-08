@@ -987,7 +987,7 @@ test("scoped deletion never erases an unowned legacy base record", () => {
 test("auth dialog top-aligns when tall and centers only when it fits", () => {
   const authPanels = read("src", "components", "AuthPanels.tsx");
   assert.match(authPanels, /fixed inset-0[^"\n]*items-start[^"\n]*overflow-y-auto[^"\n]*overscroll-y-contain/);
-  assert.match(authPanels, /liquid-glass-strong relative my-auto/);
+  assert.match(authPanels, /auth-connection-panel auth-sheet relative my-auto/);
   assert.doesNotMatch(authPanels, /md:items-center/);
 });
 

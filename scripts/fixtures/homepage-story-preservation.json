@@ -100,38 +100,8 @@
     "normalization": "lf"
   },
   {
-    "path": "src/App.tsx",
-    "normalization": "lf",
-    "sha256": "8d908507822e3dd79ff77135f5ff4706bf8b3ee978abbd125362a08b7a5e3557"
-  },
-  {
     "path": "src/components/MarketingHero.tsx",
     "normalization": "lf",
     "sha256": "454b49c9ee258b227e51c7404f106aafac853d365f6eac2c3417b317900fb921"
-  },
-  {
-    "path": "src/components/PlanSections.tsx",
-    "normalization": "lf",
-    "sha256": "6e7c7dbb2679c5da68436bc8573ffd6bedaae2510965a40137ec77482f256ae8"
-  },
-  {
-    "path": "src/components/FeaturesShowcasePage.tsx",
-    "normalization": "lf",
-    "sha256": "7072b41b4454e840ce19da05805e36729d7895b2e342242cef6830de16e185f5"
-  },
-  {
-    "path": "src/styles/featuresShowcase.css",
-    "normalization": "lf",
-    "sha256": "8fc4d8c1188ad10668150fd0e09a0fa452b9dae903de18f069f16386e2eb2200"
-  },
-  {
-    "path": "src/components/Navbar.tsx",
-    "normalization": "lf",
-    "sha256": "5d71840a05f282e18af0ee7f51e68376c989b9043a9bcb2bfe2dcaba154605e0"
-  },
-  {
-    "path": "src/components/WorkspaceSections.tsx",
-    "normalization": "lf",
-    "sha256": "cd37e399d1f26267d955b66f60fa0d303609f6a4fdef373e5f0768789b262a82"
   }
 ]

@@ -158,8 +158,8 @@ const contrastExpression = `(() => {
     return (lighter + 0.05) / (darker + 0.05);
   }
   const subjects = [
-    document.querySelector('.features-instrument-footer span:last-child'),
-    document.querySelector('.features-outcome-panel small'),
+    document.querySelector('.features-instrument-slot[data-active="true"] .features-instrument-footer span:last-child'),
+    document.querySelector('.features-outcome-panel[data-active="true"] small'),
     document.querySelector('.features-showcase-trust span:first-child'),
   ];
   return subjects.map(element => ({ text: element.textContent.trim(), ratio: contrastRatio(element), fontSize: getComputedStyle(element).fontSize }));
@@ -175,7 +175,7 @@ async function oaMetrics() {
   return evaluate(`(() => {
     const frame = document.querySelector('.features-showcase-frame');
     const layout = document.querySelector('.features-showcase-layout');
-    const action = document.querySelector('.features-outcome-action');
+    const action = document.querySelector('.features-outcome-panel[data-active="true"] .features-outcome-action');
     const highlight = document.querySelector('.features-system-tab-highlight');
     const weights = [...document.querySelectorAll('.features-showcase-page h1, .features-showcase-page h2, .features-showcase-page h3, .features-showcase-page strong, .features-showcase-page button')]
       .map((node) => Number.parseInt(getComputedStyle(node).fontWeight, 10))
@@ -205,10 +205,12 @@ async function exerciseTransitionContinuity(label, rapid = false) {
       const started = performance.now();
       do {
         await new Promise(requestAnimationFrame);
-        const panels = [...shell.querySelectorAll('.features-instrument-transition')];
+        const panels = [...shell.querySelectorAll('.features-instrument-slot[data-active="true"] .features-instrument-transition')];
         frames.push({
           target: index,
           stableShell: document.querySelector('[role=tabpanel]') === shell,
+          frameHeight: document.querySelector('.features-showcase-layout').getBoundingClientRect().height,
+          hiddenSafe: [...document.querySelectorAll('[data-active="false"]')].every(node=>node.inert && node.getAttribute('aria-hidden') === 'true' && getComputedStyle(node).visibility === 'hidden'),
           count: panels.length,
           opacity: panels.map(node => Number(getComputedStyle(node).opacity)),
           selected: document.querySelectorAll('[role=tab][aria-selected="true"]').length,
@@ -233,6 +235,8 @@ async function exerciseTransitionContinuity(label, rapid = false) {
     assert.equal(frame.overflow, 0);
     assert.equal(frame.instrument, ['trade-journal', 'risk-review', 'limits', 'insights', 'passport'][frame.target]);
   }
+  assert.ok(samples.every(frame=>frame.hiddenSafe), `${label}: hidden reservations must be inert and excluded from accessibility`);
+  assert.ok(Math.max(...samples.map(frame=>frame.frameHeight))-Math.min(...samples.map(frame=>frame.frameHeight)) <= 1, `${label}: frame stays stationary throughout normal, rapid and reversed motion`);
   return { label, frames: samples.length, switches: 10, maxPanels: Math.max(...samples.map(frame => frame.count)), minOpacity: Math.min(...samples.flatMap(frame => frame.opacity)) };
 }
 
@@ -247,21 +251,21 @@ async function exerciseFeatureLayout() {
       const metrics = await evaluate(`(() => {
         const q = selector => document.querySelector(selector);
         const rect = node => node.getBoundingClientRect().toJSON();
-        const panel = q('.features-outcome-panel');
-        const action = q('.features-outcome-action');
-        const list = q('.features-outcome-panel ul');
+        const panel = q('.features-outcome-panel[data-active="true"]');
+        const action = q('.features-outcome-panel[data-active="true"] .features-outcome-action');
+        const list = q('.features-outcome-panel[data-active="true"] ul');
         if (!panel || !action || !list) throw new Error('Missing required Features layout owners');
         const a = rect(action), l = rect(list), p = rect(panel);
         const horizontalOverlap = Math.min(a.right, l.right) - Math.max(a.left, l.left);
         const labels = [...document.querySelectorAll('.features-system-tab strong')].map(node => ({ text: node.textContent, width: node.clientWidth, scrollWidth: node.scrollWidth }));
-        const heading = q('.features-outcome-panel h2');
+        const heading = q('.features-outcome-panel[data-active="true"] h2');
         const railHeading = q('.features-system-rail-heading');
-        const railGap = getComputedStyle(railHeading).display === 'none' ? null : rect(q('.features-system-tab')).top - rect(railHeading).bottom;
+        const railGap = !railHeading || getComputedStyle(railHeading).display === 'none' ? null : rect(q('.features-system-tab')).top - rect(railHeading).bottom;
         const nav = q('.marketing-header:not(.product-header)');
         const headerGroups = nav && getComputedStyle(nav).display !== 'none' ? [...nav.children].map(rect) : [];
         const headerControls = headerGroups.length ? [...nav.querySelectorAll('button')].map(node => ({ text: node.textContent || node.getAttribute('aria-label'), ...rect(node) })).sort((a, b) => a.left - b.left) : [];
         return { width: innerWidth, height: innerHeight, id: q('[data-feature-instrument]').dataset.featureInstrument,
-          action: a, panel: p, actionLineGap: horizontalOverlap > 0 ? a.top - l.bottom : a.left - l.right,
+          frameHeight: rect(q('.features-showcase-layout')).height, shellHeight: rect(q('.features-instrument-shell')).height, outcomeHeight: rect(q('.features-outcome-reservation')).height, action: a, panel: p, actionLineGap: horizontalOverlap > 0 ? a.top - l.bottom : a.left - l.right,
           actionOverflow: action.scrollWidth - action.clientWidth,
           labels, railGap, headingWidth: heading.clientWidth, headingScrollWidth: heading.scrollWidth,
           headerGroups, headerControls, overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth };
@@ -275,6 +279,10 @@ async function exerciseFeatureLayout() {
   }
   assert.equal(cases.length, 60, 'All five feature systems must be checked at every layout width.');
   const compositionFailures = [];
+  for (const width of new Set(cases.map(x=>x.width))) {
+    const states=cases.filter(x=>x.width===width);
+    for (const metric of ['frameHeight','shellHeight','outcomeHeight']) assert.ok(Math.max(...states.map(x=>x[metric]))-Math.min(...states.map(x=>x[metric])) <= 1, `${width}: ${metric} must not jump between tabs`);
+  }
   for (const state of cases) {
     const label = `${state.width}x${state.height}/${state.id}`;
     assert.ok(state.actionLineGap >= 16, `${label}: button needs at least 16px clearance from the evidence divider; got ${state.actionLineGap}px`);
@@ -307,7 +315,7 @@ async function exerciseFeatureSystems() {
     await waitFor(`document.querySelector('[data-feature-instrument]')?.dataset.featureInstrument === '${instrument}'`);
     await sleep(260);
     const state = await evaluate(`(() => ({
-      action: document.querySelector('.features-outcome-action')?.textContent.trim(),
+      action: document.querySelector('.features-outcome-panel[data-active="true"] .features-outcome-action')?.textContent.trim(),
       highlightCount: document.querySelectorAll('.features-system-tab-highlight').length,
       instrument: document.querySelector('[data-feature-instrument]')?.dataset.featureInstrument,
       overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -362,6 +370,8 @@ try {
   assert.equal(desktop.orientation, "vertical");
   assert.equal(desktop.selected, 1);
   assert.equal(desktop.rootOverflow, 0);
+  const headerFit=await evaluate(`(()=>{const e=document.querySelector('.features-showcase-intro h1 em');return {height:e.getBoundingClientRect().height,line:parseFloat(getComputedStyle(e).lineHeight)}})()`);
+  assert.ok(headerFit.height<=headerFit.line+1,'Desktop Features heading retains its two-line composition after font matching');
   const desktopOaBefore = await oaMetrics();
   assert.equal(desktopOaBefore.highlightCount, 1, "Desktop must render one shared OA active surface.");
   assert.ok(desktopOaBefore.frameRadius >= 18, "Desktop frame must expose the OA squircle radius.");

@@ -385,6 +385,22 @@ try {
     const { dialogLabel: _initialDialog, heading: _initialHeading, ...immediateBoundary } = initial;
     const { dialogLabel: _expectedDialog, heading: _expectedHeading, ...expectedBoundary } = expectedState;
     assert.deepEqual(immediateBoundary, expectedBoundary, "Forged markers must fail closed before sign-in presentation settles.");
+    // An untrusted marker must not authorize recovery. Whether startup also opens
+    // ordinary sign-in is presentation-only and depends on provider invalidation
+    // ordering. Exercise the real sign-in action instead of requiring an incidental
+    // auto-open. The immediate boundary above and ever-rendered checks stay strict.
+    await evaluate("new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))");
+    if ((await readState()).dialogLabel !== "Sign in to Cova") {
+      await waitFor("[...document.querySelectorAll('button')].some(b => b.textContent.trim() === 'Sign in' && !b.closest('[inert]'))");
+      const point = await evaluate(`(() => {
+        const button = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Sign in' && !b.closest('[inert]'));
+        button.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+        const r = button.getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      })()`);
+      await send("Input.dispatchMouseEvent", { type: "mousePressed", ...point, button: "left", clickCount: 1 });
+      await send("Input.dispatchMouseEvent", { type: "mouseReleased", ...point, button: "left", clickCount: 1 });
+    }
     await waitFor("document.querySelector('[role=\"dialog\"] h2')?.textContent?.trim() === 'Sign in to Cova'", 15_000);
   }
   if (ordinaryReload) {

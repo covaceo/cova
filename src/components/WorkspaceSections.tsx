@@ -22,6 +22,10 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { scopedStorageKey } from "../lib/storageScope";
+import { PassportHoloCard } from "./PassportHoloCard";
+import { PassportShareComposer } from "./PassportShareComposer";
+import { buildHoloPassportModel, type HoloPassportMode } from "../lib/passportHolo";
+import { loadPassportAppearance, type PassportAppearance } from "../lib/passportMaterials";
 import { analyze, formatMoney, formatPercent, type RiskRule } from "../lib/risk";
 import { GlassButton } from "./GlassButton";
 import { ImageAtmosphere, SectionShell } from "./LayoutShell";
@@ -73,7 +77,7 @@ export function RulesEngine({ analysis, entitlements, rules, setRules, go, upgra
         </div>
 
         <div className="grid gap-4">
-          {rules.map((rule, index) => {
+          {rules.map((rule) => {
             const status = analysis.ruleStatuses.find((item) => item.rule.id === rule.id);
             const isMinimumRule = rule.metric.includes("min");
             const isCountRule = rule.metric === "maxContracts" || rule.metric === "maxLossStreak";
@@ -89,10 +93,6 @@ export function RulesEngine({ analysis, entitlements, rules, setRules, go, upgra
               <motion.article
                 key={rule.id}
                 className="rule-control-card rules-ledger-row p-4 md:p-5"
-                initial={{ opacity: 0, y: 24 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.045, duration: 0.55 }}
               >
                 <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
                   <div>
@@ -225,10 +225,6 @@ export function Coach({ analysis, entitlements, go, upgradeToPro }: { analysis: 
               key={insight.title}
               className="insight-briefing-row p-6 md:p-7"
               data-tone={insight.tone.toLowerCase()}
-              initial={{ opacity: 0, y: 34, filter: "blur(14px)" }}
-              whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-              viewport={{ once: true }}
-              transition={{ delay: index * 0.09, duration: 0.65 }}
             >
               <insight.icon className={`h-10 w-10 ${isWarningTone ? "text-amber-300" : "text-[#18c887]"}`} />
               <span className="mt-10 inline-block rounded-full bg-white/5 px-3 py-1 font-body text-xs text-white/50">{insight.tone}</span>
@@ -254,10 +250,6 @@ export function Coach({ analysis, entitlements, go, upgradeToPro }: { analysis: 
         {lockedInsightCount > 0 && (
           <motion.article
             className="insight-briefing-row insight-briefing-locked p-6 md:p-7"
-            initial={{ opacity: 0, y: 34, filter: "blur(14px)" }}
-            whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-            viewport={{ once: true }}
-            transition={{ delay: visibleInsights.length * 0.09, duration: 0.65 }}
           >
             <LockKeyhole className="h-10 w-10 text-[#18c887]" />
             <span className="mt-10 inline-block rounded-full bg-[#18c887]/10 px-3 py-1 font-body text-xs text-[#b9f5df]">PRO</span>
@@ -289,7 +281,7 @@ type PassportTier = {
 };
 
 type PassportShareModeId = "flex" | "discipline" | "private" | "coach";
-type PassportExportPresetId = "feed" | "square" | "story";
+type PassportExportPresetId = "card" | "feed" | "square" | "story";
 
 type PassportExportPreset = {
   height: number;
@@ -350,6 +342,7 @@ const passportShareModes: PassportShareMode[] = [
 ];
 
 const passportExportPresets: PassportExportPreset[] = [
+  { id: "card", label: "Card", note: "Original horizontal card", width: 1672, height: 941 },
   { id: "feed", label: "Feed 4:5", note: "Best all-around post", width: 1080, height: 1350 },
   { id: "square", label: "Square 1:1", note: "Profile and chat share", width: 1080, height: 1080 },
   { id: "story", label: "Story 9:16", note: "Full-screen vertical", width: 1080, height: 1920 },
@@ -882,42 +875,25 @@ export function Passport({ analysis, entitlements, isSampleReview, go, upgradeTo
   const initialPreferences = useMemo(() => readPassportPreferences(), []);
   const [shareModeId, setShareModeId] = useState<PassportShareModeId>(initialPreferences.shareModeId);
   const [exportPresetId, setExportPresetId] = useState<PassportExportPresetId>(initialPreferences.exportPresetId);
-  const cardRef = useRef<HTMLDivElement | null>(null);
-  const faceRef = useRef<HTMLDivElement | null>(null);
-  const shadowRef = useRef<HTMLDivElement | null>(null);
-  const frameRef = useRef<number | null>(null);
-  const previewTier = getPassportTierPreviewOverride();
-  const tier = previewTier ?? getPassportTier(analysis);
-  const previewingDiamond = previewTier?.rank === "Diamond";
+  const [sharing, setSharing] = useState(false);
+  const [material, setMaterial] = useState<{ rank: string; appearance?: PassportAppearance; error?: string } | null>(null);
+  const [materialRetry, setMaterialRetry] = useState(0);
+  const faceRef = useRef<HTMLDivElement>(null);
+  // Eligibility stays owned by the existing review calculation, never the visual catalog.
+  const tier = getPassportTier(analysis);
+  const model = useMemo(() => buildHoloPassportModel(analysis, tier.rank, shareModeId, isSampleReview), [analysis, tier.rank, shareModeId, isSampleReview]);
+  const sourceKey = JSON.stringify(model);
+  const appearance = material?.rank === tier.rank ? material.appearance : undefined;
+  const materialError = material?.rank === tier.rank ? material.error : undefined;
   const shareMode = getPassportMode(shareModeId);
-  const exportPreset = passportExportPresets.find((preset) => preset.id === exportPresetId) ?? passportExportPresets[0];
-  const cardStats = previewingDiamond ? getPassportDiamondPreviewStats(shareModeId) : getPassportStats(analysis, shareModeId);
-  const proofLine = getPassportProofLine(tier, analysis);
-  const displayProofLine = isSampleReview ? "Sample analysis · not account verification" : proofLine;
+  const cardStats = getPassportStats(analysis, shareModeId);
   const nextTarget = getPassportNextTarget(tier, analysis);
-  const verifiedRules = analysis.ruleStatuses.length - analysis.breaches.length;
-  const displayScore = previewingDiamond ? 94 : analysis.score;
-  const displayVerifiedRules = previewingDiamond ? 6 : verifiedRules;
-  const displayRuleCount = previewingDiamond ? 6 : analysis.ruleStatuses.length;
-  const reviewId = `COVA-${analysis.latestDate.replace(/-/g, "").slice(2)}-${displayScore}${displayVerifiedRules}`;
-  const traderNumber = reviewId.replace(/\D/g, "").slice(-4).padStart(4, "0");
-  const marketLine = previewingDiamond ? "NQ / OPENING RANGE" : getPassportMarketLine(analysis);
-  const setupLine = previewingDiamond ? "OPENING RANGE" : analysis.bySetup[0]?.name ?? "MIXED SETUPS";
-  const moodLine = getPassportMoodLine(tier, analysis);
-  const sparklinePoints = getPassportSparkline(analysis);
-  const heroStat = cardStats[0];
-  const profileStats = (shareModeId === "flex" ? [cardStats[2], cardStats[3], cardStats[4], cardStats[5]] : cardStats.slice(1, 5)).filter(Boolean) as PassportStat[];
-  const privacyRows = [
-    { label: "Reported P&L", visible: shareMode.reveals.includes("Reported P&L") },
-    { label: "Broker", visible: false },
-    { label: "Notes", visible: false },
-    { label: "Rule proof", visible: true },
-    { label: "Trade history", visible: false },
-    { label: "Open positions", visible: false },
-  ];
+  const verifiedRules = analysis.ruleStatuses.filter(status => !status.breached).length;
+  const reviewId = `COVA-${analysis.latestDate.replace(/-/g, "").slice(2)}-${analysis.score}${verifiedRules}`;
   const ledgerHasFlags = analysis.breaches.length > 0;
-  const ledgerStatusCopy = isSampleReview ? "Sample review · demo data" : ledgerHasFlags ? "Rules calculated · flags found" : "Rules calculated · no flags found";
-  const ledgerStatusClass = ledgerHasFlags || isSampleReview ? "has-flags" : "is-verified";
+  const ledgerStatusCopy = isSampleReview ? "Sample review · demo data" : !analysis.ruleStatuses.length ? "Rules not checked" : ledgerHasFlags ? "Rules calculated · flags found" : "Rules calculated · no flags found";
+  const ledgerStatusClass = ledgerHasFlags || isSampleReview || !analysis.ruleStatuses.length ? "has-flags" : "is-verified";
+  const composerModes = useMemo<[HoloPassportMode, string][]>(() => passportShareModes.map(mode => [mode.id, mode.label]), []);
 
   useEffect(() => {
     try {
@@ -927,282 +903,104 @@ export function Passport({ analysis, entitlements, isSampleReview, go, upgradeTo
     }
   }, [exportPresetId, shareModeId]);
 
-  useEffect(() => () => {
-    if (frameRef.current !== null) {
-      window.cancelAnimationFrame(frameRef.current);
-    }
-  }, []);
+  useEffect(() => {
+    let active = true;
+    setMaterial(null);
+    loadPassportAppearance(tier.rank, "standard")
+      .then(next => {
+        if (!active) return;
+        if (next.rank !== tier.rank || next.finish !== "standard") throw new Error("Passport material does not match the reviewed rank.");
+        setMaterial({ rank: tier.rank, appearance: next });
+      })
+      .catch(() => {
+        if (active) setMaterial({ rank: tier.rank, error: "Your Passport material could not load. Your review is unchanged." });
+      });
+    return () => { active = false; };
+  }, [tier.rank, materialRetry]);
 
+  useEffect(() => {
+    // Invalidation ends the session; recovery must not remount with privacy choices reset.
+    if (!appearance || !entitlements.canExportPassport) setSharing(false);
+  }, [appearance, entitlements.canExportPassport]);
 
-  function movePassportCard(event: React.PointerEvent<HTMLDivElement>) {
-    const card = cardRef.current;
-    const shadow = shadowRef.current;
-    if (!card) {
-      return;
-    }
-    const rect = event.currentTarget.getBoundingClientRect();
-    const x = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
-    const y = Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height));
-    const rotateY = (x - 0.5) * 4.5;
-    const rotateX = (0.5 - y) * 3.5;
-    const lightX = x * 100;
-    const lightY = y * 100;
-    if (frameRef.current !== null) {
-      window.cancelAnimationFrame(frameRef.current);
-    }
-    frameRef.current = window.requestAnimationFrame(() => {
-      card.style.setProperty("--passport-rotate-x", `${rotateX.toFixed(2)}deg`);
-      card.style.setProperty("--passport-rotate-y", `${rotateY.toFixed(2)}deg`);
-      card.style.setProperty("--passport-light-x", `${lightX.toFixed(1)}%`);
-      card.style.setProperty("--passport-light-y", `${lightY.toFixed(1)}%`);
-      card.style.setProperty("--passport-lift", "-3px");
-      if (shadow) {
-        shadow.style.setProperty("--passport-shadow-x", `${((x - 0.5) * -8).toFixed(1)}px`);
-        shadow.style.setProperty("--passport-shadow-y", `${(3 + Math.abs(y - 0.5) * 5).toFixed(1)}px`);
-        shadow.style.setProperty("--passport-shadow-scale", `${(1.01 + Math.abs(x - 0.5) * 0.025).toFixed(3)}`);
-        shadow.style.setProperty("--passport-shadow-opacity", "0.7");
-      }
-      frameRef.current = null;
-    });
-  }
-
-  function resetPassportCard() {
-    const card = cardRef.current;
-    const shadow = shadowRef.current;
-    if (!card) {
-      return;
-    }
-    if (frameRef.current !== null) {
-      window.cancelAnimationFrame(frameRef.current);
-      frameRef.current = null;
-    }
-    card.style.setProperty("--passport-rotate-x", "0deg");
-    card.style.setProperty("--passport-rotate-y", "0deg");
-    card.style.setProperty("--passport-light-x", "52%");
-    card.style.setProperty("--passport-light-y", "18%");
-    card.style.setProperty("--passport-lift", "0px");
-    if (shadow) {
-      shadow.style.setProperty("--passport-shadow-x", "0px");
-      shadow.style.setProperty("--passport-shadow-y", "0px");
-      shadow.style.setProperty("--passport-shadow-scale", "1");
-      shadow.style.setProperty("--passport-shadow-opacity", "0.58");
-    }
+  function openShare() {
+    if (!entitlements.canExportPassport) { upgradeToPro(); return; }
+    if (!faceRef.current || !appearance || sharing) return;
+    setExportPresetId("square");
+    setSharing(true);
   }
 
   return (
-    <SectionShell
-      eyebrow={isSampleReview ? "Sample trader profile" : "Trader profile"}
-      title="Risk Passport"
-      variant="workspace"
-      backdrop={<ImageAtmosphere src="/media/cova-passport-product.jpg" align="right" opacity="opacity-[0.18]" />}
-    >
-      <div className="passport-workbench">
-        <div className="passport-topbar">
-          <div>
-            <p className="passport-kicker">{isSampleReview ? "Sample review · demo data" : entitlements.plan === "free" ? "Free preview" : "Reviewed profile"}</p>
-            <p className="passport-topbar-copy">
-              Choose which calculated fields appear, then download a local PNG. Cova does not host, revoke, or expire the file after you share it.
-            </p>
+    <div className="passport-workspace">
+      <SectionShell eyebrow={isSampleReview ? "Sample trader profile" : "Trader profile"} title="Risk Passport" variant="workspace">
+        <div className="passport-workbench passport-holo-workbench">
+          <div className="passport-workspace-toolbar">
+            <p>{isSampleReview ? "Sample review · demo data · Not account verified." : `${model.provenance}.`}</p>
+            <div className="passport-workspace-actions">
+              <button type="button" onClick={() => go("dashboard")}>Back to review</button>
+              <button type="button" className="passport-workspace-share" aria-haspopup={entitlements.canExportPassport ? "dialog" : undefined} disabled={entitlements.canExportPassport && !appearance} onClick={openShare}>
+                {entitlements.canExportPassport ? "Share" : "Unlock export"}
+              </button>
+            </div>
           </div>
-          <div className="passport-topbar-actions">
-            <button className="passport-action-button" onClick={() => go("dashboard")} type="button">Back to review</button>
-            <button className="passport-action-button passport-action-primary" onClick={entitlements.canExportPassport ? () => void downloadPassportPng(analysis, tier, shareMode, exportPreset, isSampleReview, faceRef.current) : upgradeToPro} type="button">
-              <Download className="h-4 w-4" /> {entitlements.canExportPassport ? "Download PNG" : "Unlock export"}
-            </button>
+
+          <section className="passport-workspace-stage" aria-label="Passport card" aria-busy={!appearance && !materialError}>
+            {appearance ? <PassportHoloCard key={appearance.id} model={model} appearance={appearance} engraved ref={faceRef} /> :
+              <div className="passport-workspace-placeholder">
+                {materialError ? <><p role="alert">{materialError}</p><button type="button" onClick={() => { setMaterial(null); setMaterialRetry(value => value + 1); }}>Retry material</button></> : <p role="status">Loading {tier.rank} Passport…</p>}
+              </div>}
+          </section>
+
+          <div className="passport-workspace-modes" role="group" aria-label="Card view" aria-describedby="passport-mode-description">
+            {passportShareModes.map(mode => <button type="button" key={mode.id} aria-pressed={shareModeId === mode.id} onClick={() => setShareModeId(mode.id)}>{mode.label}</button>)}
           </div>
-        </div>
+          <p className="passport-workspace-mode-note" id="passport-mode-description">{shareMode.tagline}</p>
 
-        <div className="passport-console-shell">
-          <motion.div
-            className="passport-credential-zone"
-            initial={{ opacity: 0, scale: 0.98, y: 24 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ duration: 0.72, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <div className="passport-card-scene passport-credential-scene">
-              <div className="passport-ground" ref={shadowRef} />
-              <div
-                className="passport-card-hitbox passport-credential-hitbox"
-                onPointerMove={movePassportCard}
-                onPointerLeave={resetPassportCard}
-              >
-                <div className="passport-card-3d" ref={cardRef}>
-                  <div className="passport-card-depth passport-credential-depth" />
-                  <div className={`passport-card-face passport-credential-card ${tier.cardClass}`} data-passport-tier={tier.rank.toLowerCase()} ref={faceRef}>
-                    <div className="passport-card-noise" />
-                    <div className="passport-card-shine" />
-                    <div className="passport-card-grid" />
-                    <div className="passport-security-lines" />
-                    <div className="passport-angular-frame" />
-                    {isSampleReview && (
-                      <div className="passport-sample-watermark" aria-label="Sample review demo data">
-                        <span>SAMPLE REVIEW · DEMO DATA</span>
-                        <strong>SAMPLE / NOT VERIFIED</strong>
-                      </div>
-                    )}
-                    <div className="passport-credential-inner passport-profile-card">
-                      <header className="passport-profile-header">
-                        <div className="passport-profile-brand">
-                          <span>COVA</span>
-                          <strong>Risk Passport</strong>
-                        </div>
-                        <div className="passport-profile-pills">
-                          <span>{shareMode.label}</span>
-                          <span>{isSampleReview ? "Demo" : "User-supplied"}</span>
-                        </div>
-                      </header>
-
-                      <div className="passport-profile-identity">
-                        <div className="passport-profile-avatar" aria-hidden="true">{tier.badge}</div>
-                        <div>
-                          <span>TRADER {traderNumber}</span>
-                          <strong>{marketLine} · {setupLine}</strong>
-                          <small>{isSampleReview ? "Anonymous sample profile" : "Anonymous user-supplied profile"}</small>
-                        </div>
-                      </div>
-
-                      <div className="passport-profile-status">
-                        <div className="passport-profile-rank">
-                          <span>{tier.skin}</span>
-                          <h3>{tier.rank}</h3>
-                          <p>{moodLine}</p>
-                        </div>
-                        <div className={`passport-profile-hero-stat passport-stat-${heroStat.tone ?? "neutral"}`}>
-                          <span>{heroStat.label}</span>
-                          <strong>{heroStat.value}</strong>
-                          <small>{displayVerifiedRules}/{displayRuleCount} rules held</small>
-                        </div>
-                      </div>
-
-                      <div className="passport-profile-sparkline">
-                        <div>
-                          <span>Account path</span>
-                          <em>{analysis.trades.length} trades reviewed</em>
-                        </div>
-                        <svg aria-label="Cumulative reviewed trade result" preserveAspectRatio="none" role="img" viewBox="0 0 100 100">
-                          <line x1="0" x2="100" y1="92" y2="92" />
-                          <polyline points={sparklinePoints} />
-                        </svg>
-                      </div>
-
-                      <div className="passport-profile-stat-grid">
-                        {profileStats.map((stat) => (
-                          <div className={`passport-profile-stat passport-stat-${stat.tone ?? "neutral"}`} key={stat.label}>
-                            <span>{stat.label}</span>
-                            <strong>{stat.value}</strong>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="passport-profile-proof">
-                        <div>
-                          <span>{isSampleReview ? "Demo review" : "Review status"}</span>
-                          <strong>{displayProofLine}</strong>
-                        </div>
-                        <em>{shareMode.cardSubtitle}</em>
-                      </div>
-
-                      <div className="passport-rank-progress">
-                        <span>Next up</span>
-                        <strong>{nextTarget}</strong>
-                      </div>
-
-                      <footer className="passport-profile-footer">
-                        <div>
-                          <span>{isSampleReview ? "Demo ref" : "Review ref"}</span>
-                          <code>{reviewId}</code>
-                        </div>
-                        <p>{getPassportExportDisclosure(isSampleReview)}</p>
-                      </footer>
+          <details className="passport-review-detail passport-workspace-detail">
+            <summary>Review detail</summary>
+            <div className="passport-workspace-detail-body">
+              <p>{isSampleReview ? "Sample analysis · not account verification" : getPassportProofLine(tier, analysis)}</p>
+              <p>{tier.summary}</p>
+              <div className="passport-workspace-stats">
+                {cardStats.map(stat => <div key={stat.label}><span>{stat.label}</span><strong>{stat.value}</strong></div>)}
+              </div>
+              {shareModeId !== "private" && <div className="passport-workspace-sparkline">
+                <div><span>Account path</span><span>{analysis.trades.length} trades reviewed</span></div>
+                <svg aria-label="Cumulative reviewed trade result" preserveAspectRatio="none" role="img" viewBox="0 0 100 100"><line x1="0" x2="100" y1="92" y2="92" /><polyline points={getPassportSparkline(analysis)} /></svg>
+              </div>}
+              <div className="passport-workspace-context">
+                <div><h3>Next up</h3><p>{nextTarget}</p></div>
+                <div><h3>Risk review</h3><p>{analysis.nextSessionBrief.headline}</p><p>{analysis.nextSessionBrief.summary}</p></div>
+                <div><h3>Setup context</h3><p>{shareModeId === "private" ? "Markets and setups hidden in Ghost view." : `${getPassportMarketLine(analysis)} · ${analysis.bySetup[0]?.name ?? "No setup reviewed"}`}</p></div>
+              </div>
+              <div className="passport-ledger-panel">
+                <div className="passport-ledger-heading">
+                  <div><p>Review receipt</p><span>What held, what did not, and when Cova checked it.</span></div>
+                  <strong className={ledgerStatusClass}><BadgeCheck className="h-4 w-4" /> {ledgerStatusCopy}</strong>
+                </div>
+                <div className="passport-ledger-table">
+                  {analysis.ruleStatuses.slice(0, 3).map((status, index) => (
+                    <div className="passport-ledger-row" key={status.rule.id}>
+                      <span className="passport-ledger-index">{String(index + 1).padStart(2, "0")}</span>
+                      <div><strong>{status.rule.name}</strong><small>{status.summary}</small></div>
+                      <span className={status.breached ? "is-failed" : "is-passed"}>{status.breached ? "Flagged" : "Passed"}</span>
+                      <code>{friendlyRuleMetric(status.rule.metric)}</code><time>{analysis.latestDate}</time>
                     </div>
-                  </div>
+                  ))}
+                  {!analysis.ruleStatuses.length && <p className="passport-workspace-empty">Rules not checked. Set review limits to include a rule receipt.</p>}
                 </div>
               </div>
+              <p className="passport-workspace-reference">{isSampleReview ? "Demo ref" : "Review ref"}: <code>{reviewId}</code> · {model.ruleSummary}</p>
+              <p>{getPassportExportDisclosure(isSampleReview)}</p>
             </div>
-          </motion.div>
-
-          <aside className="passport-share-rail">
-            <div className="passport-rail-section">
-              <div className="passport-rail-heading">
-                <span>Export view</span>
-              </div>
-              <div className="passport-mode-list">
-                {passportShareModes.map((mode) => (
-                  <button
-                    aria-pressed={shareModeId === mode.id}
-                    className={`passport-mode-row ${shareModeId === mode.id ? "is-active" : ""}`}
-                    key={mode.id}
-                    onClick={() => setShareModeId(mode.id)}
-                    type="button"
-                  >
-                    <span>{mode.label}</span>
-                    <small>{mode.tagline}</small>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="passport-rail-section">
-              <div className="passport-rail-heading"><span>Export format</span><small>{exportPreset.width} × {exportPreset.height}</small></div>
-              <div className="passport-export-list">
-                {passportExportPresets.map((preset) => (
-                  <button
-                    aria-pressed={exportPresetId === preset.id}
-                    className={`passport-export-row ${exportPresetId === preset.id ? "is-active" : ""}`}
-                    key={preset.id}
-                    onClick={() => setExportPresetId(preset.id)}
-                    type="button"
-                  >
-                    <span>{preset.label}</span>
-                    <small>{preset.note}</small>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="passport-rail-section">
-              <div className="passport-rail-heading"><span>Included in PNG</span></div>
-              <div className="passport-privacy-list">
-                {privacyRows.map((row) => (
-                  <div className="passport-privacy-row" key={row.label}>
-                    <span>{row.label}</span>
-                    <strong className={row.visible ? "is-visible" : "is-hidden"}>
-                      {row.visible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-                      {row.visible ? "Visible" : "Hidden"}
-                    </strong>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-          </aside>
+          </details>
+          <p className="passport-workspace-file-note">Shared PNGs are permanent local still images. Cova does not host, revoke, or expire the file.</p>
         </div>
-
-        <div className="passport-ledger-panel">
-          <div className="passport-ledger-heading">
-            <div>
-              <p>Review receipt</p>
-              <span>What held, what did not, and when Cova checked it.</span>
-            </div>
-            <strong className={ledgerStatusClass}><BadgeCheck className="h-4 w-4" /> {ledgerStatusCopy}</strong>
-          </div>
-          <div className="passport-ledger-table">
-            {analysis.ruleStatuses.slice(0, 3).map((status, index) => (
-              <div className="passport-ledger-row" key={status.rule.id}>
-                <span className="passport-ledger-index">{String(index + 1).padStart(2, "0")}</span>
-                <div>
-                  <strong>{status.rule.name}</strong>
-                  <small>{status.summary}</small>
-                </div>
-                <span className={status.breached ? "is-failed" : "is-passed"}>{status.breached ? "Flagged" : "Passed"}</span>
-                <code>{friendlyRuleMetric(status.rule.metric)}</code>
-                <time>{analysis.latestDate}</time>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </SectionShell>
+        {sharing && entitlements.canExportPassport && appearance && <PassportShareComposer face={faceRef} rank={tier.rank} finish="standard" mode={shareModeId} onModeChange={setShareModeId} preset={exportPresetId} onPresetChange={preset => {
+          if (passportExportPresets.some(option => option.id === preset)) setExportPresetId(preset as PassportExportPresetId);
+        }} presets={passportExportPresets} modes={composerModes} sample={isSampleReview} sourceKey={sourceKey} onClose={() => setSharing(false)} />}
+      </SectionShell>
+    </div>
   );
 }
 

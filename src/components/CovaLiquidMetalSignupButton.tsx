@@ -1,6 +1,9 @@
 import { ArrowUpRight } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import covaLiquidMetalSource from "./cova-liquid-metal-signup.html?raw";
+import liquidUiFont from "@fontsource-variable/inter-tight/files/inter-tight-latin-wght-normal.woff2?inline";
+// srcDoc is a separate font document. No network font service or parent-font assumption.
+const covaLiquidMetalWithFont = covaLiquidMetalSource.replace("<style>", `<style>@font-face{font-family:"Inter Tight";src:url("${liquidUiFont}") format("woff2");font-style:normal;font-weight:100 900;font-display:swap}`);
 
 type CovaLiquidMetalSignupButtonProps = {
   className?: string;
@@ -128,7 +131,7 @@ export function CovaLiquidMetalSignupButton({
           onLoad={syncConfig}
           ref={frameRef}
           sandbox="allow-scripts"
-          srcDoc={covaLiquidMetalSource}
+          srcDoc={covaLiquidMetalWithFont}
           title={`Cova ${safeText} button`}
         />
       ) : null}

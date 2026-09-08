@@ -1,0 +1,67 @@
+/* Shared application chrome follows the approved Risk Desk; its composition stays untouched. */
+.oa-dashboard-app .astra-workspace-page {
+  position:relative;
+  z-index:1;
+  min-height:100dvh;
+  max-width:1530px;
+  margin:0 auto;
+  padding:0 37px 32px;
+  background:var(--astra-bg);
+  color:var(--astra-ink);
+  font:14px/1.5 var(--astra-body);
+}
+.oa-dashboard-app .oa-dashboard-shell .astra-workspace-page .section-shell-workspace {
+  min-height:0!important;
+  padding:0!important;
+  background:none!important;
+  overflow:visible;
+}
+.astra-workspace-page .section-shell-workspace > .pointer-events-none { display:none; }
+.oa-dashboard-app .oa-dashboard-shell .astra-workspace-page .section-shell-content { max-width:none!important; width:100%; }
+.astra-workspace-page .section-shell-heading { margin:0 0 30px!important; gap:20px; }
+.astra-workspace-page .section-shell-kicker-workspace { display:none; }
+.astra-workspace-page .section-shell-title-workspace {
+  max-width:none;
+  font:500 35px/1.12 var(--astra-display)!important;
+  color:var(--astra-ink)!important;
+  letter-spacing:-.045em!important;
+  text-transform:none;
+}
+.astra-workspace-page .astra-deskbar .astra-button:focus-visible {
+  outline:2px solid var(--astra-blue); outline-offset:3px;
+}
+/* Signed-in marketing actions are utility buttons, not oversized hero CTAs. */
+.marketing-header-signed-in .header-workspace-button {
+  min-height:34px!important;
+  height:34px!important;
+  padding:0 12px!important;
+  border:1px solid #354052!important;
+  border-radius:5px!important;
+  background:#141a24!important;
+  color:#e0e8f8!important;
+  font:400 12px/1.3 Inter,Arial,sans-serif!important;
+  letter-spacing:normal!important;
+  text-transform:none!important;
+  box-shadow:none!important;
+  transform:none!important;
+}
+.marketing-header-signed-in .header-workspace-button:hover { background:#1a2435!important; border-color:#6f96ff!important; }
+.marketing-header-signed-in .header-workspace-button:focus-visible { outline:2px solid #6f96ff!important; outline-offset:3px!important; }
+@media(min-width:1600px) { .oa-dashboard-app .astra-workspace-page { padding-inline:46px; } }
+@media(max-width:1250px) and (min-width:851px) {
+  .oa-dashboard-app .astra-workspace-page { padding-inline:24px; }
+  .astra-workspace-page .section-shell-title-workspace { font-size:31px!important; }
+}
+@media(max-width:850px) {
+  .oa-dashboard-app .astra-workspace-page { padding:96px 24px 32px; }
+  .astra-workspace-page .section-shell-title-workspace { font-size:33px!important; }
+}
+@media(max-width:620px) {
+  .oa-dashboard-app .astra-workspace-page { padding:88px 20px 25px; }
+  .astra-workspace-page .section-shell-title-workspace { font-size:32px!important; }
+  .astra-workspace-page .section-shell-heading { margin-bottom:23px!important; }
+}
+@media(max-width:365px) { .oa-dashboard-app .astra-workspace-page { padding-inline:15px; } }
+@media(prefers-reduced-motion:reduce) {
+  .astra-workspace-page .astra-deskbar *, .marketing-header-signed-in .header-workspace-button { transition:none!important; }
+}

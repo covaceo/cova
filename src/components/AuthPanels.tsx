@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type RefObject } from "react";
 import type { Session as SupabaseSession } from "@supabase/supabase-js";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail, RotateCw, SlidersHorizontal, X } from "lucide-react";
 import { buildHostedAuthUrl, canRedirectToHostedAuth, isDemoPreviewEnabled, isLocalPreview } from "../lib/authEnvironment";
 import {
@@ -14,6 +14,7 @@ import {
 import { GlassButton } from "./GlassButton";
 import { ImageAtmosphere } from "./LayoutShell";
 import { StartFreeButton } from "./StartFreeButton";
+import "../styles/authConnectionPolish.css";
 
 type AuthMode = "login" | "signup";
 type PlanTier = "free" | "pro";
@@ -69,6 +70,7 @@ type AuthSheetProps = {
 };
 
 export function AuthGate({ devPreviewEmail, openAuth, onDevPreview }: AuthGateProps) {
+  const reduceMotion = useReducedMotion();
   const showDevPreview = isDemoPreviewEnabled();
 
   useEffect(() => {
@@ -77,19 +79,19 @@ export function AuthGate({ devPreviewEmail, openAuth, onDevPreview }: AuthGatePr
   }, [openAuth]);
 
   return (
-    <section className="relative min-h-screen overflow-hidden px-5 pb-24 pt-36 md:px-12 lg:px-20">
+    <section className="auth-connection auth-gate relative min-h-screen overflow-hidden px-5 pb-24 pt-36 md:px-12 lg:px-20">
       <ImageAtmosphere src="/media/cova-dashboard-plate.jpg" opacity="opacity-[0.22]" />
       <div className="relative z-10 mx-auto grid min-h-[68vh] max-w-7xl place-items-center">
         <motion.div
-          className="liquid-glass-strong max-w-3xl rounded-[44px] p-7 text-center md:p-10"
-          initial={{ opacity: 0, y: 24, filter: "blur(10px)" }}
-          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+          className="auth-connection-panel max-w-3xl rounded-[44px] p-7 text-center md:p-10"
+          initial={reduceMotion ? false : { opacity: 1, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
         >
-          <span className="mx-auto grid h-14 w-14 place-items-center rounded-full border border-white/12 bg-white/[0.045] text-[#18c887]">
+          <span className="mx-auto grid h-14 w-14 place-items-center rounded-full border border-white/12 bg-white/[0.045] text-[#6f96ff]">
             <LockKeyhole className="h-6 w-6" />
           </span>
-          <p className="mt-7 font-body text-xs uppercase tracking-[0.24em] text-[#b9f5df]">Private workspace</p>
+          <p className="mt-7 font-body text-xs uppercase tracking-[0.24em] text-[#b5c9ff]">Private workspace</p>
           <h2 className="mt-4 font-heading text-5xl italic leading-[1.02] tracking-normal md:text-7xl">Sign in to view account stats.</h2>
           <p className="mx-auto mt-5 max-w-xl font-body font-light leading-relaxed text-white/58">
             Cova hides uploads, risk scores, limit warnings, insights, and Passport details until you sign in.
@@ -142,6 +144,7 @@ export function AuthSheet({
   const isSignup = mode === "signup";
   const canRedirect = mode ? canRedirectToHostedAuth(mode) : false;
   const supabaseReady = isSupabaseConfigured();
+  const reduceMotion = useReducedMotion();
   const showDevPreview = isDemoPreviewEnabled();
   const authOpen = Boolean(mode);
   const [modalIsolationActive, setModalIsolationActive] = useState(authOpen);
@@ -500,25 +503,26 @@ export function AuthSheet({
       {mode && (
         <motion.div
           ref={overlayRef}
-          className="fixed inset-0 z-[90] flex items-start justify-center overflow-y-auto overscroll-y-contain p-3 pt-16 md:p-6"
-          initial={{ opacity: 0 }}
+          className="auth-connection auth-overlay fixed inset-0 z-[90] flex items-start justify-center overflow-y-auto overscroll-y-contain p-3 pt-16 md:p-6"
+          initial={reduceMotion ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+          exit={{ opacity: reduceMotion ? 1 : 0 }}
+          transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
         >
           <button className="absolute inset-0 cursor-default bg-black/72 backdrop-blur-md" onClick={close} tabIndex={-1} type="button" aria-label="Close auth panel" />
           <motion.div
             ref={dialogRef}
             tabIndex={-1}
-            className="liquid-glass-strong relative my-auto w-full max-w-[520px] shrink-0 overflow-hidden rounded-[32px] border border-white/10 p-1.5"
-            initial={{ opacity: 0, y: 24, scale: 0.98, filter: "blur(10px)" }}
-            animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
-            exit={{ opacity: 0, y: 16, scale: 0.98, filter: "blur(8px)" }}
-            transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
+            className="auth-connection-panel auth-sheet relative my-auto w-full max-w-[520px] shrink-0 overflow-hidden rounded-[32px] border border-white/10 p-1.5"
+            initial={reduceMotion ? false : { opacity: 1, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: reduceMotion ? 1 : 0, y: reduceMotion ? 0 : 8 }}
+            transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
             role="dialog"
             aria-modal="true"
             aria-label={dialogLabel}
           >
-            <div className="relative rounded-[26px] border border-white/[0.07] bg-black/78 p-6 md:p-8">
+            <div className="auth-sheet-content relative rounded-[26px] border border-white/[0.07] bg-black/78 p-6 md:p-8">
               <button data-auth-mobile-initial-focus className="absolute right-4 top-4 z-20 grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/[0.045] text-white/70 transition hover:border-white/20 hover:text-white" onClick={close} type="button" aria-label="Close">
                 <X className="h-4 w-4" />
               </button>
@@ -534,7 +538,7 @@ export function AuthSheet({
                         onClick={() => switchMode(item)}
                         type="button"
                       >
-                        {active && <motion.span className="terminal-tab-motion" layoutId="auth-tab-active" transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }} />}
+                        {active && <motion.span className="terminal-tab-motion" layoutId="auth-tab-active" transition={{ duration: reduceMotion ? 0 : 0.18, ease: "easeOut" }} />}
                         <span className="terminal-tab-copy">{item === "login" ? "Sign in" : "Sign up"}</span>
                       </button>
                     );
@@ -544,17 +548,17 @@ export function AuthSheet({
 
               {pendingPolicyConfirmation ? (
                 <form onSubmit={submitPolicy}>
-                  <p className="font-body text-xs font-semibold uppercase tracking-[0.2em] text-[#18c887]">One last step</p>
+                  <p className="font-body text-xs font-semibold uppercase tracking-[0.2em] text-[#6f96ff]">One last step</p>
                   <h2 className="mt-3 pr-10 font-body text-3xl font-semibold tracking-[-0.035em] text-white">Review and accept</h2>
                   <p className="mt-3 font-body text-sm font-light leading-6 text-white/58">Your email is verified. Accept Cova’s current terms to finish setting up your account.</p>
 
                   <label className="mt-7 flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.025] p-4 font-body text-sm leading-6 text-white/68" aria-label="I agree to the Terms of Service and Privacy Policy">
-                    <input data-auth-initial-focus className="mt-1 h-4 w-4 shrink-0 accent-[#18c887]" checked={policyAccepted} onChange={(event) => setPolicyAccepted(event.target.checked)} required type="checkbox" />
+                    <input data-auth-initial-focus className="mt-1 h-4 w-4 shrink-0 accent-[#6f96ff]" checked={policyAccepted} onChange={(event) => setPolicyAccepted(event.target.checked)} required type="checkbox" />
                     <span>
                       I agree to the{" "}
-                      <a className="text-[#b9f5df] underline underline-offset-4" href="#terms" rel="noopener noreferrer" target="_blank">Terms of Service</a>
+                      <a className="text-[#b5c9ff] underline underline-offset-4" href="#terms" rel="noopener noreferrer" target="_blank">Terms of Service</a>
                       {" "}and{" "}
-                      <a className="text-[#b9f5df] underline underline-offset-4" href="#privacy" rel="noopener noreferrer" target="_blank">Privacy Policy</a>.
+                      <a className="text-[#b5c9ff] underline underline-offset-4" href="#privacy" rel="noopener noreferrer" target="_blank">Privacy Policy</a>.
                     </span>
                   </label>
 
@@ -572,13 +576,13 @@ export function AuthSheet({
                 </form>
               ) : passwordRecovery ? (
                 <form onSubmit={submitNewPassword}>
-                  <p className="font-body text-xs font-semibold uppercase tracking-[0.2em] text-[#18c887]">Password reset</p>
+                  <p className="font-body text-xs font-semibold uppercase tracking-[0.2em] text-[#6f96ff]">Password reset</p>
                   <h2 className="mt-3 pr-10 font-body text-3xl font-semibold tracking-[-0.035em] text-white">Set a new password</h2>
                   <p className="mt-3 font-body text-sm font-light leading-6 text-white/58">Choose a new password for your Cova account.</p>
 
                   <PasswordField autoComplete="new-password" id="new-password" label="New password" password={password} setPassword={setPassword} showPassword={showPassword} setShowPassword={setShowPassword} />
                   <label className="mt-5 block font-body text-sm font-medium text-white/72" htmlFor="confirm-password">Confirm new password</label>
-                  <input id="confirm-password" className="mt-2 w-full rounded-xl border border-white/12 bg-white/[0.035] px-4 py-3.5 font-body text-sm text-white outline-none transition placeholder:text-white/55 focus:border-[#18c887]/60" value={passwordConfirmation} onChange={(event) => setPasswordConfirmation(event.target.value)} type="password" autoComplete="new-password" minLength={8} required />
+                  <input id="confirm-password" className="mt-2 w-full rounded-xl border border-white/12 bg-white/[0.035] px-4 py-3.5 font-body text-sm text-white outline-none transition placeholder:text-white/55 focus:border-[#6f96ff]/60" value={passwordConfirmation} onChange={(event) => setPasswordConfirmation(event.target.value)} type="password" autoComplete="new-password" minLength={8} required />
 
                   <button className="cova-button cova-button-primary mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl px-6 py-3.5 font-body text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60" disabled={authBusy} type="submit">
                     {authBusy ? "Updating..." : "Update password"}<ArrowRight className="h-4 w-4" />
@@ -586,8 +590,8 @@ export function AuthSheet({
                 </form>
               ) : view === "email-sent" ? (
                 <div className="text-center">
-                  <span className="mx-auto grid h-14 w-14 place-items-center rounded-full border border-[#18c887]/24 bg-[#18c887]/10 text-[#18c887]"><Mail className="h-5 w-5" /></span>
-                  <p className="mt-6 font-body text-xs font-semibold uppercase tracking-[0.2em] text-[#18c887]">Email requested</p>
+                  <span className="mx-auto grid h-14 w-14 place-items-center rounded-full border border-[#6f96ff]/24 bg-[#6f96ff]/10 text-[#6f96ff]"><Mail className="h-5 w-5" /></span>
+                  <p className="mt-6 font-body text-xs font-semibold uppercase tracking-[0.2em] text-[#6f96ff]">Email requested</p>
                   <h2 data-auth-initial-focus tabIndex={-1} className="mt-3 font-body text-3xl font-semibold tracking-[-0.035em] text-white">Check your email</h2>
                   <p className="mx-auto mt-3 max-w-sm font-body text-sm font-light leading-6 text-white/58">
                     {emailAction === "signup"
@@ -607,7 +611,7 @@ export function AuthSheet({
                     </div>
                   )}
                   <button
-                    className="mt-4 font-body text-sm text-[#b9f5df] underline underline-offset-4 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="mt-4 font-body text-sm text-[#b5c9ff] underline underline-offset-4 disabled:cursor-not-allowed disabled:opacity-50"
                     disabled={authBusy}
                     onClick={() => {
                       setNotice("");
@@ -621,18 +625,18 @@ export function AuthSheet({
                 </div>
               ) : view === "forgot-password" ? (
                 <form onSubmit={submitForgotPassword}>
-                  <p className="font-body text-xs font-semibold uppercase tracking-[0.2em] text-[#18c887]">Password recovery</p>
+                  <p className="font-body text-xs font-semibold uppercase tracking-[0.2em] text-[#6f96ff]">Password recovery</p>
                   <h2 className="mt-3 pr-10 font-body text-3xl font-semibold tracking-[-0.035em] text-white">Reset your password</h2>
                   <p className="mt-3 font-body text-sm font-light leading-6 text-white/58">Enter your account email and we’ll send you a reset link.</p>
                   <EmailField email={email} setEmail={setEmail} inputRef={emailInputRef} />
                   <button className="cova-button cova-button-primary mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl px-6 py-3.5 font-body text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60" disabled={authBusy} type="submit">
                     {authBusy ? "Sending..." : "Send reset link"}<ArrowRight className="h-4 w-4" />
                   </button>
-                  <button className="mt-4 w-full font-body text-sm text-[#b9f5df] underline underline-offset-4" onClick={() => switchMode("login")} type="button">Back to sign in</button>
+                  <button className="mt-4 w-full font-body text-sm text-[#b5c9ff] underline underline-offset-4" onClick={() => switchMode("login")} type="button">Back to sign in</button>
                 </form>
               ) : (
                 <form onSubmit={submitCredentials}>
-                  <p className="font-body text-xs font-semibold uppercase tracking-[0.2em] text-[#18c887]">{isSignup ? "New account" : "Welcome back"}</p>
+                  <p className="font-body text-xs font-semibold uppercase tracking-[0.2em] text-[#6f96ff]">{isSignup ? "New account" : "Welcome back"}</p>
                   <h2 className="mt-3 pr-10 font-body text-3xl font-semibold tracking-[-0.035em] text-white">{isSignup ? "Create your account" : "Sign in to Cova"}</h2>
                   <p className="mt-3 font-body text-sm font-light leading-6 text-white/58">{isSignup ? "Create a free account to save imports, limits, review notes, and Passport preferences. No payment required." : "Enter your email and password to continue."}</p>
 
@@ -640,7 +644,7 @@ export function AuthSheet({
                   <PasswordField autoComplete={isSignup ? "new-password" : "current-password"} id="auth-password" label="Password" password={password} setPassword={setPassword} showPassword={showPassword} setShowPassword={setShowPassword} />
 
                   {!isSignup && (
-                    <button className="mt-3 block font-body text-xs text-[#b9f5df] underline underline-offset-4" onClick={() => { setNotice(""); setView("forgot-password"); }} type="button">Forgot password?</button>
+                    <button className="mt-3 block font-body text-xs text-[#b5c9ff] underline underline-offset-4" onClick={() => { setNotice(""); setView("forgot-password"); }} type="button">Forgot password?</button>
                   )}
 
                   <button className="cova-button cova-button-primary mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl px-6 py-3.5 font-body text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60" disabled={authBusy} type="submit">
@@ -648,14 +652,14 @@ export function AuthSheet({
                   </button>
 
                   {isSignup ? (
-                    <p className="mt-4 text-center font-body text-xs leading-5 text-white/60">After verifying your email, you’ll review Cova’s <a className="text-[#b9f5df] underline underline-offset-4" href="#terms" rel="noopener noreferrer" target="_blank">Terms of Service</a> and <a className="text-[#b9f5df] underline underline-offset-4" href="#privacy" rel="noopener noreferrer" target="_blank">Privacy Policy</a>.</p>
+                    <p className="mt-4 text-center font-body text-xs leading-5 text-white/60">After verifying your email, you’ll review Cova’s <a className="text-[#b5c9ff] underline underline-offset-4" href="#terms" rel="noopener noreferrer" target="_blank">Terms of Service</a> and <a className="text-[#b5c9ff] underline underline-offset-4" href="#privacy" rel="noopener noreferrer" target="_blank">Privacy Policy</a>.</p>
                   ) : supabaseReady ? (
                     <button className="mt-4 w-full font-body text-xs text-white/52 underline underline-offset-4 transition hover:text-white" disabled={authBusy} onClick={() => { void emailLoginLink(); }} type="button">Email me a sign-in link</button>
                   ) : null}
 
                   <p className="mt-6 text-center font-body text-sm text-white/52">
                     {isSignup ? "Already have an account?" : "New to Cova?"}{" "}
-                    <button className="font-medium text-[#b9f5df] underline underline-offset-4" onClick={() => switchMode(isSignup ? "login" : "signup")} type="button">{isSignup ? "Sign in" : "Sign up"}</button>
+                    <button className="font-medium text-[#b5c9ff] underline underline-offset-4" onClick={() => switchMode(isSignup ? "login" : "signup")} type="button">{isSignup ? "Sign in" : "Sign up"}</button>
                   </p>
 
                   {showDevPreview && (
@@ -684,7 +688,7 @@ function EmailField({ email, setEmail, inputRef }: { email: string; setEmail: (e
       <label className="mt-7 block font-body text-sm font-medium text-white/72" htmlFor="auth-email">Email</label>
       <div className="relative mt-2">
         <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/60" />
-        <input ref={inputRef} id="auth-email" data-auth-initial-focus className="w-full rounded-xl border border-white/12 bg-white/[0.035] py-3.5 pl-11 pr-4 font-body text-sm text-white outline-none transition placeholder:text-white/55 focus:border-[#18c887]/60" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" type="email" autoComplete="email" inputMode="email" required />
+        <input ref={inputRef} id="auth-email" data-auth-initial-focus className="w-full rounded-xl border border-white/12 bg-white/[0.035] py-3.5 pl-11 pr-4 font-body text-sm text-white outline-none transition placeholder:text-white/55 focus:border-[#6f96ff]/60" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" type="email" autoComplete="email" inputMode="email" required />
       </div>
     </>
   );
@@ -704,7 +708,7 @@ function PasswordField({ autoComplete, id, label, password, setPassword, showPas
       <label className="mt-5 block font-body text-sm font-medium text-white/72" htmlFor={id}>{label}</label>
       <div className="relative mt-2">
         <LockKeyhole className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/60" />
-        <input id={id} data-auth-initial-focus={id === "new-password" ? "" : undefined} className="w-full rounded-xl border border-white/12 bg-white/[0.035] py-3.5 pl-11 pr-12 font-body text-sm text-white outline-none transition placeholder:text-white/55 focus:border-[#18c887]/60" value={password} onChange={(event) => setPassword(event.target.value)} type={showPassword ? "text" : "password"} autoComplete={autoComplete} minLength={8} required />
+        <input id={id} data-auth-initial-focus={id === "new-password" ? "" : undefined} className="w-full rounded-xl border border-white/12 bg-white/[0.035] py-3.5 pl-11 pr-12 font-body text-sm text-white outline-none transition placeholder:text-white/55 focus:border-[#6f96ff]/60" value={password} onChange={(event) => setPassword(event.target.value)} type={showPassword ? "text" : "password"} autoComplete={autoComplete} minLength={8} required />
         <button className="absolute right-2 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-lg text-white/65 transition hover:bg-white/[0.06] hover:text-white" onClick={() => setShowPassword(!showPassword)} type="button" aria-label={showPassword ? "Hide password" : "Show password"}>
           {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
         </button>

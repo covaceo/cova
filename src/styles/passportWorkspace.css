@@ -1,0 +1,227 @@
+/* Passport route layout only. The approved card/material/optics stay untouched. */
+.passport-workspace {
+  color: #e4e7ee;
+  font-family: var(--font-dashboard-ui, Inter, Arial, sans-serif);
+}
+.passport-workspace > .deferred-paint-section {
+  min-height: 0;
+  padding: 28px clamp(16px, 3vw, 40px) 32px !important;
+}
+.passport-workspace .section-shell-title-workspace {
+  font-size: clamp(28px, 3vw, 36px) !important;
+  line-height: 1.1 !important;
+  letter-spacing: -0.04em !important;
+}
+.passport-workspace .section-shell-kicker-workspace {
+  margin-bottom: 8px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
+.passport-workspace .passport-workbench {
+  gap: 12px;
+  min-width: 0;
+}
+.passport-workspace .passport-workspace-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.passport-workspace .passport-workspace-toolbar p,
+.passport-workspace .passport-workspace-mode-note,
+.passport-workspace .passport-workspace-file-note {
+  margin: 0;
+  color: #9ca5b6;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.passport-workspace .passport-workspace-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+}
+.passport-workspace button {
+  min-height: 42px;
+  padding: 10px 16px;
+  border: 1px solid #343b48;
+  border-radius: 7px;
+  background: #181d26;
+  color: #e4e7ee;
+  font: 500 13px/1.25 var(--font-dashboard-ui, Inter, Arial, sans-serif);
+  letter-spacing: normal;
+  text-transform: none;
+  cursor: pointer;
+}
+.passport-workspace button:hover:not(:disabled) {
+  border-color: #7d91b7;
+  background: #202734;
+}
+.passport-workspace button:focus-visible,
+.passport-workspace summary:focus-visible {
+  outline: 2px solid #8cabed;
+  outline-offset: 3px;
+}
+.passport-workspace button:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+.passport-workspace .passport-workspace-share {
+  background: #dce6fc;
+  border-color: #dce6fc;
+  color: #172235;
+}
+.passport-workspace .passport-workspace-share:hover:not(:disabled) {
+  background: #c6d8fd;
+  color: #172235;
+}
+.passport-workspace .passport-workspace-stage {
+  width: 100%;
+  max-width: 840px;
+  min-width: 0;
+  margin: 0 auto;
+}
+.passport-workspace .passport-workspace-placeholder {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 16px;
+  aspect-ratio: 1672 / 941;
+  color: #aeb9cc;
+  font-size: 13px;
+  text-align: center;
+}
+.passport-workspace .passport-workspace-placeholder p {
+  margin: 0;
+}
+.passport-workspace .passport-workspace-modes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+.passport-workspace .passport-workspace-modes button[aria-pressed="true"] {
+  background: #26334b;
+  border-color: #708ab7;
+  color: #eef3ff;
+}
+.passport-workspace .passport-workspace-mode-note {
+  text-align: center;
+}
+.passport-workspace .passport-workspace-detail {
+  margin: 8px 0 0;
+  border-block: 1px solid #2b303a;
+}
+.passport-workspace .passport-workspace-detail > summary {
+  min-height: 48px;
+  padding: 14px 0;
+  color: #dce2ed;
+  font: 500 13px/1.5 var(--font-dashboard-ui, Inter, Arial, sans-serif);
+  cursor: pointer;
+}
+.passport-workspace .passport-workspace-detail-body {
+  padding: 0 0 20px;
+  color: #aeb9cc;
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.passport-workspace .passport-workspace-detail-body p {
+  margin: 4px 0;
+}
+.passport-workspace .passport-workspace-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 20px 0;
+}
+.passport-workspace .passport-workspace-stats > div {
+  display: grid;
+  gap: 4px;
+}
+.passport-workspace .passport-workspace-stats strong {
+  color: #e4e7ee;
+  font-size: 18px;
+  font-weight: 500;
+}
+.passport-workspace .passport-workspace-sparkline {
+  margin: 20px 0;
+}
+.passport-workspace .passport-workspace-sparkline > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.passport-workspace .passport-workspace-sparkline svg {
+  display: block;
+  width: 100%;
+  height: 96px;
+  margin-top: 12px;
+  overflow: visible;
+}
+.passport-workspace .passport-workspace-sparkline line {
+  stroke: #343b48;
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+}
+.passport-workspace .passport-workspace-sparkline polyline {
+  fill: none;
+  stroke: #8cabed;
+  stroke-width: 2px;
+  vector-effect: non-scaling-stroke;
+}
+.passport-workspace .passport-workspace-context {
+  display: grid;
+  gap: 16px;
+  margin: 20px 0;
+}
+.passport-workspace .passport-workspace-context h3 {
+  margin: 0 0 4px;
+  color: #e4e7ee;
+  font-size: 13px;
+  font-weight: 600;
+}
+.passport-workspace .passport-ledger-panel {
+  margin-top: 20px;
+  background: transparent;
+  box-shadow: none;
+}
+.passport-workspace .passport-ledger-heading {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.passport-workspace .passport-workspace-reference {
+  padding-top: 16px;
+}
+.passport-workspace .passport-workspace-empty {
+  padding: 16px;
+}
+/* The share dialog is portaled to body; app preflight resets UA auto margins. */
+@media (min-width: 621px) {
+  .passport-share-dialog { margin: auto; }
+}
+@media (max-width: 620px) {
+  .passport-workspace .passport-workspace-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .passport-workspace .passport-workspace-actions button {
+    flex: 1;
+  }
+  .passport-workspace .passport-workspace-modes {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .passport-workspace .passport-workspace-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .passport-workspace .passport-ledger-row {
+    grid-template-columns: 24px minmax(0, 1fr) auto;
+  }
+  .passport-workspace .passport-ledger-row code,
+  .passport-workspace .passport-ledger-row time {
+    display: block;
+    grid-column: 2 / -1;
+    text-align: left;
+  }
+}

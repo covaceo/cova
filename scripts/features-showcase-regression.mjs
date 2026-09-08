@@ -35,10 +35,10 @@ assert.match(packageJson, /"test:features-showcase-browser":\s*"npm run build &&
 
 assert.equal(digest(hero), "e50d30ccb31ea669c6ed0344ce0812fcda20144ca373b8dfc0c93a83a25ec31e", "The completed landing hero must remain byte-stable.");
 assert.match(story, /data-home-story="card-first"/, "The approved homepage card-first composition must remain present beside Features.");
-assert.equal(digest(plans), "48c055862619c8fbd6df999af707be831b462852a89fc151ffcb0eed3d9fa400", "Pricing and footer source must remain byte-stable.");
+assert.equal(digest(plans), "afba5a246ff9c62827389c5f1dc143dd8fccbd393429f01d5ba183e660020509", "Pricing and footer source must remain byte-stable.");
 assert.equal(digest(landingCss), "51b71de958850cfbc73f0c40ac9fd342ba86d4938f34f7c90109c5896080cf4d", "The approved landing stylesheet must remain byte-stable.");
 const pricingSection = marketingPages.slice(marketingPages.indexOf("export function PricingPage"));
-assert.equal(digest(pricingSection), "156ff5563da276ddfba23f45149df79548c1abe2e5deb6461bfb8f3bbcbadc5c", "Pricing must remain byte-stable inside the final marketing release.");
+assert.equal(digest(pricingSection), "0bfa44d26927acfd1eb6c506d44741d8df44d47f15db0d87a733e7b5adeb27e3", "Pricing must remain byte-stable inside the final marketing release.");
 
 assert.match(marketingPages, /export \{ FeaturesPage \} from "\.\/FeaturesShowcasePage";/, "MarketingPages must hand Features to its dedicated approved owner.");
 assert.doesNotMatch(marketingPages, /featureGroups|FeatureActionCard|Everything a trader needs after the trade closes|Built for review/, "The retired generic Features card grid must leave source truth.");

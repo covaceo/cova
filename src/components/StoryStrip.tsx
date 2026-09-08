@@ -1,16 +1,11 @@
 import { ArrowRight } from "lucide-react";
 import { PassportHoloCard } from "./PassportHoloCard";
 import { getMaterialSpec } from "../lib/passportMaterials";
-import type { HoloPassportModel } from "../lib/passportHolo";
+import { publicDiamondExample as example } from "./PublicPassportExampleCard";
 import diamondMaterial from "../assets/passport-diamond-material.webp?inline";
 
 // Public visual example only. Never reads an account or changes earned-rank logic.
-const example: HoloPassportModel = {
-  mode: "flex", modeLabel: "Flex", identity: "Trader 6714", rank: "Diamond",
-  marketLine: "NQ / ES · 25 reviewed trades", heroValue: "+$1,008", heroLabel: "Reported P&L",
-  support: ["4/6 rules held"], ruleSummary: "4/6 rules held",
-  provenance: "Sample data · Not account verified", sample: true,
-};
+
 const appearance = { ...getMaterialSpec("Diamond", "standard"), materialUrl: diamondMaterial };
 const steps = [
   ["01", "Import", "Bring in your trades."],

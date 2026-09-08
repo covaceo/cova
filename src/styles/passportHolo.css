@@ -1,0 +1,52 @@
+/* Live optics enhances material only; all content remains the same exportable SVG. */
+.passport-holo-face { position:relative; transform-origin:50% 50%; touch-action:pan-y; background:transparent!important; filter:drop-shadow(0 15px 12px rgba(39,49,60,.22)); }
+.passport-holo-face:focus-visible { outline:2px solid #416ef0; outline-offset:-3px; }
+/* Apply the same shadow after the child tilt, not on a flattened rotating SVG. */
+.passport-workspace-stage:has(> .passport-holo-face) { position:relative; aspect-ratio:1672/941; filter:drop-shadow(0 15px 12px rgba(39,49,60,.22)); }
+.passport-workspace .passport-workspace-stage > .passport-card-face.passport-holo-face { position:absolute; inset:0 auto auto 0; filter:none; }
+.passport-holo-face > .passport-optics-canvas { position:absolute; inset:0; width:100%; height:100%; display:none; pointer-events:none; }
+.passport-holo-face[data-optics="ready"] > .passport-optics-canvas { display:block; }
+.passport-holo-face[data-optics="ready"] > .passport-holo-art > image { opacity:0; }
+/* Approved pearl/holographic Passport. Scoped so no sibling route changes. */
+.passport-workbench.passport-holo-workbench { --passport-holo-ink: #27313c; }
+.passport-holo-workbench .passport-console-shell { display:grid; grid-template-columns:minmax(0,1fr); gap:24px; }
+.passport-holo-workbench .passport-credential-zone { min-width:0; padding:0; border:0; background:none; }
+.passport-holo-workbench .passport-card-scene.passport-credential-scene { width:100%; max-width:none; min-height:0; padding:0; margin:0; perspective:none; }
+.passport-holo-workbench .passport-card-hitbox.passport-credential-hitbox { display:block; overflow:clip; width:100%; max-width:none; height:auto; min-height:0; aspect-ratio:1672/941; padding:0; margin:0; }
+.passport-holo-workbench .passport-card-3d { position:relative; width:100%; height:auto; transform:none!important; padding:0; }
+.passport-holo-workbench .passport-ground,
+.passport-holo-workbench .passport-card-depth { display:none; }
+.passport-holo-workbench .passport-card-face.passport-holo-face { position:relative; display:block; width:100%; height:auto; min-height:0; aspect-ratio:1672/941; padding:0; margin:0; overflow:hidden; border:0!important; border-radius:12px; background:transparent!important; box-shadow:none!important; color:#27313c; transform:none; }
+.passport-holo-workbench .passport-holo-face::before,
+.passport-holo-workbench .passport-holo-face::after { display:none; }
+.passport-holo-face > svg.passport-holo-art { position:relative; z-index:1; display:block; width:100%; height:auto; max-width:none; overflow:visible; aspect-ratio:1672/941; transform:none; filter:none; }
+.passport-holo-workbench .passport-share-rail { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); align-items:start; gap:24px; order:0; margin:0; padding:20px 0; background:none; border:0; }
+.passport-holo-workbench .passport-rail-section { min-width:0; padding:0; margin:0; border:0; }
+.passport-holo-workbench .passport-mode-list,
+.passport-holo-workbench .passport-export-list { display:grid; gap:6px; }
+.passport-holo-workbench .passport-mode-row,
+.passport-holo-workbench .passport-export-row { width:100%; min-height:48px; padding:10px 12px; }
+.passport-holo-workbench button:focus-visible,
+.passport-holo-workbench summary:focus-visible { outline:2px solid #6f96ff; outline-offset:3px; }
+.passport-holo-workbench .passport-action-primary:disabled { opacity:0.65; cursor:wait; }
+.passport-export-error { margin:12px 0; color:#ff9bad; font-size:14px; }
+.passport-review-detail { margin:12px 0 28px; border-block:1px solid #2b303a; }
+.passport-review-detail > summary { min-height:48px; padding:14px 4px; cursor:pointer; font:500 14px Inter,Arial,sans-serif; color:#e8eeff; }
+.passport-review-detail-body { padding:8px 4px 20px; color:#aeb9cc; font:400 13px/1.6 Inter,Arial,sans-serif; }
+.passport-review-detail-body .passport-profile-sparkline { display:block; height:auto; margin:16px 0; padding:12px 0; background:none; }
+.passport-review-detail-body .passport-profile-sparkline svg { display:block; width:100%; height:95px; margin-top:12px; }
+.passport-detail-stats { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; margin:20px 0; }
+.passport-detail-stats div { display:grid; gap:4px; }
+.passport-detail-stats strong { color:#e8eeff; font-size:18px; font-weight:500; }
+.passport-review-detail-body .passport-rank-progress { display:block; min-height:0; padding:0; background:none; border:0; margin:16px 0; color:#c5cede; }
+@media(max-width:760px) {
+  .passport-holo-workbench .passport-share-rail { grid-template-columns:minmax(0,1fr); gap:24px; }
+  .passport-holo-workbench .passport-mode-list,
+  .passport-holo-workbench .passport-export-list { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .passport-holo-workbench .passport-topbar-actions { width:100%; }
+  .passport-holo-workbench .passport-topbar-actions button { flex:1; min-height:44px; }
+  .passport-detail-stats { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media(prefers-reduced-motion:reduce) {
+  .passport-holo-workbench .passport-credential-zone { animation:none; transition:none; }
+}

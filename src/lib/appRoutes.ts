@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export const sections = ["overview", "features", "pricing", "resources", "community", "privacy", "terms", "security", "dashboard", "import", "oauth", "rules", "coach", "passport"] as const;
 const protectedSections = ["dashboard", "import", "oauth", "rules", "coach", "passport"] as const satisfies readonly Section[];
@@ -29,16 +29,19 @@ function readHashSection(): HashSection {
 
 export function useHashSection(): [Section, (section: Section) => void] {
   const [section, setSectionState] = useState<Section>(() => readHashSection().section);
-  const scrollToTop = () => {
-    window.requestAnimationFrame(() => {
-      window.scrollTo({ top: 0, behavior: "smooth" });
+  const scrollFrame = useRef<number | null>(null);
+  const scheduleScroll = (action: () => void) => {
+    if (scrollFrame.current !== null) window.cancelAnimationFrame(scrollFrame.current);
+    scrollFrame.current = window.requestAnimationFrame(() => {
+      scrollFrame.current = null;
+      action();
     });
   };
-  const scrollToDocumentAnchor = (documentAnchor: string) => {
-    window.requestAnimationFrame(() => {
-      document.getElementById(documentAnchor)?.scrollIntoView({ block: "start" });
-    });
-  };
+  // Runs after the destination commit; no smooth transit over the outgoing page.
+  const scrollToTop = () => scheduleScroll(() => window.scrollTo({ top: 0, behavior: "instant" }));
+  const scrollToDocumentAnchor = (documentAnchor: string) => scheduleScroll(() => {
+    document.getElementById(documentAnchor)?.scrollIntoView({ block: "start", behavior: "instant" });
+  });
 
   useEffect(() => {
     const syncHash = () => {
@@ -59,6 +62,7 @@ export function useHashSection(): [Section, (section: Section) => void] {
     return () => {
       window.removeEventListener("hashchange", syncHash);
       window.removeEventListener("popstate", syncHash);
+      if (scrollFrame.current !== null) window.cancelAnimationFrame(scrollFrame.current);
     };
   }, []);
 

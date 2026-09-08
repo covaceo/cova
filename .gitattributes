@@ -1,0 +1,2 @@
+# Preserve the bundled third-party license verbatim, including upstream whitespace.
+src/assets/fonts/ALLURA-OFL.txt whitespace=-blank-at-eol

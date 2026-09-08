@@ -1,0 +1,161 @@
+/* Public-only typography and legal reading surfaces; never workspace or hero. */
+.public-pricing-page :is(h1, h2, h3) {
+  font-family: "Bricolage Grotesque Variable", "Inter Tight Variable", sans-serif !important;
+}
+
+.public-pricing-page .public-pricing-boundary {
+  margin: 0;
+  color: #aab4cd;
+  font-family: "Inter", sans-serif;
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.65;
+}
+
+.public-legal-page {
+  background: #08090c;
+  color: #e8eeff;
+  font-family: "Inter", sans-serif;
+}
+
+.public-legal-page .legal-atmosphere {
+  background: radial-gradient(circle at 72% 18%, rgba(79, 125, 255, 0.1), transparent 30%);
+}
+
+.public-legal-page :is(h1, h2) {
+  color: #e8eeff;
+  font-family: "Bricolage Grotesque Variable", "Inter Tight Variable", sans-serif !important;
+  font-weight: 500;
+}
+
+.public-legal-page .legal-icon {
+  border-color: #2b303a;
+  background: #0d0f14;
+  color: #6f96ff;
+}
+
+.public-legal-page .legal-intro,
+.public-legal-page .legal-body,
+.public-legal-page .legal-list {
+  color: #c3cce0;
+  font-family: "Inter", sans-serif;
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.8;
+}
+
+.public-legal-page .legal-body strong {
+  color: #e8eeff;
+  font-weight: 500;
+}
+
+.public-legal-page .legal-meta {
+  color: #aab4cd;
+  font-family: "DM Mono", monospace;
+  font-weight: 400;
+}
+
+.public-legal-page .legal-toc,
+.public-legal-page .legal-article {
+  background: #0d0f14;
+}
+
+.public-legal-page .legal-toc-link,
+.public-legal-page .legal-nav-button {
+  color: #c3cce0;
+  font-family: "Inter", sans-serif;
+  transition: color 160ms ease-out, background-color 160ms ease-out, border-color 160ms ease-out;
+}
+
+.public-legal-page .legal-nav-button {
+  border-color: #2b303a;
+  background: #0d0f14;
+}
+
+.public-legal-page .legal-nav-button[aria-current="page"] {
+  border-color: #6f96ff;
+  background: rgba(79, 125, 255, 0.12);
+  color: #e8eeff;
+}
+
+.public-legal-page .legal-link,
+.public-legal-page .legal-return {
+  color: #91afff;
+  text-decoration-color: #6f96ff;
+  transition: color 160ms ease-out;
+}
+
+.public-legal-page :is(.legal-link, .legal-return, .legal-toc-link, .legal-nav-button):hover {
+  color: #e8eeff;
+}
+
+.public-legal-page .legal-footer {
+  color: #aab4cd;
+  font-family: "Inter", sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.65;
+}
+
+.public-legal-page :is(a, button):focus-visible {
+  outline: 2px solid #6f96ff;
+  outline-offset: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .public-legal-page :is(a, button) {
+    transition-duration: 0s;
+    scroll-behavior: auto;
+  }
+}
+
+/* Both homepage and standalone plans: preserve text, let readable rows grow. */
+.pricing-showcase .pricing-showcase-title,
+.pricing-showcase .plan-card-name {
+  font-family: "Bricolage Grotesque Variable", "Inter Tight Variable", sans-serif !important;
+  font-weight: 500;
+}
+
+.pricing-showcase .plan-card-badge,
+.pricing-showcase .plan-card-index,
+.pricing-showcase .plan-feature-label,
+.pricing-showcase .plan-price-note,
+.pricing-showcase .plan-recommendation-tab {
+  font-family: "DM Mono", monospace;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.pricing-showcase .pricing-showcase-summary,
+.pricing-showcase .plan-card-description,
+.pricing-showcase .plan-feature-row {
+  color: #b1bbd0;
+  font-family: "Inter", sans-serif;
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.pricing-showcase .plan-primary-action,
+.pricing-showcase .plan-secondary-action {
+  min-height: 2.75rem;
+  font-family: "Inter Tight Variable", "Inter", sans-serif;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.pricing-showcase .plan-price-note,
+.pricing-showcase .plan-card-badge,
+.pricing-showcase .plan-card-index,
+.pricing-showcase .plan-feature-label {
+  color: #aab4cd;
+}
+
+.pricing-showcase .plan-card-pro {
+  padding-top: 4.5rem;
+}
+
+.pricing-showcase .plan-recommendation-tab {
+  white-space: normal;
+}

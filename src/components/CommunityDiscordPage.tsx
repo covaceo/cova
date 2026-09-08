@@ -4,7 +4,6 @@ import { ArrowUpRight } from "lucide-react";
 type Section = "overview" | "features" | "pricing" | "resources" | "community" | "dashboard" | "import" | "oauth" | "rules" | "coach" | "passport";
 
 const COVA_DISCORD_INVITE_URL = "https://discord.gg/B83Czu3pAf";
-const OA_LAYOUT = { type: "spring" as const, stiffness: 550, damping: 40 };
 
 const communityRooms = [
   { name: "#trade-review", body: "Completed trades, screenshots, execution notes, and what you would change." },
@@ -33,24 +32,18 @@ export function CommunityPage({ go }: { go: (section: Section) => void }) {
     <section className="community-oa-page">
       <div aria-hidden="true" className="community-oa-atmosphere" />
       <div className="community-oa-inner">
-        <motion.header
-          animate={{ opacity: 1, y: 0 }}
-          className="community-oa-intro"
-          initial={reduceMotion ? false : { opacity: 0, y: 14 }}
-          transition={reduceMotion ? { duration: 0 } : OA_LAYOUT}
-        >
+        <header className="community-oa-intro">
           <div>
-            <span className="community-oa-status">A real Cova community</span>
             <h1>Bring the trade. Get help working through it.</h1>
-            <p>This is the real Cova Discord. Bring completed trades, screenshots, risk questions, or product problems. Ask Cova directly and work through it with the room.</p>
+            <p>Bring completed trades, screenshots, risk questions, or product problems to the Cova Discord.</p>
           </div>
-        </motion.header>
+        </header>
 
         <motion.div
           animate={{ opacity: 1, y: 0 }}
           className="community-oa-stage"
-          initial={reduceMotion ? false : { opacity: 0, y: 18 }}
-          transition={reduceMotion ? { duration: 0 } : { ...OA_LAYOUT, delay: 0.06 }}
+          initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+          transition={reduceMotion ? { duration: 0 } : { duration: 0.2, ease: "easeOut" }}
         >
           <div className="community-oa-board">
             <div className="community-oa-hero">
@@ -62,7 +55,7 @@ export function CommunityPage({ go }: { go: (section: Section) => void }) {
                     <strong>THE ROOM IS OPEN</strong>
                   </div>
                 </div>
-                <h2>Ask for help. Share the context. Help the next trader when you can.</h2>
+                <h2>Join the conversation.</h2>
                 <p>The invite is permanent and opens directly in <strong>#start-here</strong>.</p>
                 <button className="community-oa-join" onClick={openDiscord} type="button">
                   <DiscordMark />

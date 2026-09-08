@@ -7,7 +7,7 @@
     "dev": "vite --host 127.0.0.1",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "test": "npm run test:risk && npm run test:ui-content && npm run test:dashboard-shell && npm run test:dashboard-oa && npm run test:native-cursor && npm run test:legal && npm run test:auth && npm run test:classic-auth && npm run test:recovery-callback-browser && npm run test:api-security && npm run test:tradovate-capability && npm run test:rithmic && npm run test:rithmic-ui && npm run test:import-guard && npm run test:auth-email-requested-browser && npm run test:browser-release && npm run test:threeui-landing && npm run test:features-showcase && npm run test:resources-quickstart && npm run test:community-discord && npm run test:features-showcase-browser && npm run test:homepage-story && npm run test:homepage-story-browser",
+    "test": "npm run test:visual-continuity && npm run test:passport-integration && npm run test:astra-dashboard && npm run test:risk && npm run test:ui-content && npm run test:dashboard-shell && npm run test:dashboard-oa && npm run test:native-cursor && npm run test:legal && npm run test:auth && npm run test:classic-auth && npm run test:recovery-callback-browser && npm run test:api-security && npm run test:tradovate-capability && npm run test:rithmic && npm run test:rithmic-ui && npm run test:import-guard && npm run test:auth-email-requested-browser && npm run test:browser-release && npm run test:threeui-landing && npm run test:features-showcase && npm run test:resources-quickstart && npm run test:community-discord && npm run test:features-showcase-browser && npm run test:homepage-story && npm run test:homepage-story-browser && npm run test:site-polish && npm run test:site-polish-browser",
     "test:threeui-landing": "node scripts/threeui-landing-regression.mjs",
     "test:features-showcase": "node scripts/features-showcase-regression.mjs",
     "test:features-showcase-browser": "npm run build && node scripts/features-showcase-browser-regression.mjs",
@@ -35,7 +35,12 @@
     "audit:lower-landing": "node scripts/lower-landing-browser-audit.mjs",
     "audit:native-cursor": "node scripts/native-cursor-browser-audit.mjs",
     "test:homepage-story": "node scripts/homepage-story-regression.mjs",
-    "test:homepage-story-browser": "npm run build && node scripts/homepage-story-browser-regression.mjs"
+    "test:homepage-story-browser": "npm run build && node scripts/homepage-story-browser-regression.mjs",
+    "test:visual-continuity": "node --test scripts/passport-clarity-regression.mjs scripts/workspace-motion-regression.mjs scripts/workspace-entry-clarity-regression.mjs",
+    "test:passport-integration": "node --test scripts/passport-integration-preservation-regression.mjs scripts/passport-workspace-regression.mjs scripts/dashboard-preview-export-regression.mjs scripts/passport-holo-regression.mjs scripts/passport-etched-regression.mjs scripts/passport-share-actions-regression.mjs scripts/passport-share-export-regression.mjs scripts/passport-square-export-regression.mjs",
+    "test:astra-dashboard": "node --test scripts/astra-dashboard-regression.mjs scripts/astra-workspace-shell-regression.mjs scripts/astra-workspace-layout-regression.mjs scripts/astra-workspace-content-regression.mjs",
+    "test:site-polish": "node --test scripts/site-motion-polish-regression.mjs scripts/public-polish-regression.mjs && node scripts/auth-connection-visual-regression.mjs --source",
+    "test:site-polish-browser": "npm run build && node scripts/public-polish-browser-regression.mjs && node scripts/auth-connection-visual-regression.mjs"
   },
   "dependencies": {
     "@fontsource-variable/bricolage-grotesque": "^5.3.0",

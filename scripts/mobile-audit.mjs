@@ -14,7 +14,7 @@ const routes = [
   { name: "pricing", hash: "pricing", needsAuth: false, requiredText: ["MOST CHOSEN BY ACTIVE TRADERS", "Cova Pro"] },
   { name: "import", hash: "import", needsAuth: true, requiredText: ["Upload CSV first", "TopstepX export", "CSV guide"] },
   { name: "insights", hash: "coach", needsAuth: true, requiredText: ["Current risk review", "Review note"] },
-  { name: "passport", hash: "passport", needsAuth: true, requiredText: ["Sample review · demo data", "Feed 4:5", "Review receipt"] },
+  { name: "passport", hash: "passport", needsAuth: true, requiredText: ["Sample data · Not account verified", "Unlock export", "Review detail"] },
 ];
 const selectedRouteNames = new Set((process.env.COVA_ROUTES ?? "").split(",").map((name) => name.trim()).filter(Boolean));
 const auditRoutes = selectedRouteNames.size ? routes.filter((route) => selectedRouteNames.has(route.name)) : routes;

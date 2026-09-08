@@ -1,6 +1,7 @@
 import { ArrowUpRight, LockKeyhole, Scale, ShieldCheck } from "lucide-react";
 import type { ReactNode } from "react";
 import type { Section } from "../lib/appRoutes";
+import "../styles/publicPolish.css";
 
 const EFFECTIVE_DATE = "July 22, 2026";
 const SUPPORT_EMAIL = "support@covadesk.com";
@@ -16,16 +17,15 @@ type LegalPageProps = {
 };
 
 function ContactLink() {
-  return <a className="text-[#b9f5df] underline decoration-[#18c887]/40 underline-offset-4 hover:text-white" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>;
+  return <a className="legal-link underline underline-offset-4" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>;
 }
 
 function LegalList({ children }: { children: ReactNode }) {
-  return <ul className="mt-4 grid gap-3 pl-5 font-body text-sm font-light leading-7 text-white/62 marker:text-[#18c887]">{children}</ul>;
+  return <ul className="legal-list mt-4 grid gap-3 pl-5">{children}</ul>;
 }
 
 function LegalDocument({
   active,
-  eyebrow,
   icon,
   intro,
   sections,
@@ -33,7 +33,6 @@ function LegalDocument({
   go,
 }: {
   active: LegalRoute;
-  eyebrow: string;
   icon: ReactNode;
   intro: ReactNode;
   sections: LegalSection[];
@@ -47,23 +46,22 @@ function LegalDocument({
   ];
 
   return (
-    <section className="relative min-h-screen overflow-hidden px-5 pb-20 pt-32 md:px-12 md:pb-28 md:pt-40 lg:px-20">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-[520px] bg-[radial-gradient(circle_at_72%_18%,rgba(24,200,135,0.12),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.035),transparent_75%)]" />
+    <section className="public-legal-page relative min-h-screen overflow-hidden px-5 pb-20 pt-32 md:px-12 md:pb-28 md:pt-40 lg:px-20">
+      <div aria-hidden="true" className="legal-atmosphere pointer-events-none absolute inset-x-0 top-0 h-[520px]" />
       <div className="relative mx-auto max-w-7xl">
         <div className="grid gap-7 border-b border-white/10 pb-10 lg:grid-cols-[1fr_auto] lg:items-end">
           <div>
-            <div className="mb-6 flex items-center gap-3 text-[#b9f5df]">
-              <span className="grid h-11 w-11 place-items-center border border-[#18c887]/24 bg-[#18c887]/10">{icon}</span>
-              <span className="font-body text-xs font-semibold uppercase tracking-[0.22em]">{eyebrow}</span>
+            <div aria-hidden="true" className="mb-6 flex items-center">
+              <span className="legal-icon grid h-11 w-11 place-items-center border">{icon}</span>
             </div>
-            <h1 className="max-w-4xl font-body text-5xl font-semibold leading-[0.96] tracking-[-0.055em] text-white md:text-7xl lg:text-8xl">{title}</h1>
-            <div className="mt-6 max-w-3xl font-body text-base font-light leading-8 text-white/62">{intro}</div>
-            <p className="mt-5 font-mono text-xs uppercase tracking-[0.18em] text-white/36">Effective {EFFECTIVE_DATE}</p>
+            <h1 className="max-w-4xl text-5xl leading-[0.96] tracking-[-0.055em] md:text-7xl lg:text-8xl">{title}</h1>
+            <div className="legal-intro mt-6 max-w-3xl text-base leading-8">{intro}</div>
+            <p className="legal-meta mt-5 text-xs uppercase tracking-[0.18em]">Effective {EFFECTIVE_DATE}</p>
           </div>
           <nav className="flex flex-wrap gap-2" aria-label="Legal pages">
             {links.map((link) => (
               <button
-                className={`min-h-11 border px-4 font-body text-sm transition ${active === link.id ? "border-[#18c887]/42 bg-[#18c887]/12 text-[#b9f5df]" : "border-white/10 bg-white/[0.025] text-white/55 hover:border-white/24 hover:text-white"}`}
+                className="legal-nav-button min-h-11 border px-4 text-sm"
                 key={link.id}
                 onClick={() => go(link.id)}
                 type="button"
@@ -76,13 +74,13 @@ function LegalDocument({
         </div>
 
         <div className="mt-10 grid gap-10 lg:grid-cols-[240px_minmax(0,1fr)] lg:items-start">
-          <aside className="border border-white/10 bg-white/[0.018] p-5 lg:sticky lg:top-28">
-            <p className="font-body text-xs font-semibold uppercase tracking-[0.2em] text-white/38">On this page</p>
+          <aside className="legal-toc border border-white/10 p-5 lg:sticky lg:top-28">
+            <p className="legal-meta text-xs uppercase tracking-[0.2em]">On this page</p>
             <ol className="mt-5 grid gap-3">
               {sections.map((section, index) => (
                 <li key={section.title}>
-                  <a className="flex gap-3 font-body text-sm leading-5 text-white/48 transition hover:text-[#b9f5df]" href={`#legal-${active}-${index + 1}`}>
-                    <span className="font-mono text-[10px] text-[#18c887]">{String(index + 1).padStart(2, "0")}</span>
+                  <a className="legal-toc-link flex gap-3 text-sm leading-5" href={`#legal-${active}-${index + 1}`}>
+                    <span className="legal-meta text-[11px]">{String(index + 1).padStart(2, "0")}</span>
                     <span>{section.title}</span>
                   </a>
                 </li>
@@ -90,14 +88,14 @@ function LegalDocument({
             </ol>
           </aside>
 
-          <article className="min-w-0 border border-white/10 bg-black/38 px-5 py-2 md:px-9">
+          <article className="legal-article min-w-0 border border-white/10 px-5 py-2 md:px-9">
             {sections.map((section, index) => (
               <section className="scroll-mt-32 border-b border-white/10 py-8 last:border-b-0 md:py-10" id={`legal-${active}-${index + 1}`} key={section.title}>
                 <div className="grid gap-5 md:grid-cols-[48px_minmax(0,1fr)]">
-                  <span className="font-mono text-xs text-[#18c887]">{String(index + 1).padStart(2, "0")}</span>
+                  <span className="legal-meta text-xs">{String(index + 1).padStart(2, "0")}</span>
                   <div>
-                    <h2 className="font-body text-2xl font-semibold tracking-[-0.025em] text-white md:text-3xl">{section.title}</h2>
-                    <div className="mt-4 font-body text-sm font-light leading-7 text-white/62">{section.body}</div>
+                    <h2 className="text-2xl tracking-[-0.025em] md:text-3xl">{section.title}</h2>
+                    <div className="legal-body mt-4">{section.body}</div>
                   </div>
                 </div>
               </section>
@@ -105,9 +103,9 @@ function LegalDocument({
           </article>
         </div>
 
-        <footer className="mt-12 flex flex-col gap-5 border-t border-white/10 pt-7 font-body text-xs text-white/40 md:flex-row md:items-center md:justify-between">
+        <footer className="legal-footer mt-12 flex flex-col gap-5 border-t border-white/10 pt-7 md:flex-row md:items-center md:justify-between">
           <span>© 2026 Cova. Questions: <ContactLink /></span>
-          <button className="inline-flex w-fit items-center gap-2 text-[#b9f5df] hover:text-white" onClick={() => go("overview")} type="button">
+          <button className="legal-return inline-flex w-fit items-center gap-2" onClick={() => go("overview")} type="button">
             Return to Cova <ArrowUpRight className="h-3.5 w-3.5" />
           </button>
         </footer>
@@ -174,7 +172,7 @@ export function PrivacyPage({ go }: LegalPageProps) {
     },
   ];
 
-  return <LegalDocument active="privacy" eyebrow="Privacy & control" icon={<LockKeyhole className="h-5 w-5" />} intro={<>What Cova processes, why it is needed, where it stays, and how to exercise control over it.</>} sections={sections} title="Privacy Policy" go={go} />;
+  return <LegalDocument active="privacy" icon={<LockKeyhole className="h-5 w-5" />} intro={<>What Cova processes, why it is needed, where it stays, and how to exercise control over it.</>} sections={sections} title="Privacy Policy" go={go} />;
 }
 
 export function TermsPage({ go }: LegalPageProps) {
@@ -253,7 +251,7 @@ export function TermsPage({ go }: LegalPageProps) {
     },
   ];
 
-  return <LegalDocument active="terms" eyebrow="Terms & boundaries" icon={<Scale className="h-5 w-5" />} intro={<>The rules for using Cova, the limits of the service, and the responsibilities that stay with the trader.</>} sections={sections} title="Terms of Service" go={go} />;
+  return <LegalDocument active="terms" icon={<Scale className="h-5 w-5" />} intro={<>The rules for using Cova, the limits of the service, and the responsibilities that stay with the trader.</>} sections={sections} title="Terms of Service" go={go} />;
 }
 
 export function SecurityPage({ go }: LegalPageProps) {
@@ -300,5 +298,5 @@ export function SecurityPage({ go }: LegalPageProps) {
     },
   ];
 
-  return <LegalDocument active="security" eyebrow="Security & trust" icon={<ShieldCheck className="h-5 w-5" />} intro={<>How Cova handles local journal data, authentication, provider tokens, infrastructure, deletion, and incident reports.</>} sections={sections} title="Security & Data Handling" go={go} />;
+  return <LegalDocument active="security" icon={<ShieldCheck className="h-5 w-5" />} intro={<>How Cova handles local journal data, authentication, provider tokens, infrastructure, deletion, and incident reports.</>} sections={sections} title="Security & Data Handling" go={go} />;
 }

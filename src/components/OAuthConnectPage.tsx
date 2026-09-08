@@ -1,12 +1,14 @@
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowUpRight, BadgeCheck, LockKeyhole, UserRound } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { isLocalPreview } from "../lib/authEnvironment";
 import { buildFirmConnectUrl, canRedirectToFirmProvider, getFirmProviderHost, getPropFirm, type PropFirmId } from "../lib/propFirms";
 import { GlassButton } from "./GlassButton";
 import { ImageAtmosphere } from "./LayoutShell";
+import "../styles/authConnectionPolish.css";
 
 export function OAuthConnectPage({ firmId, onApprove, onCancel }: { firmId: PropFirmId; onApprove: (firm: PropFirmId) => void; onCancel: () => void }) {
+  const reduceMotion = useReducedMotion();
   const firm = getPropFirm(firmId);
   type OAuthStep = "handoff" | "provider" | "consent";
   const devProviderPreview = isLocalPreview() && firm.id !== "other";
@@ -57,10 +59,10 @@ export function OAuthConnectPage({ firmId, onApprove, onCancel }: { firmId: Prop
 
   if (!hasConfiguredProvider && !devProviderPreview) {
     return (
-      <section className="relative min-h-screen overflow-hidden px-5 pb-24 pt-36 md:px-12 lg:px-20">
+      <section className="auth-connection oauth-connection relative min-h-screen overflow-hidden px-5 pb-24 pt-36 md:px-12 lg:px-20">
         <ImageAtmosphere src="/media/cova-dashboard-plate.jpg" align="right" opacity="opacity-[0.28]" />
-        <div className="relative z-10 mx-auto max-w-3xl rounded-[42px] border border-white/10 bg-black/72 p-8 md:p-12">
-          <p className="font-body text-xs uppercase tracking-[0.24em] text-[#18c887]">Connector unavailable</p>
+        <div className="auth-connection-panel oauth-unavailable relative z-10 mx-auto max-w-3xl rounded-[42px] border border-white/10 bg-black/72 p-8 md:p-12">
+          <p className="font-body text-xs uppercase tracking-[0.24em] text-[#6f96ff]">Connector unavailable</p>
           <h2 className="mt-4 font-body text-4xl font-semibold tracking-[-0.04em] text-white md:text-5xl">{firm.name} direct sign-in is not configured.</h2>
           <p className="mt-5 max-w-2xl font-body text-sm font-light leading-relaxed text-white/58">Cova will not simulate a provider sign-in in production. Return to Trade History and use the provider's CSV export instead.</p>
           <div className="mt-8"><GlassButton onClick={onCancel}>Back to Trade History</GlassButton></div>
@@ -70,22 +72,22 @@ export function OAuthConnectPage({ firmId, onApprove, onCancel }: { firmId: Prop
   }
 
   return (
-    <section className="relative min-h-screen overflow-hidden px-5 pb-24 pt-36 md:px-12 lg:px-20">
+    <section className="auth-connection oauth-connection relative min-h-screen overflow-hidden px-5 pb-24 pt-36 md:px-12 lg:px-20">
       <ImageAtmosphere src="/media/cova-dashboard-plate.jpg" align="right" opacity="opacity-[0.28]" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_78%_28%,rgba(24,200,135,0.14),transparent_32%),linear-gradient(180deg,rgba(0,0,0,0.18),#000_92%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_78%_28%,rgba(111,150,255,0.04),transparent_32%),linear-gradient(180deg,rgba(0,0,0,0.18),#000_92%)]" />
       <div className="relative z-10 mx-auto grid max-w-7xl gap-6 lg:grid-cols-[0.86fr_1.14fr] lg:items-stretch">
         <motion.div
-          className="liquid-glass-strong overflow-hidden rounded-[42px] p-5 md:p-6"
-          initial={{ opacity: 0, y: 24, filter: "blur(10px)" }}
-          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-          transition={{ duration: 0.52, ease: [0.16, 1, 0.3, 1] }}
+          className="auth-connection-panel oauth-summary overflow-hidden rounded-[42px] p-5 md:p-6"
+          initial={reduceMotion ? false : { opacity: 1, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
         >
-          <div className="relative min-h-[560px] overflow-hidden rounded-[34px] border border-white/10 bg-black/54 p-7">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_26%_12%,rgba(24,200,135,0.16),transparent_34%),radial-gradient(circle_at_82%_74%,rgba(255,255,255,0.08),transparent_34%)]" />
-            <div className="absolute inset-x-8 top-8 h-px bg-gradient-to-r from-transparent via-[#b9f5df]/40 to-transparent" />
+          <div className="oauth-summary-content relative min-h-[560px] overflow-hidden rounded-[34px] border border-white/10 bg-black/54 p-7">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_26%_12%,rgba(111,150,255,0.04),transparent_34%),radial-gradient(circle_at_82%_74%,rgba(255,255,255,0.08),transparent_34%)]" />
+            <div className="absolute inset-x-8 top-8 h-px bg-gradient-to-r from-transparent via-[#b5c9ff]/40 to-transparent" />
             <div className="relative z-10 flex min-h-[506px] flex-col justify-between">
               <div>
-                <span className="inline-flex rounded-full border border-[#18c887]/24 bg-[#18c887]/10 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.22em] text-[#b9f5df]">
+                <span className="inline-flex rounded-full border border-[#6f96ff]/24 bg-[#6f96ff]/10 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.22em] text-[#b5c9ff]">
                   {stepCopy[step].eyebrow}
                 </span>
                 <h2 className="mt-8 font-body text-5xl font-semibold leading-[0.98] tracking-[-0.045em] text-white md:text-6xl">
@@ -102,8 +104,8 @@ export function OAuthConnectPage({ firmId, onApprove, onCancel }: { firmId: Prop
                   <p className="mt-2 font-body text-lg font-medium text-white">{firm.name}</p>
                   <p className="mt-1 font-body text-sm text-white/46">{firm.platforms}</p>
                 </div>
-                <div className="rounded-[26px] border border-[#18c887]/16 bg-[#18c887]/[0.055] p-4">
-                  <p className="font-body text-xs uppercase tracking-[0.18em] text-[#b9f5df]/70">Access level</p>
+                <div className="rounded-[26px] border border-[#6f96ff]/16 bg-[#6f96ff]/[0.055] p-4">
+                  <p className="font-body text-xs uppercase tracking-[0.18em] text-[#b5c9ff]/70">Access level</p>
                   <p className="mt-2 font-body text-lg font-medium text-white">Read-only trade history</p>
                   <p className="mt-1 font-body text-sm text-white/46">No orders, no withdrawals, no password storage.</p>
                 </div>
@@ -112,7 +114,7 @@ export function OAuthConnectPage({ firmId, onApprove, onCancel }: { firmId: Prop
                   <div className="mt-3 grid grid-cols-3 gap-2">
                     {stepItems.map(({ id, label }) => (
                       <span
-                        className={`rounded-full border px-3 py-2 text-center font-body text-xs ${step === id ? "border-[#18c887]/30 bg-[#18c887]/12 text-[#b9f5df]" : "border-white/10 bg-white/[0.02] text-white/36"}`}
+                        className={`rounded-full border px-3 py-2 text-center font-body text-xs ${step === id ? "border-[#6f96ff]/30 bg-[#6f96ff]/12 text-[#b5c9ff]" : "border-white/10 bg-white/[0.02] text-white/36"}`}
                         key={id}
                       >
                         {label}
@@ -126,21 +128,22 @@ export function OAuthConnectPage({ firmId, onApprove, onCancel }: { firmId: Prop
         </motion.div>
 
         <motion.div
-          className="liquid-glass rounded-[42px] p-6 md:p-8"
-          initial={{ opacity: 0, x: 28, filter: "blur(10px)" }}
-          animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
-          transition={{ duration: 0.58, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
+          className="auth-connection-panel oauth-form rounded-[42px] p-6 md:p-8"
+          initial={reduceMotion ? false : { opacity: 1, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
         >
           <AnimatePresence mode="wait">
             {step === "handoff" ? (
               <motion.div
                 key="oauth-handoff"
-                initial={{ opacity: 0, y: 12, filter: "blur(8px)" }}
-                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                exit={{ opacity: 0, y: -12, filter: "blur(8px)" }}
-                transition={{ duration: 0.34, ease: [0.16, 1, 0.3, 1] }}
+                className="oauth-step"
+                initial={reduceMotion ? false : { opacity: 1, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 1, y: 0, transition: { duration: 0 } }}
+                transition={{ duration: reduceMotion ? 0 : 0.18, ease: "easeOut" }}
               >
-                <p className="font-body text-xs uppercase tracking-[0.24em] text-[#18c887]">{firm.name} secure handoff</p>
+                <p className="font-body text-xs uppercase tracking-[0.24em] text-[#6f96ff]">{firm.name} secure handoff</p>
                 <h3 className="mt-3 max-w-xl font-body text-4xl font-semibold leading-[1.02] tracking-[-0.04em] text-white md:text-5xl">
                   Leave Cova, sign in there, return approved.
                 </h3>
@@ -152,7 +155,7 @@ export function OAuthConnectPage({ firmId, onApprove, onCancel }: { firmId: Prop
                   <label className="grid gap-2">
                     <span className="font-body text-xs uppercase tracking-[0.16em] text-white/44">Account email or label for this preview</span>
                     <input
-                      className="rounded-[22px] border border-white/10 bg-black/34 px-5 py-4 font-body text-sm text-white outline-none transition placeholder:text-white/26 focus:border-[#18c887]/48"
+                      className="rounded-[22px] border border-white/10 bg-black/34 px-5 py-4 font-body text-sm text-white outline-none transition placeholder:text-white/26 focus:border-[#6f96ff]/48"
                       value={accountEmail}
                       onChange={(event) => setAccountEmail(event.target.value)}
                       placeholder="trader@example.com"
@@ -165,15 +168,15 @@ export function OAuthConnectPage({ firmId, onApprove, onCancel }: { firmId: Prop
                       ["3", "Return approved", "Cova receives read-only history access."],
                     ].map(([number, label, body]) => (
                       <div className="rounded-[22px] border border-white/10 bg-white/[0.025] p-4" key={label}>
-                        <span className="font-mono text-xs text-[#18c887]">0{number}</span>
+                        <span className="font-mono text-xs text-[#6f96ff]">0{number}</span>
                         <p className="mt-2 font-body text-sm font-medium text-white/82">{label}</p>
                         <p className="mt-1 font-body text-xs leading-relaxed text-white/44">{body}</p>
                       </div>
                     ))}
                   </div>
-                  <div className="rounded-[24px] border border-[#18c887]/16 bg-[#18c887]/[0.055] p-5">
+                  <div className="rounded-[24px] border border-[#6f96ff]/16 bg-[#6f96ff]/[0.055] p-5">
                     <div className="flex items-start gap-3">
-                      <LockKeyhole className="mt-0.5 h-5 w-5 shrink-0 text-[#b9f5df]" />
+                      <LockKeyhole className="mt-0.5 h-5 w-5 shrink-0 text-[#b5c9ff]" />
                       <p className="font-body text-sm font-medium leading-relaxed text-white/78">
                         Cova should never ask for your broker or prop-firm password. {shouldRedirectToProvider ? "This button will use the configured connector URL." : "This local preview opens a provider sign-in simulation before approval."}
                       </p>
@@ -183,9 +186,9 @@ export function OAuthConnectPage({ firmId, onApprove, onCancel }: { firmId: Prop
                     <motion.button
                       className="cova-button cova-button-primary inline-flex items-center gap-2 whitespace-nowrap rounded-full px-6 py-3 font-body text-sm font-medium"
                       type="submit"
-                      whileHover={{ y: -2 }}
-                      whileTap={{ scale: 0.985 }}
-                      transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+                      whileHover={reduceMotion ? undefined : { y: -1 }}
+                      whileTap={reduceMotion ? undefined : { scale: 0.995 }}
+                      transition={{ duration: reduceMotion ? 0 : 0.18, ease: "easeOut" }}
                     >
                       Continue to provider <ArrowUpRight className="h-4 w-4" />
                     </motion.button>
@@ -196,19 +199,20 @@ export function OAuthConnectPage({ firmId, onApprove, onCancel }: { firmId: Prop
             ) : step === "provider" ? (
               <motion.div
                 key="oauth-provider"
-                initial={{ opacity: 0, y: 12, filter: "blur(8px)" }}
-                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                exit={{ opacity: 0, y: -12, filter: "blur(8px)" }}
-                transition={{ duration: 0.34, ease: [0.16, 1, 0.3, 1] }}
+                className="oauth-step"
+                initial={reduceMotion ? false : { opacity: 1, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 1, y: 0, transition: { duration: 0 } }}
+                transition={{ duration: reduceMotion ? 0 : 0.18, ease: "easeOut" }}
               >
-                <div className="relative overflow-hidden rounded-[34px] border border-white/10 bg-black/42 p-5 md:p-7">
-                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_76%_16%,rgba(24,200,135,0.12),transparent_28%),radial-gradient(circle_at_20%_86%,rgba(255,255,255,0.07),transparent_26%)]" />
+                <div className="oauth-provider-card relative overflow-hidden rounded-[34px] border border-white/10 bg-black/42 p-5 md:p-7">
+                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_76%_16%,rgba(111,150,255,0.04),transparent_28%),radial-gradient(circle_at_20%_86%,rgba(255,255,255,0.07),transparent_26%)]" />
                   <div className="relative flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-5">
                     <div>
-                      <p className="font-body text-xs uppercase tracking-[0.24em] text-[#18c887]">Provider sign-in simulation</p>
+                      <p className="font-body text-xs uppercase tracking-[0.24em] text-[#6f96ff]">Provider sign-in simulation</p>
                       <h3 className="mt-3 font-body text-3xl font-semibold tracking-[-0.035em] text-white md:text-4xl">{firm.name}</h3>
                     </div>
-                    <span className="rounded-full border border-[#18c887]/20 bg-[#18c887]/10 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-[#b9f5df]">
+                    <span className="rounded-full border border-[#6f96ff]/20 bg-[#6f96ff]/10 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-[#b5c9ff]">
                       Read-only request
                     </span>
                   </div>
@@ -220,8 +224,8 @@ export function OAuthConnectPage({ firmId, onApprove, onCancel }: { firmId: Prop
                           <p className="font-body text-xs uppercase tracking-[0.18em] text-white/38">You are signing into</p>
                           <p className="mt-2 font-body text-2xl font-semibold tracking-[-0.03em] text-white">{firm.name}</p>
                         </div>
-                        <div className="grid h-12 w-12 place-items-center rounded-2xl border border-[#18c887]/20 bg-[#18c887]/10">
-                          <LockKeyhole className="h-5 w-5 text-[#b9f5df]" />
+                        <div className="grid h-12 w-12 place-items-center rounded-2xl border border-[#6f96ff]/20 bg-[#6f96ff]/10">
+                          <LockKeyhole className="h-5 w-5 text-[#b5c9ff]" />
                         </div>
                       </div>
                       <div className="mt-6 space-y-3">
@@ -243,7 +247,7 @@ export function OAuthConnectPage({ firmId, onApprove, onCancel }: { firmId: Prop
                       <label className="grid gap-2">
                         <span className="font-body text-xs uppercase tracking-[0.16em] text-white/44">Provider account</span>
                         <input
-                          className="rounded-[22px] border border-white/10 bg-white/[0.035] px-5 py-4 font-body text-sm text-white outline-none transition placeholder:text-white/26 focus:border-[#18c887]/48"
+                          className="rounded-[22px] border border-white/10 bg-white/[0.035] px-5 py-4 font-body text-sm text-white outline-none transition placeholder:text-white/26 focus:border-[#6f96ff]/48"
                           value={accountEmail}
                           onChange={(event) => setAccountEmail(event.target.value)}
                           placeholder="trader@example.com"
@@ -252,7 +256,7 @@ export function OAuthConnectPage({ firmId, onApprove, onCancel }: { firmId: Prop
                       <label className="grid gap-2">
                         <span className="font-body text-xs uppercase tracking-[0.16em] text-white/44">Authentication</span>
                         <div className="flex items-center gap-3 rounded-[22px] border border-white/10 bg-white/[0.035] px-5 py-4 font-body text-sm text-white/62">
-                          <UserRound className="h-4 w-4 text-[#18c887]" />
+                          <UserRound className="h-4 w-4 text-[#6f96ff]" />
                           Handled by the provider in production
                         </div>
                       </label>
@@ -270,9 +274,9 @@ export function OAuthConnectPage({ firmId, onApprove, onCancel }: { firmId: Prop
                         <motion.button
                           className="cova-button cova-button-primary inline-flex items-center gap-2 whitespace-nowrap rounded-full px-6 py-3 font-body text-sm font-medium"
                           type="submit"
-                          whileHover={{ y: -2 }}
-                          whileTap={{ scale: 0.985 }}
-                          transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+                          whileHover={reduceMotion ? undefined : { y: -1 }}
+                          whileTap={reduceMotion ? undefined : { scale: 0.995 }}
+                          transition={{ duration: reduceMotion ? 0 : 0.18, ease: "easeOut" }}
                         >
                           Sign in and continue <ArrowUpRight className="h-4 w-4" />
                         </motion.button>
@@ -286,12 +290,13 @@ export function OAuthConnectPage({ firmId, onApprove, onCancel }: { firmId: Prop
             ) : (
               <motion.div
                 key="oauth-consent"
-                initial={{ opacity: 0, y: 12, filter: "blur(8px)" }}
-                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                exit={{ opacity: 0, y: -12, filter: "blur(8px)" }}
-                transition={{ duration: 0.34, ease: [0.16, 1, 0.3, 1] }}
+                className="oauth-step"
+                initial={reduceMotion ? false : { opacity: 1, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 1, y: 0, transition: { duration: 0 } }}
+                transition={{ duration: reduceMotion ? 0 : 0.18, ease: "easeOut" }}
               >
-                <p className="font-body text-xs uppercase tracking-[0.24em] text-[#18c887]">Cova is requesting access</p>
+                <p className="font-body text-xs uppercase tracking-[0.24em] text-[#6f96ff]">Cova is requesting access</p>
                 <h3 className="mt-3 max-w-xl font-body text-4xl font-semibold leading-[1.02] tracking-[-0.04em] text-white md:text-5xl">
                   Approve account history for risk review.
                 </h3>
@@ -307,7 +312,7 @@ export function OAuthConnectPage({ firmId, onApprove, onCancel }: { firmId: Prop
                     ["Revocation path", "Disconnect in Cova and revoke provider authorization separately when the provider offers that control."],
                   ].map(([label, body]) => (
                     <div className="flex gap-3 rounded-[22px] border border-white/10 bg-white/[0.025] p-4" key={label}>
-                      <BadgeCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#18c887]" />
+                      <BadgeCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#6f96ff]" />
                       <div>
                         <p className="font-body text-sm font-medium text-white/82">{label}</p>
                         <p className="mt-1 font-body text-xs leading-relaxed text-white/44">{body}</p>

@@ -11,7 +11,6 @@
   --features-cobalt-bright: #6f96ff;
   --features-loss: #ff6578;
   --features-display: "Bricolage Grotesque Variable", "Inter Tight Variable", sans-serif;
-  --features-editorial: "Instrument Serif", serif;
   --features-tech: "DM Mono", "Geist Mono Variable", monospace;
   --features-ui: "Inter Tight Variable", "Inter", sans-serif;
   position: relative;
@@ -68,14 +67,14 @@
 }
 
 .features-showcase-intro h1 {
-  max-width: 12ch;
+  max-width: none;
   margin: 0;
   color: var(--features-polar);
   font-family: var(--features-display);
-  font-size: clamp(4.2rem, 7.4vw, 7.7rem);
+  font-size: clamp(3.6rem, 6.2vw, 6.4rem);
   font-weight: 560;
   letter-spacing: -0.072em;
-  line-height: 0.85;
+  line-height: 0.94;
   text-wrap: balance;
 }
 
@@ -85,11 +84,12 @@
 }
 
 .features-showcase-intro h1 em {
-  padding-left: 0.78ch;
+  padding-left: 0;
   color: rgba(232, 238, 255, 0.88);
-  font-family: var(--features-editorial);
+  font-family: var(--features-display);
+  font-style: normal;
   font-size: 0.96em;
-  font-weight: 400;
+  font-weight: 500;
   letter-spacing: -0.045em;
 }
 
@@ -142,27 +142,6 @@
   border-radius: 11px;
   background: var(--features-panel);
   corner-shape: squircle;
-}
-
-.features-system-rail-heading {
-  display: flex;
-  min-height: 3.2rem;
-  margin-bottom: 0.5rem;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.6rem;
-  padding: 0 0.65rem 0.85rem;
-  border-bottom: 1px solid var(--features-line);
-  color: rgba(232, 238, 255, 0.4);
-  font-family: var(--features-tech);
-  font-size: 0.59rem;
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
-}
-
-.features-system-rail-heading strong {
-  color: rgba(232, 238, 255, 0.64);
-  font-weight: 500;
 }
 
 .features-system-tab {
@@ -241,6 +220,7 @@
 }
 
 .features-instrument-shell {
+  display: grid;
   min-width: 0;
   padding: 1.15rem;
   border-radius: 11px;
@@ -257,6 +237,10 @@
   outline-offset: -3px;
 }
 
+.features-instrument-slot, .features-outcome-content { grid-area: 1 / 1 !important; min-width: 0; }
+.features-instrument-slot[data-active="false"], .features-outcome-content[data-active="false"] { visibility: hidden; pointer-events: none; }
+.features-outcome-reservation { display: grid; min-width: 0; }
+@media (max-width: 1100px) { .features-outcome-reservation { grid-column: 1 / -1; } }
 .features-instrument-transition {
   height: 100%;
 }
@@ -335,14 +319,6 @@
   border-radius: 11px;
   background: var(--features-panel);
   corner-shape: squircle;
-}
-
-.features-outcome-panel > span {
-  color: rgba(111, 150, 255, 0.72);
-  font-family: var(--features-tech);
-  font-size: 0.58rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
 }
 
 .features-outcome-panel h2 {
@@ -465,8 +441,7 @@
 .features-journal-source,
 .features-risk-metrics,
 .features-limits-summary,
-.features-insight-grid,
-.features-passport-stats {
+.features-insight-grid {
   display: grid;
 }
 
@@ -488,8 +463,7 @@
 .features-journal-source span,
 .features-risk-metrics span,
 .features-limits-summary span,
-.features-insight-grid span,
-.features-passport-card span {
+.features-insight-grid span {
   color: rgba(232, 238, 255, 0.4);
   font-family: var(--features-tech);
   font-size: 0.56rem;
@@ -900,136 +874,6 @@
 }
 
 /* Passport */
-.features-passport-card {
-  position: relative;
-  display: flex;
-  min-height: 21rem;
-  flex: 1 1 auto;
-  flex-direction: column;
-  margin: 1rem;
-  padding: 1.2rem;
-  border: 1px solid rgba(111, 150, 255, 0.4);
-  border-radius: 14px;
-  background:
-    radial-gradient(circle at 88% 10%, rgba(79, 125, 255, 0.2), transparent 15rem),
-    linear-gradient(135deg, rgba(232, 238, 255, 0.035), transparent 45%),
-    #0b0e14;
-  overflow: hidden;
-}
-
-.features-passport-card::before {
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(rgba(232, 238, 255, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(232, 238, 255, 0.035) 1px, transparent 1px);
-  background-size: 22px 22px;
-  content: "";
-  opacity: 0.46;
-  pointer-events: none;
-}
-
-.features-passport-card > * {
-  position: relative;
-  z-index: 1;
-}
-
-.features-passport-identity {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.features-passport-identity > div {
-  display: grid;
-  gap: 0.35rem;
-}
-
-.features-passport-identity strong {
-  font-family: var(--features-display);
-  font-size: 1.35rem;
-  font-weight: 550;
-  letter-spacing: -0.045em;
-}
-
-.features-passport-identity em {
-  padding: 0.38rem 0.55rem;
-  border: 1px solid rgba(111, 150, 255, 0.42);
-  color: var(--features-cobalt-bright);
-  font-family: var(--features-tech);
-  font-size: 0.52rem;
-  font-style: normal;
-  letter-spacing: 0.1em;
-}
-
-.features-passport-score {
-  display: grid;
-  gap: 0.3rem;
-  margin-top: 1.6rem;
-}
-
-.features-passport-score strong {
-  font-family: var(--features-display);
-  font-size: clamp(3.8rem, 7vw, 6.2rem);
-  font-weight: 520;
-  letter-spacing: -0.07em;
-  line-height: 0.88;
-}
-
-.features-passport-score small {
-  color: rgba(232, 238, 255, 0.36);
-  font-family: var(--features-tech);
-  font-size: 0.5rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.features-passport-stats {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin-top: 1.5rem;
-  border-block: 1px solid var(--features-line);
-}
-
-.features-passport-stats > div {
-  display: grid;
-  gap: 0.45rem;
-  padding: 0.85rem 0;
-}
-
-.features-passport-stats > div + div {
-  padding-left: 0.85rem;
-  border-left: 1px solid var(--features-line);
-}
-
-.features-passport-stats strong,
-.features-passport-proof strong {
-  font-family: var(--features-ui);
-  font-size: 0.75rem;
-  font-weight: 580;
-}
-
-.features-passport-proof {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 1rem 0;
-  border-bottom: 1px solid var(--features-line);
-}
-
-.features-passport-card > footer {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-top: auto;
-  color: rgba(232, 238, 255, 0.4);
-  font-family: var(--features-tech);
-  font-size: 0.49rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
 
 @media (hover: hover) and (pointer: fine) {
   .features-system-tab:hover:not([aria-selected="true"]) {
@@ -1060,7 +904,6 @@
     padding: 1.25rem;
   }
 
-  .features-outcome-panel > span,
   .features-outcome-panel h2,
   .features-outcome-panel > p {
     grid-column: 1;
@@ -1114,7 +957,7 @@
   }
 
   .features-showcase-intro h1 {
-    max-width: 15ch;
+    max-width: none;
     font-size: 4.35rem;
     line-height: 0.84;
   }
@@ -1148,11 +991,6 @@
     padding-bottom: 0.55rem;
   }
 
-  .features-system-rail-heading {
-    min-height: 2.5rem;
-    padding-bottom: 0.45rem;
-  }
-
   .features-system-tab {
     min-height: 3.42rem;
   }
@@ -1177,11 +1015,6 @@
 
   .features-risk-canvas {
     min-height: 13.7rem;
-  }
-
-  .features-passport-card {
-    min-height: 16rem;
-    margin-block: 0.7rem;
   }
 
   .features-outcome-panel {
@@ -1250,7 +1083,7 @@
   }
 
   .features-showcase-intro h1 {
-    max-width: 10ch;
+    max-width: none;
     font-size: clamp(3.25rem, 15.5vw, 4.5rem);
     line-height: 0.87;
   }
@@ -1293,10 +1126,6 @@
   }
 
   .features-system-rail::-webkit-scrollbar {
-    display: none;
-  }
-
-  .features-system-rail-heading {
     display: none;
   }
 
@@ -1386,8 +1215,7 @@
   .features-journal-source,
   .features-risk-metrics,
   .features-limits-summary,
-  .features-insight-grid,
-  .features-passport-stats {
+  .features-insight-grid {
     grid-template-columns: 1fr 1fr;
   }
 
@@ -1454,21 +1282,6 @@
   .features-insight-action {
     margin: 0.75rem;
   }
-
-  .features-passport-card {
-    min-height: 25rem;
-    margin: 0.65rem;
-    padding: 1rem;
-  }
-
-  .features-passport-score strong {
-    font-size: 4.5rem;
-  }
-
-  .features-passport-proof {
-    align-items: flex-start;
-    flex-direction: column;
-  }
 }
 
 @media (max-width: 430px) {
@@ -1491,11 +1304,6 @@
 
   .features-risk-metrics strong {
     font-size: 1.02rem;
-  }
-
-  .features-passport-stats strong,
-  .features-passport-proof strong {
-    font-size: 0.64rem;
   }
 }
 

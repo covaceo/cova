@@ -49,10 +49,10 @@ assert.match(navbar, /operator-mobile-delete-account[\s\S]*?onClick=\{\(\) => \{
 assert.match(app, /<Navbar[\s\S]*?deleteAccount=\{deleteAccount\}/, "App must wire account deletion into collapsed workspace chrome");
 assert.doesNotMatch(navbar, /bg-white\/8|text-white\/68/, "collapsed current-state styling must use emitted authored classes rather than absent dynamic Tailwind utilities");
 
-assert.match(dashboard, /<h1[^>]*>Risk Desk<\/h1>/, "dashboard must use the concise approved Risk Desk page title");
+assert.match(dashboard, /<h1[^>]*>Your trading, in perspective\.<\/h1>/, "dashboard must use Raf’s approved Astra title");
 assert.match(dashboard, /dashboard-range-controls/, "dashboard must expose visible review-range controls");
-assert.match(dashboard, /dashboard-summary-strip/, "dashboard must lead with a compact source and risk summary strip");
-assert.match(dashboard, /dashboard-instrument-grid/, "dashboard must use the approved equity-instrument and evidence grid");
+assert.match(dashboard, /astra-stat-strip/, "dashboard must lead with the approved four-cell financial strip");
+assert.match(dashboard, /astra-desk-grid/, "dashboard must use the approved Astra chart and discipline composition");
 assert.match(dashboard, /dashboard-review-row/, "dashboard must place the next-session review in a full-width lower row");
 assert.match(dashboard, /getDashboardSummaryAction\(analysis\)/, "dashboard summary action must be derived from the selected review state");
 assert.match(dashboardReviewState, /if \(!analysis\.trades\.length\) return \{ label: "Add trade history", target: "import" \};/, "an empty review must offer trade-history import rather than claim warnings exist");
@@ -96,7 +96,7 @@ assert.doesNotMatch(dashboard, /Net P&L|Net cumulative P&amp;L|imported trade hi
 assert.match(dashboardCards, /\["Reported P&L", formatMoney\(analysis\.totalPnl\)\]/, "shared dashboard metrics must use the same provider-neutral P&L label");
 assert.doesNotMatch(dashboardCards, /\["Net P&L", formatMoney\(analysis\.totalPnl\)\]/, "shared dashboard metrics must not claim Rithmic gross P&L is net");
 assert.match(dashboard, /getTradeSourceLabel\(scopedAnalysis\.trades\)/, "dashboard selected ranges must label only the rows in the selected review");
-assert.match(dashboard, /label: "Review source"/, "the summary cell must state that it labels selected review provenance rather than global account state");
+assert.match(dashboard, /aria-label=\{`Review source: \$\{sourceLabel\}`\}/, "selected-review provenance must remain explicitly labeled independently of account state");
 assert.match(dashboard, /const hasRithmicTrades = analysis\.trades\.some/, "Rithmic resync and required attribution must remain discoverable when provider rows sit outside the selected review range");
 assert.doesNotMatch(dashboard, /brokerStatus/, "connected account state must not overwrite selected-range provenance");
 assert.match(app, /getAccountSourceLabel\(trades, brokerStatus\)/, "workspace account identity must use the account-level connection/source label");

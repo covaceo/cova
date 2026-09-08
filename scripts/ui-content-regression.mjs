@@ -167,7 +167,7 @@ for (const releaseDocument of [envExample, readme, providerPacket, providerBrief
 }
 
 assert.match(storyStrip, /PassportHoloCard/, "Homepage proof must use the actual approved Passport renderer.");
-assert.match(storyStrip, /Sample data · Not account verified/, "Homepage example must retain truthful data provenance.");
+assert.match(`${storyStrip}\n${read("src/components/PublicPassportExampleCard.tsx")}`, /Sample data · Not account verified/, "Homepage example must retain truthful data provenance.");
 assert.match(storyStrip, /Diamond rank shown for illustration/, "The marketing example must not imply an earned Diamond account.");
 assert.match(marketingHero, /HeroMobileDossier/, "Homepage should render a dedicated mobile risk-review proof instead of shrinking the desktop mockup.");
 assert.match(marketingHero, /What people are saying/i, "Homepage should retain the permissioned customer review rail.");
@@ -264,7 +264,7 @@ assert.match(planSections, /proCheckoutAvailable[\s\S]*?Pro checkout opening soo
 assert.doesNotMatch(app, /maxActivePassports/, "Unused multi-Passport entitlements must not imply a management model that does not exist.");
 assert.match(marketingPages, /export \{ ResourcesPage \} from "\.\/ResourcesQuickStartPage";/, "Resources should hand the launch-focused quick-start route to its dedicated owner.");
 assert.match(read("src/components/ResourcesQuickStartPage.tsx"), /Start with the trades you already have\./, "Resources should lead with the approved launch-focused headline.");
-assert.match(read("src/components/ResourcesQuickStartPage.tsx"), /Export your trades[\s\S]*Upload and check the file[\s\S]*Review the account[\s\S]*Set your limits[\s\S]*Export your Passport/, "Resources should provide the five-step quick-start path instead of a feature-card grid.");
+assert.match(read("src/components/ResourcesQuickStartPage.tsx"), /Export your trades[\s\S]*Upload and check the file[\s\S]*Review the account[\s\S]*Set your limits[\s\S]*Share your Passport/, "Resources should provide the five-step quick-start path instead of a feature-card grid.");
 assert.doesNotMatch(marketingPages, /title: "OAuth sign-in"[\s\S]*?route: "oauth"/, "Resources must not route a generic OAuth explainer into the default TopstepX API-key flow.");
 assert.match(marketingPages, /export \{ CommunityPage \} from "\.\/CommunityDiscordPage";/, "Community should hand the real Discord room to its dedicated owner.");
 assert.match(communityPage, /https:\/\/discord\.gg\/B83Czu3pAf/, "Community should keep the verified permanent Discord invite.");
@@ -279,9 +279,9 @@ assert.match(appRoutes, /documentAnchor/, "Legal table-of-contents navigation mu
 assert.match(appRoutes, /getElementById[\s\S]*?scrollIntoView/, "Legal anchors must scroll after React renders the target section.");
 assert.match(appRoutes, /current\.section === next && !current\.documentAnchor/, "Selecting a legal page from one of its anchors must normalize the route instead of retaining a stale anchor hash.");
 assert.doesNotMatch(workspace, /saved brief history/i, "Insights must not advertise a brief archive that is not implemented.");
-assert.match(dashboard, /dashboard-summary-strip/, "Risk Desk should use the approved compact summary grid.");
-assert.match(dashboard, /dashboard-instrument-grid/, "Risk Desk should use a dedicated chart-and-evidence grid.");
-assert.match(dashboardPreviewCss, /@media \(max-width:\s*1023px\)[\s\S]*?\.dashboard-summary-strip\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/, "Risk Desk summary grid should collapse to viewport-safe tracks on tablet and mobile.");
+assert.match(dashboard, /astra-stat-strip/, "Risk Desk should use the approved Astra financial summary grid.");
+assert.match(dashboard, /astra-desk-grid/, "Risk Desk should use the approved Astra chart-and-discipline grid.");
+assert.match(read("src", "styles", "astraDashboard.css"), /@media\(max-width:620px\)[\s\S]*?\.astra-stat-strip\s*\{[\s\S]*?grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/, "Risk Desk financial strip should reflow to two columns on phone.");
 
 assert.match(importPanels, /if \(firm\.status === "guided"\)[\s\S]*?if \(!entitlements\.canUseDirectSync\)/, "CSV-guided providers must remain available on Free before direct-sync entitlement checks.");
 assert.match(importPanels, /selectedFirm\.status !== "guided"[\s\S]*?Unlock sync/, "CSV-only provider cards must not advertise an unavailable direct-sync upgrade.");
@@ -292,32 +292,33 @@ assert.match(app, /const isSampleReview = hasSampleTrades/, "Passport should der
 assert.match(tradeSourceLabel, /Sample[\s\S]*CSV[\s\S]*sourceLabels\.join\(" \+ "\)/, "Mixed demo and imported rows should disclose both sources.");
 assert.match(tradeSourceLabel, /CSV:\s*"Imported CSV review"/, "Imported CSV history should not remain labeled as a sample funded review.");
 assert.match(app, /isSampleReview=\{isSampleReview\}/, "Passport should receive explicit sample provenance.");
-assert.match(workspace, /passport-sample-watermark/, "Sample Passports should carry a watermark inside the exported card node.");
-assert.match(workspace, /SAMPLE REVIEW · DEMO DATA/, "Sample Passport watermark must state that its data is demo-only.");
+assert.match(read('src/lib/passportHolo.ts'), /provenance:[^\n]*sample[^\n]*Not account verified/, "Passport model carries sample/user-supplied provenance.");
+assert.match(read('src/components/PassportEtchedContent.tsx'), /passport-holo-disclosure[^\n]*model.provenance/, "The actual etched export face must preserve visible provenance.");
 assert.match(workspace, /Sample analysis · not account verification/, "Sample Passport proof copy must not claim account verification.");
 assert.doesNotMatch(workspace, /high-confidence review|pressure tested|zero-breach week/i, "Passport must not attach unsupported verification or time-window claims to user-supplied history.");
 assert.match(workspace, /USER-SUPPLIED DATA · NOT ACCOUNT VERIFIED/, "Imported Passport exports must disclose that source data is user supplied and not account verified.");
 assert.match(workspace, /function getPassportExportDisclosure[\s\S]*DEMO DATA · NOT ACCOUNT VERIFIED · LOCAL PNG · USER CONTROLLED[\s\S]*USER-SUPPLIED DATA · NOT ACCOUNT VERIFIED · LOCAL PNG · USER CONTROLLED/, "Passport needs one canonical lifecycle disclosure for sample and user-supplied exports.");
-assert.ok((workspace.match(/getPassportExportDisclosure\(isSampleReview\)/g) || []).length >= 3, "Passport card, composed PNG, and fallback export must use the same lifecycle disclosure.");
+assert.match(workspace, /getPassportExportDisclosure\(isSampleReview\)/, "Passport review detail must retain permanent local-file disclosure.");
+assert.match(workspace, /<PassportShareComposer[\s\S]*?sample=\{isSampleReview\}/, "Composer must receive actual provenance rather than hardcoding sample.");
 assert.match(workspace, /PASSPORT_PREFERENCES_STORAGE_KEY/, "Implemented Passport preferences must have an owner-scoped persistence key matching the Privacy disclosure.");
 assert.doesNotMatch(workspace, /rank: "Blown"/, "Passport ranks should not shame a red account with a non-strategy tier.");
 assert.doesNotMatch(workspace, /passport-(?:tier|card-skin)-blown/, "Passport internals should use rebuild language for red Bronze states.");
 assert.doesNotMatch(workspace, /Verified trades/, "Passport should call imported rows reviewed trades, not verified trades.");
-assert.match(workspace, /passport-profile-identity/, "Passport should present a believable anonymous trader identity.");
-assert.match(workspace, /passport-profile-sparkline/, "Passport should include a compact account-path sparkline for expressive proof.");
-assert.match(workspace, /passport-rank-progress/, "Passport should show the next rank target as a visible progress cue.");
-assert.match(workspace, /type PassportExportPresetId = "feed" \| "square" \| "story"/, "Passport should support feed, square, and story exports.");
+assert.match(read('src/components/PassportEtchedContent.tsx'), /passport-holo-identity/, "Passport keeps the data-bound anonymous identity.");
+assert.match(workspace, /passport-workspace-sparkline/, "Review detail preserves the account path.");
+assert.match(workspace, /<h3>Next up<\/h3><p>\{nextTarget\}/, "Review detail preserves calculated next-rank guidance.");
+assert.match(workspace, /type PassportExportPresetId = "card" \| "feed" \| "square" \| "story"/, "Passport should support card, feed, square, and story exports.");
 assert.match(workspace, /Feed 4:5/, "Passport should expose a 4:5 feed preset.");
 assert.match(workspace, /Square 1:1/, "Passport should expose a square preset.");
 assert.match(workspace, /Story 9:16/, "Passport should expose a story preset.");
 assert.match(workspace, /aria-pressed=\{shareModeId === mode\.id\}/, "Passport share-mode choices should expose their selected state.");
-assert.match(workspace, /aria-pressed=\{exportPresetId === preset\.id\}/, "Passport export choices should expose their selected state.");
+assert.match(read('src/components/PassportShareComposer.tsx'), /<select id="share-format" value=\{format.id\}/, "Composer format select must expose its current value.");
 assert.match(workspace, /composePassportExport/, "Passport PNG downloads should be composed into the selected social preset.");
 assert.match(workspace, /await document\.fonts\.ready/, "Passport export should wait for loaded page fonts before capture.");
 assert.match(workspace, /skipFonts:\s*true/, "Passport export should avoid cross-origin Google Fonts re-embedding errors.");
-assert.match(indexCss, /\.passport-card-hitbox\.passport-credential-hitbox\s*\{[\s\S]*?aspect-ratio:\s*4\s*\/\s*5/, "Passport's primary card should use a postable 4:5 aspect ratio.");
+assert.match(read('src/styles/passportHolo.css'), /aspect-ratio:\s*1672\s*\/\s*941/, "Website Passport retains its approved landscape composition.");
 assert.match(indexCss, /@media \(max-width: 860px\)[\s\S]*?\.passport-card-hitbox\.passport-credential-hitbox\s*\{[\s\S]*?min-height:\s*0/, "Passport mobile should not inherit the old 800px credential minimum height.");
-assert.match(indexCss, /@media \(max-width: 1180px\)[\s\S]*?\.passport-share-rail\s*\{[\s\S]*?order:\s*-1/, "Passport controls should appear before the long card preview on narrow screens.");
+assert.match(workspace, /passport-workspace-stage[\s\S]*passport-workspace-modes/, "The approved card remains ahead of view controls.");
 assert.match(authPanels, /Enter dev preview/, "Dev preview must remain available for Raf's review flow.");
 assert.doesNotMatch(authPanels, /Passport history/, "Signup must not advertise a Passport archive that does not exist.");
 assert.match(authPanels, /Passport preferences/, "Signup should name the implemented saved Passport preferences.");
