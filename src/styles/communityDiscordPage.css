@@ -41,27 +41,6 @@
   max-width: 75rem;
 }
 
-.community-oa-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.55rem;
-  color: var(--community-accent-bright);
-  font-family: "DM Mono", "Geist Mono Variable", monospace;
-  font-size: 0.57rem;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.community-oa-status::before {
-  width: 0.42rem;
-  height: 0.42rem;
-  border-radius: 50%;
-  background: var(--community-accent-bright);
-  box-shadow: 0 0 0 0.3rem rgba(79, 125, 255, 0.1);
-  content: "";
-}
-
 .community-oa-intro h1 {
   max-width: 12.5ch;
   margin: 1rem 0 0;
@@ -78,7 +57,7 @@
   max-width: 48rem;
   margin: 1.2rem 0 0;
   color: rgba(232, 238, 255, 0.62);
-  font-family: "Inter Tight Variable", "Inter", sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: clamp(0.98rem, 1.2vw, 1.12rem);
   font-weight: 400;
   line-height: 1.55;
@@ -170,7 +149,7 @@
 .community-oa-join-copy > p {
   margin: 1.05rem 0 0;
   color: rgba(232, 238, 255, 0.52);
-  font-family: "Inter Tight Variable", "Inter", sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 0.8rem;
   line-height: 1.5;
 }
@@ -244,7 +223,7 @@
 .community-oa-help-flow p {
   margin: 0.4rem 0 0;
   color: rgba(232, 238, 255, 0.48);
-  font-family: "Inter Tight Variable", "Inter", sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 0.68rem;
   line-height: 1.45;
 }
@@ -295,7 +274,7 @@
 .community-oa-room p {
   margin: 0.45rem 0 0;
   color: rgba(232, 238, 255, 0.5);
-  font-family: "Inter Tight Variable", "Inter", sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 0.69rem;
   line-height: 1.45;
 }
@@ -314,7 +293,7 @@
   max-width: 67rem;
   margin: 0;
   color: rgba(232, 238, 255, 0.52);
-  font-family: "Inter Tight Variable", "Inter", sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 0.7rem;
   line-height: 1.5;
 }
@@ -453,8 +432,8 @@
   .community-oa-page *::before,
   .community-oa-page *::after {
     scroll-behavior: auto !important;
-    transition-duration: 0.01ms !important;
-    animation-duration: 0.01ms !important;
+    transition-duration: 0s !important;
+    animation-duration: 0s !important;
     animation-iteration-count: 1 !important;
   }
 

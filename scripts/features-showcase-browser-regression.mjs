@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { preview as startPreview } from "vite";
+import { exercisePill } from "./features-pill-browser-probe.mjs";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const chromePath = process.env.CHROME_PATH || "C:/Program Files/Google/Chrome/Application/chrome.exe";
@@ -158,8 +159,8 @@ const contrastExpression = `(() => {
     return (lighter + 0.05) / (darker + 0.05);
   }
   const subjects = [
-    document.querySelector('.features-instrument-footer span:last-child'),
-    document.querySelector('.features-outcome-panel small'),
+    document.querySelector('.features-instrument-slot[data-active="true"] .features-instrument-footer span:last-child'),
+    document.querySelector('.features-outcome-panel[data-active="true"] small'),
     document.querySelector('.features-showcase-trust span:first-child'),
   ];
   return subjects.map(element => ({ text: element.textContent.trim(), ratio: contrastRatio(element), fontSize: getComputedStyle(element).fontSize }));
@@ -175,7 +176,7 @@ async function oaMetrics() {
   return evaluate(`(() => {
     const frame = document.querySelector('.features-showcase-frame');
     const layout = document.querySelector('.features-showcase-layout');
-    const action = document.querySelector('.features-outcome-action');
+    const action = document.querySelector('.features-outcome-panel[data-active="true"] .features-outcome-action');
     const highlight = document.querySelector('.features-system-tab-highlight');
     const weights = [...document.querySelectorAll('.features-showcase-page h1, .features-showcase-page h2, .features-showcase-page h3, .features-showcase-page strong, .features-showcase-page button')]
       .map((node) => Number.parseInt(getComputedStyle(node).fontWeight, 10))
@@ -190,6 +191,114 @@ async function oaMetrics() {
       maxWeight: Math.max(...weights),
     };
   })()`);
+}
+
+async function exerciseTransitionContinuity(label, rapid = false) {
+  // Sample painted frames, not only the settled tab. Retained exit panels can
+  // ghost through a translucent incoming panel even when both end states pass.
+  const samples = await evaluate(`(async () => {
+    const shell = document.querySelector('[role=tabpanel]');
+    if (!shell) throw new Error('Feature panel missing before continuity probe');
+    const frames = [];
+    const sequence = [0, 1, 2, 3, 4, 3, 2, 1, 0, 4];
+    for (const index of sequence) {
+      document.querySelectorAll('[role=tab]')[index].click();
+      const started = performance.now();
+      do {
+        await new Promise(requestAnimationFrame);
+        const panels = [...shell.querySelectorAll('.features-instrument-slot[data-active="true"] .features-instrument-transition')];
+        frames.push({
+          target: index,
+          stableShell: document.querySelector('[role=tabpanel]') === shell,
+          frameHeight: document.querySelector('.features-showcase-layout').getBoundingClientRect().height,
+          hiddenSafe: [...document.querySelectorAll('[data-active="false"]')].every(node=>node.inert && node.getAttribute('aria-hidden') === 'true' && getComputedStyle(node).visibility === 'hidden'),
+          count: panels.length,
+          opacity: panels.map(node => Number(getComputedStyle(node).opacity)),
+          selected: document.querySelectorAll('[role=tab][aria-selected="true"]').length,
+          instrument: shell.dataset.featureInstrument,
+          headers: panels.map(node => node.querySelector('header')?.textContent),
+          overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        });
+      } while (performance.now() - started < ${rapid ? 45 : 360});
+    }
+    return frames;
+  })()`);
+  if (screenshotDir) {
+    await mkdir(screenshotDir, { recursive: true });
+    await writeFile(join(screenshotDir, `continuity-${label}.json`), JSON.stringify(samples, null, 2));
+  }
+  assert.ok(samples.length >= 20, `${label}: active animation frames must be sampled.`);
+  for (const frame of samples) {
+    assert.equal(frame.count, 1, `${label}: outgoing feature must not linger over the new instrument: ${JSON.stringify(frame)}`);
+    assert.deepEqual(frame.opacity, [1], `${label}: product proof must stay opaque during the switch.`);
+    assert.equal(frame.stableShell, true);
+    assert.equal(frame.selected, 1);
+    assert.equal(frame.overflow, 0);
+    assert.equal(frame.instrument, ['trade-journal', 'risk-review', 'limits', 'insights', 'passport'][frame.target]);
+  }
+  assert.ok(samples.every(frame=>frame.hiddenSafe), `${label}: hidden reservations must be inert and excluded from accessibility`);
+  assert.ok(Math.max(...samples.map(frame=>frame.frameHeight))-Math.min(...samples.map(frame=>frame.frameHeight)) <= 1, `${label}: frame stays stationary throughout normal, rapid and reversed motion`);
+  return { label, frames: samples.length, switches: 10, maxPanels: Math.max(...samples.map(frame => frame.count)), minOpacity: Math.min(...samples.flatMap(frame => frame.opacity)) };
+}
+
+async function exerciseFeatureLayout() {
+  const cases = [];
+  for (const [width, height] of [[1920, 1080], [1440, 1000], [1366, 768], [1280, 625], [1101, 900], [1100, 900], [1024, 768], [900, 900], [768, 900], [767, 900], [390, 844], [320, 740]]) {
+    await setViewport(width, height, width < 768);
+    await navigate(`layout-${width}-${height}`);
+    for (const id of ['trade-journal', 'risk-review', 'limits', 'insights', 'passport']) {
+      await evaluate(`document.getElementById('feature-tab-${id}').click()`);
+      await sleep(400);
+      const metrics = await evaluate(`(() => {
+        const q = selector => document.querySelector(selector);
+        const rect = node => node.getBoundingClientRect().toJSON();
+        const panel = q('.features-outcome-panel[data-active="true"]');
+        const action = q('.features-outcome-panel[data-active="true"] .features-outcome-action');
+        const list = q('.features-outcome-panel[data-active="true"] ul');
+        if (!panel || !action || !list) throw new Error('Missing required Features layout owners');
+        const a = rect(action), l = rect(list), p = rect(panel);
+        const horizontalOverlap = Math.min(a.right, l.right) - Math.max(a.left, l.left);
+        const labels = [...document.querySelectorAll('.features-system-tab strong')].map(node => ({ text: node.textContent, width: node.clientWidth, scrollWidth: node.scrollWidth }));
+        const heading = q('.features-outcome-panel[data-active="true"] h2');
+        const railHeading = q('.features-system-rail-heading');
+        const railGap = !railHeading || getComputedStyle(railHeading).display === 'none' ? null : rect(q('.features-system-tab')).top - rect(railHeading).bottom;
+        const nav = q('.marketing-header:not(.product-header)');
+        const headerGroups = nav && getComputedStyle(nav).display !== 'none' ? [...nav.children].map(rect) : [];
+        const headerControls = headerGroups.length ? [...nav.querySelectorAll('button')].map(node => ({ text: node.textContent || node.getAttribute('aria-label'), ...rect(node) })).sort((a, b) => a.left - b.left) : [];
+        return { width: innerWidth, height: innerHeight, id: q('[data-feature-instrument]').dataset.featureInstrument,
+          frameHeight: rect(q('.features-showcase-layout')).height, shellHeight: rect(q('.features-instrument-shell')).height, outcomeHeight: rect(q('.features-outcome-reservation')).height, action: a, panel: p, actionLineGap: horizontalOverlap > 0 ? a.top - l.bottom : a.left - l.right,
+          actionOverflow: action.scrollWidth - action.clientWidth,
+          labels, railGap, headingWidth: heading.clientWidth, headingScrollWidth: heading.scrollWidth,
+          headerGroups, headerControls, overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth };
+      })()`);
+      cases.push(metrics);
+    }
+  }
+  if (screenshotDir) {
+    await mkdir(screenshotDir, { recursive: true });
+    await writeFile(join(screenshotDir, 'layout-matrix.json'), JSON.stringify(cases, null, 2));
+  }
+  assert.equal(cases.length, 60, 'All five feature systems must be checked at every layout width.');
+  const compositionFailures = [];
+  for (const width of new Set(cases.map(x=>x.width))) {
+    const states=cases.filter(x=>x.width===width);
+    for (const metric of ['frameHeight','shellHeight','outcomeHeight']) assert.ok(Math.max(...states.map(x=>x[metric]))-Math.min(...states.map(x=>x[metric])) <= 1, `${width}: ${metric} must not jump between tabs`);
+  }
+  for (const state of cases) {
+    const label = `${state.width}x${state.height}/${state.id}`;
+    assert.ok(state.actionLineGap >= 16, `${label}: button needs at least 16px clearance from the evidence divider; got ${state.actionLineGap}px`);
+    assert.equal(state.actionOverflow, 0, `${label}: action contents must fit their button.`);
+    assert.equal(state.overflow, 0, `${label}: no horizontal page overflow.`);
+    if (state.labels.some(item => item.scrollWidth > item.width + 1)) compositionFailures.push(`${label}: tab label clipped`);
+    if (state.headingScrollWidth > state.headingWidth + 1) compositionFailures.push(`${label}: outcome heading crosses its column`);
+    if (state.railGap !== null && state.railGap < 10) compositionFailures.push(`${label}: first tab touches the rail divider (${state.railGap}px)`);
+    for (let i = 1; i < state.headerControls.length; i++) {
+      const previous = state.headerControls[i - 1], next = state.headerControls[i];
+      if (next.left - previous.right < 8) compositionFailures.push(`${label}: header controls collide: ${previous.text}/${next.text}`);
+    }
+  }
+  assert.deepEqual(compositionFailures, [], 'Every Features control and text column must have usable clearance.');
+  return { cases: cases.length, tabs: [...new Set(cases.map(state => state.id))], minActionLineGap: Math.min(...cases.map(state => state.actionLineGap)) };
 }
 
 async function exerciseFeatureSystems() {
@@ -207,7 +316,7 @@ async function exerciseFeatureSystems() {
     await waitFor(`document.querySelector('[data-feature-instrument]')?.dataset.featureInstrument === '${instrument}'`);
     await sleep(260);
     const state = await evaluate(`(() => ({
-      action: document.querySelector('.features-outcome-action')?.textContent.trim(),
+      action: document.querySelector('.features-outcome-panel[data-active="true"] .features-outcome-action')?.textContent.trim(),
       highlightCount: document.querySelectorAll('.features-system-tab-highlight').length,
       instrument: document.querySelector('[data-feature-instrument]')?.dataset.featureInstrument,
       overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -252,6 +361,8 @@ try {
   cdp.on("Network.loadingFailed", ({ canceled, errorText, type }) => { if (!canceled && type !== "Other") networkErrors.push(`${type}: ${errorText}`); });
   await Promise.all([cdp.send("Page.enable"), cdp.send("Runtime.enable"), cdp.send("Network.enable")]);
 
+  console.log(JSON.stringify({ pill: await exercisePill({ evaluate, setViewport, navigate, cdp }) }));
+  if (!process.argv.includes('--pill-only')) {
   await setViewport(1440, 900, false);
   await navigate("desktop");
   const desktop = await evaluate(`(() => ({
@@ -262,6 +373,8 @@ try {
   assert.equal(desktop.orientation, "vertical");
   assert.equal(desktop.selected, 1);
   assert.equal(desktop.rootOverflow, 0);
+  const headerFit=await evaluate(`(()=>{const e=document.querySelector('.features-showcase-intro h1 em');return {height:e.getBoundingClientRect().height,line:parseFloat(getComputedStyle(e).lineHeight)}})()`);
+  assert.ok(headerFit.height<=headerFit.line+1,'Desktop Features heading retains its two-line composition after font matching');
   const desktopOaBefore = await oaMetrics();
   assert.equal(desktopOaBefore.highlightCount, 1, "Desktop must render one shared OA active surface.");
   assert.ok(desktopOaBefore.frameRadius >= 18, "Desktop frame must expose the OA squircle radius.");
@@ -270,7 +383,7 @@ try {
   assert.ok(desktopOaBefore.maxWeight <= 500, `OA dashboard type must stop at weight 500; got ${desktopOaBefore.maxWeight}`);
   await evaluate("document.querySelectorAll('[role=tab]')[3].click(); true");
   await waitFor("document.querySelector('[data-feature-instrument]')?.dataset.featureInstrument === 'insights'");
-  await sleep(320);
+  await waitFor("Math.abs(document.querySelector('.features-system-tab-highlight').getBoundingClientRect().top - document.getElementById('feature-tab-insights').getBoundingClientRect().top) < 1");
   const desktopOaAfter = await oaMetrics();
   assert.notEqual(desktopOaAfter.highlightRect.top, desktopOaBefore.highlightRect.top, "The shared OA active surface must travel between desktop rows.");
   await evaluate("document.querySelectorAll('[role=tab]')[1].click(); true");
@@ -279,6 +392,7 @@ try {
   const desktopContrast = await contrastMetrics();
   const desktopScreenshot = await captureScreenshot("cova-features-oa-desktop.png");
   const desktopStates = await exerciseFeatureSystems();
+  const continuity = [await exerciseTransitionContinuity('desktop'), await exerciseTransitionContinuity('desktop-rapid', true)];
 
   await setViewport(1920, 900, false);
   await navigate("wide-desktop");
@@ -352,10 +466,22 @@ try {
   assert.ok(journal.after.scrollLeft > journal.before.scrollLeft, "Mobile Trade Journal scrollLeft must move.");
   assert.ok(journal.after.review.left >= journal.after.shell.left - 1 && journal.after.review.right <= journal.after.shell.right + 1, "Review column must be reachable inside the scroll owner.");
 
+  continuity.push(await exerciseTransitionContinuity('mobile'), await exerciseTransitionContinuity('mobile-rapid', true));
+  await cdp.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+  await sleep(100);
+  continuity.push(await exerciseTransitionContinuity('mobile-reduced', true));
+  await setViewport(1440, 900, false);
+  continuity.push(await exerciseTransitionContinuity('desktop-reduced', true));
+  console.log(JSON.stringify({ continuity }));
+  await cdp.send('Emulation.setEmulatedMedia', { features: [] });
+  console.log(JSON.stringify({ layout: await exerciseFeatureLayout() }));
+
+  console.log(JSON.stringify({ origin, desktop, desktopOaBefore, desktopOaAfter, desktopContrast, desktopScreenshot, desktopStates, wide, shortLaptop, breakpointEdge, mobile, mobileOa, mobileContrast, mobileScreenshot, journal }, null, 2));
+  }
   assert.deepEqual(consoleErrors, []);
   assert.deepEqual(runtimeErrors, []);
   assert.deepEqual(networkErrors, []);
-  console.log(JSON.stringify({ origin, desktop, desktopOaBefore, desktopOaAfter, desktopContrast, desktopScreenshot, desktopStates, wide, shortLaptop, breakpointEdge, mobile, mobileOa, mobileContrast, mobileScreenshot, journal, consoleErrors, runtimeErrors, networkErrors }, null, 2));
+  console.log(JSON.stringify({ origin, consoleErrors, runtimeErrors, networkErrors }, null, 2));
 } finally {
   cdp?.close();
   if (chrome && chrome.exitCode === null) {

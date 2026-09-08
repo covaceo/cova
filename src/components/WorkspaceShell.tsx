@@ -1,5 +1,5 @@
-import { Activity, BarChart3, FileUp, Gauge, LogOut, Network, Search, ShieldCheck, Trash2 } from "lucide-react";
-import { motion } from "motion/react";
+import { Activity, ArrowUpRight, BarChart3, BookOpen, FileUp, Gauge, Home, LayoutGrid, LogOut, Network, Search, ShieldCheck, Trash2 } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
 import { useMemo, useState, type ReactNode } from "react";
 import { isWorkspaceNavActive, type Section } from "../lib/appRoutes";
 
@@ -44,6 +44,7 @@ type WorkspaceShellProps = {
 };
 
 export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go, riskScore, section, signOut }: WorkspaceShellProps) {
+  const reducedMotion = useReducedMotion();
   const [search, setSearch] = useState("");
   const filteredGroups = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -58,13 +59,15 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
   const riskScoreLabel = typeof riskScore === "number" && Number.isFinite(riskScore) ? String(riskScore) : "--";
 
   return (
-    <div className={`workspace-shell operator-workspace ${section === "dashboard" ? "oa-dashboard-shell" : ""}`} data-workspace-section={section}>
+    <div className="workspace-shell operator-workspace oa-dashboard-shell" data-workspace-section={section}>
       <aside className="workspace-sidebar" aria-label="Cova workspace navigation">
         <div className="workspace-sidebar-brand">
           <button className="workspace-brand-button" onClick={() => go("dashboard")} type="button" aria-label="Go to Cova risk desk">
             <img src="/media/wordmark-options/cova-wordmark-option-3-sleek-cropped.png" alt="Cova" />
           </button>
         </div>
+
+        <button className="astra-rail-account" onClick={() => go("import")} type="button"><span className="astra-rail-account-icon" aria-hidden="true">{(email || "C").slice(0, 1).toUpperCase()}</span><span><strong>Account review</strong><small>{brokerLabel}</small></span><ArrowUpRight aria-hidden="true" /></button>
 
         <label className="workspace-sidebar-search">
           <Search aria-hidden="true" className="h-4 w-4" />
@@ -80,10 +83,10 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
         <nav className="workspace-sidebar-nav">
           {filteredGroups.map((group) => (
             <div className="workspace-sidebar-group" key={group.label}>
-              <p className="workspace-sidebar-group-label">{group.label}</p>
+              <p className="workspace-sidebar-group-label">{({ Review: "Workspace", Proof: "Your record" }[group.label] || group.label)}</p>
               <div className="workspace-sidebar-group-links">
                 {group.items.map((item) => {
-                  const Icon = item.icon;
+                  const Icon = item.id === "dashboard" ? LayoutGrid : item.icon;
                   const active = isWorkspaceNavActive(section, item.id);
                   return (
                     <button
@@ -93,12 +96,12 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
                       type="button"
                       aria-current={active ? "page" : undefined}
                     >
-                      {active && section === "dashboard" && (
+                      {active && (
                         <motion.span
                           aria-hidden="true"
                           className="oa-workspace-nav-highlight"
                           layoutId="oa-workspace-nav-highlight"
-                          transition={{ type: "spring", stiffness: 550, damping: 40 }}
+                          transition={reducedMotion ? { duration: 0 } : { type: "spring", stiffness: 550, damping: 40 }}
                         />
                       )}
                       <span className="workspace-sidebar-icon"><Icon className="h-4 w-4" /></span>
@@ -112,6 +115,7 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
           {filteredGroups.length === 0 && <p className="workspace-sidebar-empty">No matching workspace route.</p>}
         </nav>
 
+        <div className="astra-rail-utilities"><button type="button" title="Quick start" onClick={() => go("resources")}><BookOpen aria-hidden="true" />Quick start</button><button type="button" title="Back to website" onClick={() => go("overview")}><Home aria-hidden="true" />Back to website</button></div>
         <div className="workspace-risk-status" aria-label={`Cova risk score ${riskScoreLabel === "--" ? "not available" : riskScoreLabel}`}>
           <span className="workspace-risk-status-copy"><Activity aria-hidden="true" className="h-4 w-4" />Risk status</span>
           <strong>{riskScoreLabel}</strong>
@@ -142,9 +146,23 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
         </div>
       </aside>
 
-      <div className="workspace-content">
-        {children}
-      </div>
+      <motion.div
+        className="workspace-content"
+        key={section}
+        initial={reducedMotion ? false : { y: 8 }}
+        animate={{ y: 0 }}
+        transition={{ duration: reducedMotion ? 0 : 0.2, ease: "easeOut" }}
+      >
+        {section === "dashboard" ? children : (
+          <div className="astra-workspace-page" data-astra-route={section}>
+            <div className="astra-deskbar">
+              <div className="astra-breadcrumb"><span>Workspace</span><span aria-hidden="true">/</span><strong>{workspaceNavGroups.flatMap<WorkspaceNavItem>(group => group.items).find(item => isWorkspaceNavActive(section,item.id))?.label}</strong></div>
+              <div className="astra-deskbar-tools"><span className="astra-source-label">{brokerLabel}</span><button type="button" className="astra-button" onClick={() => go("dashboard")}>Risk Desk <ArrowUpRight aria-hidden="true" /></button></div>
+            </div>
+            {children}
+          </div>
+        )}
+      </motion.div>
     </div>
   );
 }

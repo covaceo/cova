@@ -1,4 +1,6 @@
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
+import { PublicPassportExampleCard } from "./PublicPassportExampleCard";
+import { FeaturesTabHighlight } from "./FeaturesTabHighlight";
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -18,9 +20,8 @@ type FeatureIcon = typeof Gauge;
 
 const OA_LAYOUT_SPRING = { type: "spring", stiffness: 550, damping: 40 } as const;
 const OA_PANEL_VARIANTS = {
-  enter: (direction: number) => ({ opacity: 0.88, x: direction * 12 }),
-  center: { opacity: 1, x: 0 },
-  exit: (direction: number) => ({ opacity: 0.92, x: direction * -12 }),
+  enter: (direction: number) => ({ x: direction * 12 }),
+  center: { x: 0 },
 };
 
 type FeatureSystem = {
@@ -233,39 +234,30 @@ function InsightsInstrument() {
 }
 
 
-function PassportInstrument() {
+function PassportInstrument({ active }: { active: boolean }) {
   return (
     <div className="features-instrument features-passport-instrument">
       <InstrumentHeader label="SAMPLE / NOT VERIFIED" meta="RISK PASSPORT" />
-      <div className="features-passport-card">
-        <div className="features-passport-identity"><div><span>COVA</span><strong>Risk Passport</strong></div><em>BRONZE</em></div>
-        <div className="features-passport-score"><span>Discipline score</span><strong>82</strong><small>sample review</small></div>
-        <div className="features-passport-stats">
-          <div><span>Reported P&L</span><strong>+$1.6k</strong></div>
-          <div><span>Rule warnings</span><strong>02</strong></div>
-          <div><span>Profit factor</span><strong>1.48</strong></div>
-        </div>
-        <div className="features-passport-proof"><span>Review proof</span><strong>20 sample trades · 4 rules checked</strong></div>
-        <footer><span>Privacy mode: initials</span><span>Illustrative preview</span></footer>
-      </div>
+      <div className="features-passport-preview"><PublicPassportExampleCard active={active} /></div>
       <footer className="features-instrument-footer"><span>SAMPLE REVIEW</span><span>Member exports use that member's reviewed data and privacy settings.</span></footer>
     </div>
   );
 }
 
-function FeatureInstrument({ featureId }: { featureId: FeatureId }) {
+function FeatureInstrument({ featureId, active }: { featureId: FeatureId; active: boolean }) {
   if (featureId === "trade-journal") return <TradeJournalInstrument />;
   if (featureId === "limits") return <LimitsInstrument />;
   if (featureId === "insights") return <InsightsInstrument />;
-  if (featureId === "passport") return <PassportInstrument />;
+  if (featureId === "passport") return <PassportInstrument active={active} />;
   return <RiskReviewInstrument />;
 }
 
-export function FeaturesPage({ go, openAuth }: { go: (section: Section) => void; openAuth: (mode: AuthMode) => void }) {
+export function FeaturesPage({ go, openAuth, isSignedIn = false }: { go: (section: Section) => void; openAuth: (mode: AuthMode) => void; isSignedIn?: boolean }) {
   const [activeId, setActiveId] = useState<FeatureId>("risk-review");
   const [compactTabs, setCompactTabs] = useState(() => typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches);
   const reduceMotion = useReducedMotion();
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
   const activeFeature = featureSystems.find((feature) => feature.id === activeId) ?? featureSystems[1];
   const activeIndex = featureSystems.indexOf(activeFeature);
   const previousIndexRef = useRef(activeIndex);
@@ -286,7 +278,14 @@ export function FeaturesPage({ go, openAuth }: { go: (section: Section) => void;
 
   function selectFeature(id: FeatureId, index?: number) {
     setActiveId(id);
-    if (typeof index === "number") tabRefs.current[index]?.focus();
+    const tab = tabRefs.current[index ?? featureSystems.findIndex((feature) => feature.id === id)];
+    if (typeof index === "number") tab?.focus({ preventScroll: true });
+    const rail = tab?.parentElement;
+    if (compactTabs && tab && rail) {
+      const target = tab.getBoundingClientRect(), bounds = rail.getBoundingClientRect();
+      const delta = target.left < bounds.left ? target.left - bounds.left : target.right > bounds.right ? target.right - bounds.right : 0;
+      if (delta) rail.scrollBy({ left: delta, behavior: "instant" });
+    }
   }
 
   function handleTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
@@ -309,13 +308,15 @@ export function FeaturesPage({ go, openAuth }: { go: (section: Section) => void;
             <h1><span>One account.</span> <em>One review system.</em></h1>
             <p>Cova turns trade history into risk review, guardrails, insights, and proof.</p>
           </div>
-          <StartFreeButton icon onClick={() => openAuth("signup")} />
+          <StartFreeButton icon onClick={() => isSignedIn ? go("dashboard") : openAuth("signup")}>
+            {isSignedIn ? "Open dashboard" : "Sign up"}
+          </StartFreeButton>
         </header>
 
         <div className="features-showcase-frame">
           <div className="features-showcase-layout">
             <nav className="features-system-rail" aria-label="Cova product systems" role="tablist" aria-orientation={compactTabs ? "horizontal" : "vertical"}>
-              <div className="features-system-rail-heading"><span>System index</span><strong>05 modules</strong></div>
+              <FeaturesTabHighlight activeId={activeId} />
               {featureSystems.map((feature, index) => {
                 const isActive = activeFeature.id === feature.id;
                 const Icon = feature.Icon;
@@ -333,14 +334,6 @@ export function FeaturesPage({ go, openAuth }: { go: (section: Section) => void;
                     tabIndex={isActive ? 0 : -1}
                     type="button"
                   >
-                    {isActive && (
-                      <motion.span
-                        aria-hidden="true"
-                        className="features-system-tab-highlight"
-                        layoutId="features-oa-active-surface"
-                        transition={layoutTransition}
-                      />
-                    )}
                     <span className="features-system-tab-index">{String(index + 1).padStart(2, "0")}</span>
                     <Icon aria-hidden="true" />
                     <strong>{feature.label}</strong>
@@ -358,33 +351,39 @@ export function FeaturesPage({ go, openAuth }: { go: (section: Section) => void;
               role="tabpanel"
               tabIndex={0}
             >
-              <AnimatePresence custom={direction} initial={false} mode="popLayout">
-                <motion.div
-                  animate="center"
-                  className="features-instrument-transition"
-                  custom={direction}
-                  exit={reduceMotion ? undefined : "exit"}
-                  initial={reduceMotion ? false : "enter"}
-                  key={activeFeature.id}
-                  transition={reduceMotion ? { duration: 0 } : { opacity: { duration: 0.12, ease: "easeOut" }, x: OA_LAYOUT_SPRING }}
-                  variants={OA_PANEL_VARIANTS}
-                >
-                  <FeatureInstrument featureId={activeFeature.id} />
-                </motion.div>
-              </AnimatePresence>
+              {/* Intrinsic grid reservations keep the frame stable at every width.
+                  Inactive slots cannot paint, receive focus or expose stale proof. */}
+              {featureSystems.map((feature) => {
+                const isActive = feature.id === activeFeature.id;
+                return <div className="features-instrument-slot" data-active={isActive} aria-hidden={!isActive} key={feature.id} ref={(node) => { node?.toggleAttribute("inert", !isActive); }}>
+                  <motion.div
+                    animate="center"
+                    className="features-instrument-transition"
+                    custom={direction}
+                    initial={reduceMotion || !isActive ? false : "enter"}
+                    key={`${feature.id}-${isActive}`}
+                    transition={layoutTransition}
+                    variants={OA_PANEL_VARIANTS}
+                  >
+                    <FeatureInstrument featureId={feature.id} active={isActive} />
+                  </motion.div>
+                </div>;
+              })}
             </div>
 
-            <aside className="features-outcome-panel" aria-live="polite">
-              <span>Selected system / {String(featureSystems.indexOf(activeFeature) + 1).padStart(2, "0")}</span>
-              <h2>{activeFeature.outcome}</h2>
-              <p>{activeFeature.summary}</p>
-              <ul>
-                {activeFeature.evidence.map((item) => <li key={item}>{item}</li>)}
-              </ul>
-              <button className="features-outcome-action" onClick={() => go(activeFeature.route)} type="button">
-                {activeFeature.action}<ArrowUpRight aria-hidden="true" />
-              </button>
-              <small>{activeFeature.trust}</small>
+            <aside className="features-outcome-reservation" aria-live="polite">
+              {featureSystems.map((feature) => {
+                const isActive = feature.id === activeFeature.id;
+                return <div className="features-outcome-panel features-outcome-content" data-active={isActive} aria-hidden={!isActive} key={feature.id} ref={(node) => { node?.toggleAttribute("inert", !isActive); }}>
+                  <h2>{feature.outcome}</h2>
+                  <p>{feature.summary}</p>
+                  <ul>{feature.evidence.map((item) => <li key={item}>{item}</li>)}</ul>
+                  <button className="features-outcome-action" onClick={() => go(feature.route)} type="button">
+                    {feature.action}<ArrowUpRight aria-hidden="true" />
+                  </button>
+                  <small>{feature.trust}</small>
+                </div>;
+              })}
             </aside>
           </div>
         </div>

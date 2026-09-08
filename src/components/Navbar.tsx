@@ -67,6 +67,7 @@ export function Navbar({ section, go, openAuth, mobileOpen, setMobileOpen, authS
 
   return (
     <motion.header
+      data-section={section}
       className={`fixed left-0 right-0 top-0 z-50 px-4 pb-3 pt-6 md:px-8 ${usesWorkspaceChrome ? "workspace-top-header" : ""} ${authSession && !usesWorkspaceChrome ? "signed-in-marketing-header-shell" : ""}`}
       initial={{ opacity: 0, y: -24 }}
       animate={{ opacity: 1, y: 0 }}

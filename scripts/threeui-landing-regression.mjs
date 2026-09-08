@@ -204,7 +204,7 @@ assert.match(indexCss, /@media \(max-width: 700px\)[\s\S]*\.cova-site-footer-met
 assert.match(indexCss, /\.cova-site-footer-orb\s*\{[\s\S]*width:\s*1\.75rem;[\s\S]*height:\s*1\.75rem;/, "Footer Brand Orb hit targets must stay compact beside the footer words.");
 
 assert.doesNotMatch(storyStrip, /#18c887|#b9f5df|text-emerald/i, "How Cova Works must not retain legacy green.");
-assert.match(storyStrip, /#4f7dff|#6f96ff/);
+assert.match(main, /import "\.\/styles\/homeStory\.css";/, "The approved card-first homepage uses its own final, scoped stylesheet.");
 assert.match(css, /\.story-strip-simple\s*\{[\s\S]*#08090c[\s\S]*rgba\(79, 125, 255/);
 assert.match(css, /\.story-strip-simple \.story-section-kicker::before\s*\{[\s\S]*background:\s*#4f7dff/);
 assert.match(css, /\.trade-proof-summary-panel\s*\{[\s\S]*border-top:\s*1px solid rgba\(79, 125, 255/);

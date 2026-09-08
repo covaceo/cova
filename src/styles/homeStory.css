@@ -1,0 +1,72 @@
+/* Approved homepage A: card-first, four visible steps. No workspace overrides. */
+section.story-strip-simple.home-story {
+  position: relative;
+  padding: 104px clamp(24px, 6.8vw, 114px) 72px !important;
+  overflow: clip;
+  background: #08090c !important;
+  color: #e8eeff;
+  border: 0;
+  scroll-margin-top: 80px;
+  font-family: "Inter Tight Variable", Inter, Arial, sans-serif;
+}
+.home-story .home-story-inner { width: 100%; max-width: 1440px; margin-inline: auto; }
+.home-story .home-story-layout { display: grid; grid-template-columns: minmax(0, .46fr) minmax(0, .54fr); gap: 48px; align-items: start; }
+.home-story .home-story-copy { min-width: 0; }
+.home-story .home-story-label { margin: 0 0 32px; font-size: 20px; line-height: 1.4; color: #e8eeff; }
+.home-story .home-story-label::after { content: ""; display: block; width: 44px; height: 1px; margin-top: 14px; background: #6f96ff; }
+.home-story #home-story-title { margin: 0; max-width: none; font-family: "Inter Tight Variable", Inter, Arial, sans-serif !important; font-style: normal; font-size: clamp(42px, 4.1vw, 68px); font-weight: 450 !important; line-height: 1.21 !important; letter-spacing: -.045em !important; color: #e8eeff; }
+.home-story #home-story-title > span { display: block; }
+.home-story .home-story-description { margin: 26px 0 0; font-size: clamp(17px, 1.32vw, 22px); line-height: 1.55; letter-spacing: -.015em; color: #c9cdd6; }
+.home-story .home-story-action { display: inline-flex; align-items: center; justify-content: center; gap: 20px; min-height: 48px; margin-top: 38px; padding: 10px 23px; border: 1px solid #526ea6; border-radius: 999px; background: #08090c; color: #9db7ff; font-size: 16px; font-weight: 450; text-decoration: none; transition: background-color .16s, border-color .16s; }
+.home-story .home-story-action:hover { background: #101827; border-color: #8faeff; }
+.home-story .home-story-action:focus-visible { outline: 2px solid #a8bfff; outline-offset: 4px; }
+.home-story .home-story-action svg { flex-shrink: 0; }
+.home-story .home-story-artifact { min-width: 0; margin: 24px 0 0; padding: 0; background: none; border: 0; }
+.home-story .home-story-card { position: relative; width: 100%; aspect-ratio: 1284 / 756; }
+/* Remove only the material plate's empty margins. Artwork and type stay exact. */
+.home-story .home-story-stage { position: absolute; width: 130.218%; aspect-ratio: 1672 / 941; left: -14.953%; top: -11.375%; filter: drop-shadow(0 18px 21px rgb(0 0 0 / .4)); }
+.home-story .home-story-stage > .passport-card-face.passport-holo-face { position: absolute; inset: 0 auto auto 0; display: block; width: 100%; height: auto; aspect-ratio: 1672 / 941; min-height: 0; padding: 0; margin: 0; overflow: visible; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; background: transparent !important; filter: none; transform-origin: 50% 50%; touch-action: pan-y; }
+.home-story .passport-holo-face::before, .home-story .passport-holo-face::after { display: none !important; content: none !important; }
+.home-story .passport-holo-face:focus-visible { outline: none !important; }
+.home-story .home-story-card:has(.passport-holo-face:focus-visible) { outline: 2px solid #9db7ff !important; outline-offset: 6px; border-radius: 14px; }
+.home-story .passport-holo-face > .passport-optics-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: none; pointer-events: none; }
+.home-story .passport-holo-face[data-optics="ready"] > .passport-optics-canvas { display: block; }
+.home-story .passport-holo-face[data-optics="ready"] > .passport-holo-art > image { opacity: 0; }
+.home-story .passport-holo-face > svg.passport-holo-art { position: relative; z-index: 1; display: block; width: 100%; height: auto; max-width: none; overflow: visible; aspect-ratio: 1672 / 941; transform: none; filter: none; }
+.home-story .home-story-caption { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.home-story .home-story-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; list-style: none; margin: 64px 0 0; padding: 38px 0; border: 1px solid #1b1e26; border-radius: 14px; background: #0b0d12; }
+.home-story .home-story-step { min-width: 0; padding: 0 clamp(20px, 3.1vw, 60px); }
+.home-story .home-story-step + .home-story-step { border-left: 1px solid #20232c; }
+.home-story .home-story-index { display: block; margin-bottom: 14px; color: #8fafff; font-family: "DM Mono", monospace; font-size: 14px; line-height: 1.2; }
+.home-story .home-story-step h3 { margin: 0; font-family: inherit; font-size: clamp(24px, 1.85vw, 31px); font-weight: 450; line-height: 1.25; letter-spacing: -.025em; color: #e8eeff; }
+.home-story .home-story-step:last-child h3 { color: #8fafff !important; }
+.home-story .home-story-step p { margin: 10px 0 0; font-size: clamp(14px, 1.14vw, 19px); line-height: 1.5; color: #bdc3ce; }
+@media (max-width: 1100px) {
+  section.story-strip-simple.home-story { padding: 80px 40px 64px !important; }
+  .home-story .home-story-layout { gap: 36px; grid-template-columns: minmax(0, .46fr) minmax(0, .54fr); align-items: center; }
+  .home-story #home-story-title { font-size: clamp(40px, 4.2vw, 48px); }
+  .home-story .home-story-label { margin-bottom: 24px; font-size: 17px; }
+  .home-story .home-story-description { font-size: 17px; }
+  .home-story .home-story-step { padding-inline: 22px; }
+  .home-story .home-story-steps { margin-top: 48px; padding-block: 28px; }
+  .home-story .home-story-caption { position: static; width: auto; height: auto; margin-top: 24px; overflow: visible; clip-path: none; white-space: normal; color: #aeb9cc; font-size: 12px; line-height: 1.5; }
+}
+@media (max-width: 760px) {
+  section.story-strip-simple.home-story { padding: 64px 24px 56px !important; scroll-margin-top: 64px; }
+  .home-story .home-story-layout { grid-template-columns: minmax(0, 1fr); gap: 46px; }
+  .home-story .home-story-label { font-size: 16px; }
+  .home-story #home-story-title { font-size: clamp(39px, 8.7vw, 56px); }
+  .home-story .home-story-description { margin-top: 22px; font-size: 17px; }
+  .home-story .home-story-action { margin-top: 26px; }
+  .home-story .home-story-artifact { width: 100%; max-width: 520px; margin: 0 auto; }
+  .home-story .home-story-caption { margin-top: 18px; }
+  .home-story .home-story-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 36px; padding: 0; }
+  .home-story .home-story-step { padding: 24px 20px; }
+  .home-story .home-story-step:nth-child(3) { border-left: 0; }
+  .home-story .home-story-step:nth-child(n+3) { border-top: 1px solid #20232c; }
+  .home-story .home-story-step h3 { font-size: 24px; }
+  .home-story .home-story-step p { font-size: 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-story .home-story-action { transition: none; }
+}

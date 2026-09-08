@@ -1,5 +1,7 @@
 node_modules/
 dist/
+dist-astra-preview/
+dist-astra-export/
 tmp/
 
 .env

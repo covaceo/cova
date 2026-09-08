@@ -39,6 +39,14 @@ import "./styles/threeUiLanding.css";
 import "./styles/featuresShowcase.css";
 import "./styles/resourcesQuickStart.css";
 import "./styles/communityDiscordPage.css";
+import "./styles/passportHolo.css";
+import "./styles/passportWorkspace.css";
+import "./styles/astraWorkspace.css";
+import "./styles/astraWorkspaceContent.css";
+import "./styles/astraDashboard.css";
+import "./styles/homeStory.css";
+import "./styles/publicPassportExample.css";
+import "./styles/siteInteractionPolish.css";
 
 if (navigator.platform.startsWith("Win")) {
   document.documentElement.classList.add("cova-platform-windows");

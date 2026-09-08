@@ -1,0 +1,53 @@
+@font-face { font-family: 'Cova Share'; src: url('../assets/fonts/passport-inter-tight.woff2') format('woff2'); font-weight: 100 900; font-display: swap; }
+.passport-share-dialog { --share-ink: #e8eeff; --share-muted: #a2aabd; --share-line: #292d36; padding: 0; border: 1px solid #252a33; border-radius: 22px; color: var(--share-ink); background: #08090c; width: min(100% - 48px, 600px); max-width: none; height: min(920px, 100dvh - 48px); max-height: none; overflow: hidden; font: 400 14px/1.4 'Cova Share', Arial, sans-serif; box-shadow: 0 30px 120px #0009; }
+.passport-share-dialog::backdrop { background: #03050bd9; }
+.passport-share-dialog * { box-sizing: border-box; }
+.passport-share-dialog button, .passport-share-dialog select { font: inherit; color: inherit; cursor: pointer; }
+.passport-share-dialog button { -webkit-tap-highlight-color: transparent; border: 0; background: none; }
+.passport-share-dialog button:disabled { opacity: .4; cursor: default; }
+.passport-share-dialog button:focus-visible, .passport-share-dialog select:focus-visible { outline: 2px solid #6f96ff; outline-offset: 3px; }
+.passport-share-shell { height: 100%; display: flex; flex-direction: column; min-height: 0; }
+.passport-share-sr, .passport-share-notice:not(.is-visible) { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+.passport-share-header { flex: 0 0 auto; display: flex; align-items: center; justify-content: flex-end; padding: 18px 16px 0; min-height: 64px; }
+.passport-share-close { display: grid; place-items: center; width: 44px; height: 44px; flex-shrink: 0; color: #b4bac7 !important; border-radius: 50%; }
+.passport-share-scroll { min-height: 0; overflow: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #2b303a #08090c; flex: 1 1 auto; }
+.passport-share-modes { display: flex; justify-content: center; gap: 0; padding: 0 12px 20px; }
+.passport-share-modes button { min-height: 44px; padding: 8px 13px; font-size: 15px; color: var(--share-muted); border-radius: 6px; }
+.passport-share-modes button[aria-pressed=true] { color: #f6f8ff; font-weight: 550; }
+.passport-share-preview { --slide-width: min(82vw, 470px, calc(max(270px, 100dvh - 360px) * var(--share-ratio))); width: var(--slide-width); margin: 0 auto; }
+.passport-share-image { aspect-ratio: var(--share-ratio); border-radius: 18px; overflow: hidden; background: #11151d; }
+.passport-share-image img { display: block; width: 100%; height: 100%; object-fit: contain; user-select: none; }
+.passport-share-loading { min-height: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 12px; padding: 22px; text-align: center; color: #a2aabd; font-size: 13px; }
+.passport-share-loading p { margin: 0; }
+.passport-share-loading button { min-height: 44px; padding: 8px 16px; border: 1px solid currentColor; border-radius: 8px; }
+.passport-share-controls { display: flex; align-items: center; justify-content: center; gap: 9px; padding: 23px 12px 0; }
+.passport-share-visibility { display: flex; gap: 9px; }
+.passport-share-visibility button { display: inline-flex; gap: 7px; align-items: center; justify-content: center; min-height: 38px; padding: 7px 11px; border: 1px solid var(--share-line); border-radius: 6px; font-size: 12px; font-weight: 450; }
+.passport-share-visibility svg { color: #c6ccd8; flex-shrink: 0; }
+.passport-share-visibility [aria-pressed=true] { border-color: #697eaa; background: #162033; }
+.passport-share-visibility button:disabled[aria-pressed=true] { opacity: 1; }
+.passport-share-format { display: flex; align-items: center; font-size: 12px; }
+.passport-share-format select { color-scheme: dark; min-height: 38px; padding: 7px 8px; background: #08090c; border: 1px solid var(--share-line); border-radius: 6px; max-width: 90px; }
+.passport-share-footer { position: relative; flex: 0 0 auto; padding: 14px 20px 22px; background: #08090c; text-align: center; }
+.passport-share-notice.is-visible { color: #b6bfce; font-size: 12px; line-height: 1.45; max-width: 320px; margin: 0 auto 12px; }
+.passport-share-notice.is-error { color: #ff9cac; }
+.passport-share-actions { display: flex; align-items: flex-start; justify-content: center; gap: 22px; }
+.passport-share-actions button { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 72px; font-size: 13px; font-weight: 450; padding: 0 4px; border-radius: 12px; }
+.passport-share-actions button > span { display: grid; place-items: center; width: 54px; height: 54px; border: 1px solid #2b2e35; border-radius: 50%; background: #0e1015; }
+.passport-share-save { color: #a2aabd !important; font-size: 12px !important; min-height: 44px; min-width: 100px; margin-top: 12px; padding: 8px 12px; border-radius: 6px; }
+@media (hover: hover) { .passport-share-dialog button:not(:disabled):hover { color: #fff; } .passport-share-close:hover { background: #171a21; } .passport-share-actions button:not(:disabled):hover > span { border-color: #8d9ab0; } }
+@media (min-width: 621px) { .passport-share-preview { --slide-width: min(82vw, 470px, calc(max(270px, min(920px, 100dvh - 48px) - 418px) * var(--share-ratio))); } }
+@media (max-width: 620px) {
+ .passport-share-dialog { position: fixed; inset: 0; margin: 0; width: 100%; height: 100dvh; border: 0; border-radius: 0; }
+ .passport-share-header { padding: calc(18px + env(safe-area-inset-top)) 12px 0; }
+ .passport-share-footer { padding: 14px 16px calc(18px + env(safe-area-inset-bottom)); }
+}
+@media (max-height: 720px) {
+ .passport-share-header { padding-top: 5px; min-height: 49px; }
+ .passport-share-modes { padding-bottom: 14px; }
+ .passport-share-controls { padding-top: 18px; }
+ .passport-share-footer { padding-top: 8px; padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+ .passport-share-save { margin-top: 4px; }
+}
+@media (max-width: 350px) { .passport-share-modes button { padding-inline: 10px; font-size: 14px; } .passport-share-controls, .passport-share-visibility { gap: 6px; } .passport-share-visibility button { padding-inline: 8px; } }
+@media (prefers-reduced-motion: reduce) { .passport-share-dialog *, .passport-share-dialog *::before, .passport-share-dialog *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; } }

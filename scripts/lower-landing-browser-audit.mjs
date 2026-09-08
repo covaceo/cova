@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
 import { execFile, spawn } from "node:child_process";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const root = process.cwd();
 const chromePath = process.env.CHROME_PATH || "C:/Program Files/Google/Chrome/Application/chrome.exe";
-const downloads = "C:/Users/brook/Downloads";
+const downloads = process.env.COVA_LOWER_LANDING_SCREENSHOT_DIR || join(root, "sketches", "lower-landing-audit");
+await mkdir(downloads, { recursive: true });
 const profile = await mkdtemp(join(tmpdir(), "cova-lower-landing-audit-"));
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const consoleErrors = [];
@@ -117,24 +118,22 @@ async function screenshot(name) {
 async function storyMetrics() {
   return evaluate(`(() => {
     const section = document.querySelector('.story-strip-simple');
-    const panel = document.querySelector('.trade-proof-summary-panel');
-    const kicker = document.querySelector('.story-section-kicker');
-    const metrics = [...panel.querySelectorAll('[class~="sm:grid-cols-3"] > div')];
-    const pnl = metrics.find((node) => node.textContent.includes('Net P&L'))?.querySelector('strong');
-    const rules = metrics.find((node) => node.textContent.includes('Rules kept'))?.querySelector('strong');
-    const ledger = document.querySelector('.trade-proof-ledger');
-    const firstStep = document.querySelector('.trade-proof-step-row');
+    const card = section.querySelector('.passport-holo-face');
+    const kicker = section.querySelector('.home-story-label');
+    const steps = [...section.querySelectorAll('.home-story-step')];
+    if (!card || !kicker || steps.length !== 4) throw new Error('Approved Diamond story subjects missing.');
     return {
       backgroundColor: getComputedStyle(section).backgroundColor,
       backgroundImage: getComputedStyle(section).backgroundImage,
       borderTopColor: getComputedStyle(section).borderTopColor,
       kickerColor: getComputedStyle(kicker).color,
-      kickerLine: getComputedStyle(kicker, '::before').backgroundColor,
-      pnlColor: getComputedStyle(pnl).color,
-      rulesColor: getComputedStyle(rules).color,
-      panelTop: getComputedStyle(panel).borderTopColor,
-      ledgerTop: getComputedStyle(ledger).borderTopColor,
-      firstStepBorder: getComputedStyle(firstStep).borderTopColor,
+      kickerLine: getComputedStyle(kicker, '::after').backgroundColor,
+      rank: card.dataset.passportTier,
+      disclosure: card.querySelector('.passport-holo-disclosure').textContent,
+      stepCount: steps.length,
+      shareColor: getComputedStyle(steps[3].querySelector('h3')).color,
+      documentOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      cardRect: section.querySelector('.home-story-card').getBoundingClientRect().toJSON(),
       overflow: section.scrollWidth - section.clientWidth,
       rect: section.getBoundingClientRect().toJSON(),
     };
@@ -233,14 +232,14 @@ try {
   await scrollTo(".story-strip-simple", "start");
   const desktopStory = await storyMetrics();
   assert.equal(desktopStory.backgroundColor, "rgb(8, 9, 12)");
-  assert.match(desktopStory.backgroundImage, /rgba\(79, 125, 255/);
-  assert.equal(desktopStory.kickerColor, "rgb(111, 150, 255)");
-  assert.equal(desktopStory.kickerLine, "rgb(79, 125, 255)");
-  assert.equal(desktopStory.pnlColor, "rgb(111, 150, 255)");
-  assert.equal(desktopStory.rulesColor, "rgb(111, 150, 255)");
-  assert.equal(desktopStory.panelTop, "rgba(79, 125, 255, 0.58)");
-  assert.equal(desktopStory.ledgerTop, "rgba(79, 125, 255, 0.58)");
-  assert.equal(desktopStory.overflow, 0);
+  assert.equal(desktopStory.backgroundImage, "none");
+  assert.equal(desktopStory.kickerColor, "rgb(232, 238, 255)");
+  assert.equal(desktopStory.kickerLine, "rgb(111, 150, 255)");
+  assert.equal(desktopStory.rank, "diamond");
+  assert.match(desktopStory.disclosure, /Sample data · Not account verified/);
+  assert.equal(desktopStory.stepCount, 4);
+  assert.equal(desktopStory.shareColor, "rgb(143, 175, 255)");
+  assert.ok(desktopStory.overflow <= 1, "Subpixel CSS3D rounding must not create meaningful section overflow.");
   const storyDesktopImage = await screenshot("cova-how-cova-works-cobalt-desktop.png");
 
   await scrollTo(".cova-closing-section", "center");
@@ -279,7 +278,10 @@ try {
   await navigate(origin, "mobile");
   await scrollTo(".story-strip-simple", "start");
   const mobileStory = await storyMetrics();
-  assert.equal(mobileStory.overflow, 0);
+  // The retained full SVG includes transparent padding beyond the cropped material silhouette.
+  // Measure the visible card and document rather than counting its intentional raster padding.
+  assert.equal(mobileStory.documentOverflow, 0);
+  assert.ok(mobileStory.cardRect.left >= 0 && mobileStory.cardRect.right <= 390);
   assert.ok(mobileStory.rect.left >= 0 && mobileStory.rect.right <= 390);
   const storyMobileImage = await screenshot("cova-how-cova-works-cobalt-mobile.png");
 

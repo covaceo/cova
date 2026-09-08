@@ -1,4 +1,4 @@
-import { motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import type { ReactNode } from "react";
 
 type SectionShellProps = {
@@ -20,10 +20,10 @@ export function SectionShell({
 }: SectionShellProps) {
   const isWorkspace = variant === "workspace";
   return (
-    <section className={`deferred-paint-section relative min-h-screen overflow-hidden px-5 md:px-12 lg:px-20 ${isWorkspace ? "pb-16 pt-28 md:pt-28" : "pb-16 pt-28 md:pb-24 md:pt-36"}`}>
+    <section className={`deferred-paint-section relative min-h-screen overflow-hidden px-5 md:px-12 lg:px-20 ${isWorkspace ? "section-shell-workspace pb-16 pt-28 md:pt-28" : "pb-16 pt-28 md:pb-24 md:pt-36"}`}>
       {backdrop}
-      <div className="relative z-10 mx-auto w-full max-w-[calc(100vw-2.5rem)] md:max-w-7xl">
-        <div className={`grid gap-6 md:grid-cols-[minmax(0,1fr)_auto] md:items-end ${isWorkspace ? "mb-6" : "mb-8 md:mb-12"}`}>
+      <div className="section-shell-content relative z-10 mx-auto w-full max-w-[calc(100vw-2.5rem)] md:max-w-7xl">
+        <div className={`section-shell-heading grid gap-6 md:grid-cols-[minmax(0,1fr)_auto] md:items-end ${isWorkspace ? "mb-6" : "mb-8 md:mb-12"}`}>
           <div className="min-w-0">
             {eyebrow && (
               <span
@@ -71,12 +71,13 @@ export function ImageAtmosphere({ src, align = "center", opacity = "opacity-[0.4
 }
 
 export function RouteFrame({ children }: { children: ReactNode }) {
+  const reduceMotion = useReducedMotion();
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.58, ease: [0.16, 1, 0.3, 1] }}
+      data-route-frame
+      initial={reduceMotion ? false : { y: 8 }}
+      animate={{ y: 0 }}
+      transition={{ duration: reduceMotion ? 0 : 0.18, ease: [0.16, 1, 0.3, 1] }}
     >
       {children}
     </motion.div>

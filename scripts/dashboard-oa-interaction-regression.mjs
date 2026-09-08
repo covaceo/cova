@@ -68,18 +68,22 @@ async function startPreview() {
 }
 
 async function waitForExit(child, timeoutMs = 5_000) {
-  if (!child || child.exitCode !== null) return true;
+  const exited = () => !child || child.exitCode !== null || child.signalCode != null;
+  if (exited()) return true;
   const started = Date.now();
-  while (child.exitCode === null && Date.now() - started < timeoutMs) await sleep(50);
-  return child.exitCode !== null;
+  while (!exited() && Date.now() - started < timeoutMs) await sleep(50);
+  return exited();
 }
 
 async function terminateOwnedProcess(child) {
-  if (!child || child.exitCode !== null) return;
+  if (await waitForExit(child, 0)) return;
   child.kill("SIGTERM");
   if (await waitForExit(child, 2_000)) return;
   if (process.platform === "win32" && child.pid) {
-    await new Promise((resolve, reject) => execFile("taskkill.exe", ["/PID", String(child.pid), "/T", "/F"], (error) => error ? reject(error) : resolve()));
+    await new Promise((resolve, reject) => execFile("taskkill.exe", ["/PID", String(child.pid), "/T", "/F"], async (error) => {
+      if (!error || await waitForExit(child, 1_000)) resolve();
+      else reject(error);
+    }));
   }
   if (!await waitForExit(child)) throw new Error(`Owned process ${child.pid} did not exit`);
 }
@@ -189,7 +193,7 @@ async function openDashboard(width, height, mobile = false) {
   };
   await cdp.send("Page.navigate", { url: `${origin}/?oaDashboardSeed=${width}x${height}-${Date.now()}#overview` });
   await waitFor("document.readyState === 'complete'");
-  await evaluate(`localStorage.setItem('cova-auth-session-v1', ${JSON.stringify(JSON.stringify(session))})`);
+  await evaluate(`localStorage.clear(); sessionStorage.clear(); localStorage.setItem('cova-auth-session-v1', ${JSON.stringify(JSON.stringify(session))})`);
   await cdp.send("Page.navigate", { url: `${origin}/?oaDashboard=${width}x${height}-${Date.now()}#dashboard` });
   await waitFor("document.querySelector('.dashboard-workspace') && document.querySelector('.workspace-shell[data-workspace-section=\"dashboard\"]')", 30_000);
   await evaluate("document.fonts.ready");
@@ -220,12 +224,15 @@ async function clickSelector(selector, text) {
     const candidates = [...document.querySelectorAll(${JSON.stringify(selector)})].filter((node) => {
       const style = getComputedStyle(node);
       const rect = node.getBoundingClientRect();
-      return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+      return node.checkVisibility() && !node.closest('details:not([open]) > :not(summary)') && style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
     });
     const node = ${text === undefined ? "candidates[0]" : `candidates.find((candidate) => candidate.textContent.trim() === ${JSON.stringify(text)})`};
     if (!node) return null;
+    node.scrollIntoView({ block: 'center', behavior: 'instant' });
     const rect = node.getBoundingClientRect();
-    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    const x = rect.left + rect.width / 2, y = rect.top + rect.height / 2;
+    if (!node.contains(document.elementFromPoint(x, y))) throw new Error('Control is obscured: ' + node.textContent.trim());
+    return { x, y };
   })()`);
   assert.ok(point, `Expected visible ${selector}${text === undefined ? "" : ` with text ${text}`}`);
   await cdp.send("Input.dispatchMouseEvent", { type: "mousePressed", x: point.x, y: point.y, button: "left", clickCount: 1 });
@@ -262,7 +269,7 @@ async function auditDarkDashboard(label) {
     const visible = (node) => {
       const style = getComputedStyle(node);
       const rect = node.getBoundingClientRect();
-      return style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity) > 0.01 && rect.width > 1 && rect.height > 1;
+      return node.checkVisibility() && !node.closest('details:not([open]) > :not(summary)') && style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity) > 0.01 && rect.width > 1 && rect.height > 1;
     };
     const parseColors = (input) => [...String(input).matchAll(/rgba?\\(([^)]*)\\)|color\\(srgb\\s+([^)]*)\\)/gi)].flatMap((match) => {
       const source = match[1] ?? match[2];
@@ -310,28 +317,37 @@ async function auditDarkDashboard(label) {
     };
     const contrast = (a, b) => { const la = luminance(a); const lb = luminance(b); return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05); };
     const contrastSelectors = [
-      '.workspace-sidebar-group-label', '.workspace-account-copy small', '.workspace-sidebar-watermark span',
       '.dashboard-workspace-header > div > p', '.dashboard-range-controls button:not(.dashboard-range-active)',
-      '.dashboard-summary-cell span', '.dashboard-instrument-header p', '.oa-card-header > span',
-      '.oa-score-sample', '.dashboard-review-grid span', '.dashboard-review-disclosure'
+      '.astra-source-label', '.astra-stat-label', '.astra-stat-detail', '.astra-panel-heading p',
+      '.astra-chart-note > span', '.astra-score-ring small', '.astra-score-row p', '.astra-scale-ends span',
+      '.astra-warning-link > span > span', '.astra-warning-link small', '.astra-evidence-details summary span',
+      '.astra-note-date', '.astra-mini-note > p', '.astra-trade-table th', '.astra-review-details > summary span',
+      '.astra-dashboard-footer > span',
+      ...(innerWidth >= 851 ? ['.workspace-sidebar-group-label', '.workspace-account-copy small', '.astra-rail-account small'] : []),
+      // Legacy short-height chrome hides this duplicate; the identical footer disclosure stays required above.
+      ...(innerWidth >= 851 && !(innerWidth >= 1024 && innerHeight <= 800) ? ['.workspace-sidebar-watermark span'] : []),
+      ...(document.querySelector('.astra-evidence-details')?.open ? ['.astra-evidence-details > p', '.astra-factor-list span', '.oa-card-header > span', '.oa-watch-row'] : []),
+      ...(document.querySelector('.astra-review-details')?.open ? ['.dashboard-review-grid span', '.dashboard-review-disclosure'] : []),
     ];
     const contrastChecks = contrastSelectors.flatMap((selector) => {
-      const node = document.querySelector(selector);
-      if (!node || !visible(node)) return [];
-      const fg = parse(getComputedStyle(node).color);
-      if (!fg) return [];
-      let parent = node.parentElement;
-      let bg = null;
-      while (parent && !bg) {
-        const candidate = parse(getComputedStyle(parent).backgroundColor);
-        if (candidate && candidate.a >= 0.98) bg = candidate;
-        parent = parent.parentElement;
-      }
-      bg ||= { r: 8, g: 9, b: 12, a: 1 };
-      return [{ selector, ratio: contrast(composite(fg, bg), bg), color: getComputedStyle(node).color, background: bg }];
+      const nodes = [...document.querySelectorAll(selector)].filter(visible);
+      if (!nodes.length) throw new Error('Required informative text missing or hidden: ' + selector);
+      return nodes.map((node) => {
+        const fg = parse(getComputedStyle(node).color);
+        if (!fg) throw new Error('Unparseable text color: ' + selector);
+        // Composite every translucent ancestor surface, including the node's own background.
+        const layers = [];
+        for (let parent = node; parent; parent = parent.parentElement) {
+          const layer = parse(getComputedStyle(parent).backgroundColor);
+          if (layer) layers.push(layer);
+          if (layer?.a === 1) break;
+        }
+        const bg = layers.reverse().reduce((background, layer) => composite(layer, background), { r: 255, g: 255, b: 255, a: 1 });
+        return { selector, text: node.textContent.trim(), ratio: contrast(composite(fg, bg), bg), color: getComputedStyle(node).color, background: bg };
+      });
     });
     const brokenImages = [...document.images].filter((image) => image.complete && image.naturalWidth === 0).map((image) => image.src);
-    const local = ['.workspace-sidebar', '.dashboard-summary-strip', '.dashboard-equity-instrument', '.risk-score-panel', '.risk-watch-panel', '.dashboard-review-row'].flatMap((selector) => {
+    const local = ['.workspace-sidebar', '.astra-stat-strip', '.astra-chart-panel', '.astra-discipline', '.astra-recent-trades', '.astra-journal', '.astra-evidence-details', '.astra-review-details', '.risk-watch-panel', '.dashboard-review-row'].flatMap((selector) => {
       const node = document.querySelector(selector);
       if (!node || !visible(node)) return [];
       return [{ selector, deltaX: node.scrollWidth - node.clientWidth, deltaY: node.scrollHeight - node.clientHeight }];
@@ -345,16 +361,16 @@ async function auditDarkDashboard(label) {
       light,
       contrastChecks,
       local,
-      marker: document.querySelector('.dashboard-workspace')?.dataset.oaDashboard,
+      marker: document.querySelector('.dashboard-workspace')?.dataset.astraDashboard,
       bodyBackground: getComputedStyle(document.body).backgroundColor,
       shellBackground: getComputedStyle(document.querySelector('.dashboard-workspace')).backgroundColor,
-      chartStroke: getComputedStyle(document.querySelector('.dashboard-equity-path')).stroke,
+      chartStroke: getComputedStyle(document.querySelector('.astra-chart-svg .astra-curve')).stroke,
       primaryBackground: getComputedStyle(document.querySelector('.dashboard-summary-primary')).backgroundColor,
       primaryColor: getComputedStyle(document.querySelector('.dashboard-summary-primary')).color,
-      positiveColors: [...document.querySelectorAll('.dashboard-summary-cell strong.positive, .oa-tone-positive, .dashboard-review-status-ready')].map((node) => getComputedStyle(node).color),
+      positiveColors: [...document.querySelectorAll('.astra-positive, .oa-tone-positive, .dashboard-review-status-ready')].map((node) => getComputedStyle(node).color),
     };
   })()`);
-  assert.equal(audit.marker, "dark", `${label} must render the candidate-specific OA dashboard marker`);
+  assert.equal(audit.marker, "integrated", `${label} must render the candidate-specific Astra dashboard marker`);
   assert.equal(audit.rootOverflow, 0, `${label} must not overflow horizontally`);
   assert.deepEqual(audit.brokenImages, [], `${label} must not contain broken images`);
   assert.deepEqual(audit.forbiddenPalette, [], `${label} must not retain copper, green, mint, or gold pixels`);
@@ -364,8 +380,8 @@ async function auditDarkDashboard(label) {
   assert.equal(audit.bodyBackground, "rgb(8, 9, 12)");
   assert.equal(audit.shellBackground, "rgb(8, 9, 12)");
   assert.equal(audit.chartStroke, "rgb(79, 125, 255)");
-  assert.equal(audit.primaryBackground, "rgb(79, 125, 255)");
-  assert.equal(audit.primaryColor, "rgb(8, 9, 12)");
+  assert.equal(audit.primaryBackground, "rgba(0, 0, 0, 0)", "Astra warning action is an integrated review row, not the retired filled summary CTA");
+  assert.equal(audit.primaryColor, "rgb(224, 232, 247)");
   assert.ok(audit.positiveColors.length > 0, `${label} must expose at least one positive/healthy state`);
   assert.ok(audit.positiveColors.every((color) => color === "rgb(111, 150, 255)"), `${label} positive/healthy states must use cobalt instead of green: ${audit.positiveColors.join(", ")}`);
   for (const item of audit.local) {
@@ -373,6 +389,79 @@ async function auditDarkDashboard(label) {
     assert.ok(item.deltaY <= 1, `${label} ${item.selector} must not clip vertically`);
   }
   return audit;
+}
+
+async function openDetails(selector) {
+  const state = await evaluate(`(() => {
+    const details = document.querySelector(${JSON.stringify(selector)});
+    if (!(details instanceof HTMLDetailsElement) || details.firstElementChild?.tagName !== 'SUMMARY') throw new Error('Expected native details/summary: ' + ${JSON.stringify(selector)});
+    return details.open;
+  })()`);
+  if (!state) await clickSelector(`${selector} > summary`);
+  await waitFor(`document.querySelector(${JSON.stringify(selector)}).open`);
+}
+
+async function detailsContract(label) {
+  for (const selector of [".astra-evidence-details", ".astra-review-details"]) {
+    assert.equal(await evaluate(`document.querySelector(${JSON.stringify(selector)})?.open`), false, `${label} ${selector} must begin collapsed`);
+    await evaluate(`document.querySelector(${JSON.stringify(`${selector} > summary`)}).scrollIntoView({block:'center',behavior:'instant'}); document.querySelector(${JSON.stringify(`${selector} > summary`)}).focus(); true`);
+    await press("Enter");
+    await waitFor(`document.querySelector(${JSON.stringify(selector)}).open`);
+    assert.equal(await evaluate("document.activeElement.matches('summary:focus-visible')"), true, "Native summary must retain visible keyboard focus after opening");
+  }
+  await auditDarkDashboard(`${label} expanded evidence and Next review`);
+  for (const selector of [".astra-evidence-details", ".astra-review-details"]) {
+    await clickSelector(`${selector} > summary`);
+    await waitFor(`!document.querySelector(${JSON.stringify(selector)}).open`);
+  }
+  await evaluate("window.scrollTo({top:0,behavior:'instant'}); true");
+}
+
+async function reviewRanges() {
+  const ledger = await evaluate(`(() => {
+    const keys = Object.keys(localStorage).filter(key => key.startsWith('cova-react-risk-os-v2:'));
+    if (keys.length !== 1) throw new Error('Expected exactly one identity-scoped test ledger');
+    return JSON.parse(localStorage.getItem(keys[0])).trades;
+  })()`);
+  assert.ok(ledger.length > 1, "Range probe requires real persisted sample trade history");
+  const sorted = [...ledger].sort((a, b) => a.date.localeCompare(b.date));
+  const latest = sorted.at(-1).date;
+  const cutoff = new Date(`${latest}T00:00:00`);
+  cutoff.setDate(cutoff.getDate() - 6);
+  const rangeCounts = {};
+  for (const [range, label] of [["all", "All trades"], ["today", "Latest session"], ["week", "Last 7 days"], ["all", "All trades"]]) {
+    const trades = sorted.filter(trade => range === "all" || (range === "today" ? trade.date === latest : new Date(`${trade.date}T00:00:00`) >= cutoff));
+    await clickSelector(".dashboard-range-controls button", label);
+    await waitFor(`document.querySelector('.dashboard-range-controls [aria-pressed="true"]')?.textContent.trim() === ${JSON.stringify(label)}`);
+    const result = await evaluate(`(() => ({
+      count: Number(document.querySelector('[data-dashboard-trade-count]').dataset.dashboardTradeCount),
+      active: document.querySelectorAll('.dashboard-range-controls [aria-pressed="true"]').length,
+      cells: [...document.querySelectorAll('.astra-stat-strip .astra-stat-cell')].map(node => ({ id: node.dataset.astraStat, label: node.querySelector('.astra-stat-label').textContent.trim(), value: node.querySelector('.astra-stat-value').textContent.trim() })),
+      curve: document.querySelector('.astra-chart-svg .astra-curve').getAttribute('d'),
+      recent: [...document.querySelectorAll('[data-recent-trade]')].map(node => node.dataset.recentTrade),
+    }))()`);
+    const pnl = trades.reduce((sum, trade) => sum + trade.pnl, 0);
+    const profit = trades.filter(trade => trade.pnl > 0).reduce((sum, trade) => sum + trade.pnl, 0);
+    const loss = -trades.filter(trade => trade.pnl < 0).reduce((sum, trade) => sum + trade.pnl, 0);
+    let equity = 0, peak = 0, drawdown = 0;
+    for (const trade of trades) { equity += trade.pnl; peak = Math.max(peak, equity); drawdown = Math.max(drawdown, peak - equity); }
+    const money = value => `${value < 0 ? '−' : value > 0 ? '+' : ''}$${Math.abs(value).toLocaleString('en-US', { minimumFractionDigits: Number.isInteger(value) ? 0 : 2, maximumFractionDigits: 2 })}`;
+    assert.equal(result.active, 1, `${label} must be the only selected range`);
+    assert.equal(result.count, trades.length, `${label} must use the actual scoped trade count`);
+    assert.deepEqual(result.cells, [
+      { id: "pnl", label: "Reported P&L", value: money(pnl) },
+      { id: "win-rate", label: "Win rate", value: `${Math.round(trades.filter(trade => trade.pnl > 0).length / trades.length * 100)}%` },
+      { id: "profit-factor", label: "Profit factor", value: loss ? (profit / loss).toFixed(2) : profit ? "∞" : "0.00" },
+      { id: "drawdown", label: "Max drawdown", value: money(-drawdown) },
+    ], `${label} must expose exactly four data-derived financial metrics`);
+    assert.equal((result.curve.match(/L/g) || []).length, trades.length, "The curve must retain each real closed-trade point plus the zero origin");
+    assert.doesNotMatch(result.curve, /NaN|Infinity/, "Equity geometry must stay finite");
+    assert.deepEqual(result.recent, trades.slice(-4).reverse().map(trade => trade.id));
+    assert.equal(await evaluate("localStorage.getItem('cova-dashboard-range-v1')"), range);
+    rangeCounts[range] = trades.length;
+  }
+  assert.ok(rangeCounts.today < rangeCounts.week && rangeCounts.week < rangeCounts.all, "Fixtures must discriminate every review range");
+  console.log(`Astra range/metric proof: ${JSON.stringify(rangeCounts)}`);
 }
 
 async function desktopInteractions() {
@@ -386,18 +475,12 @@ async function desktopInteractions() {
     const style = getComputedStyle(node); const rect = node.getBoundingClientRect();
     return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
   }).map((node) => node.tagName === 'INPUT' ? node.getAttribute('aria-label') : node.textContent.trim()))()`);
-  for (const expected of ["Search workspace", "Risk Desk", "Trade History", "Limits", "Insights", "Passport", "Latest session", "Last 7 days", "All trades", "Manage source", "Open insights", "Delete account", "Sign out"]) {
+  for (const expected of ["Search workspace", "Risk Desk", "Trade History", "Limits", "Insights", "Passport", "Latest session", "Last 7 days", "All trades", "Manage source", "Delete account", "Sign out"]) {
     assert.ok(inventory.includes(expected) || inventory.some((item) => item.startsWith(expected)), `Desktop control inventory must include ${expected}`);
   }
 
-  const allCount = Number((await evaluate("document.querySelector('.dashboard-instrument-header > span').textContent")).match(/\d+/)?.[0]);
-  await clickSelector(".dashboard-range-controls button", "Latest session");
-  await waitFor("document.querySelector('.dashboard-range-controls [aria-pressed=\"true\"]')?.textContent.trim() === 'Latest session'");
-  const latestCount = Number((await evaluate("document.querySelector('.dashboard-instrument-header > span').textContent")).match(/\d+/)?.[0]);
-  assert.ok(latestCount < allCount, "Latest session must change the actual scoped trade count");
-  assert.equal(await evaluate("localStorage.getItem('cova-dashboard-range-v1')"), "today");
-  await clickSelector(".dashboard-range-controls button", "All trades");
-  await waitFor(`Number(document.querySelector('.dashboard-instrument-header > span').textContent.match(/\\d+/)?.[0]) === ${allCount}`);
+  await reviewRanges();
+  await detailsContract("desktop");
 
   await evaluate("document.querySelector('.workspace-sidebar-search input').focus(); true");
   await cdp.send("Input.insertText", { text: "limits" });
@@ -405,6 +488,7 @@ async function desktopInteractions() {
   await press("Tab");
   assert.equal(await evaluate("document.activeElement?.textContent.trim()"), "Limits", "Tab from filtered search must focus the matching route");
   assert.equal(await evaluate("document.activeElement?.matches(':focus-visible')"), true, "Filtered route must expose keyboard focus");
+  assert.match(await evaluate("getComputedStyle(document.activeElement).outline"), /rgb\(111, 150, 255\).*solid.*2px/, "Filtered Astra route must retain its deliberate high-contrast keyboard outline");
   await press("Enter");
   await waitFor("location.hash === '#rules'");
   await goBack("#dashboard");
@@ -433,17 +517,19 @@ async function desktopInteractions() {
   await waitFor("location.hash === '#import'");
   await goBack("#dashboard");
 
-  const primary = await evaluate("document.querySelector('.dashboard-summary-primary').textContent.trim()");
+  const primary = await evaluate("document.querySelector('.dashboard-summary-primary small').textContent.trim()");
   const primaryTarget = { "Review warnings": "#rules", "Add trade history": "#import", "Add more trades": "#import", "Open Passport": "#passport" }[primary];
   assert.ok(primaryTarget, `Unexpected dashboard primary action: ${primary}`);
   await clickSelector(".dashboard-summary-primary");
   await waitFor(`location.hash === ${JSON.stringify(primaryTarget)}`);
   await goBack("#dashboard");
 
+  await openDetails(".astra-evidence-details");
   await clickSelector("button[data-dashboard-action=\"review-risk-evidence\"]");
   await waitFor("location.hash === '#rules'");
   await goBack("#dashboard");
 
+  await openDetails(".astra-review-details");
   await clickSelector(".dashboard-review-row > header button", "Open insights");
   await waitFor("location.hash === '#coach'");
   await goBack("#dashboard");
@@ -459,6 +545,49 @@ async function desktopInteractions() {
 
   await clickSelector(".workspace-account-actions button", "Sign out");
   await waitFor("location.hash === '#overview' && !localStorage.getItem('cova-auth-session-v1')");
+}
+
+async function sourceLifecycle() {
+  await openDashboard(1440, 1000, false);
+  const snapshot = await evaluate(`(() => {
+    const identity = localStorage.getItem('cova-active-storage-identity-v1');
+    const key = 'cova-react-risk-os-v2:' + identity;
+    if (!identity || !localStorage.getItem(key)) throw new Error('Source probe requires an identity-scoped ledger');
+    return { key, brokerKey: 'cova-tradovate-status-v1:' + identity, state: JSON.parse(localStorage.getItem(key)) };
+  })()`);
+  const base = snapshot.state.trades[0];
+  const sample = { ...base, id: 'demo-source-latest', date: '2026-08-20', pnl: 0, notes: '' };
+  const olderRithmic = { ...base, id: 'rithmic-source-old', date: '2026-08-01', pnl: -25, source: { provider: 'Rithmic', accountKey: 'qa-disposable', accountId: 'QA-ONLY', currency: 'USD' } };
+  const cases = [
+    { name: 'Rithmic history outside selected range', trades: [olderRithmic, sample], broker: null, account: 'Sample + Rithmic review', source: 'Sample review', count: 1, attribution: 1 },
+    { name: 'Rithmic resync receipt without retained provider rows', trades: [sample], broker: { provider: 'Rithmic', status: 'imported', connected: false, mode: 'ephemeral', message: 'QA-only imported history; login discarded.', updatedAt: new Date().toISOString() }, account: 'Sample review', source: 'Sample review', count: 1, attribution: 1 },
+    { name: 'Empty account with Rithmic resync receipt', trades: [], broker: { provider: 'Rithmic', status: 'imported', connected: false, mode: 'ephemeral', message: 'QA-only imported history; login discarded.', updatedAt: new Date().toISOString() }, account: 'No trade history', source: 'No trade history', count: 0, attribution: 0 },
+    { name: 'Linked account is distinct from selected source', trades: [olderRithmic, sample], broker: { provider: 'Tradovate', status: 'connected', connected: true, mode: 'linked', message: 'QA-only linked account label.', updatedAt: new Date().toISOString() }, account: 'Tradovate linked', source: 'Sample review', count: 1, attribution: 1 },
+  ];
+  try {
+    for (const scenario of cases) {
+      await evaluate(`localStorage.setItem(${JSON.stringify(snapshot.key)}, ${JSON.stringify(JSON.stringify({ trades: scenario.trades, rules: [] }))}); localStorage.setItem('cova-dashboard-range-v1', 'today'); sessionStorage.removeItem('cova-import-provider-v1'); ${scenario.broker ? `localStorage.setItem(${JSON.stringify(snapshot.brokerKey)}, ${JSON.stringify(JSON.stringify(scenario.broker))})` : `localStorage.removeItem(${JSON.stringify(snapshot.brokerKey)})`}; true`);
+      await cdp.send('Page.navigate', { url: `${origin}/?sourceLifecycle=${Date.now()}#dashboard` });
+      await waitFor("document.querySelector('[data-astra-dashboard=\"integrated\"]') && document.querySelector('.astra-source-label')");
+      const state = await evaluate(`(() => ({
+        source: document.querySelector('.astra-source-label').getAttribute('aria-label'),
+        sourceText: document.querySelector('.astra-source-label').textContent.trim(),
+        account: document.querySelector('.workspace-account-copy small').textContent.trim(),
+        attribution: document.querySelectorAll('.dashboard-attribution-row [data-rithmic-attribution]').length,
+        syncActions: [...document.querySelectorAll('.astra-deskbar-tools button, .dashboard-summary-actions button')].map(node => node.textContent.trim()),
+        empty: document.querySelectorAll('[data-dashboard-empty="true"]').length,
+      }))()`);
+      assert.deepEqual(state, { source: `Review source: ${scenario.source}`, sourceText: `${scenario.source} / ${scenario.count} trades`, account: scenario.account, attribution: scenario.attribution, syncActions: ['Sync new trades', 'Sync new trades'], empty: scenario.count ? 0 : 1 }, scenario.name);
+      // Selection is a lifecycle handoff only. Never enter credentials or start a broker sync.
+      await clickSelector('.dashboard-summary-actions button', 'Sync new trades');
+      await waitFor("location.hash === '#import'");
+      await waitFor("document.querySelector('[data-provider-picker] [data-firm-id=\"rithmic\"][aria-pressed=\"true\"]')");
+      assert.equal(await evaluate("document.querySelectorAll('[data-provider-picker] [aria-pressed=\"true\"]').length"), 1, `${scenario.name} must hand off to exactly the Rithmic provider`);
+      console.log(`Astra source lifecycle: ${scenario.name} passed`);
+    }
+  } finally {
+    await evaluate(`localStorage.setItem(${JSON.stringify(snapshot.key)}, ${JSON.stringify(JSON.stringify(snapshot.state))}); localStorage.removeItem(${JSON.stringify(snapshot.brokerKey)}); localStorage.setItem('cova-dashboard-range-v1','all'); sessionStorage.removeItem('cova-import-provider-v1'); true`);
+  }
 }
 
 async function shortLaptop() {
@@ -485,6 +614,7 @@ async function shortLaptop() {
 async function mobileDashboard() {
   await openDashboard(390, 844, true);
   const audit = await auditDarkDashboard("mobile");
+  await detailsContract("mobile");
   assert.deepEqual(audit.viewport, { innerWidth: 390, innerHeight: 844, visualWidth: 390, clientWidth: 390 }, "Mobile audit must use true CDP viewport metrics");
   const chromeState = await evaluate(`(() => {
     const visible = (selector) => { const node = document.querySelector(selector); if (!node) return false; const style = getComputedStyle(node); const rect = node.getBoundingClientRect(); return style.display !== 'none' && rect.width > 0 && rect.height > 0; };
@@ -561,18 +691,24 @@ try {
     cdp.send("Fetch.enable", { patterns: [{ urlPattern: `${origin}/api/auth/logout`, requestStage: "Request" }] }),
   ]);
 
-  await desktopInteractions();
-  await shortLaptop();
-  await mobileDashboard();
-
+  const failures = [];
+  for (const [label, run] of [["desktop interactions", desktopInteractions], ["source lifecycle", sourceLifecycle], ["short laptop", shortLaptop], ["mobile", mobileDashboard]]) {
+    try { await run(); console.log(`PASS: ${label}`); }
+    catch (error) { failures.push({ label, message: error.message, stack: error.stack }); console.error(`FAIL: ${label}: ${error.stack}`); }
+  }
+  console.log(`Browser health: ${JSON.stringify({ consoleErrors, runtimeErrors, networkErrors })}`);
   assert.deepEqual(consoleErrors, [], "Dashboard interactions must not emit console errors");
   assert.deepEqual(runtimeErrors, [], "Dashboard interactions must not throw runtime exceptions");
   assert.deepEqual(networkErrors, [], "Dashboard interactions must not fail required network requests");
-  console.log("dashboard-oa-interaction-regression: desktop, short-laptop, mobile, navigation, search, ranges, evidence actions, account controls, Cobalt Market pixels, and cleanup passed");
+  assert.deepEqual(failures, [], "All dashboard interaction phases must pass");
+  console.log("dashboard-oa-interaction-regression: Astra desktop/short/mobile, four real metrics/all ranges, native details, search/navigation, scoped Rithmic handoffs, account lifecycle and contrast passed");
 } finally {
   if (cdp) await Promise.race([cdp.send("Browser.close").catch(() => {}), sleep(500)]);
   cdp?.close();
-  await terminateOwnedProcess(chrome).catch(() => {});
-  await terminateOwnedProcess(preview).catch(() => {});
-  await rm(profileDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 150 });
+  try { await waitForExit(chrome, 3_000); await terminateOwnedProcess(chrome); }
+  finally {
+    try { await terminateOwnedProcess(preview); }
+    finally { await rm(profileDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 150 }); }
+  }
+  console.log(`Cleanup: owned Chrome exited ${chrome?.exitCode}; removed ${profileDir}`);
 }

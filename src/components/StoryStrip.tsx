@@ -1,130 +1,49 @@
-import { motion } from "motion/react";
-import { ArrowRight, FileUp, Fingerprint, Gauge, ShieldCheck } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { PassportHoloCard } from "./PassportHoloCard";
+import { getMaterialSpec } from "../lib/passportMaterials";
+import { publicDiamondExample as example } from "./PublicPassportExampleCard";
+import diamondMaterial from "../assets/passport-diamond-material.webp?inline";
 
-type StoryFrame = {
-  eyebrow: string;
-  Icon: LucideIcon;
-  metric: string;
-  num: string;
-  title: string;
-};
+// Public visual example only. Never reads an account or changes earned-rank logic.
 
-const proofStoryFrames: StoryFrame[] = [
-  {
-    num: "01",
-    eyebrow: "Import",
-    title: "Bring in your trades.",
-    Icon: FileUp,
-    metric: "Trades loaded",
-  },
-  {
-    num: "02",
-    eyebrow: "Review",
-    title: "See what keeps costing you.",
-    Icon: Gauge,
-    metric: "Risk checked",
-  },
-  {
-    num: "03",
-    eyebrow: "Improve",
-    title: "Know the next fix.",
-    Icon: ShieldCheck,
-    metric: "Next action clear",
-  },
-  {
-    num: "04",
-    eyebrow: "Share",
-    title: "Turn discipline into proof.",
-    Icon: Fingerprint,
-    metric: "Passport ready",
-  },
-];
-
-const covaCaughtRows = [
-  ["Daily loss breach", "Intraday low hit -$3,000 even though the day closed better — Cova still flags the real drawdown."],
-  ["Size creep", "Contracts increased after a red trade, so the next-session brief tells the trader to cap size."],
-  ["Passport proof", "The share card can show gains and discipline while keeping broker details and trade history hidden."],
-];
+const appearance = { ...getMaterialSpec("Diamond", "standard"), materialUrl: diamondMaterial };
+const steps = [
+  ["01", "Import", "Bring in your trades."],
+  ["02", "Review", "See what keeps costing you."],
+  ["03", "Improve", "Know the next fix."],
+  ["04", "Share", "Turn discipline into proof."],
+] as const;
 
 export function StoryStrip() {
   return (
-    <section className="story-strip-simple relative overflow-hidden bg-black px-5 py-24 md:px-10 lg:px-14">
-      <div className="story-grain absolute inset-0" />
-      <div className="trade-proof-ambient absolute inset-0" />
-      <div className="relative z-10 mx-auto max-w-7xl">
-        <div className="grid gap-10 lg:grid-cols-[0.78fr_1.22fr] lg:items-end">
-          <div>
-            <p className="story-section-kicker font-body font-semibold uppercase tracking-[0.22em] text-[#6f96ff]">How Cova works</p>
-            <h2 className="mt-5 max-w-2xl font-body text-4xl font-semibold leading-[0.98] tracking-[-0.055em] text-white md:text-6xl">
-              Import trades. Find the leak. Build proof.
-            </h2>
+    <section className="story-strip-simple home-story" data-home-story="card-first" aria-labelledby="home-story-title">
+      <div className="home-story-inner">
+        <div className="home-story-layout">
+          <div className="home-story-copy">
+            <p className="home-story-label">How Cova works</p>
+            <h2 id="home-story-title"><span>Import trades.</span><span>Find the leak.</span><span>Build proof.</span></h2>
+            <p className="home-story-description">Review your history. Understand your habits.<br />Share the result on your terms.</p>
+            <a className="home-story-action" href="#features">Explore the workflow <ArrowRight aria-hidden="true" size={19} /></a>
           </div>
-          <div className="trade-proof-summary-panel">
-            <div>
-              <p className="font-body text-xs uppercase tracking-[0.2em] text-[#6f96ff]">Sample Risk Passport</p>
-              <h3 className="mt-3 font-body text-2xl font-semibold tracking-[-0.035em] text-white">Alex R. · Funded account review</h3>
-            </div>
-            <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              {[["Net P&L", "+$4,820", "text-[#6f96ff]"], ["Rules kept", "74%", "text-[#6f96ff]"], ["Risk score", "82", "text-white"]].map(([label, value, tone]) => (
-                <div className="rounded-[22px] border border-white/10 bg-black/26 p-4" key={label}>
-                  <span className="font-body text-xs uppercase tracking-[0.16em] text-white/38">{label}</span>
-                  <strong className={`mt-2 block font-mono text-2xl ${tone}`}>{value}</strong>
-                </div>
-              ))}
-            </div>
-            <div className="mt-6 border-t border-white/10 pt-5">
-              <p className="font-body text-xs uppercase tracking-[0.22em] text-[#6f96ff]">What Cova caught</p>
-              <div className="mt-4 grid gap-3">
-                {covaCaughtRows.map(([label, body]) => (
-                  <div className="grid gap-2 border-l border-[#4f7dff]/32 pl-4 md:grid-cols-[150px_1fr]" key={label}>
-                    <strong className="font-body text-sm text-white/82">{label}</strong>
-                    <span className="font-body text-sm leading-relaxed text-white/52">{body}</span>
-                  </div>
-                ))}
+          <figure className="home-story-artifact passport-workspace" aria-label="Example Passport. Diamond rank shown for illustration, not earned account status.">
+            <div className="home-story-card">
+              <div className="passport-workspace-stage home-story-stage">
+                <PassportHoloCard model={example} appearance={appearance} engraved />
               </div>
             </div>
-          </div>
+            <figcaption className="home-story-caption">Example card · Not account verified</figcaption>
+          </figure>
         </div>
-
-        <div className="trade-proof-ledger mt-12">
-          <div className="trade-proof-ledger-head" aria-hidden="true">
-            <span>Sequence</span>
-            <span>Review operation</span>
-            <span>System output</span>
-          </div>
-          {proofStoryFrames.map((frame, index) => (
-            <StoryStepRow frame={frame} index={index} key={frame.num} />
+        <ol className="home-story-steps" aria-label="How Cova works in four steps">
+          {steps.map(([number, title, description]) => (
+            <li className="home-story-step" key={number}>
+              <span className="home-story-index" aria-hidden="true">{number}</span>
+              <h3>{title}</h3>
+              <p>{description}</p>
+            </li>
           ))}
-        </div>
+        </ol>
       </div>
     </section>
-  );
-}
-
-function StoryStepRow({ frame, index }: { frame: StoryFrame; index: number }) {
-  return (
-    <motion.article
-      className="trade-proof-step-row"
-      initial={{ opacity: 0, y: 22 }}
-      transition={{ delay: index * 0.05, duration: 0.48, ease: [0.16, 1, 0.3, 1] }}
-      viewport={{ once: true, margin: "-80px" }}
-      whileInView={{ opacity: 1, y: 0 }}
-    >
-      <span className="trade-proof-step-index font-mono text-xs uppercase tracking-[0.18em] text-white/36">{frame.num}</span>
-      <div className="trade-proof-step-operation">
-        <span className="trade-proof-step-icon grid h-10 w-10 place-items-center border border-[#4f7dff]/20 bg-[#4f7dff]/10 text-[#e8eeff]">
-          <frame.Icon className="h-4 w-4" />
-        </span>
-        <div>
-          <p className="font-body text-xs uppercase tracking-[0.2em] text-[#6f96ff]/78">{frame.eyebrow}</p>
-          <h3 className="mt-2 font-body text-2xl font-semibold tracking-[-0.035em] text-white">{frame.title}</h3>
-        </div>
-      </div>
-      <div className="trade-proof-step-output flex items-center justify-between gap-4">
-        <span className="font-body text-sm text-white/58">{frame.metric}</span>
-        <ArrowRight className="h-4 w-4 text-[#6f96ff]" />
-      </div>
-    </motion.article>
   );
 }

@@ -1,0 +1,27 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { existsSync, readFileSync } from 'node:fs';
+import postcss from 'postcss';
+const file=new URL('../src/styles/astraWorkspace.css',import.meta.url);
+test('shared workspace layout and signed-in header use approved compact typography, not legacy overrides',()=>{
+  assert.ok(existsSync(file),'shared workspace stylesheet required');
+  const css=postcss.parse(readFileSync(file,'utf8'));
+  const declarations=(selector)=>{const found={};css.walkRules(selector,rule=>{if(rule.parent.type==='root')rule.walkDecls(d=>found[d.prop]=d.value)});return found};
+  const page=declarations('.oa-dashboard-app .astra-workspace-page');
+  assert.equal(page['background'],'var(--astra-bg)');
+  const section=declarations('.oa-dashboard-app .oa-dashboard-shell .astra-workspace-page .section-shell-workspace');
+  assert.equal(section['padding'],'0','retired mobile media rules must not add a second 105px page header');
+  assert.equal(section['background'],'none','the approved workspace has no copper grid background');
+  const title=declarations('.astra-workspace-page .section-shell-title-workspace');
+  assert.match(title['font'],/500 35px\/1.12 var\(--astra-display\)/);
+  const header=declarations('.marketing-header-signed-in .header-workspace-button');
+  assert.equal(header['min-height'],'34px');
+  assert.equal(header['height'],'34px');
+  assert.equal(header['text-transform'],'none');
+  assert.equal(header['box-shadow'],'none');
+  const main=readFileSync(new URL('../src/main.tsx',import.meta.url),'utf8');
+  assert.ok(main.includes('./styles/astraWorkspace.css'));
+  assert.ok(main.indexOf('./styles/astraWorkspace.css')<main.indexOf('./styles/astraDashboard.css'),'Risk Desk final cascade remains last');
+  const {nodes}=css;
+  for(const node of nodes) if(node.type==='rule') assert.ok(node.selector.includes('astra-workspace-page') || node.selector.includes('marketing-header-signed-in'),`unscoped new rule: ${node.selector}`);
+});

@@ -62,7 +62,7 @@
   max-width: 39rem;
   margin: 1.25rem 0 0;
   color: rgba(232, 238, 255, 0.62);
-  font-family: "Inter Tight Variable", "Inter", sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: clamp(0.98rem, 1.2vw, 1.12rem);
   font-weight: 400;
   line-height: 1.55;
@@ -219,7 +219,7 @@
   max-width: 40rem;
   margin: 0.42rem 0 0;
   color: rgba(232, 238, 255, 0.52);
-  font-family: "Inter Tight Variable", "Inter", sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 0.76rem;
   font-weight: 400;
   line-height: 1.45;
@@ -379,7 +379,7 @@
 .resources-oa-notice p {
   margin: 0.35rem 0 0;
   color: rgba(232, 238, 255, 0.53);
-  font-family: "Inter Tight Variable", "Inter", sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 0.64rem;
   line-height: 1.45;
 }
@@ -448,7 +448,7 @@
 .resources-oa-utility p {
   margin: 0.55rem 0 0;
   color: rgba(232, 238, 255, 0.5);
-  font-family: "Inter Tight Variable", "Inter", sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 0.7rem;
   line-height: 1.45;
 }
@@ -615,8 +615,8 @@
   .resources-oa-page *::before,
   .resources-oa-page *::after {
     scroll-behavior: auto !important;
-    transition-duration: 0.01ms !important;
-    animation-duration: 0.01ms !important;
+    transition-duration: 0s !important;
+    animation-duration: 0s !important;
     animation-iteration-count: 1 !important;
   }
 

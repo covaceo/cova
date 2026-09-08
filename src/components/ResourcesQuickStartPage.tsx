@@ -4,7 +4,6 @@ import { ArrowUpRight } from "lucide-react";
 type Section = "overview" | "features" | "pricing" | "resources" | "community" | "dashboard" | "import" | "oauth" | "rules" | "coach" | "passport";
 type AuthMode = "login" | "signup";
 
-const OA_LAYOUT = { type: "spring" as const, stiffness: 550, damping: 40 };
 
 export function ResourcesPage({ go }: { go: (section: Section) => void; openAuth: (mode: AuthMode) => void }) {
   const reduceMotion = useReducedMotion();
@@ -39,42 +38,34 @@ export function ResourcesPage({ go }: { go: (section: Section) => void; openAuth
     },
     {
       number: "05",
-      title: "Export your Passport",
-      body: "Choose privacy settings and share only the gains and discipline proof you want visible.",
+      title: "Share your Passport",
+      body: "Choose privacy settings, then export the gains and discipline proof you want to share.",
       action: "Open Passport",
       onClick: () => go("passport"),
     },
   ];
 
-  const reveal = reduceMotion
-    ? { duration: 0 }
-    : OA_LAYOUT;
 
   return (
     <section className="resources-oa-page">
       <div aria-hidden="true" className="resources-oa-atmosphere" />
       <div className="resources-oa-inner">
-        <motion.header
-          animate={{ opacity: 1, y: 0 }}
-          className="resources-oa-intro"
-          initial={reduceMotion ? false : { opacity: 0, y: 14 }}
-          transition={reveal}
-        >
+        <header className="resources-oa-intro">
           <div>
             <h1>Start with the trades you already have.</h1>
-            <p>Upload your history. Cova checks the file, builds the review, and shows what needs attention.</p>
+            <p>Check your file, review the account, and choose what to share.</p>
           </div>
           <button className="resources-oa-primary" onClick={() => go("import")} type="button">
             Upload CSV
             <ArrowUpRight aria-hidden="true" />
           </button>
-        </motion.header>
+        </header>
 
         <motion.div
           animate={{ opacity: 1, y: 0 }}
           className="resources-oa-stage"
-          initial={reduceMotion ? false : { opacity: 0, y: 18 }}
-          transition={reduceMotion ? { duration: 0 } : { ...OA_LAYOUT, delay: 0.06 }}
+          initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+          transition={reduceMotion ? { duration: 0 } : { duration: 0.2, ease: "easeOut" }}
         >
           <div className="resources-oa-board">
             <div className="resources-oa-board-header">
@@ -87,14 +78,8 @@ export function ResourcesPage({ go }: { go: (section: Section) => void; openAuth
 
             <div className="resources-oa-content">
               <ol className="resources-oa-steps">
-                {quickStartSteps.map((step, index) => (
-                  <motion.li
-                    animate={{ opacity: 1, x: 0 }}
-                    className="resources-oa-step"
-                    initial={reduceMotion ? false : { opacity: 0, x: -10 }}
-                    key={step.number}
-                    transition={reduceMotion ? { duration: 0 } : { ...OA_LAYOUT, delay: 0.08 + index * 0.04 }}
-                  >
+                {quickStartSteps.map((step) => (
+                  <li className="resources-oa-step" key={step.number}>
                     <span className="resources-oa-step-number">{step.number}</span>
                     <div>
                       <h2>{step.title}</h2>
@@ -104,17 +89,17 @@ export function ResourcesPage({ go }: { go: (section: Section) => void; openAuth
                       {step.action}
                       <ArrowUpRight aria-hidden="true" />
                     </button>
-                  </motion.li>
+                  </li>
                 ))}
               </ol>
 
               <aside className="resources-oa-sample" aria-label="Sample CSV file check">
                 <div className="resources-oa-sample-header">
                   <span>SAMPLE FILE CHECK</span>
-                  <strong>READY TO REVIEW</strong>
+                  <strong>NEEDS REVIEW</strong>
                 </div>
                 <div className="resources-oa-file">
-                  <span>trades_august.csv</span>
+                  <span>trades.csv</span>
                   <strong>CSV</strong>
                 </div>
                 <dl className="resources-oa-file-stats">

@@ -1,0 +1,107 @@
+[
+  {
+    "path": "src/components/PassportHoloCard.tsx",
+    "sha256": "aba6bb8294044f0dd37b7573a7aceb5219ce6d608e350470133216adef59eb07",
+    "normalization": "lf"
+  },
+  {
+    "path": "src/components/PassportEtchedContent.tsx",
+    "sha256": "ea395bed2473dff8f2cc530a9b8eed837d8bf9933b744db4a8a32306778b9481",
+    "normalization": "lf"
+  },
+  {
+    "path": "src/lib/passportHolo.ts",
+    "sha256": "1620a81c4ee962aa58694c1bf8b0da7dd80b6b37bde1b61e7e06d6c6844c308a",
+    "normalization": "lf"
+  },
+  {
+    "path": "src/lib/passportMaterials.ts",
+    "sha256": "1d84c8f36205c468dd4007d7aaaebd745dc41cb7dd534931302072ff0bc1903c",
+    "normalization": "lf"
+  },
+  {
+    "path": "src/lib/passportEngraving.ts",
+    "sha256": "f434163673b3dbc8c84be759b025927f5340dd95329fc903d1d7463c4e566f82",
+    "normalization": "lf"
+  },
+  {
+    "path": "src/lib/passportOptics.ts",
+    "sha256": "04ce7bdf59de25713e1df7e047b290835c87e4ee4ee9fbff001fcf2f6856ab10",
+    "normalization": "lf"
+  },
+  {
+    "path": "src/lib/passportOpticsShader.ts",
+    "sha256": "f8b822b587fc24fa3e45ba82520306310bb0604b2ac3345fd7cf5d2fcf48e390",
+    "normalization": "lf"
+  },
+  {
+    "path": "src/assets/passport-pearl-material.webp",
+    "sha256": "d6f45f4648ce7e76b1cbcc5738b92248b78a63d2f5ae643a36d36d94d72dd61b",
+    "normalization": "binary"
+  },
+  {
+    "path": "src/assets/passport-neutral-material.webp",
+    "sha256": "98b461f579c7b1072a6f2b9bd65f789c63f6a6964e0e7480d13c6f71046c7f94",
+    "normalization": "binary"
+  },
+  {
+    "path": "src/assets/passport-bronze-material.webp",
+    "sha256": "2544f598a70fca7450da982e97c1c0a17d96a75006eac4cc633b6079dafd751b",
+    "normalization": "binary"
+  },
+  {
+    "path": "src/assets/passport-silver-material.webp",
+    "sha256": "373c4660acf69ce826aec7b14e0337192be8a946a599975d7867a3efc478e2c5",
+    "normalization": "binary"
+  },
+  {
+    "path": "src/assets/passport-gold-material.webp",
+    "sha256": "ba1064e2c2e0fcd90dab417127458eaadf906899b93dee232701cd7f804ad4a1",
+    "normalization": "binary"
+  },
+  {
+    "path": "src/assets/passport-platinum-material.webp",
+    "sha256": "b844669c0c5be7898e7cd8f906aace1d55731adb1ac8b084ad99bbc04a2295af",
+    "normalization": "binary"
+  },
+  {
+    "path": "src/assets/passport-diamond-material.webp",
+    "sha256": "8812c133cc654e5d7f8988ede53e427b34fd15ee996e14b8a2ef8824c536acc1",
+    "normalization": "binary"
+  },
+  {
+    "path": "src/assets/passport-market-maker-material.webp",
+    "sha256": "46cd56c32fcbb8ea8df0ccea1937bb5624033a09e1398754b21c9cf29b57c897",
+    "normalization": "binary"
+  },
+  {
+    "path": "src/assets/fonts/passport-inter-tight.woff2",
+    "sha256": "77fefe8ca19b9f69b5284832c519e0493127c1f091f0a8936884be7721c4e618",
+    "normalization": "binary"
+  },
+  {
+    "path": "src/assets/fonts/Allura-Regular.ttf",
+    "sha256": "9c142b2e515832c0dfc4ff8b8ea18f40314943bf937b72e2b23c4661bac14cc6",
+    "normalization": "binary"
+  },
+  {
+    "path": "src/assets/fonts/INTER-TIGHT-OFL.txt",
+    "sha256": "1e1c8b3dc6dfcbd5498a33f17fcc68ff2d39c599f6e8195fbf14601261dbef6a",
+    "normalization": "lf"
+  },
+  {
+    "path": "src/assets/fonts/ALLURA-OFL.txt",
+    "sha256": "eea1157c41ebcbb7bb6732328f2a804a56b3f2744e456a116311aa2eb8cafce4",
+    "normalization": "lf"
+  },
+  {
+    "path": "src/passport-material.d.ts",
+    "sha256": "076aa1fab1200cf6a41eae836fbc11313ae70f461a79c58626fff977ee74106b",
+    "normalization": "lf"
+  },
+  {
+    "path": "src/components/MarketingHero.tsx",
+    "normalization": "lf",
+    "sha256": "454b49c9ee258b227e51c7404f106aafac853d365f6eac2c3417b317900fb921"
+  }
+]

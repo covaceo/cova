@@ -60,13 +60,14 @@ const planOptions = [
 ] as const;
 
 export function PlanStrip({ compact = false, currentPlan, go, openAuth, proCheckoutAvailable, upgradeToPro }: { compact?: boolean; currentPlan: PlanTier | null; go: (section: PlanRoute) => void; openAuth: (mode: AuthMode) => void; proCheckoutAvailable: boolean; upgradeToPro: () => void }) {
+  const HeadingTag = compact ? "h1" : "h2";
   return (
     <section className={`deferred-paint-section plans-section pricing-showcase ${compact ? "pricing-showcase-compact" : ""}`}>
       <div aria-hidden="true" className="pricing-showcase-top-fade" />
       <div aria-hidden="true" className="pricing-showcase-bottom-fade" />
       <div className="pricing-showcase-inner">
         <div className="pricing-showcase-header">
-          <h2 className="pricing-showcase-title">Try the review flow before you pay.</h2>
+          <HeadingTag className="pricing-showcase-title">Try the review flow before you pay.</HeadingTag>
           <p className="pricing-showcase-summary">
             Start small enough to prove the workflow. Upgrade when Cova becomes part of every session review.
           </p>
@@ -195,7 +196,6 @@ export function CtaFooter({ go, isSignedIn, openAuth, openPassport }: { go: (sec
         <div className="cova-site-footer-inner">
           <span>© 2026 Cova. Built for risk review, not trade signals.</span>
           <div className="cova-site-footer-meta">
-            <span>Trade history · Risk limits · Shareable Passport</span>
             <nav aria-label="Legal and support">
               <button onClick={() => go("privacy")} type="button">Privacy</button>
               <button onClick={() => go("terms")} type="button">Terms</button>

@@ -41,7 +41,7 @@ const expectedSteps = [
   "Upload and check the file",
   "Review the account",
   "Set your limits",
-  "Export your Passport",
+  "Share your Passport",
 ];
 const actualSteps = [...resources.matchAll(/title: "([^"]+)"/g)].map((match) => match[1]);
 assert.deepEqual(actualSteps, expectedSteps, "Resources must render the five approved quick-start steps in order.");
@@ -52,6 +52,12 @@ for (const route of ["import", "dashboard", "rules", "passport"]) {
 assert.match(resources, /support@covadesk\.com/, "Resources must expose the monitored support mailbox.");
 assert.match(resources, /go\("community"\)/, "Resources must expose the real Community route.");
 assert.match(resources, /SAMPLE FILE CHECK/, "Resources must show one truthful sample import instrument.");
+assert.match(resources, /<strong>NEEDS REVIEW<\/strong>/, "Two warnings cannot be labelled ready to review.");
+assert.doesNotMatch(resources, /READY TO REVIEW|trades_august\.csv/, "Do not misstate sample status or imply a current-month file.");
+assert.match(resources, /<span>trades\.csv<\/span>/, "Sample filenames should be neutral rather than hand-updated dates.");
+assert.match(resources, /2 warnings[\s\S]*2 rows need review[\s\S]*Nothing imports until the member confirms the file\./, "The sample must preserve the warning and member-confirmation truth.");
+assert.match(resources, /<p>Check your file, review the account, and choose what to share\.<\/p>/, "The intro should orient without repeating the upload heading and action.");
+assert.match(resources, /Choose privacy settings, then export the gains and discipline proof you want to share\./, "The Share step must preserve export and privacy meaning.");
 assert.match(resources, /No orders\. No money movement\./, "Resources must preserve the product boundary beside the import path.");
 assert.match(resources, /useReducedMotion/, "Resources motion must honor reduced-motion preference.");
 

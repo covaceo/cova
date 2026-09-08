@@ -1,0 +1,106 @@
+/* Auth and provider handoff only. Keep lifecycle, layout, and disclosures in JSX.
+   Scoped specificity wins over the retired whole-site chrome loaded after these
+   components; !important is limited to properties that legacy CSS also forces. */
+.auth-connection {
+  --auth-page: #08090c;
+  --auth-panel: #0d0f14;
+  --auth-line: #252a34;
+  --auth-ink: #e8eeff;
+  --auth-blue: #6f96ff;
+  --auth-body: Inter, Arial, sans-serif;
+  --auth-heading: "Bricolage Grotesque Variable", Arial, sans-serif;
+  --auth-mono: "DM Mono", monospace;
+  color: var(--auth-ink);
+  font-family: var(--auth-body);
+}
+.auth-connection :is(.font-body:where(:not(h2, h3)), p, button, input, label) {
+  font-family: var(--auth-body) !important;
+}
+.auth-connection :is(h2, h3) {
+  color: var(--auth-ink) !important;
+  font-family: var(--auth-heading) !important;
+  font-weight: 500 !important;
+  font-style: normal !important;
+  letter-spacing: -.03em !important;
+  line-height: 1.15 !important;
+}
+.auth-connection h2 { font-size: clamp(30px, 2.5vw, 36px) !important; }
+.auth-connection h3 { font-size: clamp(24px, 2vw, 30px) !important; }
+.auth-overlay h2 { font-size: 30px !important; }
+.auth-connection :is(.font-mono, .uppercase) {
+  font-family: var(--auth-mono) !important;
+  font-weight: 400 !important;
+  letter-spacing: .08em !important;
+}
+.auth-connection [class*="text-white/"] { color: #a1adc4 !important; }
+.auth-connection-panel,
+.auth-connection :is(.auth-sheet-content, .oauth-summary-content, .oauth-provider-card) {
+  min-width: 0;
+  border: 1px solid var(--auth-line) !important;
+  border-radius: 8px !important;
+  background: var(--auth-panel) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+.auth-connection .auth-sheet-content { border-color: transparent !important; }
+.auth-connection :is(input:not([type="checkbox"]), .terminal-tab-bar) {
+  border-color: var(--auth-line) !important;
+  border-radius: 5px !important;
+  background: var(--auth-page) !important;
+  color: var(--auth-ink) !important;
+  box-shadow: none !important;
+}
+.auth-connection input::placeholder { color: #8793aa !important; }
+.auth-connection input:focus { border-color: var(--auth-blue) !important; }
+.auth-connection .terminal-tab-motion {
+  background: #172138 !important;
+  border-color: var(--auth-blue) !important;
+  box-shadow: none !important;
+}
+.auth-connection .cova-button {
+  border: 1px solid #354052 !important;
+  border-radius: 5px !important;
+  background: #141a24 !important;
+  color: var(--auth-ink) !important;
+  font: 500 13px/1.5 var(--auth-body) !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  transition-duration: 180ms !important;
+}
+.auth-connection .cova-button-primary {
+  border-color: var(--auth-blue) !important;
+  background: #172138 !important;
+}
+.auth-connection .cova-button:hover:not(:disabled) {
+  border-color: var(--auth-blue) !important;
+  background: #1a2435 !important;
+}
+.auth-connection .cova-button::before,
+.auth-connection .cova-button::after,
+.auth-connection .cova-button-optics {
+  background: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+.auth-connection :is(button, a, input):focus-visible {
+  outline: 2px solid var(--auth-blue) !important;
+  outline-offset: 3px !important;
+}
+.auth-connection .transition,
+.auth-connection .terminal-tab,
+.auth-connection .terminal-tab::after,
+.auth-connection .terminal-tab-motion { transition-duration: 180ms !important; }
+@media (prefers-reduced-motion: reduce) {
+  .auth-connection.auth-connection *,
+  .auth-connection.auth-connection *::before,
+  .auth-connection.auth-connection *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  /* Shared GlassButton/StartFreeButton own their hover transforms elsewhere. */
+  .auth-connection.auth-connection :is(.cova-button, .native-start-button) {
+    transform: none !important;
+  }
+}

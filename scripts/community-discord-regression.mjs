@@ -25,7 +25,10 @@ assert.doesNotMatch(navbar, /label: "Product"/, "The old ambiguous Product label
 assert.match(navbar, /\{ label: "Community", action: "community" \}/, "Community must render as a direct route, not a fake dropdown trigger.");
 assert.doesNotMatch(navbar, /label: "Community"[^\n]*hasChevron/, "Community must not show a chevron when no dropdown exists.");
 assert.match(main, /styles\/communityDiscordPage\.css/, "The Community stylesheet must load after settled marketing CSS.");
-assert.match(page, /A real Cova community/, "Community must explicitly present the real Cova room.");
+assert.doesNotMatch(page, /A real Cova community|This is the real Cova Discord/, "Community must not repeat the room identity above the title or in the intro.");
+assert.match(page, /<p>Bring completed trades, screenshots, risk questions, or product problems to the Cova Discord\.<\/p>/, "Community should name what to bring once.");
+assert.match(page, /<h2>Join the conversation\.<\/h2>/, "The join board should have one concise action-oriented title.");
+assert.match(page, /The invite is permanent and opens directly in <strong>#start-here<\/strong>\./, "The permanent invite destination must stay explicit.");
 assert.match(page, /Bring the trade\. Get help working through it\./, "The hero must lead with concrete help.");
 assert.match(page, /Join the Cova Discord/, "Community must expose the requested dominant join action.");
 assert.match(page, /<title>Discord<\/title>/, "The join experience must render a real Discord brand mark.");
