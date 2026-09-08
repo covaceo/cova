@@ -1,5 +1,6 @@
 import { motion, useReducedMotion } from "motion/react";
 import { PublicPassportExampleCard } from "./PublicPassportExampleCard";
+import { FeaturesTabHighlight } from "./FeaturesTabHighlight";
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -256,6 +257,7 @@ export function FeaturesPage({ go, openAuth, isSignedIn = false }: { go: (sectio
   const [compactTabs, setCompactTabs] = useState(() => typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches);
   const reduceMotion = useReducedMotion();
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
   const activeFeature = featureSystems.find((feature) => feature.id === activeId) ?? featureSystems[1];
   const activeIndex = featureSystems.indexOf(activeFeature);
   const previousIndexRef = useRef(activeIndex);
@@ -313,8 +315,8 @@ export function FeaturesPage({ go, openAuth, isSignedIn = false }: { go: (sectio
 
         <div className="features-showcase-frame">
           <div className="features-showcase-layout">
-            <motion.nav layoutScroll className="features-system-rail" aria-label="Cova product systems" role="tablist" aria-orientation={compactTabs ? "horizontal" : "vertical"}>
-
+            <nav className="features-system-rail" aria-label="Cova product systems" role="tablist" aria-orientation={compactTabs ? "horizontal" : "vertical"}>
+              <FeaturesTabHighlight activeId={activeId} />
               {featureSystems.map((feature, index) => {
                 const isActive = activeFeature.id === feature.id;
                 const Icon = feature.Icon;
@@ -332,21 +334,13 @@ export function FeaturesPage({ go, openAuth, isSignedIn = false }: { go: (sectio
                     tabIndex={isActive ? 0 : -1}
                     type="button"
                   >
-                    {isActive && (
-                      <motion.span
-                        aria-hidden="true"
-                        className="features-system-tab-highlight"
-                        layoutId="features-oa-active-surface"
-                        transition={layoutTransition}
-                      />
-                    )}
                     <span className="features-system-tab-index">{String(index + 1).padStart(2, "0")}</span>
                     <Icon aria-hidden="true" />
                     <strong>{feature.label}</strong>
                   </button>
                 );
               })}
-            </motion.nav>
+            </nav>
 
             <div
               aria-labelledby={`feature-tab-${activeFeature.id}`}

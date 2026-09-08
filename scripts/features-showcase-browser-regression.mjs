@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { preview as startPreview } from "vite";
+import { exercisePill } from "./features-pill-browser-probe.mjs";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const chromePath = process.env.CHROME_PATH || "C:/Program Files/Google/Chrome/Application/chrome.exe";
@@ -360,6 +361,8 @@ try {
   cdp.on("Network.loadingFailed", ({ canceled, errorText, type }) => { if (!canceled && type !== "Other") networkErrors.push(`${type}: ${errorText}`); });
   await Promise.all([cdp.send("Page.enable"), cdp.send("Runtime.enable"), cdp.send("Network.enable")]);
 
+  console.log(JSON.stringify({ pill: await exercisePill({ evaluate, setViewport, navigate, cdp }) }));
+  if (!process.argv.includes('--pill-only')) {
   await setViewport(1440, 900, false);
   await navigate("desktop");
   const desktop = await evaluate(`(() => ({
@@ -473,10 +476,12 @@ try {
   await cdp.send('Emulation.setEmulatedMedia', { features: [] });
   console.log(JSON.stringify({ layout: await exerciseFeatureLayout() }));
 
+  console.log(JSON.stringify({ origin, desktop, desktopOaBefore, desktopOaAfter, desktopContrast, desktopScreenshot, desktopStates, wide, shortLaptop, breakpointEdge, mobile, mobileOa, mobileContrast, mobileScreenshot, journal }, null, 2));
+  }
   assert.deepEqual(consoleErrors, []);
   assert.deepEqual(runtimeErrors, []);
   assert.deepEqual(networkErrors, []);
-  console.log(JSON.stringify({ origin, desktop, desktopOaBefore, desktopOaAfter, desktopContrast, desktopScreenshot, desktopStates, wide, shortLaptop, breakpointEdge, mobile, mobileOa, mobileContrast, mobileScreenshot, journal, consoleErrors, runtimeErrors, networkErrors }, null, 2));
+  console.log(JSON.stringify({ origin, consoleErrors, runtimeErrors, networkErrors }, null, 2));
 } finally {
   cdp?.close();
   if (chrome && chrome.exitCode === null) {

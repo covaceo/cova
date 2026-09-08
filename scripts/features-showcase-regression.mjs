@@ -13,7 +13,10 @@ const read = async (path) => {
     throw error;
   }
 };
-const digest = (source) => createHash("sha256").update(source).digest("hex");
+// Git blobs use LF; Windows checkouts may use CRLF. Protect content, not checkout encoding.
+const digest = (source) => createHash("sha256").update(source.replace(/\r\n/g, "\n")).digest("hex");
+assert.equal(digest("protected\r\ncontent\r\n"), digest("protected\ncontent\n"), "Preservation hashes must be checkout-independent.");
+assert.notEqual(digest("protected\ncontent\n"), digest("changed\ncontent\n"), "Line-ending normalization must still reject content edits.");
 
 const [packageJson, marketingPages, features, css, main, hero, story, plans, landingCss, browserAudit] = await Promise.all([
   read("package.json"),
@@ -33,12 +36,12 @@ assert.match(packageJson, /"test:features-showcase":\s*"node scripts\/features-s
 assert.match(packageJson, /"test":\s*"[^"]*test:features-showcase-browser/, "The aggregate suite must run rendered Features behavior.");
 assert.match(packageJson, /"test:features-showcase-browser":\s*"npm run build && node scripts\/features-showcase-browser-regression\.mjs"/);
 
-assert.equal(digest(hero), "e50d30ccb31ea669c6ed0344ce0812fcda20144ca373b8dfc0c93a83a25ec31e", "The completed landing hero must remain byte-stable.");
+assert.equal(digest(hero), "454b49c9ee258b227e51c7404f106aafac853d365f6eac2c3417b317900fb921", "The completed landing hero must remain content-stable (LF normalized).");
 assert.match(story, /data-home-story="card-first"/, "The approved homepage card-first composition must remain present beside Features.");
-assert.equal(digest(plans), "afba5a246ff9c62827389c5f1dc143dd8fccbd393429f01d5ba183e660020509", "Pricing and footer source must remain byte-stable.");
-assert.equal(digest(landingCss), "51b71de958850cfbc73f0c40ac9fd342ba86d4938f34f7c90109c5896080cf4d", "The approved landing stylesheet must remain byte-stable.");
+assert.equal(digest(plans), "57b91607c11a671e3b60d39aca912cb7812cc3a65a1db39d29cda2bc9ea8c941", "Pricing and footer source must remain content-stable (LF normalized).");
+assert.equal(digest(landingCss), "4db289a9218f473065245da68623ceefc66fa82266c4d1607be438df65b457d8", "The approved landing stylesheet must remain content-stable (LF normalized).");
 const pricingSection = marketingPages.slice(marketingPages.indexOf("export function PricingPage"));
-assert.equal(digest(pricingSection), "0bfa44d26927acfd1eb6c506d44741d8df44d47f15db0d87a733e7b5adeb27e3", "Pricing must remain byte-stable inside the final marketing release.");
+assert.equal(digest(pricingSection), "df97decaa65f05ab4690d8994f8daf9734b4df548ba9e23a0f4d0e9ad72679e0", "Pricing must remain content-stable (LF normalized) inside the final marketing release.");
 
 assert.match(marketingPages, /export \{ FeaturesPage \} from "\.\/FeaturesShowcasePage";/, "MarketingPages must hand Features to its dedicated approved owner.");
 assert.doesNotMatch(marketingPages, /featureGroups|FeatureActionCard|Everything a trader needs after the trade closes|Built for review/, "The retired generic Features card grid must leave source truth.");
@@ -61,8 +64,10 @@ assert.match(features, /event\.key === "Home"/);
 assert.match(features, /event\.key === "End"/);
 assert.match(features, /useReducedMotion/);
 assert.match(features, /const OA_LAYOUT_SPRING = \{ type: "spring", stiffness: 550, damping: 40 \} as const;/, "Dashboard transitions must use OA's shared LAYOUT spring.");
-assert.match(features, /layoutId="features-oa-active-surface"/, "The selected system must use one shared OA surface that travels between tabs.");
-assert.match(features, /className="features-system-tab-highlight"/, "The traveling selected surface needs a dedicated visual owner.");
+assert.match(features, /<FeaturesTabHighlight activeId=\{activeId\}/, "The selected system retains one rail-owned surface across selections.");
+const pill = await read("src/components/FeaturesTabHighlight.tsx");
+assert.match(pill, /className="features-system-tab-highlight"/, "The traveling selected surface needs a dedicated visual owner.");
+assert.doesNotMatch(features, /layoutId="features-oa-active-surface"/, "Do not reintroduce per-tab shared-layout remounts.");
 assert.doesNotMatch(features, /features-frame-corner/, "OA dashboard anatomy should replace the decorative corner brackets.");
 assert.match(features, /data-features-showcase/);
 assert.match(features, /data-feature-instrument=\{activeFeature\.id\}/);
@@ -94,7 +99,11 @@ assert.match(css, /--features-ink:\s*#e8eeff/);
 assert.match(css, /--features-wash:\s*color-mix\(in srgb, var\(--features-ink\) 5%, transparent\)/, "OA dark neutrals must derive from Cova's polar ink.");
 assert.match(css, /\.features-showcase-frame\s*\{[\s\S]*padding:\s*0\.25rem[\s\S]*border-radius:\s*18px[\s\S]*corner-shape:\s*squircle/, "The dashboard frame must use OA's restrained two-layer squircle anatomy.");
 assert.match(css, /\.features-showcase-layout\s*\{[\s\S]*gap:\s*0\.25rem[\s\S]*border-radius:\s*14px/, "The page stage between OA plates must be the visible divider.");
-assert.match(css, /\.features-system-tab-highlight\s*\{[\s\S]*position:\s*absolute[\s\S]*inset:\s*0[\s\S]*border-radius:\s*999px/, "The selected-system highlight must render as one traveling pill.");
+const pillRule = css.match(/\.features-system-tab-highlight\s*\{([^}]+)\}/)?.[1];
+assert.ok(pillRule, "The traveling pill must have its own style rule.");
+for (const declaration of [/position:\s*absolute\s*;/, /top:\s*0\s*;/, /left:\s*0\s*;/, /border-radius:\s*999px\s*;/, /transition:\s*transform 260ms\s/]) {
+  assert.match(pillRule, declaration, "The retained pill's geometry and motion must belong to its own selector.");
+}
 assert.match(css, /\.features-outcome-action\s*\{[\s\S]*border-radius:\s*999px/, "The primary dashboard action must use OA pill anatomy.");
 assert.match(css, /\.features-outcome-action:active\s*\{[\s\S]*transform:\s*translateY\(1px\) scale\(0\.98\)/, "OA actions should physically press instead of lifting on hover.");
 assert.doesNotMatch(css, /\.features-outcome-action:hover\s*\{[\s\S]{0,180}?transform:/, "OA hover must be color-only; geometry belongs to press state.");
