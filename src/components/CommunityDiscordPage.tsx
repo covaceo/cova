@@ -1,16 +1,17 @@
 import { motion, useReducedMotion } from "motion/react";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, Instagram } from "lucide-react";
 
 type Section = "overview" | "features" | "pricing" | "resources" | "community" | "dashboard" | "import" | "oauth" | "rules" | "coach" | "passport";
 
 const COVA_DISCORD_INVITE_URL = "https://discord.gg/B83Czu3pAf";
 
-const communityRooms = [
-  { name: "#trade-review", body: "Completed trades, screenshots, execution notes, and what you would change." },
-  { name: "#risk-discipline", body: "Sizing, drawdown decisions, rule breaks, and consistency work." },
-  { name: "#passport-showcase", body: "Privacy-checked Cova Passports and progress worth documenting." },
-  { name: "#product-feedback", body: "Product problems, expected outcomes, and the evidence behind them." },
-];
+function XMark({ className = "" }: { className?: string }) {
+  return (
+    <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+      <path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.64 7.584H.47l8.6-9.835L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z" />
+    </svg>
+  );
+}
 
 function DiscordMark({ className = "" }: { className?: string }) {
   return (
@@ -21,75 +22,42 @@ function DiscordMark({ className = "" }: { className?: string }) {
   );
 }
 
+const socialDestinations = [
+  { name: "Instagram", handle: "@covadesk", action: "Follow on Instagram", href: "https://www.instagram.com/covadesk/", Mark: Instagram },
+  { name: "Discord", handle: "Cova", action: "Join Discord", href: COVA_DISCORD_INVITE_URL, Mark: DiscordMark },
+  { name: "X", handle: "@covadesk", action: "Follow on X", href: "https://x.com/covadesk", Mark: XMark },
+];
+
 export function CommunityPage({ go }: { go: (section: Section) => void }) {
   const reduceMotion = useReducedMotion();
-  const openDiscord = () => {
-    const discordWindow = window.open(COVA_DISCORD_INVITE_URL, "_blank", "noopener,noreferrer");
-    if (discordWindow) discordWindow.opener = null;
-  };
 
   return (
     <section className="community-oa-page">
-      <div aria-hidden="true" className="community-oa-atmosphere" />
       <div className="community-oa-inner">
         <header className="community-oa-intro">
-          <div>
-            <h1>Bring the trade. Get help working through it.</h1>
-            <p>Bring completed trades, screenshots, risk questions, or product problems to the Cova Discord.</p>
-          </div>
+          <h1>Find us.</h1>
         </header>
-
         <motion.div
           animate={{ opacity: 1, y: 0 }}
           className="community-oa-stage"
           initial={reduceMotion ? false : { opacity: 0, y: 8 }}
           transition={reduceMotion ? { duration: 0 } : { duration: 0.2, ease: "easeOut" }}
         >
-          <div className="community-oa-board">
-            <div className="community-oa-hero">
-              <div className="community-oa-join-copy">
-                <div className="community-oa-brandline">
-                  <DiscordMark className="community-oa-brand-mark" />
-                  <div>
-                    <span>COVA ON DISCORD</span>
-                    <strong>THE ROOM IS OPEN</strong>
-                  </div>
+          <nav aria-label="Find Cova" className="community-social-links">
+            {socialDestinations.map(({ name, handle, action, href, Mark }) => (
+              <a className="community-social-link" href={href} key={name} rel="noopener noreferrer" target="_blank">
+                <Mark aria-hidden="true" className="community-social-mark" />
+                <div className="community-social-identity">
+                  <h2>{name}</h2>
+                  <span className="community-social-handle">{handle}</span>
                 </div>
-                <h2>Join the conversation.</h2>
-                <p>The invite is permanent and opens directly in <strong>#start-here</strong>.</p>
-                <button className="community-oa-join" onClick={openDiscord} type="button">
-                  <DiscordMark />
-                  Join the Cova Discord
-                  <ArrowUpRight aria-hidden="true" />
-                </button>
-              </div>
-            </div>
-
-            <div className="community-oa-help-flow" aria-label="How to ask for help">
-              <div><span>01</span><strong>Bring the screenshot</strong><p>Use a completed trade or product problem, never a live call.</p></div>
-              <div><span>02</span><strong>Add the context</strong><p>Explain what you saw, what you did, and the rule or workflow involved.</p></div>
-              <div><span>03</span><strong>Ask what you need</strong><p>Request another perspective, a product answer, or help reviewing the decision.</p></div>
-            </div>
-
-            <div className="community-oa-rooms">
-              <div className="community-oa-rooms-heading">
-                <span>REAL ROOMS</span>
-                <strong>Go where the conversation belongs.</strong>
-              </div>
-              <div className="community-oa-room-list">
-                {communityRooms.map(room => (
-                  <div className="community-oa-room" key={room.name}>
-                    <strong>{room.name}</strong>
-                    <p>{room.body}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="community-oa-boundary">
-              <p>No live entry calls, paid signals, copy trading, account management, broker solicitation, or requests for private account information.</p>
-              <button onClick={() => go("resources")} type="button">Read Resources</button>
-            </div>
+                <span className="community-social-action">{action}<ArrowUpRight aria-hidden="true" /></span>
+              </a>
+            ))}
+          </nav>
+          <div className="community-oa-boundary">
+            <p>No live entry calls, paid signals, copy trading, account management, broker solicitation, or requests for private account information.</p>
+            <button onClick={() => go("resources")} type="button">Read Resources</button>
           </div>
         </motion.div>
       </div>

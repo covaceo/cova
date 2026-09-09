@@ -40,7 +40,7 @@ test('Community keeps one contained entry with consistent body typography', () =
   const source = read('src/components/CommunityDiscordPage.tsx');
   const css = read('src/styles/communityDiscordPage.css');
   assertContainedEntry(source, 'community');
-  assertPublicType(css, 'community', ['.community-oa-intro p', '.community-oa-join-copy > p', '.community-oa-help-flow p', '.community-oa-room p', '.community-oa-boundary p']);
+  assertPublicType(css, 'community', ['.community-social-handle', '.community-social-action', '.community-oa-boundary p']);
   assert.doesNotMatch(css, /community-oa-status/, 'Remove unused decorative status styling');
 });
 

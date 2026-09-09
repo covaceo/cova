@@ -1,55 +1,57 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import ts from "typescript";
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const pagePath = path.join(root, "src/components/CommunityDiscordPage.tsx");
-const stylesPath = path.join(root, "src/styles/communityDiscordPage.css");
-const marketingPath = path.join(root, "src/components/MarketingPages.tsx");
-const navbarPath = path.join(root, "src/components/Navbar.tsx");
-const mainPath = path.join(root, "src/main.tsx");
+const root = new URL("../", import.meta.url);
+const read = name => readFileSync(new URL(name, root), "utf8");
+const page = read("src/components/CommunityDiscordPage.tsx");
+const styles = read("src/styles/communityDiscordPage.css");
+const require = createRequire(new URL("../package.json", import.meta.url));
+const compiled = ts.transpileModule(page, { compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+const mod = { exports: {} };
+new Function("require", "module", "exports", compiled)(require, mod, mod.exports);
+const html = renderToStaticMarkup(React.createElement(mod.exports.CommunityPage, { go() {} }));
+const text = html.replace(/<svg[\s\S]*?<\/svg>/g, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 
-assert.ok(existsSync(pagePath), "Community must move into a dedicated Discord page owner.");
-assert.ok(existsSync(stylesPath), "Community must have one scoped OA stylesheet.");
-
-const page = readFileSync(pagePath, "utf8");
-const styles = readFileSync(stylesPath, "utf8");
-const marketing = readFileSync(marketingPath, "utf8");
-const navbar = readFileSync(navbarPath, "utf8");
-const main = readFileSync(mainPath, "utf8");
-
-assert.match(marketing, /export \{ CommunityPage \} from "\.\/CommunityDiscordPage";/, "MarketingPages must hand Community to its dedicated owner.");
-assert.match(navbar, /\{ label: "Home", action: "overview" \}/, "The completed landing route must use the approved literal Home label.");
-assert.doesNotMatch(navbar, /label: "Product"/, "The old ambiguous Product label must leave public navigation.");
-assert.match(navbar, /\{ label: "Community", action: "community" \}/, "Community must render as a direct route, not a fake dropdown trigger.");
-assert.doesNotMatch(navbar, /label: "Community"[^\n]*hasChevron/, "Community must not show a chevron when no dropdown exists.");
-assert.match(main, /styles\/communityDiscordPage\.css/, "The Community stylesheet must load after settled marketing CSS.");
-assert.doesNotMatch(page, /A real Cova community|This is the real Cova Discord/, "Community must not repeat the room identity above the title or in the intro.");
-assert.match(page, /<p>Bring completed trades, screenshots, risk questions, or product problems to the Cova Discord\.<\/p>/, "Community should name what to bring once.");
-assert.match(page, /<h2>Join the conversation\.<\/h2>/, "The join board should have one concise action-oriented title.");
-assert.match(page, /The invite is permanent and opens directly in <strong>#start-here<\/strong>\./, "The permanent invite destination must stay explicit.");
-assert.match(page, /Bring the trade\. Get help working through it\./, "The hero must lead with concrete help.");
-assert.match(page, /Join the Cova Discord/, "Community must expose the requested dominant join action.");
-assert.match(page, /<title>Discord<\/title>/, "The join experience must render a real Discord brand mark.");
-assert.match(page, /viewBox="0 0 24 24"/, "The Discord mark must use the official icon viewBox.");
-assert.match(page, /https:\/\/discord\.gg\/B83Czu3pAf/, "Community must retain the verified permanent invite.");
-assert.match(page, /window\.open\(COVA_DISCORD_INVITE_URL, "_blank", "noopener,noreferrer"\)/, "The external join action must open safely.");
-assert.match(page, /#trade-review[\s\S]*#risk-discipline[\s\S]*#passport-showcase[\s\S]*#product-feedback/, "The real channel guide must remain ordered and truthful.");
-assert.match(page, /No live entry calls, paid signals, copy trading, account management, broker solicitation, or requests for private account information\./, "Community safety boundaries must remain visible.");
-assert.match(page, /useReducedMotion/, "Community motion must honor reduced motion.");
-
-assert.doesNotMatch(page, /\b\d+[,+]? members?\b|active now|online now|live feed|recent messages/i, "Community must not fabricate activity or membership.");
-assert.doesNotMatch(page, /liquid-glass|SectionShell|ImageAtmosphere|cova-story-frame-04/, "The legacy card shell and broken backdrop must leave Community.");
-assert.match(page, /community-oa-brandline/, "Discord branding should sit beside the join copy instead of occupying a boxed logo panel.");
-assert.doesNotMatch(page, /community-oa-mark-wrap|className="community-oa-mark"/, "The giant boxed Discord mark must leave the composition.");
-assert.doesNotMatch(styles, /1px solid/, "Community must use OA stage gaps and tonal surfaces instead of drawing borders around every region.");
-assert.match(styles, /\.community-oa-brand-mark\s*\{[\s\S]*?width:\s*2rem/, "The remaining Discord brand mark must stay restrained at two rem.");
-assert.doesNotMatch(page + styles, /#18c887|#b9f5df|emerald|copper/i, "Community must stay in Cobalt Market without retired green or copper identity.");
-assert.doesNotMatch(styles, /font-weight:\s*[6-9]00/, "OA weight must stop at 500.");
-assert.match(styles, /padding:\s*4px/, "The dominant OA plate must use the four-pixel stage gap.");
-assert.match(styles, /border-radius:\s*999px/, "The Discord join action must use OA pill anatomy.");
-assert.match(styles, /#4f7dff|#6f96ff/, "Cobalt must remain the single accent.");
-assert.match(styles, /prefers-reduced-motion:\s*reduce/, "The stylesheet must include a reduced-motion fallback.");
-
-console.log("Community Discord OA regression passed.");
+// Raf approved the find-us hub, replacing the Discord instructions, not its
+// destination or safety boundaries. Test the rendered component, not a mock.
+assert.match(html, /<h1>Find us\.<\/h1>/, "Community must lead with the approved Find us. heading.");
+const links = [...html.matchAll(/<a\b([^>]+)>([\s\S]*?)<\/a>/g)].map(([, attrs, body]) => ({
+  href: /\bhref="([^"]+)"/.exec(attrs)?.[1],
+  target: /\btarget="([^"]+)"/.exec(attrs)?.[1],
+  rel: /\brel="([^"]+)"/.exec(attrs)?.[1],
+  label: body.replace(/<svg[\s\S]*?<\/svg>/g, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(),
+}));
+assert.deepEqual(links.map(link => link.href), [
+  "https://www.instagram.com/covadesk/", "https://discord.gg/B83Czu3pAf", "https://x.com/covadesk",
+], "Exactly the three approved real destinations, in Instagram / Discord / X order.");
+assert.deepEqual(links.map(link => link.label), [
+  "Instagram @covadesk Follow on Instagram", "Discord Cova Join Discord", "X @covadesk Follow on X",
+]);
+for (const link of links) {
+  assert.equal(link.target, "_blank");
+  assert.ok(link.rel.split(/\s+/).includes("noopener"));
+  assert.ok(link.rel.split(/\s+/).includes("noreferrer"));
+}
+assert.match(html, /<nav[^>]+aria-label="Find Cova"/);
+assert.equal((html.match(/<h1\b/g) || []).length, 1);
+assert.equal((html.match(/<h2\b/g) || []).length, 3);
+assert.doesNotMatch(page, /window\.open|onClick=\{openDiscord\}/, "External destinations must be native accessible links.");
+assert.doesNotMatch(text, /Bring the trade|Bring the screenshot|Add the context|Ask what you need|REAL ROOMS|THE ROOM IS OPEN|#trade-review|#risk-discipline|#passport-showcase|#product-feedback|The invite is permanent/, "Retire the explainer instead of hiding it.");
+assert.match(text, /No live entry calls, paid signals, copy trading, account management, broker solicitation, or requests for private account information\./);
+assert.match(page, /onClick=\{\(\) => go\("resources"\)\}/, "Keep the existing Resources escape path.");
+assert.doesNotMatch(text, /\b\d+[,+]? members?\b|active now|online now|live feed|recent messages/i);
+assert.doesNotMatch(page, /RiskDisclosureFooter|FooterBrandOrbs/, "Community must not duplicate the shared footer.");
+assert.match(read("src/components/MarketingPages.tsx"), /export \{ CommunityPage \} from "\.\/CommunityDiscordPage";/);
+assert.match(read("src/components/Navbar.tsx"), /\{ label: "Community", action: "community" \}/);
+assert.match(read("src/App.tsx"), /<CommunityPage go=\{go\} \/>/);
+assert.match(read("src/main.tsx"), /styles\/communityDiscordPage\.css/);
+assert.match(page, /useReducedMotion/);
+assert.match(styles, /prefers-reduced-motion:\s*reduce/);
+assert.match(styles, /:focus-visible/);
+assert.doesNotMatch(page + styles, /community-oa-help-flow|community-oa-rooms|community-oa-brandline|community-oa-join-copy|#18c887|#b9f5df|emerald|copper/i);
+assert.match(styles, /#4f7dff|#6f96ff/);
+console.log("Community find-us regression passed: three native links, concise copy, preserved route and safety boundary.");

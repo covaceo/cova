@@ -127,10 +127,10 @@ try {
         assert.match(result.text, /NEEDS REVIEW[\s\S]*trades\.csv[\s\S]*2 warnings[\s\S]*Nothing imports until the member confirms the file\./);
         assert.deepEqual(result.buttons, ['Upload CSV', 'Open import paths', 'Upload CSV', 'Review account', 'Open limits', 'Open Passport', 'Open CSV import', 'View account sources', 'Open Community']);
       } else if (route === 'community') {
-        assert.equal(result.headings[1].text, 'Join the conversation.');
-        assert.doesNotMatch(result.text, /A REAL COVA COMMUNITY/);
-        const invite = await evaluate(`(() => { let captured; window.open = (...args) => { captured = args; return null; }; document.querySelector('.community-oa-join').click(); return captured; })()`);
-        assert.deepEqual(invite, ['https://discord.gg/B83Czu3pAf', '_blank', 'noopener,noreferrer']);
+        assert.deepEqual(result.headings.map(h => h.text), ['Find us.', 'Instagram', 'Discord', 'X']);
+        assert.doesNotMatch(result.text, /A REAL COVA COMMUNITY|REAL ROOMS|Bring the screenshot/);
+        const links = await evaluate(`[...document.querySelectorAll('.community-social-link')].map(a => ({ href: a.href, target: a.target, rel: a.rel }))`);
+        assert.deepEqual(links, ['https://www.instagram.com/covadesk/', 'https://discord.gg/B83Czu3pAf', 'https://x.com/covadesk'].map(href => ({ href, target: '_blank', rel: 'noopener noreferrer' })));
       } else if (route === 'pricing') {
         assert.equal(result.h1Count, 1);
         for (const item of result.pricingMeta) assert.ok(parseFloat(item.size) >= 12, `Pricing metadata too small: ${item.text}`);

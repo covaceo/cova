@@ -268,9 +268,10 @@ assert.match(read("src/components/ResourcesQuickStartPage.tsx"), /Export your tr
 assert.doesNotMatch(marketingPages, /title: "OAuth sign-in"[\s\S]*?route: "oauth"/, "Resources must not route a generic OAuth explainer into the default TopstepX API-key flow.");
 assert.match(marketingPages, /export \{ CommunityPage \} from "\.\/CommunityDiscordPage";/, "Community should hand the real Discord room to its dedicated owner.");
 assert.match(communityPage, /https:\/\/discord\.gg\/B83Czu3pAf/, "Community should keep the verified permanent Discord invite.");
-assert.match(communityPage, /Join the Cova Discord/, "Community should expose the dominant direct Discord action.");
-assert.match(communityPage, /#trade-review/, "Community should describe the live trade-review room.");
-assert.match(communityPage, /#risk-discipline/, "Community should describe the live risk-discipline room.");
+assert.match(communityPage, /Join Discord/, "Community must retain a direct Discord action.");
+assert.match(communityPage, /Find us\./, "Community should use the approved concise find-us heading.");
+assert.match(communityPage, /Follow on Instagram[\s\S]*Join Discord[\s\S]*Follow on X/, "Community should expose all three approved social destinations.");
+assert.doesNotMatch(communityPage, /#trade-review|#risk-discipline|communityRooms/, "Do not restore the retired channel explainer.");
 assert.match(communityPage, /No live entry calls, paid signals, copy trading, account management, broker solicitation/, "Community should preserve the trading-safety boundaries.");
 assert.doesNotMatch(communityPage, /Product preview · community not open|What this preview proposes|Join the preview/, "Community should not retain obsolete preview-only language.");
 assert.match(appRoutes, /\["overview", "features", "pricing", "resources", "community", "privacy", "terms", "security", "disclosures", "dashboard", "import", "oauth", "rules", "coach", "passport"\]/, "The public and workspace route registry should match the current product map.");
