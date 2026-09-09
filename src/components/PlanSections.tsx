@@ -3,6 +3,7 @@ import { ArrowUpRight, Check, X } from "lucide-react";
 import { GlassButton } from "./GlassButton";
 import { StartFreeButton } from "./StartFreeButton";
 import { FooterBrandOrbs } from "./FooterBrandOrbs";
+import { InlineRiskDisclosures } from "./RiskDisclosureFooter";
 import { StructureFlowCollection } from "./structureFlow/StructureFlowCollection";
 
 type PlanTier = "free" | "pro";
@@ -192,11 +193,19 @@ export function CtaFooter({ go, isSignedIn, openAuth, openPassport }: { go: (sec
           </div>
         </div>
       </section>
+    </>
+  );
+}
+
+export function SiteFooter({ go }: { go: (section: "privacy" | "terms" | "security") => void }) {
+  return (
       <footer className="cova-site-footer">
+        <InlineRiskDisclosures />
         <div className="cova-site-footer-inner">
           <span>© 2026 Cova. Built for risk review, not trade signals.</span>
           <div className="cova-site-footer-meta">
             <nav aria-label="Legal and support">
+              <a href="#disclosures">Risk disclosures</a>
               <button onClick={() => go("privacy")} type="button">Privacy</button>
               <button onClick={() => go("terms")} type="button">Terms</button>
               <button onClick={() => go("security")} type="button">Security</button>
@@ -206,7 +215,6 @@ export function CtaFooter({ go, isSignedIn, openAuth, openPassport }: { go: (sec
           <FooterBrandOrbs />
         </div>
       </footer>
-    </>
   );
 }
 

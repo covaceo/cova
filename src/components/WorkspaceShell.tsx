@@ -2,6 +2,7 @@ import { Activity, ArrowUpRight, BarChart3, BookOpen, FileUp, Gauge, Home, Layou
 import { motion, useReducedMotion } from "motion/react";
 import { useMemo, useState, type ReactNode } from "react";
 import { isWorkspaceNavActive, type Section } from "../lib/appRoutes";
+import { SiteFooter } from "./PlanSections";
 
 type WorkspaceNavItem = {
   icon: typeof BarChart3;
@@ -162,6 +163,7 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
             {children}
           </div>
         )}
+        <SiteFooter go={go} />
       </motion.div>
     </div>
   );

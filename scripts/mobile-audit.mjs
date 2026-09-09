@@ -390,7 +390,7 @@ async function main() {
       ...(result.name === "overview" && result.footer?.dashboardInside ? ["overview: dashboard duplicated inside closing CTA"] : []),
       ...(result.name === "overview" && result.footer?.reviewsInside ? ["overview: reviews duplicated inside closing CTA"] : []),
       ...(result.name === "overview" && !result.footer?.footerSeparate ? ["overview: normal footer is not separate from closing CTA"] : []),
-      ...(result.name === "overview" && result.footer?.legalLabels?.join('|') !== "Privacy|Terms|Security|Support" ? ["overview: public legal or support footer links are missing"] : []),
+      ...(result.name === "overview" && result.footer?.legalLabels?.join('|') !== "Risk disclosures|Privacy|Terms|Security|Support" ? ["overview: public legal or support footer links are missing"] : []),
       ...(result.name === "overview" && result.footer?.primaryText !== "Sign up" ? ["overview: signed-out footer primary label mismatch"] : []),
       ...(result.name === "overview" && (!result.footerPrimaryOutcome?.hasAuthDialog || result.footerPrimaryOutcome?.dialogLabel !== "Sign up to Cova") ? ["overview: signed-out footer primary did not open the signup dialog"] : []),
       ...(result.name === "overview" && result.footer?.secondaryText !== "Explore Risk Passport" ? ["overview: signed-out footer Passport label mismatch"] : []),

@@ -38,7 +38,8 @@ assert.match(packageJson, /"test:features-showcase-browser":\s*"npm run build &&
 
 assert.equal(digest(hero), "454b49c9ee258b227e51c7404f106aafac853d365f6eac2c3417b317900fb921", "The completed landing hero must remain content-stable (LF normalized).");
 assert.match(story, /data-home-story="card-first"/, "The approved homepage card-first composition must remain present beside Features.");
-assert.equal(digest(plans), "57b91607c11a671e3b60d39aca912cb7812cc3a65a1db39d29cda2bc9ea8c941", "Pricing and footer source must remain content-stable (LF normalized).");
+// Founder correction extracts the original footer for every tab and moves providers before the unchanged CTA.
+assert.equal(digest(plans), "fd5fda299c03bc6e7b6786ec38448c471212c42d74eee72a879514b470a21500", "Pricing and footer source must remain content-stable (LF normalized).");
 assert.equal(digest(landingCss), "4db289a9218f473065245da68623ceefc66fa82266c4d1607be438df65b457d8", "The approved landing stylesheet must remain content-stable (LF normalized).");
 const pricingSection = marketingPages.slice(marketingPages.indexOf("export function PricingPage"));
 assert.equal(digest(pricingSection), "df97decaa65f05ab4690d8994f8daf9734b4df548ba9e23a0f4d0e9ad72679e0", "Pricing must remain content-stable (LF normalized) inside the final marketing release.");
