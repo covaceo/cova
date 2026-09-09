@@ -43,7 +43,10 @@ import { Hero } from "./components/MarketingHero";
 import { CsvExplainer } from "./components/CsvExplainer";
 import { StoryStrip } from "./components/StoryStrip";
 import { GlassButton } from "./components/GlassButton";
-import { CtaFooter, PlanStrip } from "./components/PlanSections";
+import { CtaFooter, PlanStrip, SiteFooter } from "./components/PlanSections";
+import { RiskDisclosureFooter, RiskDisclosuresPage } from "./components/RiskDisclosureFooter";
+import { ProviderResources } from "./components/ProviderResources";
+import "./styles/vendorCompliance.css";
 import { RouteFrame } from "./components/LayoutShell";
 import { AuthGate, AuthSheet } from "./components/AuthPanels";
 import { CommunityPage, FeaturesPage, PricingPage, ResourcesPage } from "./components/MarketingPages";
@@ -1289,6 +1292,7 @@ export default function App() {
               <Hero go={go} openAuth={openAuth} isSignedIn={isSignedIn} />
               <StoryStrip />
               <PlanStrip currentPlan={authSession?.plan ?? null} go={go} openAuth={openAuth} proCheckoutAvailable={proCheckoutAvailable} upgradeToPro={upgradeToPro} />
+              <ProviderResources compact />
               <CtaFooter go={go} isSignedIn={isSignedIn} openAuth={openAuth} openPassport={openPassport} />
             </RouteFrame>
           )}
@@ -1305,6 +1309,7 @@ export default function App() {
           {section === "resources" && (
             <RouteFrame key="resources">
               <ResourcesPage go={go} openAuth={openAuth} />
+              <ProviderResources />
             </RouteFrame>
           )}
           {section === "community" && (
@@ -1327,8 +1332,14 @@ export default function App() {
               <SecurityPage go={go} />
             </RouteFrame>
           )}
+          {section === "disclosures" && (
+            <RouteFrame key="disclosures">
+              <RiskDisclosuresPage />
+            </RouteFrame>
+          )}
           </AnimatePresence>
         )}
+        {!(isProtectedSection(section) && isSignedIn) && (section === "disclosures" ? <RiskDisclosureFooter /> : <SiteFooter go={go} />)}
       </main>
     </div>
   );

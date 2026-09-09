@@ -1,0 +1,58 @@
+.cova-risk-footer {
+  position: relative;
+  color: #c4ccdc;
+  background: #0d0f14;
+  border-top: 1px solid #2b303a;
+  padding: 40px 24px;
+  font: 400 16px/1.7 Inter, sans-serif;
+}
+.cova-risk-inner { max-width: 1280px; margin: 0 auto; }
+.cova-risk-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.7fr); gap: 40px; }
+.cova-risk-footer h2 { margin: 0 0 16px; color: #e8eeff; font: 550 22px/1.3 "Bricolage Grotesque Variable", sans-serif; letter-spacing: -.02em; }
+.cova-risk-footer p { margin: 0; font: inherit; }
+.cova-risk-footer .cova-risk-context { margin-top: 28px; padding-top: 24px; border-top: 1px solid #2b303a; }
+.cova-risk-footer nav { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-top: 24px; }
+.cova-risk-footer a { display: inline-flex; align-items: center; min-height: 44px; color: #b5c9ff; text-decoration: underline; text-underline-offset: 4px; }
+.cova-risk-footer a:focus-visible { outline: 2px solid #6f96ff; outline-offset: 4px; }
+.cova-disclosures-page { position: relative; max-width: 1328px; padding: 150px 24px 48px; margin: 0 auto; }
+.cova-disclosures-page h1 { color: #e8eeff; font: 550 clamp(40px, 6vw, 80px)/1.05 "Bricolage Grotesque Variable", sans-serif; letter-spacing: -.04em; }
+.cova-disclosures-page p { max-width: 760px; margin-top: 24px; color: #c4ccdc; font: 400 16px/1.7 Inter, sans-serif; }
+
+/* One original site-footer surface. No second background, nav or footer. */
+.cova-risk-disclosures { max-width: 1280px; margin: 0 auto 16px; color: #aeb8ca; font: 400 14px/1.55 Inter, sans-serif; }
+.cova-risk-disclosures p { margin: 0; font: inherit; }
+.cova-risk-disclosures p + p { margin-top: 8px; }
+.cova-risk-disclosures strong { color: #c4ccdc; font-weight: 550; }
+.cova-site-footer-meta nav { flex-wrap: wrap; }
+
+/* Utility-sized vendor strip, not another marketing panel. */
+.cova-provider-resources { position: relative; padding: 20px 24px; background: transparent; color: #aeb8ca; font: 400 14px/1.5 Inter, sans-serif; }
+.cova-provider-inner { max-width: 1280px; margin: 0 auto; }
+.cova-provider-inner > header { display: flex; justify-content: center; text-align: center; }
+.cova-provider-resources h2 { margin: 0; color: #c4ccdc; font: 550 16px/1.4 "Bricolage Grotesque Variable", sans-serif; letter-spacing: -.01em; }
+
+.cova-provider-resources p { margin: 0; font: inherit; }
+.cova-provider-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px; max-width: 720px; margin: 12px auto 0; }
+.cova-provider-grid article { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: 64px 21px 1fr 44px; row-gap: 4px; justify-items: center; text-align: center; align-content: start; min-width: 0; padding: 0; background: transparent; border: 0; }
+.cova-provider-grid article > p { grid-row: 3; max-width: 300px; min-width: 0; }
+.cova-provider-grid article > .cova-provider-action { grid-row: 4; }
+.cova-provider-logo { display: flex; align-items: center; justify-content: center; grid-column: 1; grid-row: 1; align-self: start; width: 132px; min-height: 64px; padding: 20px; background: transparent; }
+.cova-provider-logo img { display: block; width: 100%; height: auto; object-fit: contain; }
+.cova-provider-action, .cova-provider-details { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; justify-self: center; color: #b5c9ff; text-decoration: underline; text-underline-offset: 3px; }
+.cova-provider-details { display: flex; width: fit-content; margin: 0 auto; }
+.cova-provider-resources a:focus-visible { outline: 2px solid #6f96ff; outline-offset: 4px; }
+.cova-provider-paid { grid-row: 2; color: #c4ccdc; font: inherit; white-space: nowrap; }
+.cova-provider-resources .cova-provider-trademark { max-width: 960px; margin: 12px auto 0; text-align: center; }
+.cova-provider-resources-compact { padding-top: 8px; padding-bottom: 40px; }
+.cova-provider-resources-compact .cova-provider-grid { margin-top: 4px; }
+.cova-provider-resources-compact .cova-provider-grid article { grid-template-rows: 64px 21px; }
+
+@media (max-width: 767px) {
+  .cova-risk-footer { padding: 32px 20px; }
+  .cova-risk-grid { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+  .cova-disclosures-page { padding: 120px 20px 32px; }
+  .cova-provider-resources { padding: 16px 20px; }
+  .cova-provider-resources-compact { padding-bottom: 40px; }
+  .cova-provider-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .cova-provider-resources-compact .cova-provider-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

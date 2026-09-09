@@ -273,7 +273,7 @@ assert.match(communityPage, /#trade-review/, "Community should describe the live
 assert.match(communityPage, /#risk-discipline/, "Community should describe the live risk-discipline room.");
 assert.match(communityPage, /No live entry calls, paid signals, copy trading, account management, broker solicitation/, "Community should preserve the trading-safety boundaries.");
 assert.doesNotMatch(communityPage, /Product preview · community not open|What this preview proposes|Join the preview/, "Community should not retain obsolete preview-only language.");
-assert.match(appRoutes, /\["overview", "features", "pricing", "resources", "community", "privacy", "terms", "security", "dashboard", "import", "oauth", "rules", "coach", "passport"\]/, "The public and workspace route registry should match the current product map.");
+assert.match(appRoutes, /\["overview", "features", "pricing", "resources", "community", "privacy", "terms", "security", "disclosures", "dashboard", "import", "oauth", "rules", "coach", "passport"\]/, "The public and workspace route registry should match the current product map.");
 assert.match(appRoutes, /legal-\(privacy\|terms\|security\)-\\d\+/, "Legal table-of-contents anchors must resolve back to their owning legal route.");
 assert.match(appRoutes, /documentAnchor/, "Legal table-of-contents navigation must retain the concrete anchor id.");
 assert.match(appRoutes, /getElementById[\s\S]*?scrollIntoView/, "Legal anchors must scroll after React renders the target section.");

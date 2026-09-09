@@ -39,11 +39,13 @@ const protectedFiles = {
   // Owner-approved continuity keeps one workspace shell; native-density optics
   // preserves artwork. Route-prop parity is tested in workspace-motion-regression.
   // Risk Desk content, risk/auth/provider owners and Passport artwork remain frozen.
-  "src/App.tsx": "66bd93a05e265c5b912abffc36d893ad35d919f720ffe3cd61b71035eff54c51",
+  // Founder correction consolidates disclosures into the original footer on all tabs.
+  // Route-prop and real-footer regressions cover the authorized presentation-only wiring.
+  "src/App.tsx": "9b981d9e5aa07541026f3cd614fff0dd708cda08c9624a1f5b4c6fb34bcc1861",
   "src/components/AstraEquityCurve.tsx": "0487554f9ea35b665e5b013172003a20d612f57e20662b687e5b181e26d2970f",
   "src/components/DashboardTradeDialog.tsx": "4f111aae3b8dd372eb4120d8c67821acb266a26bc2e8a374659e995cad34aae0",
   "src/components/DashboardView.tsx": "9326f89b57e4662e41f68237d1db85ee275f69dece50171ebbe2c59bb935a63d",
-  "src/components/WorkspaceShell.tsx": "0b37fa65ea659158dc56a234320a978466a052232293e5a14ae4f302bc2b0aaf",
+  "src/components/WorkspaceShell.tsx": "1ba5ee114ebb09e8b37f841404ae595a9d323850524378231c15ff26ef623219",
   "src/index.css": "ea8b38ada867619addaced06a8a3a1c494c1de9ef6c30beb5cbe7435890729db",
   "src/lib/risk.ts": "68a3322b983462913ef12237d89afe41faba58be8dd5f8dabd5ee0b11ce7bee0",
   "src/lib/storageScope.ts": "3cd9c57c38bb10e9f7b61776f00422ab9590bdebd1d0e458eba5a33cc676e183",

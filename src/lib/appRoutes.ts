@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-export const sections = ["overview", "features", "pricing", "resources", "community", "privacy", "terms", "security", "dashboard", "import", "oauth", "rules", "coach", "passport"] as const;
+export const sections = ["overview", "features", "pricing", "resources", "community", "privacy", "terms", "security", "disclosures", "dashboard", "import", "oauth", "rules", "coach", "passport"] as const;
 const protectedSections = ["dashboard", "import", "oauth", "rules", "coach", "passport"] as const satisfies readonly Section[];
 export type Section = (typeof sections)[number];
 export function isWorkspaceNavActive(section: Section, itemId: Section) {

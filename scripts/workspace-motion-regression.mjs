@@ -125,6 +125,9 @@ function loadMotionComponent(file, reducedMotion, captures) {
   new Function('module', 'exports', 'require', output)(module, module.exports, (name) => {
     if (name === 'motion/react') return { motion, useReducedMotion: () => reducedMotion };
     if (name === '../lib/appRoutes') return { isWorkspaceNavActive: (section, id) => section === id || (section === 'oauth' && id === 'import') };
+    // This test isolates shell motion; the real shared footer is exercised by vendor SSR/browser regressions.
+    if (name === './PlanSections') return { SiteFooter: () => React.createElement('footer', { className: 'cova-site-footer' }) };
+    if (name === '../lib/vendorCompliance') return loadMotionComponent('src/lib/vendorCompliance.ts', reducedMotion, captures);
     return require(name);
   });
   return module.exports;
@@ -159,6 +162,7 @@ test('section content alone enters at 8px over 200ms without opacity or exit; re
       assert.deepEqual(highlight.props.transition, reduced ? { duration: 0 } : { type: 'spring', stiffness: 550, damping: 40 });
       assert.equal((html.match(/aria-current="page"/g) || []).length, 1, `${section}: one current nav highlight`);
       assert.match(html, new RegExp(`data-current-content="${section}"`), 'new content is present on the first render');
+      assert.equal((html.match(/class="cova-site-footer"/g) || []).length, 1, 'the shared footer slot stays in the current content stage; vendor regressions render its real contents');
       if (section === 'dashboard') assert.doesNotMatch(html, /astra-workspace-page/);
       else assert.match(html, new RegExp(`data-astra-route="${section}"`));
     }
