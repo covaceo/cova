@@ -327,7 +327,8 @@ function normalizeFillPair(pair, pairId, fillsById, fillCapacities, fillConsumpt
   fillConsumption.set(buyFillId, nextBuyConsumption);
   fillConsumption.set(sellFillId, nextSellConsumption);
 
-  const priceDelta = isLong ? sellPrice - buyPrice : buyPrice - sellPrice;
+  // Gross P&L is sale proceeds minus purchase cost for longs and shorts.
+  const priceDelta = sellPrice - buyPrice;
   const pnl = Math.round(priceDelta * quantity * pointValue * 100) / 100;
   const sourceTradeId = `tradovate-${pairId}`;
 

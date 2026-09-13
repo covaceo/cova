@@ -438,6 +438,46 @@ try {
     return response;
   }
 
+  // Synthetic provider-schema fixtures: a sale minus a purchase is the gross
+  // cash-flow P&L for either direction. Exercise the real HTTP handler and CSV.
+  for (const scenario of [
+    { side: "Short", buy: 20000, sell: 20010, qty: 1, pnl: 200 },
+    { side: "Short", buy: 20020, sell: 20010, qty: 2, pnl: -400 },
+    { side: "Short", buy: 20010, sell: 20010, qty: 1, pnl: 0 },
+    { side: "Long", buy: 20000, sell: 20010, qty: 2, pnl: 400 },
+    { side: "Long", buy: 20020, sell: 20010, qty: 1, pnl: -200 },
+    { side: "Long", buy: 20010, sell: 20010, qty: 1, pnl: 0 },
+  ]) {
+    const early = "2026-09-08T14:00:00Z";
+    const late = "2026-09-08T14:01:00Z";
+    const isLong = scenario.side === "Long";
+    const probe = {
+      fills: [
+        { id: 201, orderId: 301, contractId: 401, action: "Buy", qty: scenario.qty, price: scenario.buy, timestamp: isLong ? early : late, active: true },
+        { id: 202, orderId: 302, contractId: 401, action: "Sell", qty: scenario.qty, price: scenario.sell, timestamp: isLong ? late : early, active: true },
+      ],
+      fillPairs: [{ id: 501, positionId: 601, buyFillId: 201, sellFillId: 202, qty: scenario.qty, buyPrice: scenario.buy, sellPrice: scenario.sell, active: true }],
+      positions: [{ id: 601, accountId: 101, contractId: 401 }],
+      contracts: { 401: { id: 401, name: "NQU6" } },
+      preservePairPrices: true,
+    };
+    const result = await runTradovateLedgerProbe(probe);
+    assert.equal(result.statusCode, 200);
+    assert.equal(result.body.counts.trades, 1);
+    const [trade] = result.body.trades;
+    assert.equal(trade.side, scenario.side);
+    assert.equal(trade.entry, isLong ? scenario.buy : scenario.sell);
+    assert.equal(trade.exit, isLong ? scenario.sell : scenario.buy);
+    assert.equal(trade.pnl, scenario.pnl, `${scenario.side} gross P&L must preserve sale-minus-purchase direction`);
+    assert.equal(trade.risk, 0);
+    assert.deepEqual(trade.source, { provider: "Tradovate", accountId: "101" });
+    const [header, row] = result.body.csv.split("\n").map((line) => line.split(","));
+    assert.equal(Number(row[header.indexOf("pnl")]), scenario.pnl);
+    assert.equal(row[header.indexOf("source_trade_id")], "tradovate-501");
+    const repeated = await runTradovateLedgerProbe(probe);
+    assert.deepEqual(repeated.body, result.body, "Unchanged provider history must produce identical IDs, values and CSV on repeat sync");
+  }
+
   const providerErrorRedisResults = [[1, 1], "OK", 1];
   const providerDiagnostic = "SENTINEL provider diagnostic detail";
   globalThis.fetch = async (url) => {
