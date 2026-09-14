@@ -148,21 +148,46 @@ async function tradovateGet(path, accessToken, signal = AbortSignal.timeout(PROV
     redirect: "error",
     signal,
   });
-  const payload = await readBoundedJson(response, MAX_PROVIDER_RESPONSE_BYTES, byteBudget);
+  const payload = await readBoundedJson(response, MAX_PROVIDER_RESPONSE_BYTES, byteBudget, path);
   if (!response.ok || payload?.error) {
     throw new Error("Tradovate provider request failed.");
   }
   return payload;
 }
 
-async function readBoundedJson(response, maxBytes, byteBudget = null) {
+// Server-only, fixed-schema metadata. Never log payloads, headers, URLs or identities.
+function reportTradovateResponseFailure(response, path, reason) {
+  try {
+    const endpoint = String(path).split("?", 1)[0];
+    const allowedEndpoints = ["/fill/list", "/fillPair/list", "/position/list", "/contract/item"];
+    const mediaType = String(response.headers?.get?.("content-type") || "").split(";", 1)[0].trim().toLowerCase();
+    const formats = { "application/json": "json", "text/html": "html", "text/plain": "text" };
+    const stream = !response.body ? "missing"
+      : typeof response.body.getReader === "function" ? "web"
+        : typeof response.body[Symbol.asyncIterator] === "function" ? "node" : "unsupported";
+    console.warn("cova.tradovate.response_failure", {
+      endpoint: allowedEndpoints.includes(endpoint) ? endpoint : "other",
+      upstreamStatus: Number.isInteger(response.status) && response.status >= 100 && response.status <= 599 ? response.status : null,
+      format: Object.hasOwn(formats, mediaType) ? formats[mediaType] : mediaType ? "other" : "missing",
+      stream,
+      reason: ["invalid_json", "missing_reader"].includes(reason) ? reason : "other",
+    });
+  } catch {
+    // Logging must not change the sync result or interfere with lock release.
+  }
+}
+
+async function readBoundedJson(response, maxBytes, byteBudget = null, path = "") {
   const declared = Number(response.headers?.get?.("content-length") || 0);
   if (Number.isFinite(declared) && declared > maxBytes) {
     throw new Error("Tradovate sync result is too large to import safely.");
   }
   byteBudget?.assertAvailable(declared);
   const reader = response.body?.getReader?.();
-  if (!reader) throw new Error("Tradovate sync is temporarily unavailable.");
+  if (!reader) {
+    reportTradovateResponseFailure(response, path, "missing_reader");
+    throw new Error("Tradovate sync is temporarily unavailable.");
+  }
   const chunks = [];
   let total = 0;
   while (true) {
@@ -181,6 +206,7 @@ async function readBoundedJson(response, maxBytes, byteBudget = null) {
   try {
     return JSON.parse(raw);
   } catch {
+    reportTradovateResponseFailure(response, path, "invalid_json");
     throw new Error("Tradovate sync is temporarily unavailable.");
   }
 }
