@@ -82,6 +82,7 @@ export default async function handler(req, res) {
 
     try {
       let accessToken;
+      let connectionExpiresAt;
       try {
         const connection = await getTradovateConnection(connectionId, user.id);
         if (!connection?.access_token_encrypted) {
@@ -89,6 +90,7 @@ export default async function handler(req, res) {
           return;
         }
         accessToken = decryptSecret(connection.access_token_encrypted);
+        connectionExpiresAt = connection.expires_at;
       } catch {
         res.status(500).json({ error: "Could not load the authorized Tradovate connection." });
         return;
@@ -101,6 +103,14 @@ export default async function handler(req, res) {
         providerTimeout.unref?.();
         const providerSignal = providerController.signal;
         const providerBudget = createProviderByteBudget(MAX_PROVIDER_SYNC_BYTES, () => providerController.abort());
+        if (req.query?.diagnostic === "access") {
+          try {
+            const diagnostic = await diagnoseTradovateAccess(accessToken, connectionExpiresAt, providerSignal);
+            return res.status(200).json(diagnostic);
+          } finally {
+            providerController.abort();
+          }
+        }
         const [rawFills, rawFillPairs, rawPositions] = await Promise.all([
           tradovateGet("/fill/list", accessToken, providerSignal, providerBudget),
           tradovateGet("/fillPair/list", accessToken, providerSignal, providerBudget),
@@ -134,6 +144,85 @@ export default async function handler(req, res) {
     }
   } catch {
     return sendApiError(res, new ApiError(503, "Tradovate sync protection is temporarily unavailable."), "Tradovate sync protection is temporarily unavailable.");
+  }
+}
+
+// Explicit, owner-authenticated diagnostic. No ledger, renewal, storage writes or secret output.
+async function diagnoseTradovateAccess(accessToken, expiresAt, signal) {
+  const base = new URL(process.env.TRADOVATE_API_BASE_URL || DEFAULT_API_BASE_URL);
+  if (base.origin !== "https://demo.tradovateapi.com" || !["/v1", "/v1/"].includes(base.pathname)
+    || base.username || base.password || base.search || base.hash) {
+    throw new Error("Tradovate access diagnostic requires the Demo environment.");
+  }
+  const token = typeof accessToken === "string" ? accessToken : "";
+  let unverifiedJwtExpiry = "not_jwt";
+  if (token.length <= 65_536 && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token)) {
+    try {
+      const claims = JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString("utf8"));
+      unverifiedJwtExpiry = typeof claims?.exp === "number" && Number.isFinite(claims.exp)
+        ? claims.exp * 1000 <= Date.now() ? "expired" : "not_expired" : "missing";
+    } catch {
+      unverifiedJwtExpiry = "unreadable";
+    }
+  }
+  const expiry = Date.parse(expiresAt);
+  const credential = {
+    present: Boolean(token),
+    surroundingWhitespace: token !== token.trim(),
+    embeddedControlCharacters: /[\x00-\x1f\x7f]/.test(token),
+    bearerPrefixInStoredToken: /^Bearer\s/i.test(token),
+    storedExpiry: Number.isFinite(expiry) ? expiry <= Date.now() ? "expired" : "not_expired" : "invalid",
+    unverifiedJwtExpiry,
+  };
+  const results = [];
+  for (const endpoint of ["/position/list", "/auth/me"]) {
+    if (signal.aborted) break;
+    try {
+      const response = await fetch(`https://demo.tradovateapi.com/v1${endpoint}`, {
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        redirect: "error",
+        signal,
+      });
+      results.push({ endpoint, ...await summarizeAccessResponse(response) });
+    } catch {
+      results.push({ endpoint, upstreamStatus: null, failure: signal.aborted ? "timeout" : "network_or_redirect" });
+    }
+  }
+  return { diagnostic: "tradovate-access-v1", credential, results };
+}
+
+async function summarizeAccessResponse(response) {
+  const media = String(response.headers.get("content-type") || "").split(";", 1)[0].trim().toLowerCase();
+  const formats = { "application/json": "json", "text/plain": "text", "text/html": "html" };
+  const authenticate = response.headers.get("www-authenticate");
+  const match = authenticate?.match(/\berror\s*=\s*(?:"([^"]*)"|([^,\s]+))/i);
+  const category = match?.[1] || match?.[2];
+  const metadata = {
+    upstreamStatus: response.status,
+    format: Object.hasOwn(formats, media) ? formats[media] : media ? "other" : "missing",
+    authenticationError: ["invalid_token", "insufficient_scope", "invalid_request"].includes(category)
+      ? category : authenticate ? "unspecified" : "missing",
+  };
+  const reader = response.body?.getReader?.();
+  if (!reader) return { ...metadata, body: "empty" };
+  let bytes = 0;
+  const chunks = [];
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    bytes += value.byteLength;
+    if (bytes > 32_768) {
+      void reader.cancel().catch(() => undefined);
+      return { ...metadata, body: "truncated" };
+    }
+    chunks.push(Buffer.from(value));
+  }
+  if (!bytes) return { ...metadata, body: "empty" };
+  try {
+    const payload = JSON.parse(Buffer.concat(chunks, bytes).toString("utf8"));
+    return { ...metadata, body: "json", providerError: Boolean(payload?.error || payload?.errorText) };
+  } catch {
+    return { ...metadata, body: "non_json" };
   }
 }
 
