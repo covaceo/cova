@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { Readable } from "node:stream";
 import { requireAuthenticatedUser, requireProEntitlement } from "../api/_lib/auth.js";
 import { createOAuthContext, verifyOAuthContext } from "../api/_lib/oauth-context.js";
 import { getAppOrigin, getTradovateRedirectUri } from "../api/_lib/urls.js";
@@ -389,7 +390,7 @@ try {
   const oversizedProviderSignals = [];
   const encryptedTradovateToken = encryptSecret("provider-access-token");
   let ledgerProbeIndex = 0;
-  async function runTradovateLedgerProbe({ fills, fillPairs, contracts, positions, preservePairPrices = false }) {
+  async function runTradovateLedgerProbe({ fills, fillPairs, contracts, positions, preservePairPrices = false, fillPairResponse }) {
     const normalizedFillPairs = fillPairs.map((pair, index) => {
       const buyFill = fills.find((fill) => String(fill.id) === String(pair.buyFillId));
       const sellFill = fills.find((fill) => String(fill.id) === String(pair.sellFillId));
@@ -416,7 +417,7 @@ try {
       if (target === process.env.KV_REST_API_URL) return new Response(JSON.stringify({ result: redisResults.shift() }), { status: 200 });
       if (target.includes("/rest/v1/broker_connections?")) return new Response(JSON.stringify([{ access_token_encrypted: encryptedTradovateToken, expires_at: "2099-01-01T00:00:00.000Z", provider_account_id: "account-1", status: "connected" }]), { status: 200 });
       if (target.includes("tradovateapi.com/v1/fill/list")) return new Response(JSON.stringify(fills), { status: 200 });
-      if (target.includes("tradovateapi.com/v1/fillPair/list")) return new Response(JSON.stringify(normalizedFillPairs), { status: 200 });
+      if (target.includes("tradovateapi.com/v1/fillPair/list")) return fillPairResponse ? fillPairResponse() : new Response(JSON.stringify(normalizedFillPairs), { status: 200 });
       if (target.includes("tradovateapi.com/v1/position/list")) return new Response(JSON.stringify(normalizedPositions), { status: 200 });
       if (target.includes("tradovateapi.com/v1/contract/item")) {
         const id = new URL(target).searchParams.get("id");
@@ -435,7 +436,67 @@ try {
       },
       query: {},
     }, response);
+    assert.equal(redisResults.length, 0, "Every ledger probe must release its acquired sync permit, including diagnostic failures.");
     return response;
+  }
+
+  // Diagnostics distinguish the hosted generic 502 without recording payloads.
+  const responseDiagnosticLogs = [];
+  const originalWarn = console.warn;
+  try {
+    console.warn = (...args) => responseDiagnosticLogs.push(args);
+    const response = await runTradovateLedgerProbe({
+      fills: [], fillPairs: [], contracts: {},
+      fillPairResponse: () => new Response("<html>fixture-private-body-sentinel</html>", {
+        status: 401, headers: { "Content-Type": "text/html; fixture-private-header-sentinel" },
+      }),
+    });
+    assert.equal(response.statusCode, 502);
+    assert.equal(response.body.error, "Tradovate sync is temporarily unavailable.");
+    assert.deepEqual(responseDiagnosticLogs, [["cova.tradovate.response_failure", {
+      endpoint: "/fillPair/list", upstreamStatus: 401,
+      format: "html", stream: "web", reason: "invalid_json",
+    }]], "The real handler must emit only allowlisted response metadata for the hidden 502.");
+    assert.doesNotMatch(JSON.stringify([response.body, responseDiagnosticLogs]), /fixture-private-|provider-access-token|pro-token|fixture-connection/);
+    responseDiagnosticLogs.length = 0;
+    const nodeStreamResponse = await runTradovateLedgerProbe({
+      fills: [], fillPairs: [], contracts: {},
+      fillPairResponse: () => ({
+        status: 200, ok: true, headers: new Headers({ "Content-Type": "application/json" }),
+        body: Readable.from([Buffer.from("[]")]),
+      }),
+    });
+    assert.equal(nodeStreamResponse.statusCode, 502, "Diagnostics must not silently introduce a new body reader.");
+    assert.deepEqual(responseDiagnosticLogs, [["cova.tradovate.response_failure", {
+      endpoint: "/fillPair/list", upstreamStatus: 200,
+      format: "json", stream: "node", reason: "missing_reader",
+    }]], "Runtime stream mismatch must be distinguishable from an invalid JSON response.");
+    for (const probe of [
+      { make: () => new Response(null, { status: 204 }), status: 204, format: "missing", stream: "missing", reason: "missing_reader" },
+      { make: () => new Response("fixture-private-body-sentinel", { status: 502, headers: { "Content-Type": "fixture-private-header-sentinel" } }), status: 502, format: "other", stream: "web", reason: "invalid_json" },
+    ]) {
+      responseDiagnosticLogs.length = 0;
+      const failed = await runTradovateLedgerProbe({ fills: [], fillPairs: [], contracts: {}, fillPairResponse: probe.make });
+      assert.equal(failed.statusCode, 502);
+      assert.deepEqual(responseDiagnosticLogs, [["cova.tradovate.response_failure", {
+        endpoint: "/fillPair/list", upstreamStatus: probe.status,
+        format: probe.format, stream: probe.stream, reason: probe.reason,
+      }]]);
+      assert.doesNotMatch(JSON.stringify([failed.body, responseDiagnosticLogs]), /fixture-private-|provider-access-token|pro-token|fixture-connection/);
+    }
+    responseDiagnosticLogs.length = 0;
+    const successful = await runTradovateLedgerProbe({ fills: [], fillPairs: [], contracts: {} });
+    assert.equal(successful.statusCode, 200);
+    assert.deepEqual(responseDiagnosticLogs, [], "Successful syncs must not produce diagnostic logs.");
+    console.warn = () => { throw new Error("fixture-private-logger-sentinel"); };
+    const loggerFailure = await runTradovateLedgerProbe({
+      fills: [], fillPairs: [], contracts: {},
+      fillPairResponse: () => new Response("fixture-private-body-sentinel", { status: 502 }),
+    });
+    assert.equal(loggerFailure.statusCode, 502);
+    assert.equal(loggerFailure.body.error, "Tradovate sync is temporarily unavailable.");
+  } finally {
+    console.warn = originalWarn;
   }
 
   // Synthetic provider-schema fixtures: a sale minus a purchase is the gross

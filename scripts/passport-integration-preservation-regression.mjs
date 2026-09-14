@@ -23,8 +23,8 @@ const protectedFiles = {
   "api/rithmic/sync.js": "58f4b709f75568a526874cefa503adf572bc2dda7c6026905b7aeb7caa9fa8a3",
   "api/tradovate/callback.js": "6a1a6dee6f9da219d9e33eac713db6d90d22bd5bfb540f2fb28ba75125229a0b",
   "api/tradovate/connect.js": "0e32e6d9d728c0a1ee42a6b8c6edd44ee159d6c89ad7c064cd1c1502475e267d",
-  // Authorized Tradovate short-P&L correction; HTTP/CSV behavior is covered in api-security-regression.
-  "api/tradovate/sync.js": "41bbf28669aabffb0ccf039c496bf332f5e3b19b1449a71af0344914240d36c6",
+  // Tradovate short-P&L and server-only response diagnostics; handler/CSV and log-redaction tests cover the candidate.
+  "api/tradovate/sync.js": "3e9cb9f6549c402bfcba5697c9d4a8eb0ae3dab6faedc972633b74682b8b3441",
   "package-lock.json": "2de7e8e1b0c84266be29c1609e3185bbe58a2babe1e57e49a22538b6f2cf853e",
   "public/.well-known/security.txt": "c944f837cb8c32091a4aba3afdea372afa7ffbd058ab24b5d6fbfc285e3490d9",
   "public/cova-logo-minimal-black.svg": "539ead98bec67d21afe240ea2ff60aba7e3f9e988b4d1742e0de953f01a6f6dd",
