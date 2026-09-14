@@ -440,6 +440,121 @@ try {
     return response;
   }
 
+  // Explicit hosted access checks must never enter the ledger-producing path.
+  {
+    const calls = [];
+    const redisResults = [[1, 1], "OK", 1];
+    let diagnosticToken = "provider-access-token";
+    let diagnosticPlan = "pro";
+    let diagnosticResponse = () => new Response("fixture-private-body-sentinel", { status: 401, headers: { "WWW-Authenticate": 'Bearer error="invalid_token", error_description="fixture-private-header-sentinel"' } });
+    globalThis.fetch = async (url, options = {}) => {
+      const target = String(url);
+      calls.push({ target, options });
+      if (target.endsWith("/auth/v1/user")) return new Response(JSON.stringify({ id: "pro-user", app_metadata: { plan: diagnosticPlan } }));
+      if (target.includes("/rest/v1/policy_acceptances?")) return new Response(JSON.stringify([{ id: "acceptance-1" }]));
+      if (target === process.env.KV_REST_API_URL) return new Response(JSON.stringify({ result: redisResults.shift() }));
+      if (target.includes("/rest/v1/broker_connections?")) return new Response(JSON.stringify([{ access_token_encrypted: encryptSecret(diagnosticToken), expires_at: "2099-01-01T00:00:00.000Z" }]));
+      if (target.includes("tradovateapi.com")) return diagnosticResponse();
+      throw new Error("Unexpected access diagnostic request");
+    };
+    const savedBase = process.env.TRADOVATE_API_BASE_URL;
+    process.env.TRADOVATE_API_BASE_URL = "https://demo.tradovateapi.com/v1";
+    try {
+      const response = responseMock();
+      await tradovateSync({ method: "GET", headers: { authorization: "Bearer pro-token", cookie: "cova_tradovate_connection=fixture-connection", "x-forwarded-for": "203.0.113.7" }, query: { diagnostic: "access" } }, response);
+      assert.equal(response.statusCode, 200, "Explicit access diagnostics must return safe evidence, not a ledger or masked 502.");
+      assert.equal(response.body.diagnostic, "tradovate-access-v1");
+      assert.deepEqual(response.body.results.map(({ endpoint, upstreamStatus, body, authenticationError }) => ({ endpoint, upstreamStatus, body, authenticationError })), [
+        { endpoint: "/position/list", upstreamStatus: 401, body: "non_json", authenticationError: "invalid_token" },
+        { endpoint: "/auth/me", upstreamStatus: 401, body: "non_json", authenticationError: "invalid_token" },
+      ]);
+      assert.equal(response.body.credential.present, true);
+      assert.equal(response.body.credential.surroundingWhitespace, false);
+      assert.equal(response.body.credential.embeddedControlCharacters, false);
+      assert.equal(response.body.credential.bearerPrefixInStoredToken, false);
+      assert.equal(response.body.credential.storedExpiry, "not_expired");
+      assert.equal(response.body.credential.unverifiedJwtExpiry, "not_jwt");
+      assert.equal(response.body.csv, undefined);
+      assert.equal(response.body.trades, undefined);
+      assert.equal(response.headers.get("cache-control"), "private, no-store");
+      assert.doesNotMatch(JSON.stringify(response.body), /fixture-private-|provider-access-token|pro-token|fixture-connection|2099/);
+      assert.deepEqual(calls.filter(c => c.target.includes("tradovateapi.com")).map(c => c.target), ["https://demo.tradovateapi.com/v1/position/list", "https://demo.tradovateapi.com/v1/auth/me"]);
+      assert(calls.filter(c => c.target.includes("tradovateapi.com")).every(c => c.options.redirect === "error" && c.options.signal));
+      assert.equal(redisResults.length, 0, "Hosted diagnostic must release its normal sync permit.");
+      const request = { method: "GET", headers: { authorization: "Bearer pro-token", cookie: "cova_tradovate_connection=fixture-connection", "x-forwarded-for": "203.0.113.7" }, query: { diagnostic: "access" } };
+      for (const probe of [
+        { make: () => new Response(JSON.stringify({ errorText: "fixture-private-error", userId: "fixture-private-id" }), { headers: { "Content-Type": "application/json" } }), body: "json", error: true },
+        { make: () => new Response(null, { status: 204 }), body: "empty" },
+        { make: () => new Response("x".repeat(32769)), body: "truncated" },
+        { make: () => new Response("fixture-private-body", { status: 403, headers: { "Content-Type": "fixture-private-media", "WWW-Authenticate": 'Bearer error="fixture-private-error"' } }), body: "non_json", authenticationError: "unspecified" },
+        { make: () => { throw new Error("fixture-private-network"); }, failure: "network_or_redirect" },
+      ]) {
+        redisResults.push([1, 1], "OK", 1);
+        diagnosticResponse = probe.make;
+        const evidence = responseMock();
+        await tradovateSync(request, evidence);
+        assert.equal(evidence.statusCode, 200);
+        assert.equal(evidence.body.results.length, 2);
+        for (const result of evidence.body.results) {
+          if (probe.body) assert.equal(result.body, probe.body);
+          if (probe.error) assert.equal(result.providerError, true);
+          if (probe.authenticationError) assert.equal(result.authenticationError, probe.authenticationError);
+          if (probe.failure) assert.equal(result.failure, probe.failure);
+        }
+        assert.doesNotMatch(JSON.stringify(evidence.body), /fixture-private-|provider-access-token/);
+        assert.equal(redisResults.length, 0);
+      }
+      diagnosticResponse = () => new Response("[]", { headers: { "Content-Type": "application/json" } });
+      for (const probe of [
+        { token: " provider-access-token ", key: "surroundingWhitespace", value: true },
+        { token: "provider\naccess-token", key: "embeddedControlCharacters", value: true },
+        { token: "Bearer provider-access-token", key: "bearerPrefixInStoredToken", value: true },
+        { token: `e30.${Buffer.from(JSON.stringify({ exp: 1, sub: "fixture-private-id" })).toString("base64url")}.c2ln`, key: "unverifiedJwtExpiry", value: "expired" },
+        { token: `e30.${Buffer.from(JSON.stringify({ exp: Date.now() / 1000 + 3600, sub: "fixture-private-id" })).toString("base64url")}.c2ln`, key: "unverifiedJwtExpiry", value: "not_expired" },
+      ]) {
+        diagnosticToken = probe.token;
+        redisResults.push([1, 1], "OK", 1);
+        const evidence = responseMock();
+        await tradovateSync(request, evidence);
+        assert.equal(evidence.body.credential[probe.key], probe.value);
+        assert.doesNotMatch(JSON.stringify(evidence.body), /fixture-private-|provider-access-token/);
+        assert.equal(redisResults.length, 0);
+      }
+      for (const forbiddenBase of ["https://live.tradovateapi.com/v1", "https://demo.tradovateapi.com.attacker.invalid/v1", "https://demo.tradovateapi.com/v1?fixture-private-query"]) {
+        process.env.TRADOVATE_API_BASE_URL = forbiddenBase;
+        calls.length = 0;
+        redisResults.push([1, 1], "OK", 1);
+        const denied = responseMock();
+        await tradovateSync(request, denied);
+        assert.equal(denied.statusCode, 502);
+        assert(!calls.some(c => c.target.includes("tradovateapi.com")));
+        assert.equal(redisResults.length, 0);
+        assert.doesNotMatch(JSON.stringify(denied.body), /attacker|fixture-private/);
+      }
+      process.env.TRADOVATE_API_BASE_URL = "https://demo.tradovateapi.com/v1";
+      calls.length = 0;
+      redisResults.push([6, 1]);
+      const throttled = responseMock();
+      await tradovateSync(request, throttled);
+      assert.equal(throttled.statusCode, 429);
+      assert(!calls.some(c => c.target.includes("broker_connections") || c.target.includes("tradovateapi.com")));
+      assert.equal(redisResults.length, 0);
+      calls.length = 0;
+      const anonymous = responseMock();
+      await tradovateSync({ ...request, headers: {} }, anonymous);
+      assert.equal(anonymous.statusCode, 401);
+      assert.equal(calls.length, 0);
+      diagnosticPlan = "free";
+      const free = responseMock();
+      await tradovateSync(request, free);
+      assert.equal(free.statusCode, 403);
+      assert(!calls.some(c => c.target.includes("broker_connections") || c.target.includes("tradovateapi.com") || c.target === process.env.KV_REST_API_URL));
+    } finally {
+      if (savedBase === undefined) delete process.env.TRADOVATE_API_BASE_URL;
+      else process.env.TRADOVATE_API_BASE_URL = savedBase;
+    }
+  }
+
   // Diagnostics distinguish the hosted generic 502 without recording payloads.
   const responseDiagnosticLogs = [];
   const originalWarn = console.warn;
