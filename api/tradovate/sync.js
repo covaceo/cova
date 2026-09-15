@@ -5,6 +5,7 @@ import { decryptSecret } from "../_lib/encryption.js";
 import { acquireTradovateSyncPermit } from "../_lib/rithmic-limit.js";
 import { getBrokerConnection, getTradovateConnection } from "../_lib/supabase.js";
 import { diagnoseTradovateHistory } from "../_lib/tradovate-history-diagnostic.js";
+import { diagnoseTradovateReport } from "../_lib/tradovate-report-diagnostic.js";
 
 const DEFAULT_API_BASE_URL = "https://live.tradovateapi.com/v1";
 const MAX_CONCURRENT_CONTRACT_LOOKUPS = 5;
@@ -86,7 +87,7 @@ export default async function handler(req, res) {
       let connectionExpiresAt;
       try {
         // Reporting diagnostics reject expired rows without the normal lookup's pruning write.
-        const connection = req.query?.diagnostic === "history"
+        const connection = ["history", "history-discovery", "history-report"].includes(req.query?.diagnostic)
           ? await getBrokerConnection({ connectionId, provider: "tradovate", userId: user.id, pruneExpired: false })
           : await getTradovateConnection(connectionId, user.id);
         if (!connection?.access_token_encrypted) {
@@ -107,6 +108,13 @@ export default async function handler(req, res) {
         providerTimeout.unref?.();
         const providerSignal = providerController.signal;
         const providerBudget = createProviderByteBudget(MAX_PROVIDER_SYNC_BYTES, () => providerController.abort());
+        if (["history-discovery", "history-report"].includes(req.query?.diagnostic)) {
+          try {
+            return res.status(200).json(await diagnoseTradovateReport(accessToken, req.query, providerSignal));
+          } finally {
+            providerController.abort();
+          }
+        }
         if (req.query?.diagnostic === "history") {
           try {
             return res.status(200).json(await diagnoseTradovateHistory(accessToken, providerSignal));

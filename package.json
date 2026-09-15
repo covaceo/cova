@@ -27,7 +27,7 @@
     "test:auth": "node --test scripts/auth-regression.mjs",
     "test:classic-auth": "node --test scripts/classic-auth-regression.mjs",
     "test:recovery-callback-browser": "node scripts/recovery-callback-browser-regression.mjs && node scripts/recovery-callback-browser-regression.mjs --reload && node scripts/recovery-callback-browser-regression.mjs --mismatched && node scripts/recovery-callback-browser-regression.mjs --forged-marker && node scripts/recovery-callback-browser-regression.mjs --ordinary-reload",
-    "test:api-security": "node scripts/api-security-regression.mjs && node scripts/tradovate-history-diagnostic-regression.mjs",
+    "test:api-security": "node scripts/api-security-regression.mjs && node scripts/tradovate-history-diagnostic-regression.mjs && node scripts/tradovate-report-regression.mjs",
     "test:tradovate-capability": "node --test scripts/tradovate-capability-regression.mjs",
     "test:rithmic": "node --test scripts/rithmic-service-regression.mjs",
     "test:rithmic-ui": "node scripts/rithmic-ui-regression.mjs",

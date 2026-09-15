@@ -24,8 +24,8 @@ const protectedFiles = {
   "api/rithmic/sync.js": "58f4b709f75568a526874cefa503adf572bc2dda7c6026905b7aeb7caa9fa8a3",
   "api/tradovate/callback.js": "6a1a6dee6f9da219d9e33eac713db6d90d22bd5bfb540f2fb28ba75125229a0b",
   "api/tradovate/connect.js": "0e32e6d9d728c0a1ee42a6b8c6edd44ee159d6c89ad7c064cd1c1502475e267d",
-  // Explicit access/history diagnostics preserve normal ledger behavior; actual-handler tests cover guards and redaction.
-  "api/tradovate/sync.js": "a369f80c97b13273b6c6f79331bb82fbfa2319b9007278bf03831525458563cf",
+  // Explicit report modes reuse no-pruning owner lookup and existing permits; normal sync is unchanged.
+  "api/tradovate/sync.js": "7ccd4266eccae119405c3c831fff8bf67db4eaefdb339bc17d62821cfd4e9ca4",
   "package-lock.json": "2de7e8e1b0c84266be29c1609e3185bbe58a2babe1e57e49a22538b6f2cf853e",
   "public/.well-known/security.txt": "c944f837cb8c32091a4aba3afdea372afa7ffbd058ab24b5d6fbfc285e3490d9",
   "public/cova-logo-minimal-black.svg": "539ead98bec67d21afe240ea2ff60aba7e3f9e988b4d1742e0de953f01a6f6dd",
