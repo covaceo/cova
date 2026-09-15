@@ -24,8 +24,8 @@ const protectedFiles = {
   "api/rithmic/sync.js": "58f4b709f75568a526874cefa503adf572bc2dda7c6026905b7aeb7caa9fa8a3",
   "api/tradovate/callback.js": "6a1a6dee6f9da219d9e33eac713db6d90d22bd5bfb540f2fb28ba75125229a0b",
   "api/tradovate/connect.js": "0e32e6d9d728c0a1ee42a6b8c6edd44ee159d6c89ad7c064cd1c1502475e267d",
-  // Explicit report modes reuse no-pruning owner lookup and existing permits; normal sync is unchanged.
-  "api/tradovate/sync.js": "7ccd4266eccae119405c3c831fff8bf67db4eaefdb339bc17d62821cfd4e9ca4",
+  // Owner-approved recent-history mode reuses owner lookup, limiter and deadline; legacy sync remains.
+  "api/tradovate/sync.js": "50f8bf4e0ef7a6443c429dc15c5c3245890311a2e9b49de967852a591b9d8d57",
   "package-lock.json": "2de7e8e1b0c84266be29c1609e3185bbe58a2babe1e57e49a22538b6f2cf853e",
   "public/.well-known/security.txt": "c944f837cb8c32091a4aba3afdea372afa7ffbd058ab24b5d6fbfc285e3490d9",
   "public/cova-logo-minimal-black.svg": "539ead98bec67d21afe240ea2ff60aba7e3f9e988b4d1742e0de953f01a6f6dd",
@@ -43,13 +43,16 @@ const protectedFiles = {
   // Risk Desk content, risk/auth/provider owners and Passport artwork remain frozen.
   // Founder correction consolidates disclosures into the original footer on all tabs.
   // Route-prop and real-footer regressions cover the authorized presentation-only wiring.
-  "src/App.tsx": "9b981d9e5aa07541026f3cd614fff0dd708cda08c9624a1f5b4c6fb34bcc1861",
+  // Auto-history adds principal+selection guarded merge, scoped account review and saved-history props.
+  // Callback hints never authorize imports; all marketing, OAuth and Passport artwork remain unchanged.
+  "src/App.tsx": "0d7c6ac53eff1aba4a70a268437ab5de772d7d9d714cc30703a8aa82c47c3e49",
   "src/components/AstraEquityCurve.tsx": "0487554f9ea35b665e5b013172003a20d612f57e20662b687e5b181e26d2970f",
   "src/components/DashboardTradeDialog.tsx": "4f111aae3b8dd372eb4120d8c67821acb266a26bc2e8a374659e995cad34aae0",
   "src/components/DashboardView.tsx": "9326f89b57e4662e41f68237d1db85ee275f69dece50171ebbe2c59bb935a63d",
   "src/components/WorkspaceShell.tsx": "1ba5ee114ebb09e8b37f841404ae595a9d323850524378231c15ff26ef623219",
   "src/index.css": "ea8b38ada867619addaced06a8a3a1c494c1de9ef6c30beb5cbe7435890729db",
-  "src/lib/risk.ts": "68a3322b983462913ef12237d89afe41faba58be8dd5f8dabd5ee0b11ce7bee0",
+  // Retain UTC ordering while preserving legacy same-day input order and member annotations.
+    "src/lib/risk.ts": "0550f7ee9c463b835473d44cdd1371b16ce72b41815d6c6196028384fa1ea60f",
   "src/lib/storageScope.ts": "3cd9c57c38bb10e9f7b61776f00422ab9590bdebd1d0e458eba5a33cc676e183",
   "src/styles/astraDashboard.css": "fb12899dfb8fc4f5ccf191e61e594db1de03a866310dd2388b4baf44b997ff8b",
   "supabase/migrations/20260807010000_auth_policy_acceptances.sql": "0cf48fb5788748c426e686bf1a0c67975da1faf812a73f63a3e444e86b99cec4",

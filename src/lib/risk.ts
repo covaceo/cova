@@ -20,6 +20,10 @@ export type Trade = {
     | {
         provider: "Tradovate";
         accountId: string;
+        openedAt?: string;
+        closedAt?: string;
+        timeZone?: "UTC";
+        pnlBasis?: "gross_before_fees";
       };
 };
 
@@ -115,6 +119,11 @@ export function mergeTradeLedger(existing: Trade[], incoming: Trade[]): TradeMer
     indexes.set(trade.id, index);
   }
   const receipt = { added: 0, corrected: 0, unchanged: 0 };
+  const incomingIds = new Set<string>();
+  for (const trade of incoming) {
+    if (incomingIds.has(trade.id)) throw new Error("duplicate incoming trade identity");
+    incomingIds.add(trade.id);
+  }
 
   for (const trade of incoming) {
     const index = indexes.get(trade.id);
@@ -140,12 +149,14 @@ export function mergeTradeLedger(existing: Trade[], incoming: Trade[]): TradeMer
       throw new Error(`Trade ${trade.id} belongs to a different provider account.`);
     }
 
-    if (JSON.stringify(existingTrade) === JSON.stringify(trade)) {
+    // Notes, setup and planned risk belong to the member, not the provider.
+    const corrected = trade.source ? { ...trade, notes: existingTrade.notes, setup: existingTrade.setup, risk: existingTrade.risk } : trade;
+    if (JSON.stringify(existingTrade) === JSON.stringify(corrected)) {
       receipt.unchanged += 1;
       continue;
     }
 
-    trades[index] = trade;
+    trades[index] = corrected;
     receipt.corrected += 1;
   }
 
@@ -202,7 +213,10 @@ export const sampleTrades: Trade[] = [
 }));
 
 export function analyze(trades: Trade[], rules: RiskRule[]) {
-  const sorted = [...trades].sort((a, b) => a.date.localeCompare(b.date));
+  const sorted = [...trades].sort((a, b) => {
+    const time = (trade: Trade) => trade.source?.provider === "Tradovate" && trade.source.closedAt ? trade.source.closedAt : `${trade.date}T00:00:00.000Z`;
+    return time(a).localeCompare(time(b));
+  });
   const totalPnl = sorted.reduce((sum, trade) => sum + trade.pnl, 0);
   const grossProfit = sorted.filter((trade) => trade.pnl > 0).reduce((sum, trade) => sum + trade.pnl, 0);
   const grossLoss = Math.abs(sorted.filter((trade) => trade.pnl < 0).reduce((sum, trade) => sum + trade.pnl, 0));
@@ -1013,6 +1027,10 @@ export function parseCsvDetailed(text: string): CsvParseResult {
     const sourceTradeId = valueFrom(record, ["sourcetradeid"]).trim();
     const isRithmic = sourceProvider.toLowerCase() === "rithmic";
     const isTradovate = sourceProvider.toLowerCase() === "tradovate";
+    const openedAt = valueFrom(record, ["sourceopenedat"]);
+    const closedAt = valueFrom(record, ["sourceclosedat"]);
+    const hasHistoryTime = isTradovate && Boolean(openedAt || closedAt);
+    const validUtc = (value: string) => /^20\d{2}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.000Z$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString() === value;
     const pnl = parseNumber(pnlRaw);
     const contracts = parseNumber(contractsRaw || "1");
     const entry = parseNumber(entryRaw);
@@ -1030,6 +1048,7 @@ export function parseCsvDetailed(text: string): CsvParseResult {
       isRithmic && !/^rithmic-[a-z0-9-]{1,72}$/i.test(sourceTradeId) ? "invalid Rithmic source trade id" : "",
       isTradovate && !/^[A-Za-z0-9._:-]{1,128}$/.test(sourceAccountId) ? "invalid Tradovate source account" : "",
       isTradovate && !/^tradovate-[A-Za-z0-9._:-]{1,128}$/.test(sourceTradeId) ? "invalid Tradovate source trade id" : "",
+      hasHistoryTime && (!validUtc(openedAt) || !validUtc(closedAt) || openedAt >= closedAt || closedAt.slice(0, 10) !== date || valueFrom(record, ["sourcetimezone"]) !== "UTC" || valueFrom(record, ["sourcepnlbasis"]) !== "gross_before_fees") ? "invalid Tradovate UTC provenance" : "",
     ].filter(Boolean);
 
     if (rowIssues.length) {
@@ -1060,7 +1079,7 @@ export function parseCsvDetailed(text: string): CsvParseResult {
       ...(isRithmic
         ? { source: { provider: "Rithmic" as const, accountKey: sourceAccountKey, accountId: sourceAccountId, currency: sourceCurrency } }
         : isTradovate
-          ? { source: { provider: "Tradovate" as const, accountId: sourceAccountId } }
+          ? { source: { provider: "Tradovate" as const, accountId: sourceAccountId, ...(hasHistoryTime ? { openedAt, closedAt, timeZone: "UTC" as const, pnlBasis: "gross_before_fees" as const } : {}) } }
           : {}),
     });
   });

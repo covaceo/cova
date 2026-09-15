@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { parseCsvDetailed, type TradeMergeResult } from "../lib/risk";
+import { formatMoney, parseCsvDetailed, type Trade, type TradeMergeResult } from "../lib/risk";
 import { type PropFirmId } from "../lib/propFirms";
 import { clearBrokerStatus, readBrokerStatus, writeBrokerStatus, type BrokerStatus } from "../lib/brokerStatus";
 import { canRedirectToTradovate } from "../lib/tradovateConnect";
 import { authorizedFetch } from "../lib/apiClient";
+import { fetchHistoryJson, HistoryRunGuard, readHistorySummary, saveHistorySummary, recentHistoryWindow, validateTradovateHistory, type HistoryAccount } from "../lib/tradovateHistory";
 import { ImageAtmosphere, SectionShell } from "./LayoutShell";
 import { BrokerConnectPanel, CsvExportGuide, CsvPreview, CsvUploadPanel, ImportNextSteps } from "./ImportPanels";
 
 type ImportMode = "append" | "replace" | "merge";
 type ImportCommit = (text: string, mode?: ImportMode) => TradeMergeResult["receipt"] | null;
-type PreparedImport = { commit: ImportCommit; isCurrent: () => boolean };
+type PreparedImport = { commit: ImportCommit; isCurrent: () => boolean; scopeKey: string; commitHistory: (text: string, accountId: string, coverage: string) => TradeMergeResult["receipt"] | null };
 type PrepareImportCsv = () => PreparedImport | null;
 type ImportEntitlements = {
   canUseDirectSync: boolean;
@@ -27,6 +28,7 @@ type RithmicCredentials = {
 
 const MAX_CSV_FILE_BYTES = 2 * 1024 * 1024;
 const IMPORT_PROVIDER_HINT_KEY = "cova-import-provider-v1";
+
 
 function readImportProviderHint(): PropFirmId {
   try {
@@ -67,7 +69,9 @@ function brokerStatusFromTradovate(data: TradovateStatusResponse): BrokerStatus 
   };
 }
 
-export function ImportDesk({ entitlements, importCsv, prepareImportCsv, openFirmOAuth, status, reset, upgradeToPro }: { entitlements: ImportEntitlements; importCsv: ImportCommit; prepareImportCsv: PrepareImportCsv; openFirmOAuth: (firm: PropFirmId) => void; status: string; reset: () => void; upgradeToPro: () => void }) {
+export function ImportDesk({ historyTrades = [], entitlements, importCsv, prepareImportCsv, openFirmOAuth, status, reset, upgradeToPro }: { historyTrades?: Trade[]; entitlements: ImportEntitlements; importCsv: ImportCommit; prepareImportCsv: PrepareImportCsv; openFirmOAuth: (firm: PropFirmId) => void; status: string; reset: () => void; upgradeToPro: () => void }) {
+  const [historyPage, setHistoryPage] = useState(0);
+  useEffect(() => setHistoryPage(0), [historyTrades]);
   const [text, setText] = useState("date,market,side,contracts,entry,exit,pnl,risk,setup,notes\n2026-05-06,NQ,Long,1,18900,18915,300,250,Opening range,Smoke row");
   const [mode, setMode] = useState<ImportMode>("append");
   const [dragActive, setDragActive] = useState(false);
@@ -82,9 +86,21 @@ export function ImportDesk({ entitlements, importCsv, prepareImportCsv, openFirm
   const [selectedFirmId, setSelectedFirmId] = useState<PropFirmId>(readImportProviderHint);
   const rithmicRequestRef = useRef<AbortController | null>(null);
   const rithmicRequestGenerationRef = useRef(0);
+  const historyGuard = useRef(new HistoryRunGuard());
+  const verifiedConnection = useRef("");
+  const [historyWindow, setHistoryWindow] = useState(recentHistoryWindow);
+  const [historyAccounts, setHistoryAccounts] = useState<HistoryAccount[]>([]);
+  const [historyAccount, setHistoryAccount] = useState("");
   const parsed = useMemo(() => parseCsvDetailed(text), [text]);
 
+  useEffect(() => {
+    const cancel = () => { historyGuard.current.cancel(); setSyncBusy(false); };
+    window.addEventListener("cova:history-selection", cancel);
+    return () => window.removeEventListener("cova:history-selection", cancel);
+  }, []);
+
   useEffect(() => () => {
+    historyGuard.current.cancel();
     rithmicRequestGenerationRef.current += 1;
     rithmicRequestRef.current?.abort();
     rithmicRequestRef.current = null;
@@ -117,7 +133,16 @@ export function ImportDesk({ entitlements, importCsv, prepareImportCsv, openFirm
   }, []);
 
   useEffect(() => {
-    const refreshBrokerStatus = () => setBrokerStatus(readBrokerStatus());
+    const refreshBrokerStatus = () => {
+      const next = readBrokerStatus();
+      if (verifiedConnection.current && (!next?.connected || next.connectionId !== verifiedConnection.current)) {
+        historyGuard.current.cancel();
+        setSyncBusy(false);
+        setBrokerNotice("Tradovate connection changed. Load history to retry with the current connection.");
+        verifiedConnection.current = "";
+      }
+      setBrokerStatus(next);
+    };
     window.addEventListener("cova:broker-status", refreshBrokerStatus);
     window.addEventListener("storage", refreshBrokerStatus);
     refreshBrokerStatus();
@@ -142,16 +167,20 @@ export function ImportDesk({ entitlements, importCsv, prepareImportCsv, openFirm
 
   useEffect(() => {
     let cancelled = false;
-    authorizedFetch("/api/tradovate/status")
-      .then(async (response) => {
-        const data = await response.json().catch(() => ({})) as TradovateStatusResponse;
-        if (cancelled) return;
-        setTradovateCapability({ available: response.ok && data?.available === true, checked: true });
-        if (response.ok && data?.connected === true) {
+    const prepared = prepareImportCsv();
+    const controller = new AbortController();
+    fetchHistoryJson(authorizedFetch, "/api/tradovate/status", controller.signal, 5000, 16384)
+      .then(value => {
+        const data = value as TradovateStatusResponse;
+        if (cancelled || !prepared?.isCurrent()) return;
+        setTradovateCapability({ available: data?.available === true, checked: true });
+        if (data?.connected === true) {
           const nextStatus = brokerStatusFromTradovate(data);
+          verifiedConnection.current = data.connectionId || "";
           writeBrokerStatus(nextStatus);
           setBrokerStatus(nextStatus);
-        } else if (response.ok && data?.connected === false && readBrokerStatus()?.provider === "Tradovate") {
+          if (data.available === true && data.connectionId && entitlements.canUseDirectSync) void syncTradovate(data.connectionId, true);
+        } else if (data?.connected === false && readBrokerStatus()?.provider === "Tradovate") {
           clearBrokerStatus();
           setBrokerStatus(null);
         }
@@ -159,7 +188,7 @@ export function ImportDesk({ entitlements, importCsv, prepareImportCsv, openFirm
       .catch(() => {
         if (!cancelled) setTradovateCapability({ available: false, checked: true });
       });
-    return () => { cancelled = true; };
+    return () => { cancelled = true; controller.abort(); };
   }, []);
 
   async function readFile(file?: File) {
@@ -175,34 +204,61 @@ export function ImportDesk({ entitlements, importCsv, prepareImportCsv, openFirm
     setText(await file.text());
   }
 
-  async function syncTradovate() {
+  async function syncTradovate(connectionHint?: string, automatic = false) {
+    const preparedImport = prepareImportCsv();
+    if (!preparedImport || !entitlements.canUseDirectSync) return;
+    const run = historyGuard.current.start();
+    const requireCurrent = () => {
+      if (!run.isCurrent() || !preparedImport.isCurrent()) throw new DOMException("History import canceled.", "AbortError");
+    };
     setSyncBusy(true);
     setBrokerNotice("");
+    let attemptedConnection = "";
     try {
-      const response = await authorizedFetch("/api/tradovate/sync");
-      const contentType = response.headers.get("content-type") ?? "";
-      if (!contentType.includes("application/json")) {
-        throw new Error("Broker sync is not reachable from this preview.");
+      const current = await fetchHistoryJson(authorizedFetch, "/api/tradovate/status", run.signal, 5000, 16384) as TradovateStatusResponse;
+      requireCurrent();
+      if (current.connected !== true || current.available !== true || typeof current.connectionId !== "string" || !current.connectionId) {
+        verifiedConnection.current = "";
+        if (current.connected === false) { clearBrokerStatus(); setBrokerStatus(null); }
+        throw new Error("Tradovate history is unavailable. Check the connection or reconnect.");
       }
-      const data = await response.json() as { csv?: string; trades?: unknown[]; counts?: { trades?: number }; error?: string };
-      if (!response.ok) {
-        throw new Error(data.error || "Tradovate sync failed.");
+      if (connectionHint && connectionHint !== current.connectionId) throw new Error("Tradovate connection changed. Retry with the current connection.");
+      verifiedConnection.current = current.connectionId;
+      const key = JSON.stringify([historyAccount, historyWindow.startDate, historyWindow.endDate]);
+      const cached = readHistorySummary(preparedImport.scopeKey, current.connectionId);
+      if (cached) { setHistoryAccounts(cached.accounts); setBrokerNotice(cached.outcome === "running" ? "Previous history load was interrupted. Load history to retry." : cached.notice); }
+      if (automatic && cached?.attempted.includes(key)) return;
+      attemptedConnection = current.connectionId;
+      saveHistorySummary(preparedImport.scopeKey, current.connectionId, { accounts: cached?.accounts || [], notice: "Loading history", outcome: "running", attempted: [...new Set([...(cached?.attempted || []), key])] });
+      const query = new URLSearchParams({ history: "recent", connectionId: current.connectionId, ...historyWindow, ...(historyAccount ? { accountId: historyAccount } : {}) });
+      const data = await fetchHistoryJson(authorizedFetch, `/api/tradovate/sync?${query}`, run.signal);
+      requireCurrent();
+      const verified = validateTradovateHistory(data, historyAccount);
+      if (verified.window.startDate !== historyWindow.startDate || verified.window.endDate !== historyWindow.endDate) throw new Error("Tradovate returned a different history window. Nothing was imported.");
+      requireCurrent();
+      if (verifiedConnection.current !== current.connectionId) throw new Error("Tradovate connection changed before import.");
+      setHistoryAccounts(verified.accounts);
+      const details = verified.accounts.map(item => `${item.account.name}: ${item.status}${item.counts ? ` (${item.counts.trades} matched pairs)` : ""}`).join(" · ");
+      const coverage = `${historyWindow.startDate} through ${historyWindow.endDate} exclusive, UTC. Gross P&L before fees; matched fill pairs, not strategy-level trades. ${details}`;
+      const summary = readHistorySummary(preparedImport.scopeKey, current.connectionId)!;
+      const outcome = verified.accounts.every(item => item.status === "failed" || item.status === "deferred") ? "failed" : verified.accounts.some(item => item.status === "failed" || item.status === "deferred") ? "partial" : "complete";
+      let notice = `No trades imported. Saved history is unchanged. ${coverage}`;
+      if (verified.count > 0) {
+        const receipt = preparedImport.commitHistory(verified.csv, verified.accountId, coverage);
+        if (!receipt) throw new Error("The active Cova account changed. Nothing was imported.");
+        notice = `${receipt.added} new, ${receipt.corrected} corrected, ${receipt.unchanged} unchanged. ${coverage}`;
       }
-      const tradeCount = data.counts?.trades ?? data.trades?.length ?? 0;
-      if (!data.csv || tradeCount <= 0) {
-        setBrokerNotice("Tradovate connected, but no closed fill pairs were found yet.");
-        return;
-      }
-      const verified = parseCsvDetailed(data.csv);
-      if (verified.issues.length || verified.trades.length !== tradeCount) {
-        throw new Error("Tradovate returned an inconsistent trade ledger, so Cova did not import it.");
-      }
-      setBrokerNotice(`Synced ${tradeCount} Tradovate trade${tradeCount === 1 ? "" : "s"} into Cova.`);
-      importCsv(data.csv, "replace");
+      saveHistorySummary(preparedImport.scopeKey, current.connectionId, { ...summary, accounts: verified.accounts, notice, outcome });
+      setBrokerNotice(notice);
     } catch (error) {
-      setBrokerNotice(`${error instanceof Error ? error.message : "Tradovate sync is unavailable right now."} Upload a CSV export instead and Cova will review the account the same way.`);
+      if (run.isCurrent() && preparedImport.isCurrent()) {
+        const notice = error instanceof Error ? error.message : "Tradovate history failed. Retry or use CSV.";
+        setBrokerNotice(notice);
+        const summary = attemptedConnection && readHistorySummary(preparedImport.scopeKey, attemptedConnection);
+        if (summary) saveHistorySummary(preparedImport.scopeKey, attemptedConnection, { ...summary, notice, outcome: "failed" });
+      }
     } finally {
-      setSyncBusy(false);
+      if (run.isCurrent()) setSyncBusy(false);
     }
   }
 
@@ -325,6 +381,8 @@ export function ImportDesk({ entitlements, importCsv, prepareImportCsv, openFirm
   }
 
   async function disconnectBroker() {
+    historyGuard.current.cancel();
+    verifiedConnection.current = "";
     if (!brokerStatus?.connected) {
       return;
     }
@@ -424,10 +482,34 @@ export function ImportDesk({ entitlements, importCsv, prepareImportCsv, openFirm
           startTradovateConnect={startTradovateConnect}
           syncBusy={syncBusy}
           syncRithmic={syncRithmic}
-          syncTradovate={syncTradovate}
+          syncTradovate={() => syncTradovate()}
           upgradeToPro={upgradeToPro}
         />
 
+        {tradovateCapability.available && brokerStatus?.provider === "Tradovate" && brokerStatus.connected && (
+          <section className="rounded-2xl border border-white/10 bg-[#0d0f14] p-5" aria-label="Tradovate recent history">
+            <h3 className="text-lg font-semibold">Tradovate history · UTC</h3>
+            <p className="mt-2 text-sm text-white/60">Last 30 calendar days by default, including today. Load up to 90 days per request. Gross P&L before fees; missing planned risk is unknown. Each row is a matched fill pair. At most 4 accounts load per request. Select a deferred or failed account below and Load history to retry it.</p>
+            <div className="mt-4 flex flex-wrap items-end gap-3">
+              <label className="grid gap-1 text-sm">Account<select aria-label="History account" className="max-w-full rounded-lg border border-white/15 bg-[#171a21] p-2" value={historyAccount} onChange={event => { historyGuard.current.cancel(); setSyncBusy(false); setHistoryAccount(event.target.value); }}><option value="">Active accounts (up to 4)</option>{historyAccounts.map(item => <option key={item.account.id} value={item.account.id}>{item.account.name} · {item.status}</option>)}</select></label>
+              <label className="grid gap-1 text-sm">From<input aria-label="History start date" type="date" className="rounded-lg border border-white/15 bg-[#171a21] p-2" value={historyWindow.startDate} onChange={event => { historyGuard.current.cancel(); setSyncBusy(false); setHistoryWindow(current => ({ ...current, startDate: event.target.value })); }} /></label>
+              <label className="grid gap-1 text-sm">To (exclusive)<input aria-label="History end date" type="date" className="rounded-lg border border-white/15 bg-[#171a21] p-2" value={historyWindow.endDate} onChange={event => { historyGuard.current.cancel(); setSyncBusy(false); setHistoryWindow(current => ({ ...current, endDate: event.target.value })); }} /></label>
+              <button className="rounded-lg bg-[#4f7dff] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" disabled={syncBusy || !entitlements.canUseDirectSync} onClick={() => void syncTradovate()}>{syncBusy ? "Loading history…" : "Load history"}</button>
+            </div>
+            <p className="mt-3 text-sm text-white/60" role="status">{brokerNotice}</p>
+          </section>
+        )}
+        <section className="min-w-0 rounded-2xl border border-white/10 bg-[#0d0f14] p-5" aria-label="Saved trade history">
+          <h3 className="text-lg font-semibold">Saved trade history</h3>
+          <p className="mt-2 text-sm text-white/60">{historyTrades.length} matched rows in the selected review account. Tradovate times are UTC and P&amp;L is gross before fees. Older saved history stays here after an empty or failed sync.</p>
+          <div className="mt-4 overflow-x-auto" tabIndex={0} role="region" aria-label="Saved trades, horizontally scrollable">
+            <table className="w-full text-left text-sm"><thead><tr className="border-b border-white/10 text-white/60">{["Closed", "Market", "Side", "Qty", "P&L", "Planned risk", "Notes"].map(label => <th key={label} className="whitespace-nowrap p-3 font-normal" scope="col">{label}</th>)}</tr></thead>
+              <tbody>{[...historyTrades].reverse().slice(historyPage * 50, (historyPage + 1) * 50).map(trade => <tr key={trade.id} data-history-trade={trade.id} className="border-b border-white/10"><td className="whitespace-nowrap p-3">{trade.source?.provider === "Tradovate" && trade.source.closedAt ? trade.source.closedAt.replace("T", " ").replace(".000Z", " UTC") : trade.date}</td><td className="p-3">{trade.market}</td><td className="p-3">{trade.side}</td><td className="p-3">{trade.contracts}</td><td className="whitespace-nowrap p-3">{formatMoney(trade.pnl)}</td><td className="whitespace-nowrap p-3">{trade.risk > 0 ? formatMoney(trade.risk) : "Not provided"}</td><td className="min-w-40 max-w-80 break-words p-3">{trade.notes || "No note"}</td></tr>)}</tbody>
+            </table>
+          </div>
+          {!historyTrades.length && <p className="mt-3 text-sm text-white/60">No saved trades for this selection.</p>}
+          {historyTrades.length > 50 && <div className="mt-3 flex gap-4 text-sm"><button disabled={historyPage === 0} onClick={() => setHistoryPage(page => page - 1)}>Previous</button><span>Page {historyPage + 1} of {Math.ceil(historyTrades.length / 50)}</span><button disabled={(historyPage + 1) * 50 >= historyTrades.length} onClick={() => setHistoryPage(page => page + 1)}>Next</button></div>}
+        </section>
         <CsvExportGuide selectedFirmId={selectedFirmId} setSelectedFirmId={setSelectedFirmId} />
 
         <div className="import-csv-grid grid gap-6 lg:grid-cols-[0.92fr_1.08fr]">

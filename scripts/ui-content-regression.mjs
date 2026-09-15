@@ -288,7 +288,7 @@ assert.match(importPanels, /if \(firm\.status === "guided"\)[\s\S]*?if \(!entitl
 assert.match(importPanels, /selectedFirm\.status !== "guided"[\s\S]*?Unlock sync/, "CSV-only provider cards must not advertise an unavailable direct-sync upgrade.");
 assert.match(app, /if \(!entitlements\.canUseDirectSync\)/, "App-level OAuth entry must enforce the direct-sync entitlement.");
 assert.match(workspaceShell, /Retrospective review only\. No live brokerage execution\./, "Workspace safety copy should preserve the no-execution boundary.");
-assert.match(app, /const hasSampleTrades = trades\.some\(\(trade\) => trade\.id\.startsWith\("demo-"\)\)/, "Any demo row should keep a mixed Passport visibly sample-derived.");
+assert.match(app, /const hasSampleTrades = visibleTrades\.some\(\(trade\) => trade\.id\.startsWith\("demo-"\)\)/, "Any demo row in the selected account keeps a mixed Passport visibly sample-derived.");
 assert.match(app, /const isSampleReview = hasSampleTrades/, "Passport should derive sample provenance from any demo rows in the review.");
 assert.match(tradeSourceLabel, /Sample[\s\S]*CSV[\s\S]*sourceLabels\.join\(" \+ "\)/, "Mixed demo and imported rows should disclose both sources.");
 assert.match(tradeSourceLabel, /CSV:\s*"Imported CSV review"/, "Imported CSV history should not remain labeled as a sample funded review.");

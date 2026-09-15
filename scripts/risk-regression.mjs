@@ -42,6 +42,12 @@ function assertIncludes(value, expected, message) {
   assert.match(String(value), expected, message);
 }
 
+const legacyOrder = analyze([
+  makeTrade({ id: "z-first", pnl: -500 }),
+  makeTrade({ id: "a-second", pnl: 600 }),
+], defaultRules);
+assert.deepEqual(legacyOrder.trades.map(trade => trade.id), ["z-first", "a-second"], "Legacy same-day trades without timestamps retain input chronology, not lexical ID order.");
+
 const noHistory = analyze([], defaultRules);
 assert.equal(noHistory.score, 0, "No trade history should not create a real risk score.");
 assert.equal(noHistory.evidenceQuality.label, "No sample", "No-history evidence quality should be explicit.");
@@ -120,6 +126,15 @@ assert.equal(tradovateParsed.issues.length, 0, `Tradovate provenance must surviv
 assert.equal(tradovateParsed.trades[0].id, "tradovate-pair-42", "Tradovate deterministic fill-pair ids must survive import.");
 assert.equal(tradovateParsed.trades[0].risk, 0, "Tradovate imports must not invent a planned risk amount.");
 assert.deepEqual(tradovateParsed.trades[0].source, { provider: "Tradovate", accountId: "account-1" });
+const providerTrade = tradovateParsed.trades[0];
+const annotated = { ...providerTrade, risk: 75, setup: 'User setup', notes: 'Keep my plan' };
+const correction = mergeTradeLedger([annotated], [{ ...providerTrade, pnl: 40, exit: 102 }]);
+assert.equal(correction.trades[0].notes, annotated.notes, 'History corrections must preserve user annotations');
+assert.equal(correction.trades[0].setup, annotated.setup);
+assert.equal(correction.trades[0].risk, annotated.risk);
+assert.equal(correction.trades[0].pnl, 40);
+assert.deepEqual(mergeTradeLedger(correction.trades, [{ ...providerTrade, pnl: 40, exit: 102 }]).receipt, { added: 0, corrected: 0, unchanged: 1 });
+assert.throws(() => mergeTradeLedger([], [providerTrade, providerTrade]), /duplicate incoming/);
 
 const duplicateTradovateParsed = parseCsvDetailed(`date,market,side,contracts,entry,exit,pnl,risk,setup,notes,source_provider,source_account_id,source_trade_id
 2026-08-01,NQ,Long,1,100,101,20,0,Tradovate sync,first,Tradovate,account-1,tradovate-duplicate

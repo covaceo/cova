@@ -69,6 +69,7 @@ import { buildFirmConnectUrl, canRedirectToFirmProvider, csvExportGuides, getFir
 import { isProtectedSection, sections, useHashSection, type Section } from "./lib/appRoutes";
 import { clearActiveStorageIdentity, removeCurrentIdentityStorage, scopedStorageKey, setActiveStorageIdentity } from "./lib/storageScope";
 import { getAccountSourceLabel } from "./lib/tradeSourceLabel";
+import { filterTradeAccount, HistorySelectionEpoch, tradeAccountKey } from "./lib/tradovateHistory";
 
 const STORAGE_KEY = "cova-react-risk-os-v2";
 const AUTH_SESSION_KEY = "cova-auth-session-v1";
@@ -137,6 +138,13 @@ export default function App() {
     return savedSession ? initialTradesForSession(loadState()?.trades, savedSession.source) : [];
   });
   const tradesRef = useRef(trades);
+  const [tradeAccount, setTradeAccount] = useState(() => loadState()?.tradeAccount || "all");
+  const historySelection = useRef(new HistorySelectionEpoch());
+  function selectTradeAccount(account: string) {
+    historySelection.current.change();
+    setTradeAccount(account);
+    window.dispatchEvent(new Event("cova:history-selection"));
+  }
   const [rules, setRules] = useState<RiskRule[]>(() => loadAuthSession() ? loadState()?.rules ?? defaultRules : defaultRules);
   const [pendingSupabaseSession, setPendingSupabaseSession] = useState<SupabaseSession | null>(null);
   const [passwordRecoverySession, setPasswordRecoverySession] = useState<SupabaseSession | null>(null);
@@ -154,11 +162,13 @@ export default function App() {
   const isSignedIn = Boolean(authSession);
   const entitlements = planEntitlements[authSession?.plan ?? "free"];
   const proCheckoutAvailable = Boolean(getProCheckoutUrl()) || isDemoPreviewEnabled();
-  const analysis = useMemo(() => analyze(trades, rules), [trades, rules]);
-  const visibleRiskScore = trades.length ? analysis.score : null;
-  const hasSampleTrades = trades.some((trade) => trade.id.startsWith("demo-"));
+  const visibleTrades = useMemo(() => filterTradeAccount(trades, tradeAccount), [trades, tradeAccount]);
+  const tradeAccounts = useMemo(() => [...new Set(trades.map(tradeAccountKey))], [trades]);
+  const analysis = useMemo(() => analyze(visibleTrades, rules), [visibleTrades, rules]);
+  const visibleRiskScore = visibleTrades.length ? analysis.score : null;
+  const hasSampleTrades = visibleTrades.some((trade) => trade.id.startsWith("demo-"));
   const isSampleReview = hasSampleTrades;
-  const brokerLabel = getAccountSourceLabel(trades, brokerStatus);
+  const brokerLabel = getAccountSourceLabel(visibleTrades, brokerStatus);
   const dashboardPrincipal: ImportPrincipal | null = authSession ? {
     identity: toImportPrincipalIdentity(authSession),
     authGeneration: authGenerationRef.current,
@@ -175,9 +185,9 @@ export default function App() {
 
   useEffect(() => {
     if (isSignedIn) {
-      localStorage.setItem(scopedStorageKey(STORAGE_KEY), JSON.stringify({ trades, rules }));
+      localStorage.setItem(scopedStorageKey(STORAGE_KEY), JSON.stringify({ trades, rules, tradeAccount }));
     }
-  }, [authSession?.email, authSession?.userId, isSignedIn, trades, rules]);
+  }, [authSession?.email, authSession?.userId, isSignedIn, trades, rules, tradeAccount]);
 
   useEffect(() => {
     const refreshBrokerStatus = () => setBrokerStatus(readBrokerStatus());
@@ -315,21 +325,10 @@ export default function App() {
       return;
     }
 
-    const connected = brokerStatus === "connected";
-    const nextStatus: BrokerStatus = {
-      provider: "Tradovate",
-      status: brokerStatus as BrokerStatus["status"],
-      connected,
-      connectionId: params.get("connectionId") ?? undefined,
-      message: connected
-        ? "Tradovate connected. Trade syncing can now run from the secure backend."
-        : brokerMessageForStatus(brokerStatus),
-      updatedAt: new Date().toISOString(),
-    };
-
-    writeBrokerStatus(nextStatus);
-    setStatus(nextStatus.message);
-    announce(nextStatus.message, connected ? "success" : "warning");
+    // The callback query is navigation only. ImportDesk independently verifies the owner-bound connection.
+    const message = brokerStatus === "connected" ? "Checking the Tradovate connection before loading recent history." : brokerMessageForStatus(brokerStatus);
+    setStatus(message);
+    announce(message, "info");
     window.history.replaceState(null, "", `${window.location.pathname}#import`);
     setSection("import");
   }, []);
@@ -499,6 +498,7 @@ export default function App() {
     localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
     localStorage.removeItem(AUTH_INTENT_KEY);
     setTrades(initialTradesForSession(saved?.trades, source));
+    setTradeAccount(saved?.tradeAccount || "all");
     setRules(saved?.rules ?? defaultRules);
     setStatus("Signed in. Account stats are unlocked.");
     setAuthMode(null);
@@ -1167,7 +1167,8 @@ export default function App() {
   function prepareImportCsv() {
     const principalAtStart = getCurrentImportPrincipal();
     if (!principalAtStart) return null;
-    const isCurrent = () => isImportPrincipalCurrent(principalAtStart, getCurrentImportPrincipal());
+    const selectionCurrent = historySelection.current.capture();
+    const isCurrent = () => selectionCurrent() && isImportPrincipalCurrent(principalAtStart, getCurrentImportPrincipal());
     return {
       isCurrent,
       commit: (text: string, mode: ImportMode = "append") => {
@@ -1176,6 +1177,16 @@ export default function App() {
           return null;
         }
         return importCsv(text, mode);
+      },
+      scopeKey: principalAtStart.identity,
+      commitHistory: (text: string, accountId: string, coverage: string) => {
+        if (!isCurrent() || authSessionRef.current?.plan !== "pro") return null;
+        const receipt = importCsv(text, "merge");
+        if (receipt) {
+          selectTradeAccount(`Tradovate:${accountId}`);
+          setStatus(`${receipt.added} new, ${receipt.corrected} corrected, ${receipt.unchanged} unchanged. ${coverage}`);
+        }
+        return receipt;
       },
     };
   }
@@ -1209,6 +1220,8 @@ export default function App() {
     const nextTrades = mode === "replace" ? acceptedTrades : mergeResult?.trades ?? [...currentTrades, ...acceptedTrades];
     tradesRef.current = nextTrades;
     setTrades(nextTrades);
+    const sources = [...new Set(acceptedTrades.map(tradeAccountKey))];
+    selectTradeAccount(sources.length === 1 ? sources[0] : "all");
     if (mode === "replace" && brokerStatus?.mode === "ephemeral") {
       clearBrokerStatus();
       setBrokerStatus(null);
@@ -1220,7 +1233,7 @@ export default function App() {
       ? `${receipt.added} new, ${receipt.corrected} corrected, ${receipt.unchanged} unchanged`
       : `${acceptedTrades.length} trade${acceptedTrades.length === 1 ? "" : "s"}${limited ? " for the free preview" : ""}`;
     setStatus(`${mode === "replace" ? "Replaced trade history with" : mode === "merge" ? "Synced" : "Imported"} ${resultLabel}.`);
-    announce(limited ? `Free preview imported ${acceptedTrades.length}/${imported.length} rows.` : mode === "merge" ? `Rithmic sync: ${resultLabel}.` : `${mode === "replace" ? "Trade history replaced" : "Trades imported"}: ${acceptedTrades.length} row${acceptedTrades.length === 1 ? "" : "s"}.`, limited ? "warning" : "success");
+    announce(limited ? `Free preview imported ${acceptedTrades.length}/${imported.length} rows.` : mode === "merge" ? `History sync: ${resultLabel}.` : `${mode === "replace" ? "Trade history replaced" : "Trades imported"}: ${acceptedTrades.length} row${acceptedTrades.length === 1 ? "" : "s"}.`, limited ? "warning" : "success");
     go("dashboard");
     return receipt;
   }
@@ -1277,8 +1290,20 @@ export default function App() {
         {isProtectedSection(section) ? (
           isSignedIn ? (
             <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={visibleRiskScore} section={section} signOut={signOut}>
-              {section === "dashboard" && <Dashboard key={authSession?.userId || authSession?.email} analysis={analysis} rules={rules} go={go} onSaveTradeNote={saveTradeNote} rithmicSyncAvailable={brokerStatus?.provider === "Rithmic" && brokerStatus.status === "imported"} />}
-              {section === "import" && <ImportDesk entitlements={entitlements} importCsv={importCsv} prepareImportCsv={prepareImportCsv} openFirmOAuth={openFirmOAuth} status={status} reset={() => { const demoTrades = entitlements.plan === "free" ? sampleTrades.slice(0, entitlements.maxStoredTrades) : sampleTrades; setTrades(demoTrades); setRules(defaultRules); clearBrokerStatus(); window.dispatchEvent(new CustomEvent("cova:broker-status")); setStatus("Demo trades restored."); announce("Demo trades restored.", "success"); }} upgradeToPro={upgradeToPro} />}
+              {tradeAccounts.some(account => account.startsWith("Tradovate:")) && section !== "oauth" && (
+                <div className="mx-4 mt-24 rounded-xl border border-white/10 bg-[#0d0f14] p-4 sm:mx-6 lg:mt-4">
+                  <label className="flex flex-wrap items-center gap-3 text-sm text-white/80">Reviewing account
+                    <select aria-label="Trade account" className="max-w-full rounded-lg border border-white/15 bg-[#171a21] p-2" value={tradeAccount} onChange={event => selectTradeAccount(event.target.value)}>
+                      <option value="all">All accounts · combined review</option>
+                      {tradeAccounts.map(account => <option key={account} value={account}>{account === "local" ? "CSV / local history" : account}</option>)}
+                    </select>
+                  </label>
+                  {tradeAccount.startsWith("Tradovate:") && <p className="mt-2 text-xs text-white/55">Gross P&L before fees · UTC calendar dates · matched fill pairs. Planned risk is unknown until you supply it.</p>}
+                  <p className="mt-2 text-xs text-white/55" role="status">{status}</p>
+                </div>
+              )}
+              {section === "dashboard" && <Dashboard key={`${authSession?.userId || authSession?.email}:${tradeAccount}`} analysis={analysis} rules={rules} go={go} onSaveTradeNote={saveTradeNote} rithmicSyncAvailable={brokerStatus?.provider === "Rithmic" && brokerStatus.status === "imported"} />}
+              {section === "import" && <ImportDesk key={authSession?.userId || authSession?.email} historyTrades={analysis.trades} entitlements={entitlements} importCsv={importCsv} prepareImportCsv={prepareImportCsv} openFirmOAuth={openFirmOAuth} status={status} reset={() => { const demoTrades = entitlements.plan === "free" ? sampleTrades.slice(0, entitlements.maxStoredTrades) : sampleTrades; tradesRef.current = demoTrades; setTrades(demoTrades); selectTradeAccount("local"); setRules(defaultRules); clearBrokerStatus(); window.dispatchEvent(new CustomEvent("cova:broker-status")); setStatus("Demo trades restored."); announce("Demo trades restored.", "success"); }} upgradeToPro={upgradeToPro} />}
               {section === "oauth" && <OAuthConnectPage firmId={oauthFirmId} onApprove={completeFirmOAuth} onCancel={cancelFirmOAuth} />}
               {section === "rules" && <RulesEngine analysis={analysis} entitlements={entitlements} rules={rules} setRules={setRules} go={go} upgradeToPro={upgradeToPro} />}
               {section === "coach" && <Coach analysis={analysis} entitlements={entitlements} go={go} upgradeToPro={upgradeToPro} />}
@@ -1451,13 +1476,14 @@ function readAuthIntent(): { email?: string; mode?: AuthMode; returnSection?: Se
   }
 }
 
-function loadState(): { trades: Trade[]; rules: RiskRule[] } | null {
+function loadState(): { trades: Trade[]; rules: RiskRule[]; tradeAccount?: string } | null {
   try {
     const parsed = JSON.parse(localStorage.getItem(scopedStorageKey(STORAGE_KEY)) ?? "null");
     if (parsed?.trades && parsed?.rules) {
       return {
         trades: parsed.trades,
         rules: normalizeSavedRules(parsed.rules),
+        tradeAccount: typeof parsed.tradeAccount === "string" ? parsed.tradeAccount : "all",
       };
     }
   } catch {

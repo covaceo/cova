@@ -52,10 +52,10 @@ test("Tradovate connect refuses partial server configuration", () => {
 
 test("Trade History discovers Tradovate capability before offering direct connect", () => {
   assert.match(importDeskSource, /const \[tradovateCapability, setTradovateCapability\] = useState\(\{ available: false, checked: false \}\)/);
-  assert.match(importDeskSource, /authorizedFetch\("\/api\/tradovate\/status"\)[\s\S]*available: response\.ok && data\?\.available === true, checked: true/);
+  assert.match(importDeskSource, /fetchHistoryJson\(authorizedFetch, "\/api\/tradovate\/status", controller\.signal, 5000, 16384\)[\s\S]*available: data\?\.available === true, checked: true/);
   assert.match(importDeskSource, /tradovateAvailable=\{tradovateCapability\.available\}/);
   assert.match(importDeskSource, /tradovateStatusChecked=\{tradovateCapability\.checked\}/);
-  assert.match(importDeskSource, /const verified = parseCsvDetailed\(data\.csv\)[\s\S]*verified\.issues\.length[\s\S]*verified\.trades\.length !== tradeCount[\s\S]*Tradovate returned an inconsistent trade ledger/);
+  assert.match(importDeskSource, /const verified = validateTradovateHistory\(data, historyAccount\)[\s\S]*verified\.window\.startDate !== historyWindow\.startDate[\s\S]*preparedImport\.commitHistory\(verified\.csv/);
   assert.match(importDeskSource, /data\?\.connected === true[\s\S]*writeBrokerStatus\(nextStatus\)/);
   assert.match(importPanelsSource, /const selectedConnected = connected && brokerStatus\?\.provider === selectedFirm\.name/);
   assert.match(importPanelsSource, /hidden sm:inline/);
