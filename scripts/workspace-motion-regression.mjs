@@ -45,6 +45,7 @@ function routeTree(section, signedIn) {
     isProtectedSection: (value) => privateRoutes.includes(value),
     authSession: signedIn ? { userId: 'account-a', email: 'a@example.test', plan: 'free' } : null,
     brokerStatus: { provider: 'Rithmic', status: 'imported' },
+    tradeAccounts: [], tradeAccount: 'all', analysis: { trades: [] },
   };
   return evaluateMain(new Proxy(values, {
     has: () => true,
@@ -94,10 +95,10 @@ test('marketing retains the original wait-mode RouteFrames', () => {
   }
 });
 
-test('every original route content prop, identity key, reset and OAuth handler is preserved exactly', () => {
+test('route props preserve behavior with owner-approved history account isolation and reset', () => {
   const expected = {
-    Dashboard: 'key={authSession?.userId || authSession?.email} analysis={analysis} rules={rules} go={go} onSaveTradeNote={saveTradeNote} rithmicSyncAvailable={brokerStatus?.provider === "Rithmic" && brokerStatus.status === "imported"}',
-    ImportDesk: 'entitlements={entitlements} importCsv={importCsv} prepareImportCsv={prepareImportCsv} openFirmOAuth={openFirmOAuth} status={status} reset={() => { const demoTrades = entitlements.plan === "free" ? sampleTrades.slice(0, entitlements.maxStoredTrades) : sampleTrades; setTrades(demoTrades); setRules(defaultRules); clearBrokerStatus(); window.dispatchEvent(new CustomEvent("cova:broker-status")); setStatus("Demo trades restored."); announce("Demo trades restored.", "success"); }} upgradeToPro={upgradeToPro}',
+    Dashboard: 'key={`${authSession?.userId || authSession?.email}:${tradeAccount}`} analysis={analysis} rules={rules} go={go} onSaveTradeNote={saveTradeNote} rithmicSyncAvailable={brokerStatus?.provider === "Rithmic" && brokerStatus.status === "imported"}',
+    ImportDesk: 'key={authSession?.userId || authSession?.email} historyTrades={analysis.trades} entitlements={entitlements} importCsv={importCsv} prepareImportCsv={prepareImportCsv} openFirmOAuth={openFirmOAuth} status={status} reset={() => { const demoTrades = entitlements.plan === "free" ? sampleTrades.slice(0, entitlements.maxStoredTrades) : sampleTrades; tradesRef.current = demoTrades; setTrades(demoTrades); selectTradeAccount("local"); setRules(defaultRules); clearBrokerStatus(); window.dispatchEvent(new CustomEvent("cova:broker-status")); setStatus("Demo trades restored."); announce("Demo trades restored.", "success"); }} upgradeToPro={upgradeToPro}',
     OAuthConnectPage: 'firmId={oauthFirmId} onApprove={completeFirmOAuth} onCancel={cancelFirmOAuth}',
     RulesEngine: 'analysis={analysis} entitlements={entitlements} rules={rules} setRules={setRules} go={go} upgradeToPro={upgradeToPro}',
     Coach: 'analysis={analysis} entitlements={entitlements} go={go} upgradeToPro={upgradeToPro}',

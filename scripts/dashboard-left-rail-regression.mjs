@@ -33,7 +33,7 @@ assert.doesNotMatch(workspace, /workspace-risk-card/, "the oversized account-ris
 assert.match(workspace, /workspace-account-menu/, "account identity and account actions must remain pinned in a dedicated bottom area");
 assert.match(workspace, /const riskScoreLabel = typeof riskScore === "number" && Number\.isFinite\(riskScore\) \? String\(riskScore\) : "--";/, "zero must remain valid while unavailable accounts render a placeholder");
 assert.match(navbar, /const riskScoreLabel = typeof riskScore === "number" && Number\.isFinite\(riskScore\) \? String\(riskScore\) : "--";/, "tablet and mobile fallback chrome must distinguish zero from unavailable");
-assert.match(app, /const visibleRiskScore = trades\.length \? analysis\.score : null;/, "accounts without trade history must not publish a derived risk score");
+assert.match(app, /const visibleRiskScore = visibleTrades\.length \? analysis\.score : null;/, "selected accounts without trade history must not publish a derived risk score");
 assert.match(dashboard, /data-dashboard-empty="true"[\s\S]*?Import trade history to start your review/, "the Risk Desk must render an import-first empty state before analytics");
 assert.doesNotMatch(navbar, /riskScore \|\| "--"/, "fallback header must not collapse zero into an unavailable placeholder");
 assert.match(workspace, /aria-label=\{`Cova risk score \$\{riskScoreLabel === "--" \? "not available" : riskScoreLabel\}`\}/, "risk-score accessibility copy must preserve zero and distinguish unavailable values");
@@ -99,7 +99,7 @@ assert.match(dashboard, /getTradeSourceLabel\(scopedAnalysis\.trades\)/, "dashbo
 assert.match(dashboard, /aria-label=\{`Review source: \$\{sourceLabel\}`\}/, "selected-review provenance must remain explicitly labeled independently of account state");
 assert.match(dashboard, /const hasRithmicTrades = analysis\.trades\.some/, "Rithmic resync and required attribution must remain discoverable when provider rows sit outside the selected review range");
 assert.doesNotMatch(dashboard, /brokerStatus/, "connected account state must not overwrite selected-range provenance");
-assert.match(app, /getAccountSourceLabel\(trades, brokerStatus\)/, "workspace account identity must use the account-level connection/source label");
+assert.match(app, /getAccountSourceLabel\(visibleTrades, brokerStatus\)/, "workspace account identity uses the selected account's connection/source label");
 assert.doesNotMatch(app, /"CSV trade review"|"Sample \+ CSV review"|"Sample funded review"/, "App must not retain a second drifting source-label classifier");
 assert.match(sourceLabel, /export function getAccountSourceLabel[\s\S]*?if \(brokerStatus\?\.connected\) return `\$\{brokerStatus\.provider\} linked`;/, "the account subtitle may truthfully prioritize an active read-only connection");
 assert.match(sourceLabel, /export function getTradeSourceLabel\(trades: Trade\[\]\)/, "selected review provenance must be independent of global connection state");

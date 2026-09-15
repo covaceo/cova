@@ -1,4 +1,5 @@
 // Read-only diagnostics, not a ledger importer. Native current client supplies report POST contract.
+import { parsePerformanceReport } from "./tradovate-performance.js";
 const URLS = Object.freeze({ definitions: "https://rpt-demo.tradovateapi.com/v1/reports/requestReportDefinitions", accounts: "https://demo.tradovateapi.com/v1/account/list", report: "https://rpt-demo.tradovateapi.com/v1/reports/requestreport" });
 const TYPES = Object.freeze({ startDate: "Date", endDate: "Date", startTime: "Time", endTime: "Time", account: "accounts", contract: "contracts" });
 const hasError = value => value !== null && typeof value === "object" && ["error", "errorText", "errorMessage", "errorCode", "errors"].some(key => Object.hasOwn(value, key));
@@ -74,6 +75,21 @@ function reportWindow(query) {
   return { startDate: query.startDate, endDate: query.endDate, startTime: "00:00:00", endTime: "00:00:00", timeZone: "America/New_York", timezoneOffset, startValue: display(query.startDate), endValue: display(query.endDate) };
 }
 
+function recentWindow(query) {
+  const today = new Date().toISOString().slice(0, 10);
+  const endDate = query.endDate ?? new Date(Date.parse(`${today}T00:00:00Z`) + 86400000).toISOString().slice(0, 10);
+  const startDate = query.startDate ?? new Date(Date.parse(`${endDate}T00:00:00Z`) - 30 * 86400000).toISOString().slice(0, 10);
+  const times = [startDate, endDate].map(value => {
+    if (typeof value !== "string" || !/^20\d{2}-\d{2}-\d{2}$/.test(value)) fail("invalid_dates");
+    const time = Date.parse(`${value}T00:00:00Z`);
+    if (!Number.isFinite(time) || new Date(time).toISOString().slice(0, 10) !== value) fail("invalid_dates");
+    return time;
+  });
+  if (times[1] <= times[0] || times[1] - times[0] > 90 * 86400000) fail("invalid_date_window");
+  const display = value => `${value.slice(5, 7)}/${value.slice(8, 10)}/${value.slice(0, 4)}`;
+  return { startDate, endDate, startTime: "00:00:00", endTime: "00:00:00", timeZone: "UTC", timezoneOffset: 0, startValue: display(startDate), endValue: display(endDate) };
+}
+
 export async function diagnoseTradovateReport(token, query, signal) {
   const result = { diagnostic: "tradovate-report-v1", status: "unavailable", stage: "input", upstream: { definitions: null, accounts: null, report: null }, responseShape: null };
   let reader, abort;
@@ -124,13 +140,39 @@ export async function diagnoseTradovateReport(token, query, signal) {
     if (base.origin !== "https://demo.tradovateapi.com" || !["/v1", "/v1/"].includes(base.pathname) || base.username || base.password || base.search || base.hash) fail("unsupported_environment");
     if (typeof token !== "string" || !token || token.length > 65536 || token !== token.trim() || /[\x00-\x1f\x7f]/.test(token)) fail("invalid_credential");
     const reportMode = query.diagnostic === "history-report";
-    if (!reportMode && query.diagnostic !== "history-discovery") fail("invalid_request");
-    const keys = reportMode ? ["diagnostic", "accountId", "startDate", "endDate"] : ["diagnostic"];
+    const historyMode = query.history === "recent";
+    if (!historyMode && !reportMode && query.diagnostic !== "history-discovery") fail("invalid_request");
+    const keys = historyMode ? ["history", "accountId", "startDate", "endDate", "connectionId"] : reportMode ? ["diagnostic", "accountId", "startDate", "endDate"] : ["diagnostic"];
     if (Object.keys(query).some(key => !keys.includes(key))) fail("invalid_request");
     if (reportMode && (typeof query.accountId !== "string" || !/^[1-9]\d{0,15}$/.test(query.accountId) || !Number.isSafeInteger(Number(query.accountId)))) fail("invalid_account_id");
-    const window = reportMode ? reportWindow(query) : null;
+    if (historyMode && query.accountId !== undefined && (typeof query.accountId !== "string" || !/^[1-9]\d{0,15}$/.test(query.accountId))) fail("invalid_account_id");
+    const window = historyMode ? recentWindow(query) : reportMode ? reportWindow(query) : null;
     const performance = selectPerformance(await request("definitions"));
     const accounts = ownedAccounts(await request("accounts"), token);
+    if (historyMode) {
+      if (!["startTime", "endTime"].every(name => performance.params.some(param => param.name === name))) fail("missing_time_contract");
+      if (query.accountId && !accounts.some(account => account.id === query.accountId)) fail("account_not_owned");
+      const selected = accounts.filter(account => query.accountId ? account.id === query.accountId : account.status === "active").slice(0, 4);
+      const historyAccounts = [];
+      for (const account of accounts) {
+        if (!selected.includes(account)) { historyAccounts.push({ account, status: "deferred" }); continue; }
+        try {
+          const payload = await request("report", { name: "Performance", representationType: "csv", template: "Flex.html", timezone: 0, params: [
+            { name: "startDate", value: window.startValue }, { name: "endDate", value: window.endValue },
+            { name: "startTime", value: "00:00:00" }, { name: "endTime", value: "00:00:00" }, { name: "account", value: account.name },
+          ] });
+          if (hasError(payload?.data) || !payload || Array.isArray(payload) || typeof payload.data !== "string" || payload.data.includes(token)) fail("unsupported_report_envelope");
+          const parsed = parsePerformanceReport(payload.data, account.id, window);
+          historyAccounts.push({ account, status: parsed.trades.length ? "ready" : "empty", ...parsed });
+        } catch (error) {
+          if (signal.aborted) fail("timeout");
+          historyAccounts.push({ account, status: "failed", reason: error instanceof DiagnosticFailure ? error.reason : "invalid_performance_report" });
+        }
+      }
+      const response = { provider: "Tradovate", status: "history_ready", window, pnlBasis: "gross_before_fees", coverage: "bounded_matched_fill_pairs", accounts: historyAccounts };
+      if (Buffer.byteLength(JSON.stringify(response)) > 2097152) fail("oversized_output");
+      return response;
+    }
     if (!reportMode) return { ...result, status: "discovery", performance, accounts };
     const account = accounts.find(row => row.id === query.accountId);
     if (!account) fail("account_not_owned");
