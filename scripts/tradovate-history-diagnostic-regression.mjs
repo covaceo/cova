@@ -71,7 +71,27 @@ async function run(options = {}) {
     assert.equal(res.body.csv, undefined);
     assert.equal(res.body.trades, undefined);
     assert.equal(res.body.diagnostic, "tradovate-history-definitions-v1");
-    assert.deepEqual(Object.keys(res.body).sort(), ["diagnostic", "performanceAvailable", "requiredParameters", "requiredParametersComplete", "status", "upstreamStatus", "validDefinitionCount"].sort());
+    assert.deepEqual(Object.keys(res.body).sort(), ["diagnostic", "performanceAvailable", "requiredParameters", "requiredParametersComplete", "status", "upstreamStatus", "validDefinitionCount", "shape"].sort());
+    if (res.body.shape !== null) {
+      const shape = res.body.shape;
+      assert.deepEqual(Object.keys(shape).sort(), ["topLevel", "containers", "performanceNameObserved", "performanceScanComplete", "validationFailure"].sort());
+      assert.deepEqual(Object.keys(shape.topLevel).sort(), ["count", "type"]);
+      const checkTypeCount = value => {
+        assert(["null", "array", "object", "string", "number", "boolean"].includes(value.type));
+        assert(value.count === null || Number.isSafeInteger(value.count) && value.count >= 0);
+      };
+      checkTypeCount(shape.topLevel);
+      assert(shape.containers.length <= 6);
+      for (const container of shape.containers) {
+        assert.deepEqual(Object.keys(container).sort(), ["count", "slot", "type"]);
+        assert(["reports", "reportDefinitions", "reportDefs", "definitions", "data", "items"].includes(container.slot));
+        checkTypeCount(container);
+      }
+      assert.equal(typeof shape.performanceNameObserved, "boolean");
+      assert.equal(typeof shape.performanceScanComplete, "boolean");
+      assert(["none", "not_validated", "array_expected", "too_many_definitions", "invalid_definition", "invalid_name", "duplicate_name", "params_array_expected", "too_many_params", "invalid_param", "param_error", "invalid_param_name", "duplicate_param_name", "invalid_param_type", "missing_optional", "invalid_optional"].includes(shape.validationFailure));
+      assert(Buffer.byteLength(JSON.stringify(shape)) < 1200, "Shape output is independently bounded");
+    }
     for (const call of upstream) assert.equal(call.init.signal.aborted, true, "Terminal cleanup aborts transport");
   }
   cases++;
@@ -80,6 +100,14 @@ async function run(options = {}) {
 
 try {
   Object.assign(process.env, { SUPABASE_URL: "https://example.supabase.co", SUPABASE_ANON_KEY: "fixture-anon", SUPABASE_SERVICE_ROLE_KEY: "fixture-service", COVA_TOKEN_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString("base64"), KV_REST_API_URL: "https://fixture-history.upstash.io", KV_REST_API_TOKEN: "fixture-redis-".repeat(4) });
+  // Synthetic envelope, NOT the unobserved live provider format.
+  const wrapped = await run({ provider: () => json({ definitions: [performance], "fixture-private-key": "fixture-private-value" }) });
+  assert.equal(wrapped.res.body.status, "invalid_definitions", "Shape evidence must not loosen acceptance");
+  assert.deepEqual(wrapped.res.body.shape, {
+    topLevel: { type: "object", count: 2 },
+    containers: [{ slot: "definitions", type: "array", count: 1 }],
+    performanceNameObserved: true, performanceScanComplete: true, validationFailure: "array_expected",
+  });
   const success = await run();
   assert.equal(success.res.statusCode, 200);
   assert.equal(success.res.body.status, "definitions");
@@ -88,6 +116,65 @@ try {
   assert.equal(success.res.body.requiredParametersComplete, true);
   assert.deepEqual(success.res.body.requiredParameters, performance.params.filter(p => !p.optional));
   assert.equal(success.upstream.length, 1);
+  const missingOptional = await run({ provider: () => json([{ ...performance, params: [{ name: "fixture-private-param", paramType: "fixture-private-type" }] }]) });
+  assert.equal(missingOptional.res.body.status, "invalid_definitions");
+  assert.equal(missingOptional.res.body.shape.validationFailure, "missing_optional");
+  assert.equal(missingOptional.res.body.shape.performanceNameObserved, true);
+  assert.equal(missingOptional.res.body.performanceAvailable, false);
+  // All shapes below are synthetic privacy/validation fixtures, never live responses.
+  for (const [payload, type, count] of [[null, "null", null], [true, "boolean", null], [12345, "number", null], ["fixture-private-string", "string", null], [[], "array", 0], [{ "fixture-private-key": null }, "object", 1]]) {
+    const evidence = await run({ provider: () => json(payload) });
+    assert.deepEqual(evidence.res.body.shape.topLevel, { type, count });
+    assert.equal(evidence.res.body.status, Array.isArray(payload) ? "definitions" : "invalid_definitions");
+  }
+  for (const slot of ["reports", "reportDefinitions", "reportDefs", "definitions", "data", "items"]) {
+    for (const [value, type, count] of [[[performance], "array", 1], [{ "fixture-private-key": "fixture-private" }, "object", 1], [null, "null", null], [false, "boolean", null], [12345, "number", null], ["fixture-private", "string", null]]) {
+      const evidence = await run({ provider: () => json({ [slot]: value }) });
+      assert.equal(evidence.res.body.status, "invalid_definitions");
+      assert.equal(evidence.res.body.validDefinitionCount, 0);
+      assert.equal(evidence.res.body.performanceAvailable, false);
+      assert.deepEqual(evidence.res.body.shape.containers, [{ slot, type, count }]);
+      assert.equal(evidence.res.body.shape.performanceNameObserved, type === "array");
+    }
+  }
+  for (const [payload, reason] of [
+    [[null], "invalid_definition"], [[{}], "invalid_name"], [[performance, performance], "duplicate_name"],
+    [[{ ...performance, params: {} }], "params_array_expected"],
+    [[{ ...performance, params: Array(33).fill(null) }], "too_many_params"],
+    [[{ ...performance, params: [null] }], "invalid_param"],
+    [[{ ...performance, params: [{ errorText: "fixture-private-error" }] }], "param_error"],
+    [[{ ...performance, params: [{}] }], "invalid_param_name"],
+    [[{ ...performance, params: [performance.params[0], performance.params[0]] }], "duplicate_param_name"],
+    [[{ ...performance, params: [{ name: "fixture-private-param" }] }], "invalid_param_type"],
+    [[{ ...performance, params: [{ name: "fixture-private-param", paramType: "fixture-private-type", optional: "false" }] }], "invalid_optional"],
+  ]) {
+    const evidence = await run({ provider: () => json(payload) });
+    assert.equal(evidence.res.body.status, "invalid_definitions");
+    assert.equal(evidence.res.body.shape.validationFailure, reason);
+  }
+  const huge = Array.from({ length: 256 }, (_, i) => ({ name: `fixture-private-report-${i}`, params: [] }));
+  const capped = await run({ provider: () => json([...huge, performance]) });
+  assert.equal(capped.res.body.shape.topLevel.count, 257);
+  assert.equal(capped.res.body.shape.validationFailure, "too_many_definitions");
+  assert.equal(capped.res.body.shape.performanceNameObserved, false);
+  assert.equal(capped.res.body.shape.performanceScanComplete, false);
+  const sharedCap = await run({ provider: () => json({ reports: huge, definitions: [performance] }) });
+  assert.equal(sharedCap.res.body.shape.performanceNameObserved, false);
+  assert.equal(sharedCap.res.body.shape.performanceScanComplete, false);
+  const allSlots = await run({ provider: () => json(Object.fromEntries(["reports", "reportDefinitions", "reportDefs", "definitions", "data", "items"].map(slot => [slot, [performance]]))) });
+  assert.equal(allSlots.res.body.shape.containers.length, 6);
+  assert.equal(allSlots.res.body.shape.performanceNameObserved, true);
+  assert.equal(allSlots.res.body.shape.performanceScanComplete, true);
+  const rejectedShape = await run({ provider: () => json({ definitions: [performance] }, 403) });
+  assert.equal(rejectedShape.res.body.status, "upstream_rejected");
+  assert.equal(rejectedShape.res.body.shape, null);
+  const semanticShape = await run({ provider: () => json({ definitions: [performance], errorText: "fixture-private-error" }) });
+  assert.equal(semanticShape.res.body.status, "provider_error");
+  assert.equal(semanticShape.res.body.shape.validationFailure, "not_validated");
+  assert.equal(semanticShape.res.body.performanceAvailable, false);
+  const nested = await run({ provider: () => json({ data: { definitions: [performance] }, "fixture-private-key": [performance], constructor: [performance], __proto__: [performance] }) });
+  assert.deepEqual(nested.res.body.shape.containers, [{ slot: "data", type: "object", count: 1 }]);
+  assert.equal(nested.res.body.shape.performanceNameObserved, false, "No arbitrary-key or recursive traversal");
   const expired = await run({ expiry: "2000-01-01T00:00:00.000Z" });
   assert.equal(expired.res.statusCode, 404);
   assert.equal(expired.upstream.length, 0);
