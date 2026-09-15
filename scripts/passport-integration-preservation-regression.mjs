@@ -11,7 +11,8 @@ const protectedFiles = {
   "api/_lib/rithmic-limit.js": "46caeb7eecd211514dd23659cf44db3b2f6d3e36794f43e46de1196ac531a3ae",
   "api/_lib/rithmic-service.js": "3b3546a8e41c2d665101c4f6a3917d94bf814a6c501ee3430e5d8e636a8e2f1a",
   "api/_lib/rithmic-systems.js": "b7552c44ea9a7cbd3137c85c56f34f2500ee1d5906075a18d3ed83f30a29795c",
-  "api/_lib/supabase.js": "483d59d17f7a1e5fb7b2611554c8a828e51dff74e7c6f57cabaf142c7c4d69a7",
+  // History-only read-only lookup disables expired-row pruning; existing callers retain pruning by default.
+  "api/_lib/supabase.js": "df0c0a33807d3e2ea9dc02eaa650f1ecda881db5eb2d34f01444af5bb773ecb3",
   "api/_lib/tradovate-capability.js": "8b8fc0d0dff72d8191d78c1b32f6686b61a676c2401b453df37dbf33ff5df26c",
   "api/_lib/urls.js": "1ba7f7e12d5fcf0c399c1b0204d1f0dbe005081d2e368997d8c80edb3218dc7d",
   "api/account/delete.js": "99ebb60740774bf90189d4b9d2af28ee963e21230aed6dd08a5eae60df22c45e",
@@ -23,8 +24,8 @@ const protectedFiles = {
   "api/rithmic/sync.js": "58f4b709f75568a526874cefa503adf572bc2dda7c6026905b7aeb7caa9fa8a3",
   "api/tradovate/callback.js": "6a1a6dee6f9da219d9e33eac713db6d90d22bd5bfb540f2fb28ba75125229a0b",
   "api/tradovate/connect.js": "0e32e6d9d728c0a1ee42a6b8c6edd44ee159d6c89ad7c064cd1c1502475e267d",
-  // Explicit hosted access probe preserves normal ledger behavior; handler tests cover metadata redaction and all guards.
-  "api/tradovate/sync.js": "56dcb6caf98e3e2f8f25eff8eaf29c7a5aa7673483cecde1c535d1bb6abbcd14",
+  // Explicit access/history diagnostics preserve normal ledger behavior; actual-handler tests cover guards and redaction.
+  "api/tradovate/sync.js": "a369f80c97b13273b6c6f79331bb82fbfa2319b9007278bf03831525458563cf",
   "package-lock.json": "2de7e8e1b0c84266be29c1609e3185bbe58a2babe1e57e49a22538b6f2cf853e",
   "public/.well-known/security.txt": "c944f837cb8c32091a4aba3afdea372afa7ffbd058ab24b5d6fbfc285e3490d9",
   "public/cova-logo-minimal-black.svg": "539ead98bec67d21afe240ea2ff60aba7e3f9e988b4d1742e0de953f01a6f6dd",

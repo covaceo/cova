@@ -109,7 +109,7 @@ function connectionExpiryIsInvalid(connection, provider) {
   return !Number.isFinite(expiry) || expiry <= Date.now();
 }
 
-export async function getBrokerConnection({ connectionId, provider, userId }) {
+export async function getBrokerConnection({ connectionId, provider, userId, pruneExpired = true }) {
   if (!connectionId || !provider || !userId) {
     return null;
   }
@@ -129,7 +129,7 @@ export async function getBrokerConnection({ connectionId, provider, userId }) {
   const rows = await response.json();
   const connection = rows?.[0] || null;
   if (connectionExpiryIsInvalid(connection, provider)) {
-    await deleteBrokerConnection({ connectionId, provider, userId });
+    if (pruneExpired) await deleteBrokerConnection({ connectionId, provider, userId });
     return null;
   }
   return connection;

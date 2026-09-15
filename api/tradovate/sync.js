@@ -3,7 +3,8 @@ import { ApiError, requirePolicyAcceptedUser, requireProEntitlement, sendApiErro
 import { parseCookies } from "../_lib/cookies.js";
 import { decryptSecret } from "../_lib/encryption.js";
 import { acquireTradovateSyncPermit } from "../_lib/rithmic-limit.js";
-import { getTradovateConnection } from "../_lib/supabase.js";
+import { getBrokerConnection, getTradovateConnection } from "../_lib/supabase.js";
+import { diagnoseTradovateHistory } from "../_lib/tradovate-history-diagnostic.js";
 
 const DEFAULT_API_BASE_URL = "https://live.tradovateapi.com/v1";
 const MAX_CONCURRENT_CONTRACT_LOOKUPS = 5;
@@ -84,7 +85,10 @@ export default async function handler(req, res) {
       let accessToken;
       let connectionExpiresAt;
       try {
-        const connection = await getTradovateConnection(connectionId, user.id);
+        // Reporting diagnostics reject expired rows without the normal lookup's pruning write.
+        const connection = req.query?.diagnostic === "history"
+          ? await getBrokerConnection({ connectionId, provider: "tradovate", userId: user.id, pruneExpired: false })
+          : await getTradovateConnection(connectionId, user.id);
         if (!connection?.access_token_encrypted) {
           res.status(404).json({ error: "Tradovate connection was not found in Supabase." });
           return;
@@ -103,6 +107,13 @@ export default async function handler(req, res) {
         providerTimeout.unref?.();
         const providerSignal = providerController.signal;
         const providerBudget = createProviderByteBudget(MAX_PROVIDER_SYNC_BYTES, () => providerController.abort());
+        if (req.query?.diagnostic === "history") {
+          try {
+            return res.status(200).json(await diagnoseTradovateHistory(accessToken, providerSignal));
+          } finally {
+            providerController.abort();
+          }
+        }
         if (req.query?.diagnostic === "access") {
           try {
             const diagnostic = await diagnoseTradovateAccess(accessToken, connectionExpiresAt, providerSignal);
