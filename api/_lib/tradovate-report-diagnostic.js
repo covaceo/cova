@@ -57,7 +57,7 @@ function reportWindow(query) {
     return time;
   };
   const start = parse(query.startDate), end = parse(query.endDate);
-  if (end - start !== 86_400_000) fail("invalid_date_window");
+  if (end <= start || end - start > 30 * 86_400_000) fail("invalid_date_window");
   const zone = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", timeZoneName: "shortOffset" });
   const offset = time => {
     const name = zone.formatToParts(new Date(time)).find(part => part.type === "timeZoneName")?.value;
