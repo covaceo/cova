@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { rememberAccountNames } from "../lib/accountNames";
 import { groupJournalEntries, parseCsvDetailed, type Trade, type TradeMergeResult } from "../lib/risk";
 import { type PropFirmId } from "../lib/propFirms";
 import { clearBrokerStatus, readBrokerStatus, writeBrokerStatus, type BrokerStatus } from "../lib/brokerStatus";
@@ -255,6 +256,7 @@ export function ImportDesk({ historyTrades = [], entitlements, importCsv, prepar
         notice = `${receipt.added} new, ${receipt.corrected} corrected, ${receipt.unchanged} unchanged. ${coverage}`;
       }
       saveHistorySummary(preparedImport.scopeKey, current.connectionId, { ...summary, accounts: verified.accounts, notice, outcome });
+      rememberAccountNames(preparedImport.scopeKey, Object.fromEntries(verified.accounts.map(item => [`Tradovate:${item.account.id}`, item.account.name])));
       setBrokerNotice(notice);
     } catch (error) {
       if (run.isCurrent() && preparedImport.isCurrent()) {
@@ -301,7 +303,7 @@ export function ImportDesk({ historyTrades = [], entitlements, importCsv, prepar
         throw new Error("Rithmic sync is not reachable from this preview.");
       }
       const data = await response.json() as {
-        account?: { accountKey?: string; accountName?: string };
+        account?: { accountKey?: string; accountId?: string; accountName?: string };
         accounts?: { accountKey?: string; accountId?: string; accountName?: string }[];
         csv?: string;
         counts?: { trades?: number; rawFills?: number };
@@ -313,6 +315,8 @@ export function ImportDesk({ historyTrades = [], entitlements, importCsv, prepar
       if (!response.ok) {
         throw new Error(data.error || "Rithmic sync failed.");
       }
+      const namedAccounts = [...(Array.isArray(data.accounts) ? data.accounts : []), ...(data.account ? [data.account] : [])];
+      rememberAccountNames(preparedImport.scopeKey, Object.fromEntries(namedAccounts.filter(account => typeof account.accountName === "string").map(account => [`Rithmic:${account.accountKey}:${account.accountId}`, account.accountName!])));
       if (data.selectionRequired && data.accounts && data.accounts.length > 1) {
         setBrokerNotice(`Rithmic returned ${data.accounts.length} accounts. Choose one below, re-enter your login, and sync again.`);
         return data;

@@ -46,7 +46,7 @@ const protectedFiles = {
   // Route-prop and real-footer regressions cover the authorized presentation-only wiring.
   // Auto-history adds principal+selection guarded merge, scoped account review and saved-history props.
   // Callback hints never authorize imports; all marketing, OAuth and Passport artwork remain unchanged.
-  "src/App.tsx": "0d7c6ac53eff1aba4a70a268437ab5de772d7d9d714cc30703a8aa82c47c3e49",
+  "src/App.tsx": "3b691d7bf10a23d06eab1ca310aa146ddf1b1812804003b493376bb57750e6bf",
   "src/components/AstraEquityCurve.tsx": "0487554f9ea35b665e5b013172003a20d612f57e20662b687e5b181e26d2970f",
   "src/components/DashboardTradeDialog.tsx": "302d1c3851169baadf76180225e607254f09e340b447384f52e2322ac3d8752a",
   "src/components/DashboardView.tsx": "7f50c156e223aa4ad0ac8658bf76a24221b70a9522ea697949b17f4da31ca7f5",
