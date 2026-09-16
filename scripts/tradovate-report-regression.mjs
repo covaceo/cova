@@ -50,7 +50,7 @@ async function run(options = {}) {
     if (target === "https://rpt-demo.tradovateapi.com/v1/reports/requestreport") {
       assert.equal(init.method, "POST");
       assert.deepEqual(JSON.parse(init.body), { name: "Performance", representationType: "csv", template: "Flex.html", timezone: -240, params: [
-        { name: "startDate", value: "09/11/2026" }, { name: "endDate", value: "09/12/2026" },
+        { name: "startDate", value: "09/11/2026" }, { name: "endDate", value: options.expectedEndDate || "09/12/2026" },
         { name: "startTime", value: "00:00:00" }, { name: "endTime", value: "00:00:00" }, { name: "account", value: "fixture-owned-account" },
       ] });
       return options.reportResponse ? options.reportResponse() : json({ data: reportText });
@@ -90,10 +90,14 @@ try {
   for (const [options, status] of [[{ anonymous: true }, 401], [{ authStatus: 401 }, 401], [{ noPolicy: true }, 403], [{ plan: "free" }, 403], [{ wrongOwner: true }, 404], [{ expiry: "2000-01-01T00:00:00Z" }, 404], [{ expiry: null }, 404], [{ expiry: "invalid" }, 404], [{ badIp: true }, 503], [{ redis: [[6, 1]] }, 429], [{ redis: [[1, 6]] }, 429], [{ redis: [[1, 1], null] }, 429]]) {
     const denied = await run(options); assert.equal(denied.res.statusCode, status); assert.equal(denied.provider.length, 0);
   }
+  for (const [endDate, expectedEndDate] of [["2026-09-13", "09/13/2026"], ["2026-10-11", "10/11/2026"]]) {
+    const multiDay = await run({ query: { ...query, endDate }, expectedEndDate });
+    assert.equal(multiDay.res.body.status, "report_data", "Bounded own-account reporting must allow inspecting the same recent-history range");
+  }
   for (const [change, status] of [
     [{ accountId: "" }, "invalid_account_id"], [{ accountId: "071" }, "invalid_account_id"], [{ accountId: ["71"] }, "invalid_account_id"], [{ accountId: "9007199254740993" }, "invalid_account_id"],
     [{ startDate: "2026-02-30" }, "invalid_dates"], [{ startDate: "09/11/2026" }, "invalid_dates"], [{ startDate: ["2026-09-11"] }, "invalid_dates"],
-    [{ endDate: "2026-09-11" }, "invalid_date_window"], [{ endDate: "2026-09-13" }, "invalid_date_window"], [{ endDate: "2026-09-10" }, "invalid_date_window"],
+    [{ endDate: "2026-09-11" }, "invalid_date_window"], [{ endDate: "2026-10-12" }, "invalid_date_window"], [{ endDate: "2026-09-10" }, "invalid_date_window"],
     [{ startDate: "2026-11-01", endDate: "2026-11-02" }, "timezone_transition"],
     [{ url: "https://fixture-private.invalid" }, "invalid_request"], [{ template: "fixture-private" }, "invalid_request"], [{ timezone: "0" }, "invalid_request"],
   ]) { const invalid = await run({ query: { ...query, ...change } }); assert.equal(invalid.res.body.status, status); assert.equal(invalid.provider.length, 0); }
