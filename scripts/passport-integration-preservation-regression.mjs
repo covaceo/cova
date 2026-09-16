@@ -19,7 +19,7 @@ const protectedFiles = {
   "api/auth/consent.js": "c71b5ae6fd461be78ecadddc0fca2459a1f5a91c3ca1fd1e25b940035013f76c",
   "api/auth/logout.js": "4d60687ec3912727183867eb9567507f0c8c0f2a91db2e6698b0e1050ca24691",
   "api/connectors/disconnect.js": "721760440d17b9923adda92953aa55a6c81f3a1c58919991d28b83e9c6ed42df",
-  "api/connectors/status.js": "fdaeeb46234c8ebb77f4bb42f9409504621904c6d2d3e27b26c03be062377fce",
+  "api/connectors/status.js": "ae2d29a570ff0ec330a2d923dde8824764b5f9629eda6211faaa964d9e0317b5",
   "api/rithmic/status.js": "590a8f2db751e5cfc39e2fbd81c715ce93ffc95c63b3da9c11a35de65245092e",
   "api/rithmic/sync.js": "58f4b709f75568a526874cefa503adf572bc2dda7c6026905b7aeb7caa9fa8a3",
   "api/tradovate/callback.js": "6a1a6dee6f9da219d9e33eac713db6d90d22bd5bfb540f2fb28ba75125229a0b",
