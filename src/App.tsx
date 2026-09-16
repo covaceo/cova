@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
+import { TradeAccountSelect } from "./components/TradeAccountSelect";
 import {
   ArrowUpRight,
   BadgeCheck,
@@ -1290,16 +1291,10 @@ export default function App() {
         {isProtectedSection(section) ? (
           isSignedIn ? (
             <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={visibleRiskScore} section={section} signOut={signOut}>
-              {tradeAccounts.some(account => account.startsWith("Tradovate:")) && section !== "oauth" && (
-                <div className="mx-4 mt-24 rounded-xl border border-white/10 bg-[#0d0f14] p-4 sm:mx-6 lg:mt-4">
-                  <label className="flex flex-wrap items-center gap-3 text-sm text-white/80">Reviewing account
-                    <select aria-label="Trade account" className="max-w-full rounded-lg border border-white/15 bg-[#171a21] p-2" value={tradeAccount} onChange={event => selectTradeAccount(event.target.value)}>
-                      <option value="all">All accounts · combined review</option>
-                      {tradeAccounts.map(account => <option key={account} value={account}>{account === "local" ? "CSV / local history" : account}</option>)}
-                    </select>
-                  </label>
-                  {tradeAccount.startsWith("Tradovate:") && <p className="mt-2 text-xs text-white/55">Gross P&L before fees · UTC calendar dates · matched fill pairs. Planned risk is unknown until you supply it.</p>}
-                  <p className="mt-2 text-xs text-white/55" role="status">{status}</p>
+              {tradeAccounts.some(account => account !== "local") && section !== "oauth" && (
+                <div className="mx-4 mt-24 sm:mx-6 lg:mt-4" data-account-switcher>
+                  <TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} value={tradeAccount} onChange={selectTradeAccount} />
+
                 </div>
               )}
               {section === "dashboard" && <Dashboard key={`${authSession?.userId || authSession?.email}:${tradeAccount}`} analysis={analysis} rules={rules} go={go} onSaveTradeNote={saveTradeNote} rithmicSyncAvailable={brokerStatus?.provider === "Rithmic" && brokerStatus.status === "imported"} />}

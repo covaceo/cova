@@ -63,7 +63,7 @@ const wait=async(expression)=>{for(let i=0;i<200;i++){if(await evaluate(expressi
 const select=async(label,value)=>{await evaluate(`{const s=document.querySelector(${JSON.stringify(`[aria-label="${label}"]`)});s.value=${JSON.stringify(value)};s.dispatchEvent(new Event('change',{bubbles:true}));}`);await sleep(50);};
 const load=async()=>{await evaluate('[...document.querySelectorAll("button")].find(b=>b.textContent.trim()==="Load history").click()');};
 const imported=async()=>{await evaluate('location.hash="import"');await wait(`Boolean(document.querySelector('[aria-label="History account"]'))`);await sleep(100);};
-const screenshot=async(name)=>{await evaluate('document.fonts.ready');await sleep(350);await writeFile(join(output,name+'.png'),Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));};
+const screenshot=async(name)=>{await wait("document.fonts.status==='loaded'");await sleep(350);await writeFile(join(output,name+'.png'),Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));};
 await send('Runtime.enable');await send('Page.enable');
 for(const mobile of [false,true]){
 if(mobile) await evaluate('localStorage.clear();sessionStorage.clear()');
@@ -75,13 +75,22 @@ if(process.argv.includes('--baseline')){receipts.push({mobile,baseline:true});co
 await wait('JSON.parse(localStorage.getItem("cova-react-risk-os-v2:history-owner")||"{}").trades?.length===3');
 await wait('location.hash==="#dashboard"');
 assert.equal(await evaluate(`document.querySelector('[aria-label="Trade account"]')?.value`),'Tradovate:71');
+assert.equal(await evaluate(`document.querySelector('[aria-label="Trade account"]').selectedOptions[0].textContent`),'Synthetic 71','Use the broker account name, not the internal account key');
+assert.equal(await evaluate(`document.querySelector('[aria-label="Trade account"]').closest('label').parentElement.querySelectorAll('p').length`),0,'Account switcher has no explanatory paragraphs underneath');
 if(mobile) assert.equal(await evaluate(`document.querySelector('[aria-label="Trade account"]').closest('label').getBoundingClientRect().top >= 80`),true,'Mobile account label must clear the fixed navigation header');
 assert.equal(await evaluate('JSON.parse(localStorage.getItem("cova-react-risk-os-v2:history-owner")).trades.find(t=>t.id==="older-synthetic").notes'),'Preserve older note');
 assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth'),true);
 assert.deepEqual(await evaluate('[innerWidth,document.documentElement.clientWidth,Math.round(visualViewport.width)]'),mobile?[390,390,390]:[1440,1440,1440]);
 await wait('document.querySelector(".astra-source-label")?.textContent.includes("1 trades")');
 assert.match(await evaluate('document.querySelector(".astra-kpi-strip")?.innerText || document.body.innerText'),/\+\$12/);
-await writeFile(join(output,mobile?'mobile-dashboard.png':'desktop-dashboard.png'),Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));
+await wait(`!document.body.innerText.includes('History sync:')`);
+await screenshot(mobile?'mobile-dashboard':'desktop-dashboard');
+assert.equal(await evaluate(`document.querySelector('[data-account-switcher]').getBoundingClientRect().height<=56`),true,'Switcher stays compact');
+await select('Trade account','Tradovate:72');
+assert.equal(await evaluate(`document.querySelector('[aria-label="Trade account"]').selectedOptions[0].textContent`),'Synthetic 72');
+await select('Trade account','all');
+assert.equal(await evaluate(`document.querySelector('[aria-label="Trade account"]').selectedOptions[0].textContent`),'All accounts');
+await select('Trade account','Tradovate:71');
 receipts.push({mobile,imported:3,selected:'Tradovate:71',olderNotePreserved:true,overflow:false,calls:await evaluate('window.__historyCalls.length')});
 await evaluate('location.hash="import"');await wait(`Boolean(document.querySelector('[aria-label="History account"]'))`);
 await wait(`document.querySelector('[aria-label="History account"]').options.length===3`);
@@ -151,6 +160,15 @@ if(!mobile){
  assert.equal(await evaluate('JSON.parse(localStorage.getItem("cova-react-risk-os-v2:history-owner")).tradeAccount'),'local','demo reset does not leave empty provider filter');
 }
 }
+// The selector also works for a Rithmic-only ledger, without exposing its opaque account key.
+await evaluate(`{const key='a'.repeat(32), ledger=JSON.parse(localStorage.getItem('cova-react-risk-os-v2:history-owner'));ledger.trades=[{...ledger.trades[0],id:'rithmic-synthetic',source:{provider:'Rithmic',accountKey:key,accountId:'A-1',currency:'USD'}}];ledger.tradeAccount='Rithmic:'+key+':A-1';localStorage.setItem('cova-react-risk-os-v2:history-owner',JSON.stringify(ledger));location.hash='dashboard';}`);
+const rithmicReload=await evaluate('performance.timeOrigin');await send('Page.reload');await wait(`performance.timeOrigin!==${rithmicReload} && Boolean(document.querySelector('.astra-source-label'))`);
+assert.equal(await evaluate(`document.querySelector('[aria-label="Trade account"]')?.selectedOptions[0].textContent`),'A-1','Rithmic-only accounts must expose the switcher with their readable account ID');
+receipts.push({rithmicOnly:true});
+await evaluate(`(async()=>{const {rememberAccountNames}=await import('/src/lib/accountNames.ts');rememberAccountNames('history-owner',{['Rithmic:'+'a'.repeat(32)+':A-1']:'Funded Alpha'});for(const key of Object.keys(sessionStorage))if(key.startsWith('cova-history-summary:'))sessionStorage.removeItem(key);})()`);
+const namesReload=await evaluate('performance.timeOrigin');await send('Page.reload');await wait(`performance.timeOrigin!==${namesReload} && Boolean(document.querySelector('[aria-label="Trade account"]'))`);
+assert.equal(await evaluate(`document.querySelector('[aria-label="Trade account"]').selectedOptions[0].textContent`),'Funded Alpha');
+receipts.push({persistentNames:true});
 await evaluate('localStorage.clear();sessionStorage.clear()');
 await send('Page.navigate',{url:`http://127.0.0.1:${port}/__history.html?disconnected=1&broker=tradovate&brokerStatus=connected#import`});
 await wait('Boolean(document.querySelector(".workspace-sidebar"))');await sleep(200);
