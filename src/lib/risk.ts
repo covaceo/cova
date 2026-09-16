@@ -212,6 +212,45 @@ export const sampleTrades: Trade[] = [
   notes: String(notes),
 }));
 
+export type JournalEntryGroup = { id: string; rows: Trade[]; pnl: number; contracts: number; entryIdentified: boolean };
+/** Same broker opening fill, not a claim of a fully flat position or shared order. Never groups by timestamp alone. */
+export function groupJournalEntries(trades: readonly Trade[]): JournalEntryGroup[] {
+  const buckets = new Map<string, Trade[]>();
+  const raw = (row: Trade, index: number): JournalEntryGroup => ({ id: `row:${index}:${row.id}`, rows: [row], pnl: row.pnl, contracts: row.contracts, entryIdentified: false });
+  for (const [index, row] of trades.entries()) {
+    const pair = /^tradovate-([1-9]\d{0,19}):([1-9]\d{0,19}):([1-9]\d{0,19})$/.exec(row.id);
+    const source = row.source;
+    const valid = source?.provider === 'Tradovate' && pair && pair[1] === source.accountId && pair[2] !== pair[3]
+      && source.timeZone === 'UTC' && source.pnlBasis === 'gross_before_fees' && source.openedAt && source.closedAt
+      && source.openedAt < source.closedAt && Number.isFinite(Date.parse(source.openedAt)) && Number.isFinite(Date.parse(source.closedAt));
+    const key = valid ? JSON.stringify(['Tradovate', source.accountId, row.side, pair[row.side === 'Long' ? 2 : 3]]) : `raw:${index}`;
+    const bucket = buckets.get(key);
+    if (bucket) bucket.push(row); else buckets.set(key, [row]);
+  }
+  const groups: JournalEntryGroup[] = [];
+  for (const [id, rows] of buckets) {
+    const first = rows[0];
+    let total = 0n, contracts = 0;
+    let valid = !id.startsWith('raw:') && new Set(rows.map(row => row.id)).size === rows.length;
+    for (const row of rows) {
+      const amount = /^(-?)(\d+)(?:\.(\d{1,2}))?$/.exec(String(row.pnl));
+      valid &&= row.market === first.market && row.side === first.side && row.entry === first.entry
+        && row.source?.provider === 'Tradovate' && first.source?.provider === 'Tradovate' && row.source.openedAt === first.source.openedAt
+        && Number.isSafeInteger(row.contracts) && row.contracts > 0 && !!amount;
+      if (amount) total += (amount[1] ? -1n : 1n) * (BigInt(amount[2]) * 100n + BigInt((amount[3] ?? '').padEnd(2, '0')));
+      contracts += row.contracts;
+    }
+    valid &&= Number.isSafeInteger(contracts) && total <= BigInt(Number.MAX_SAFE_INTEGER) && total >= -BigInt(Number.MAX_SAFE_INTEGER);
+    if (valid) groups.push({ id, rows: [...rows], pnl: Number(total) / 100, contracts, entryIdentified: true });
+    else rows.forEach((row, index) => groups.push(raw(row, index)));
+  }
+  const closed = (group: JournalEntryGroup) => group.rows.reduce((latest, row) => {
+    const at = row.source?.provider === 'Tradovate' && row.source.closedAt ? row.source.closedAt : `${row.date}T00:00:00.000Z`;
+    return at > latest ? at : latest;
+  }, '');
+  return groups.sort((a, b) => closed(a).localeCompare(closed(b)));
+}
+
 export function analyze(trades: Trade[], rules: RiskRule[]) {
   const sorted = [...trades].sort((a, b) => {
     const time = (trade: Trade) => trade.source?.provider === "Tradovate" && trade.source.closedAt ? trade.source.closedAt : `${trade.date}T00:00:00.000Z`;
@@ -221,7 +260,10 @@ export function analyze(trades: Trade[], rules: RiskRule[]) {
   const grossProfit = sorted.filter((trade) => trade.pnl > 0).reduce((sum, trade) => sum + trade.pnl, 0);
   const grossLoss = Math.abs(sorted.filter((trade) => trade.pnl < 0).reduce((sum, trade) => sum + trade.pnl, 0));
   const profitFactor = grossLoss ? grossProfit / grossLoss : grossProfit ? Infinity : 0;
-  const winRate = sorted.length ? sorted.filter((trade) => trade.pnl > 0).length / sorted.length : 0;
+  const entryGroups = groupJournalEntries(sorted);
+  const tradeCount = entryGroups.length;
+  const winningTradeCount = entryGroups.filter(group => group.pnl > 0).length;
+  const winRate = tradeCount ? winningTradeCount / tradeCount : 0;
   const avgR = averageR(sorted);
   const recentTrades = sorted.slice(-7);
   const recentPnl = recentTrades.reduce((sum, trade) => sum + trade.pnl, 0);
@@ -272,8 +314,8 @@ export function analyze(trades: Trade[], rules: RiskRule[]) {
   const trendAdjustment = sorted.length >= 12 ? clamp(avgRTrend * 6, -6, 6) : 0;
   const concentrationPenalty = setupConcentration && setupConcentration.share >= 0.45 && setupConcentration.avgR < 0 ? 4 : 0;
   const sessionPenalty = Math.min(10, worstSessionLoss / 700);
-  const samplePenalty = getSamplePenalty(sorted.length);
-  const evidenceQuality = buildEvidenceQuality(sorted.length, rules.filter((rule) => rule.enabled).length, sorted);
+  const samplePenalty = getSamplePenalty(tradeCount);
+  const evidenceQuality = buildEvidenceQuality(tradeCount, rules.filter((rule) => rule.enabled).length, sorted);
   const rawScore = sorted.length
     ? clamp(
       Math.round(
@@ -335,6 +377,9 @@ export function analyze(trades: Trade[], rules: RiskRule[]) {
 
   return {
     trades: sorted,
+    entryGroups,
+    tradeCount,
+    winningTradeCount,
     totalPnl,
     grossProfit,
     grossLoss,

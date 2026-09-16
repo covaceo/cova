@@ -25,7 +25,7 @@ export function buildHoloPassportModel(analysis: ReturnType<typeof analyze>, ran
   const flags = `${analysis.breaches.length} flag${analysis.breaches.length === 1 ? "" : "s"}`;
   const model: HoloPassportModel = {
     mode, modeLabel: "Flex", identity: `Trader ${number}`, rank, ruleSummary,
-    marketLine: `${markets ? `${markets} · ` : ""}${analysis.trades.length} reviewed trades`,
+    marketLine: `${markets ? `${markets} · ` : ""}${analysis.tradeCount} reviewed trades`,
     heroValue: `${analysis.totalPnl > 0 ? "+" : ""}${formatMoney(analysis.totalPnl)}`,
     heroLabel: "Reported P&L",
     support: [`${ruleSummary} · ${analysis.profitFactor.toFixed(2)} profit factor · ${flags}`],
@@ -36,7 +36,7 @@ export function buildHoloPassportModel(analysis: ReturnType<typeof analyze>, ran
     support: [`${ruleSummary} · ${analysis.avgR.toFixed(2)}R average`, `${formatMoney(Math.round(analysis.maxDrawdown))} max drawdown · ${flags}`],
   };
   if (mode === "private") return {
-    ...model, modeLabel: "Ghost", identity: "Private profile", marketLine: `${analysis.trades.length} reviewed trades`,
+    ...model, modeLabel: "Ghost", identity: "Private profile", marketLine: `${analysis.tradeCount} reviewed trades`,
     heroValue: Number.isFinite(analysis.score) ? `${Math.floor(analysis.score / 10) * 10}+` : "—", heroLabel: "Score range",
     support: [`${ruleSummary} · ${analysis.evidenceQuality.label} sample`, `Reviewed ${analysis.latestDate} · Sensitive stats omitted`],
   };

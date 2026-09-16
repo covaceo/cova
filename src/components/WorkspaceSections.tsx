@@ -189,7 +189,7 @@ export function Coach({ analysis, entitlements, go, upgradeToPro }: { analysis: 
       body: analysis.breaches.length ? `${analysis.breaches.length} historical limit warning${analysis.breaches.length === 1 ? " needs" : "s need"} review before the next session.` : "No active limit warnings in the imported sample. Keep the same review thresholds instead of forcing size.",
       action: firstAction,
       tone: analysis.breaches.length ? "WARN" : "GOOD",
-      evidence: primaryBreach?.evidence.slice(0, 2) ?? [`${analysis.trades.length} trades checked`, `${formatPercent(analysis.compliance)} of limits followed`],
+      evidence: primaryBreach?.evidence.slice(0, 2) ?? [`${analysis.tradeCount} trades checked`, `${formatPercent(analysis.compliance)} of limits followed`],
     },
     {
       icon: ShieldCheck,
@@ -368,7 +368,7 @@ function readPassportPreferences(): { exportPresetId: PassportExportPresetId; sh
 function getPassportTier(analysis: ReturnType<typeof analyze>): PassportTier {
   const breachCount = analysis.breaches.length;
   const score = analysis.score;
-  const tradeCount = analysis.trades.length;
+  const tradeCount = analysis.tradeCount;
   const profitable = analysis.totalPnl > 0;
   const inTheRed = analysis.totalPnl < 0;
   const positiveExpectancy = analysis.avgR > 0 && analysis.profitFactor >= 1.05;
@@ -731,7 +731,7 @@ function getPassportProofLine(tier: PassportTier, analysis: ReturnType<typeof an
   if (tier.rank === "Bronze") {
     return "Calculated rank · user-supplied data";
   }
-  return `User-supplied sample · ${Math.max(0, 10 - analysis.trades.length)} trades until rank`;
+  return `User-supplied sample · ${Math.max(0, 10 - analysis.tradeCount)} trades until rank`;
 }
 
 function getPassportNextTarget(tier: PassportTier, analysis: ReturnType<typeof analyze>) {
@@ -753,7 +753,7 @@ function getPassportNextTarget(tier: PassportTier, analysis: ReturnType<typeof a
   if (tier.rank === "Bronze") {
     return "Silver: move the reviewed sample above $0 net P&L";
   }
-  return `${Math.max(0, 10 - analysis.trades.length)} more reviewed trades to unlock rank`;
+  return `${Math.max(0, 10 - analysis.tradeCount)} more reviewed trades to unlock rank`;
 }
 
 function getPassportMoodLine(tier: PassportTier, analysis: ReturnType<typeof analyze>) {
@@ -765,7 +765,7 @@ function getPassportMoodLine(tier: PassportTier, analysis: ReturnType<typeof ana
   if (tier.rank === "Gold") return leakCount ? `Green. ${leaks} left.` : "Green. Now keep it boring.";
   if (tier.rank === "Silver") return "Green, but the rules need work.";
   if (tier.rank === "Bronze") return "The proof is early. Keep stacking reps.";
-  return `${Math.max(0, 10 - analysis.trades.length)} more trades and this gets interesting.`;
+  return `${Math.max(0, 10 - analysis.tradeCount)} more trades and this gets interesting.`;
 }
 
 function getPassportSparkline(analysis: ReturnType<typeof analyze>) {
@@ -796,7 +796,7 @@ function getPassportStats(analysis: ReturnType<typeof analyze>, mode: PassportSh
         { label: "Rules held", value: formatPercent(analysis.compliance), tone: analysis.compliance >= 0.75 ? "positive" : "negative" },
         { label: "Average R", value: `${analysis.avgR.toFixed(2)}R`, tone: analysis.avgR >= 0 ? "positive" : "negative" },
         { label: "Max DD", value: formatMoney(Math.round(analysis.maxDrawdown)), tone: analysis.maxDrawdown > 0 ? "neutral" : "positive" },
-        { label: "Trades reviewed", value: `${analysis.trades.length}`, tone: "neutral" },
+        { label: "Trades reviewed", value: `${analysis.tradeCount}`, tone: "neutral" },
         { label: "Breaches", value: `${analysis.breaches.length}`, tone: analysis.breaches.length ? "negative" : "positive" },
       ];
     }
@@ -806,7 +806,7 @@ function getPassportStats(analysis: ReturnType<typeof analyze>, mode: PassportSh
         { label: "Rules held", value: formatPercent(analysis.compliance), tone: analysis.compliance >= 0.75 ? "positive" : "negative" },
         { label: "Sample", value: analysis.evidenceQuality.label, tone: "neutral" },
         { label: "Generated", value: analysis.latestDate, tone: "neutral" },
-        { label: "Trades reviewed", value: `${analysis.trades.length}`, tone: "neutral" },
+        { label: "Trades reviewed", value: `${analysis.tradeCount}`, tone: "neutral" },
         { label: "Visibility", value: "Masked", tone: "neutral" },
       ];
     }
@@ -824,7 +824,7 @@ function getPassportStats(analysis: ReturnType<typeof analyze>, mode: PassportSh
       { label: "Reported P&L", value: formatMoney(analysis.totalPnl), tone: analysis.totalPnl >= 0 ? "positive" : "negative" },
       { label: "Control score", value: `${analysis.score}`, tone: "positive" },
       { label: "Rules held", value: formatPercent(analysis.compliance), tone: analysis.compliance >= 0.75 ? "positive" : "negative" },
-      { label: "Trades reviewed", value: `${analysis.trades.length}`, tone: "neutral" },
+      { label: "Trades reviewed", value: `${analysis.tradeCount}`, tone: "neutral" },
       { label: "Profit factor", value: analysis.profitFactor.toFixed(2), tone: analysis.profitFactor >= 1 ? "positive" : "negative" },
       { label: "Breaches", value: `${analysis.breaches.length}`, tone: analysis.breaches.length ? "negative" : "positive" },
     ];
@@ -965,7 +965,7 @@ export function Passport({ analysis, entitlements, isSampleReview, go, upgradeTo
                 {cardStats.map(stat => <div key={stat.label}><span>{stat.label}</span><strong>{stat.value}</strong></div>)}
               </div>
               {shareModeId !== "private" && <div className="passport-workspace-sparkline">
-                <div><span>Account path</span><span>{analysis.trades.length} trades reviewed</span></div>
+                <div><span>Account path</span><span>{analysis.tradeCount} trades reviewed</span></div>
                 <svg aria-label="Cumulative reviewed trade result" preserveAspectRatio="none" role="img" viewBox="0 0 100 100"><line x1="0" x2="100" y1="92" y2="92" /><polyline points={getPassportSparkline(analysis)} /></svg>
               </div>}
               <div className="passport-workspace-context">
