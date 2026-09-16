@@ -1,7 +1,7 @@
 type EquityPoint = { label: string; value: number };
 
-export function signedMoney(value: number, cents = false, positiveSign = true) {
-  return `${value < 0 ? "−" : value > 0 && positiveSign ? "+" : ""}$${Math.abs(value).toLocaleString("en-US", { minimumFractionDigits: cents || !Number.isInteger(value) ? 2 : 0, maximumFractionDigits: 2 })}`;
+export function signedMoney(value: number, _cents = false, positiveSign = true) {
+  return `${value < 0 ? "−" : value > 0 && positiveSign ? "+" : ""}$${Math.abs(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 /** The same closed-trade ledger as risk.analyze, drawn without inventing values. */

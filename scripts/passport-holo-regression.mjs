@@ -94,7 +94,7 @@ test('Neutral material light reaches GPU restoration and preserves privacy in th
       const html=renderToStaticMarkup(React.createElement(PassportHoloCard,{model,appearance}));
       assert.ok(html.includes(appearance.materialUrl)); assert.ok(html.includes(`fill="${appearance.ink}"`));
       assert.doesNotMatch(html,/data-finish-pattern/); assert.ok(html.includes('SAMPLE'));
-      if(mode!=='flex')assert.doesNotMatch(html,/\+\$1,008|Reported P&amp;L/);
+      if(mode!=='flex')assert.doesNotMatch(html,/\+\$1,007\.50|Reported P&amp;L/);
       if(mode==='private')assert.doesNotMatch(html,/Trader 6714|NQ \/ ES/);
     }
   }
@@ -118,7 +118,7 @@ test('Subscription finishes leave the stationary SVG and reduced-motion export c
       assert.equal(html.includes('data-finish-pattern'),false,'Subscription graphics cannot remain painted into the idle SVG');
       assert.equal(html.slice(html.indexOf('<svg')),standard.slice(standard.indexOf('<svg')),'Only moving GPU decoration changes by tenure');
       assert.ok(html.includes(`data-appearance="${rank}-${finish}"`),'Keep immutable appearance selection');
-      assert.ok(html.includes('SAMPLE'));assert.doesNotMatch(html,/Trader 6714|NQ \/ ES|\+\$1,008/);
+      assert.ok(html.includes('SAMPLE'));assert.doesNotMatch(html,/Trader 6714|NQ \/ ES|\+\$1,007\.50/);
     }
   }
 });
@@ -135,7 +135,7 @@ test('Family material selection retains the clean SVG fallback and immutable app
   assert.ok(html.includes(appearance.materialUrl));
   assert.ok(html.includes('fill="#f8fbff"'));
   assert.doesNotMatch(html,/data-finish-pattern/);
-  assert.doesNotMatch(html, /Trader 6714|NQ \/ ES|\+\$1,008/);
+  assert.doesNotMatch(html, /Trader 6714|NQ \/ ES|\+\$1,007\.50/);
   const plain = renderToStaticMarkup(React.createElement(PassportHoloCard, { model }));
   assert.doesNotMatch(plain, /data-finish-pattern/, 'Original pearl must not gain extra overlays');
 });
@@ -161,7 +161,7 @@ test('Warm metal and ruby optics carry rank tone through GPU restore and clean S
       const html = renderToStaticMarkup(React.createElement(PassportHoloCard,{model,appearance}));
       assert.doesNotMatch(html,/data-finish-pattern/, 'Static fallback keeps the clean rank material');
       assert.ok(html.includes(rank)); assert.ok(html.includes('SAMPLE'));
-      if (mode !== 'flex') assert.doesNotMatch(html,/\+\$1,008|Reported P&amp;L/);
+      if (mode !== 'flex') assert.doesNotMatch(html,/\+\$1,007\.50|Reported P&amp;L/);
       if (mode === 'private') assert.doesNotMatch(html,/Trader 6714|NQ \/ ES/);
     }
   }
@@ -185,7 +185,7 @@ test('Approved pearl holo card is real vector artwork with data-bound identity, 
   const analysis = analyze(sampleTrades, defaultRules);
   const model = buildHoloPassportModel(analysis, 'Gold', 'flex', true);
   const html = renderToStaticMarkup(React.createElement(PassportHoloCard, { model }));
-  for (const value of ['passport-holo-art','Risk Passport','Trader 6714','+$1,008','4/6 rules held','1.11 profit factor','2 flags','Sample data','Not account verified']) assert.ok(html.includes(value), value);
+  for (const value of ['passport-holo-art','Risk Passport','Trader 6714','+$1,007.50','4/6 rules held','1.11 profit factor','2 flags','Sample data','Not account verified']) assert.ok(html.includes(value), value);
   assert.match(html, /viewBox="0 0 1672 941"/);
   assert.doesNotMatch(html, /<img|passport-sample-watermark|passport-rank-progress/,'No pasted UI or rejected certificate layout');
   assert.equal((html.match(/<image /g)||[]).length,1,'One text-free material plate only; all content remains live vector text');
@@ -200,7 +200,7 @@ test('Non-Flex modes cannot leak P&L and Ghost omits identity and markets even i
   for (const mode of ['discipline','private','coach']) {
     const model = buildHoloPassportModel(analysis,'Gold',mode,true);
     const html = renderToStaticMarkup(React.createElement(PassportHoloCard, {model}));
-    assert.doesNotMatch(html,/\+\$1,008|Reported P&amp;L/,mode+' must omit P&L everywhere');
+    assert.doesNotMatch(html,/\+\$1,007\.50|Reported P&amp;L/,mode+' must omit P&L everywhere');
     assert.ok(html.includes('Not account verified'));
     if (mode === 'private') {
       assert.doesNotMatch(html,/Trader 6714|NQ \/ ES/,'Ghost must actually omit identity and markets');
@@ -341,7 +341,7 @@ test('Live optics keeps a selectable SVG fallback and is decorative only', () =>
   const html=renderToStaticMarkup(React.createElement(PassportHoloCard,{model:buildHoloPassportModel(analyze(sampleTrades,defaultRules),'Gold','private',true)}));
   assert.match(html, /<canvas[^>]*class="passport-optics-canvas"[^>]*aria-hidden="true"/);
   assert.match(html, /tabindex="0"/,'Keyboard users can manipulate the material');
-  assert.doesNotMatch(html, /Trader 6714|NQ \/ ES|\+\$1,008/);
+  assert.doesNotMatch(html, /Trader 6714|NQ \/ ES|\+\$1,007\.50/);
   const source=readFileSync(resolve(root,'src/lib/passportOptics.ts'),'utf8');
   for(const contract of ['prefers-reduced-motion','visibilitychange','pointercancel','webglcontextlost','cancelAnimationFrame','deleteProgram','deleteTexture','ResizeObserver']) assert.ok(source.includes(contract), contract);
 });

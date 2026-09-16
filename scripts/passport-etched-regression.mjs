@@ -34,7 +34,7 @@ test('Etched preview opts into small script, grouped rank, left result and appro
  assert.match(html,/class="passport-etched-signature"[^>]*>Cova</);
  assert.match(html,/class="passport-etched-rank"[^>]*>GOLD</);
  const visible=html.replace(/<desc[\s\S]*?<\/desc>/g,'').replace(/<title[\s\S]*?<\/title>/g,'');
- assert.ok(visible.includes('+$1,008'));assert.ok(visible.includes('4/6 rules held'));
+ assert.ok(visible.includes('+$1,007.50'));assert.ok(visible.includes('4/6 rules held'));
  assert.ok(visible.includes('Sample data'));assert.ok(visible.includes('Not account verified'));
  assert.doesNotMatch(visible,/Risk Passport|1\.11 profit factor|2 flags/);
  assert.match(html,/font-family:.*Cova Signature/);
@@ -70,7 +70,7 @@ test('Every etched rank and mode retains data truth, fitted fields and privacy i
  for(const rank of ['Unranked','Bronze','Silver','Gold','Platinum','Diamond','Market Maker']) for(const mode of ['flex','discipline','private','coach']){
   const {html,model}=render(mode,rank);seen.add(rank+':'+mode);
   assert.ok(html.includes(rank.toUpperCase()));assert.ok(html.includes('Not account verified'));
-  if(mode!=='flex')assert.doesNotMatch(html,/\+\$1,008|Reported P&amp;L/);
+  if(mode!=='flex')assert.doesNotMatch(html,/\+\$1,007\.50|Reported P&amp;L/);
   if(mode==='private')assert.doesNotMatch(html,/Trader 6714|NQ \/ ES/);
   if(mode==='coach')assert.ok(html.includes('Top warning:'));
   if(mode==='discipline')assert.ok(html.includes('max drawdown'));

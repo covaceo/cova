@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+// Owner-authorized cent formatting and opt-in account accuracy review have executable journal regressions.
 const protectedFiles = {
   "api/_lib/auth.js": "446e3e5afa5afe711f0c340143707917959ca5f9a8a4c390e7e462c06292b16a",
   "api/_lib/cookies.js": "8dd442d3e4480190c3470526ac75e410464b04df51a182dbce14fac85c2a7314",
@@ -47,12 +48,12 @@ const protectedFiles = {
   // Callback hints never authorize imports; all marketing, OAuth and Passport artwork remain unchanged.
   "src/App.tsx": "0d7c6ac53eff1aba4a70a268437ab5de772d7d9d714cc30703a8aa82c47c3e49",
   "src/components/AstraEquityCurve.tsx": "0487554f9ea35b665e5b013172003a20d612f57e20662b687e5b181e26d2970f",
-  "src/components/DashboardTradeDialog.tsx": "4f111aae3b8dd372eb4120d8c67821acb266a26bc2e8a374659e995cad34aae0",
-  "src/components/DashboardView.tsx": "9326f89b57e4662e41f68237d1db85ee275f69dece50171ebbe2c59bb935a63d",
+  "src/components/DashboardTradeDialog.tsx": "302d1c3851169baadf76180225e607254f09e340b447384f52e2322ac3d8752a",
+  "src/components/DashboardView.tsx": "143ffa018c70931d00b4b8f241a1d58d60f19220336c8542d902c743848799d0",
   "src/components/WorkspaceShell.tsx": "1ba5ee114ebb09e8b37f841404ae595a9d323850524378231c15ff26ef623219",
   "src/index.css": "ea8b38ada867619addaced06a8a3a1c494c1de9ef6c30beb5cbe7435890729db",
   // Retain UTC ordering while preserving legacy same-day input order and member annotations.
-    "src/lib/risk.ts": "0550f7ee9c463b835473d44cdd1371b16ce72b41815d6c6196028384fa1ea60f",
+    "src/lib/risk.ts": "8f60e96ef49e7b13e257e0bfa78b03ec72ed41c5a2b8691f0d25bdf66ead0862",
   "src/lib/storageScope.ts": "3cd9c57c38bb10e9f7b61776f00422ab9590bdebd1d0e458eba5a33cc676e183",
   "src/styles/astraDashboard.css": "fb12899dfb8fc4f5ccf191e61e594db1de03a866310dd2388b4baf44b997ff8b",
   "supabase/migrations/20260807010000_auth_policy_acceptances.sql": "0cf48fb5788748c426e686bf1a0c67975da1faf812a73f63a3e444e86b99cec4",

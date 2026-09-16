@@ -2,6 +2,8 @@ import { ArrowRight, ArrowUpRight, BookOpen, CalendarDays, ChevronDown, Database
 import { useEffect, useMemo, useRef, useState } from "react";
 import { analyze, type RiskRule, type Trade } from "../lib/risk";
 import { getActionableReviewCount, getDashboardSummaryAction } from "../lib/dashboardReviewState";
+import { journalSummary, moneyText, rowMoneyText, journalReviewEnabled } from "../lib/journalAccuracy";
+import { JournalHeadlineStats, JournalDisciplineReview } from "./JournalAccuracyPanels";
 import { getTradeSourceLabel } from "../lib/tradeSourceLabel";
 import { FlagStack } from "./DashboardCards";
 import { RithmicAttribution } from "./RithmicAttribution";
@@ -21,7 +23,8 @@ const rangeOptions: { id: TimeRange; label: string }[] = [
   { id: "all", label: "All trades" },
 ];
 
-export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, onSaveTradeNote }: {
+export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, onSaveTradeNote, journalReview = journalReviewEnabled() }: {
+  journalReview?: boolean;
   analysis: Analysis; rules: RiskRule[]; go: (section: Section) => void; rithmicSyncAvailable?: boolean;
   onSaveTradeNote?: (id: string, notes: string) => boolean;
 }) {
@@ -34,6 +37,7 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, o
   }
   const scopedTrades = useMemo(() => filterTradesByRange(analysis.trades, range), [analysis.trades, range]);
   const scopedAnalysis = useMemo(() => analyze(scopedTrades, rules), [scopedTrades, rules]);
+  const journal = useMemo(() => journalSummary(scopedTrades), [scopedTrades]);
   const hasRithmicTrades = analysis.trades.some((trade) => trade.source?.provider === "Rithmic");
   const hasRithmicSource = hasRithmicTrades || rithmicSyncAvailable;
   const sourceLabel = getTradeSourceLabel(scopedAnalysis.trades);
@@ -57,7 +61,7 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, o
     <div className="astra-deskbar">
       <div className="astra-breadcrumb"><span>Workspace</span><span>/</span><strong>Risk Desk</strong></div>
       <div className="astra-deskbar-tools">
-        <span className="astra-source-label" aria-label={`Review source: ${sourceLabel}`} title={`Review source: ${sourceLabel}`}>{sourceLabel} / {scopedTrades.length} trades</span>
+        <span className="astra-source-label" aria-label={`Review source: ${sourceLabel}`} title={`Review source: ${sourceLabel}`}>{sourceLabel} / {scopedTrades.length} {journalReview ? 'matched rows' : 'trades'}</span>
         <button className="astra-button" onClick={manageSource} type="button">{hasRithmicSource ? "Sync new trades" : "Import trades"}<Plus aria-hidden="true" /></button>
       </div>
     </div>
@@ -74,7 +78,7 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, o
         <button className="dashboard-empty-action" onClick={() => go("import")} type="button">Import trade history <ArrowUpRight aria-hidden="true" /></button>
       </div>
     </section> : <>
-      <DashboardStats analysis={scopedAnalysis} />
+      {journalReview ? <><p className="astra-mini-note">Account accuracy review · Beta · Your saved history is unchanged.</p><JournalHeadlineStats journal={journal} /></> : <DashboardStats analysis={scopedAnalysis} />}
       {hasRithmicSource && <div className="dashboard-attribution-row"><RithmicAttribution compact /></div>}
       <div className="astra-desk-grid">
         <section className="astra-panel astra-chart-panel" aria-labelledby="astra-equity-title">
@@ -84,10 +88,10 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, o
               {rangeOptions.map(option => <button aria-pressed={range === option.id} className={range === option.id ? "dashboard-range-active" : ""} key={option.id} onClick={() => setRange(option.id)} type="button">{option.label}</button>)}
             </div>
           </div>
-          <AstraEquityCurve points={scopedAnalysis.equityPoints} />
-          <div className="astra-chart-note"><span><i aria-hidden="true" />Reported P&amp;L</span><span data-dashboard-trade-count={scopedTrades.length}>{scopedTrades.length} trades · {signedMoney(scopedAnalysis.totalPnl)}</span></div>
+          {journalReview && journal.money.status !== 'available' ? <p className="astra-mini-note">{journal.money.reason}</p> : <AstraEquityCurve points={journalReview && journal.money.status === 'available' ? journal.money.equityPoints : scopedAnalysis.equityPoints} />}
+          <div className="astra-chart-note"><span><i aria-hidden="true" />Reported P&amp;L</span><span data-dashboard-trade-count={scopedTrades.length}>{scopedTrades.length} {journalReview ? 'matched rows' : 'trades'} · {journalReview ? (journal.money.status === 'available' ? moneyText(journal.money.totalCents) : 'Unavailable') : signedMoney(scopedAnalysis.totalPnl)}</span></div>
         </section>
-        <DisciplineReview analysis={scopedAnalysis} go={go} />
+        {journalReview ? <JournalDisciplineReview journal={journal} rules={rules} onRules={() => go('rules')} /> : <DisciplineReview analysis={scopedAnalysis} go={go} />}
       </div>
       <div className="astra-desk-bottom">
         <section className="astra-panel astra-recent-trades" aria-labelledby="astra-recent-title">
@@ -95,7 +99,7 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, o
           <div className="astra-table-scroll"><table className="astra-trade-table"><thead><tr><th scope="col">Market</th><th scope="col">Side</th><th scope="col">Reported P&amp;L</th></tr></thead><tbody>
             {recentTrades.map(trade => <tr data-recent-trade={trade.id} key={trade.id}>
               <td><button type="button" className="astra-trade-link" onClick={() => openTrade(trade.id)} aria-label={`Review ${trade.market} trade from ${trade.date}`}><span className="astra-symbol" aria-hidden="true">{trade.market.slice(0, 2)}</span><span>{trade.market}</span></button></td>
-              <td>{trade.side}</td><td className={trade.pnl < 0 ? "astra-negative" : "astra-positive"}>{signedMoney(trade.pnl, true)}</td>
+              <td>{trade.side}</td><td className={trade.pnl < 0 ? "astra-negative" : "astra-positive"}>{journalReview ? rowMoneyText(trade, trade.pnl) : signedMoney(trade.pnl, true)}</td>
             </tr>)}
           </tbody></table></div>
         </section>
@@ -106,10 +110,10 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, o
           </div>
         </section>
       </div>
-      <details className="astra-review-details"><summary>Next review <span>Evidence and review status</span><ChevronDown aria-hidden="true" /></summary><DashboardReviewRow analysis={scopedAnalysis} go={go} /></details>
+      {!journalReview && <details className="astra-review-details"><summary>Next review <span>Evidence and review status</span><ChevronDown aria-hidden="true" /></summary><DashboardReviewRow analysis={scopedAnalysis} go={go} /></details>}
     </>}
     <footer className="astra-dashboard-footer"><span>Retrospective review only. No live brokerage execution.</span><div className="dashboard-summary-actions"><button className="astra-text-link" onClick={manageSource} type="button">{hasRithmicSource ? "Sync new trades" : "Manage source"}<ArrowUpRight aria-hidden="true" /></button></div></footer>
-    <DashboardTradeDialog trade={selectedTrade} onClose={() => setSelectedTradeId(null)} onSave={noteSaveRef.current} />
+    <DashboardTradeDialog journalReview={journalReview} trade={selectedTrade} onClose={() => setSelectedTradeId(null)} onSave={noteSaveRef.current} />
   </section>;
 }
 
