@@ -170,7 +170,7 @@ test('Review changes withhold mismatched materials immediately and entitlement g
     await h.flush(); tree = h.render();
     const emptyCard = byType(tree, PassportHoloCard)[0];
     assert.equal(emptyCard.props.appearance.id, 'Unranked-standard');
-    assert.equal(emptyCard.props.model.heroValue, '$0');
+    assert.equal(emptyCard.props.model.heroValue, '$0.00');
     assert.equal(emptyCard.props.model.ruleSummary, 'Rules not checked');
   } finally { h.close(); }
 });
@@ -256,7 +256,7 @@ test('Real review modes preserve zero, empty, negative and scoped preference dat
     const { PassportHoloCard } = h.load('src/components/PassportHoloCard.tsx');
     let card = byType(tree, PassportHoloCard)[0];
     assert.equal(card.props.model.mode, 'private');
-    assert.doesNotMatch(text(card), /Trader 6714|NQ \/ ES|\+\$1,008/);
+    assert.doesNotMatch(text(card), /Trader 6714|NQ \/ ES|\+\$1,007\.50/);
     assert.equal(byType(tree, 'svg').length, 0, 'Ghost cannot expose cumulative P&L in review detail');
     for (const mode of ['flex', 'discipline', 'private', 'coach']) {
       const label = { flex: 'Flex', discipline: 'Discipline', private: 'Ghost', coach: 'Coach' }[mode];

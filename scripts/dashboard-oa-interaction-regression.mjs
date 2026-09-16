@@ -445,7 +445,7 @@ async function reviewRanges() {
     const loss = -trades.filter(trade => trade.pnl < 0).reduce((sum, trade) => sum + trade.pnl, 0);
     let equity = 0, peak = 0, drawdown = 0;
     for (const trade of trades) { equity += trade.pnl; peak = Math.max(peak, equity); drawdown = Math.max(drawdown, peak - equity); }
-    const money = value => `${value < 0 ? '−' : value > 0 ? '+' : ''}$${Math.abs(value).toLocaleString('en-US', { minimumFractionDigits: Number.isInteger(value) ? 0 : 2, maximumFractionDigits: 2 })}`;
+    const money = value => `${value < 0 ? '−' : value > 0 ? '+' : ''}$${Math.abs(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     assert.equal(result.active, 1, `${label} must be the only selected range`);
     assert.equal(result.count, trades.length, `${label} must use the actual scoped trade count`);
     assert.deepEqual(result.cells, [

@@ -51,7 +51,7 @@ test('Financial labels preserve cents without a half-formatted dollar amount', (
   const { signedMoney } = loadSource('src/components/DashboardView.tsx');
   assert.equal(signedMoney(1007.5),'+$1,007.50');
   assert.equal(signedMoney(-940,true),'−$940.00');
-  assert.equal(signedMoney(0),'$0');
+  assert.equal(signedMoney(0),'$0.00');
 });
 
 test('Saving a journal note only changes that trade and rejects a stale account principal', () => {

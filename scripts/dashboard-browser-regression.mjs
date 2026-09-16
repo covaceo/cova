@@ -528,7 +528,7 @@ async function numericZeroStates() {
       assert.equal(state.empty, 0, `${width}px ${name} is retained history, not an empty account`);
       assert.deepEqual(state.metrics.map(item => item.id), ['pnl','win-rate','profit-factor','drawdown']);
       assert.doesNotMatch(state.curve, /NaN|Infinity/);
-      if (pnl === 0) assert.deepEqual(state.metrics.map(item => item.value), ['$0','0%','0.00','$0'], `${width}px valid financial zeros must not become -- or Infinity`);
+      if (pnl === 0) assert.deepEqual(state.metrics.map(item => item.value), ['$0.00','0%','0.00','$0.00'], `${width}px valid financial zeros must not become -- or Infinity`);
       else {
         assert.equal(state.score, '0', `${width}px valid Cova score zero must be visible`);
         assert.equal(state.scoreLabel, 'Cova Score 0 out of 100');

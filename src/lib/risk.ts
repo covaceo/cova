@@ -1089,7 +1089,7 @@ export function parseCsvDetailed(text: string): CsvParseResult {
 
 export function formatMoney(value: number) {
   const sign = value < 0 ? "-" : "";
-  return `${sign}$${Math.abs(value).toLocaleString("en-US", { maximumFractionDigits: Math.abs(value) >= 100 ? 0 : 2 })}`;
+  return `${sign}$${Math.abs(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 export function formatPercent(value: number) {
