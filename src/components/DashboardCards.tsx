@@ -31,7 +31,7 @@ export function ScoreCard({ analysis }: { analysis: ReturnType<typeof analyze> }
         <div className="oa-score-reading">
           <p className="oa-score-value">{analysis.score}<span>/100</span></p>
           <p className="oa-score-caption">{analysis.score >= 80 ? "Strong risk discipline" : analysis.score >= 60 ? "Decent, with room to tighten" : "Risk needs attention"}</p>
-          <p className="oa-score-sample">{analysis.trades.length} trades checked</p>
+          <p className="oa-score-sample">{analysis.tradeCount} trades checked</p>
         </div>
         <div className="oa-factor-list">
           {analysis.scoreFactors.slice(0, 3).map((factor) => (

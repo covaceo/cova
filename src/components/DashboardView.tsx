@@ -61,7 +61,7 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, o
     <div className="astra-deskbar">
       <div className="astra-breadcrumb"><span>Workspace</span><span>/</span><strong>Risk Desk</strong></div>
       <div className="astra-deskbar-tools">
-        <span className="astra-source-label" aria-label={`Review source: ${sourceLabel}`} title={`Review source: ${sourceLabel}`}>{sourceLabel} / {scopedTrades.length} {journalReview ? 'matched rows' : 'trades'}</span>
+        <span className="astra-source-label" aria-label={`Review source: ${sourceLabel}`} title={`Review source: ${sourceLabel}`}>{sourceLabel} / {journalReview ? scopedTrades.length : scopedAnalysis.tradeCount} {journalReview ? 'matched rows' : 'trades'}</span>
         <button className="astra-button" onClick={manageSource} type="button">{hasRithmicSource ? "Sync new trades" : "Import trades"}<Plus aria-hidden="true" /></button>
       </div>
     </div>
@@ -89,7 +89,7 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, o
             </div>
           </div>
           {journalReview && journal.money.status !== 'available' ? <p className="astra-mini-note">{journal.money.reason}</p> : <AstraEquityCurve points={journalReview && journal.money.status === 'available' ? journal.money.equityPoints : scopedAnalysis.equityPoints} />}
-          <div className="astra-chart-note"><span><i aria-hidden="true" />Reported P&amp;L</span><span data-dashboard-trade-count={scopedTrades.length}>{scopedTrades.length} {journalReview ? 'matched rows' : 'trades'} · {journalReview ? (journal.money.status === 'available' ? moneyText(journal.money.totalCents) : 'Unavailable') : signedMoney(scopedAnalysis.totalPnl)}</span></div>
+          <div className="astra-chart-note"><span><i aria-hidden="true" />Reported P&amp;L</span><span data-dashboard-trade-count={journalReview ? scopedTrades.length : scopedAnalysis.tradeCount}>{journalReview ? scopedTrades.length : scopedAnalysis.tradeCount} {journalReview ? 'matched rows' : 'trades'} · {journalReview ? (journal.money.status === 'available' ? moneyText(journal.money.totalCents) : 'Unavailable') : signedMoney(scopedAnalysis.totalPnl)}</span></div>
         </section>
         {journalReview ? <JournalDisciplineReview journal={journal} rules={rules} onRules={() => go('rules')} /> : <DisciplineReview analysis={scopedAnalysis} go={go} />}
       </div>
@@ -118,10 +118,11 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, o
 }
 
 function DashboardStats({ analysis }: { analysis: Analysis }) {
-  const wins = analysis.trades.filter(trade => trade.pnl > 0).length;
+  const wins = analysis.winningTradeCount;
+  const entries = analysis.entryGroups.some(group => group.entryIdentified);
   const cells = [
-    { id: "pnl", label: "Reported P&L", value: signedMoney(analysis.totalPnl), detail: `${analysis.trades.length} closed trades`, negative: analysis.totalPnl < 0 },
-    { id: "win-rate", label: "Win rate", value: `${Math.round(analysis.winRate * 100)}%`, detail: `${wins} wins / ${analysis.trades.length} trades` },
+    { id: "pnl", label: "Reported P&L", value: signedMoney(analysis.totalPnl), detail: `${analysis.tradeCount} ${entries ? 'trade entries · partial exits combined' : 'closed trades'}`, negative: analysis.totalPnl < 0 },
+    { id: "win-rate", label: entries ? "Entry win rate" : "Win rate", value: `${entries ? (analysis.winRate * 100).toFixed(2) : Math.round(analysis.winRate * 100)}%`, detail: `${wins} wins / ${analysis.tradeCount} ${entries ? 'entries' : 'trades'}` },
     { id: "profit-factor", label: "Profit factor", value: Number.isFinite(analysis.profitFactor) ? analysis.profitFactor.toFixed(2) : "∞", detail: analysis.grossLoss ? "Gross profit / gross loss" : analysis.grossProfit ? "No losing trades in this range" : "No gross profit or gross loss" },
     { id: "drawdown", label: "Max drawdown", value: signedMoney(-analysis.maxDrawdown), detail: "Closed-trade peak to trough", negative: analysis.maxDrawdown > 0 },
   ];
@@ -137,7 +138,7 @@ function DisciplineReview({ analysis, go }: { analysis: Analysis; go: (section: 
     <div className="astra-score-row"><div className="astra-score-ring" aria-label={`Cova Score ${analysis.score} out of 100`}>
       <svg viewBox="0 0 100 100" fill="none" aria-hidden="true"><circle cx="50" cy="50" r="43" stroke="#2c364b" strokeWidth="3" /><circle cx="50" cy="50" r="43" stroke="#8eafff" strokeWidth="3" pathLength="100" strokeDasharray={`${analysis.score} 100`} strokeLinecap="round" transform="rotate(-90 50 50)" /><circle cx="50" cy="50" r="36" stroke="#354159" strokeWidth=".5" strokeDasharray="1 4" /></svg>
       <div><strong>{analysis.score}</strong><small>Discipline</small></div>
-    </div><div><strong>{analysis.score >= 80 ? "Strong risk discipline" : analysis.score >= 60 ? "Room to tighten." : "Risk needs attention."}</strong><p>{analysis.evidenceQuality.label} · {analysis.trades.length} trades checked</p></div></div>
+    </div><div><strong>{analysis.score >= 80 ? "Strong risk discipline" : analysis.score >= 60 ? "Room to tighten." : "Risk needs attention."}</strong><p>{analysis.evidenceQuality.label} · {analysis.tradeCount} {analysis.entryGroups.some(group => group.entryIdentified) ? 'entries' : 'trades'} checked</p></div></div>
     <div className="astra-score-scale" aria-hidden="true">{Array.from({ length: 16 }, (_, index) => <i key={index} className={index < Math.round(analysis.score / 100 * 16) ? "astra-lit" : ""} />)}</div>
     <div className="astra-scale-ends"><span>0 / Needs review</span><span>100 / Consistent</span></div>
     <button className="astra-warning-link dashboard-summary-primary" onClick={() => go(action.target)} type="button"><TriangleAlert aria-hidden="true" /><span><strong>{flag?.label || action.label}</strong><span>{flag?.summary || analysis.evidenceQuality.summary}</span><small>{action.label} <ArrowUpRight aria-hidden="true" /></small></span></button>

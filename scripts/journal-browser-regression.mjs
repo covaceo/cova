@@ -312,6 +312,25 @@ try {
     assert.equal(geometry.width,width); assert.ok(geometry.overflow<=1,JSON.stringify(geometry)); assert.equal(geometry.broken,0);
     const stored=await evaluate(`JSON.parse(localStorage.getItem(${JSON.stringify(key)})).trades`);
     assert.deepEqual(stored,rows,'Read-only review never mutates ledger');
+    const source={provider:'Tradovate',accountId:'100',openedAt:'2026-09-10T14:00:00.000Z',closedAt:'2026-09-10T14:05:00.000Z',timeZone:'UTC',pnlBasis:'gross_before_fees'};
+    const partials=[tradeFixture({id:'tradovate-100:1001:2001',side:'Long',date:'2026-09-10',source,pnl:100,notes:'First exit note'}),tradeFixture({id:'tradovate-100:1001:2002',side:'Long',date:'2026-09-10',source,pnl:-150,notes:'Second exit note'}),tradeFixture({id:'tradovate-100:1002:2003',side:'Long',date:'2026-09-10',source,pnl:20})];
+    await evaluate(`localStorage.setItem(${JSON.stringify(key)},${JSON.stringify(JSON.stringify({trades:partials,rules}))})`);
+    const before=await evaluate('performance.timeOrigin');
+    await cdp.send('Page.navigate',{url:`${origin}/?partialExits=${width}#dashboard`});
+    await waitFor(`performance.timeOrigin !== ${before} && document.querySelector('[data-astra-stat="pnl"] .astra-stat-detail')?.textContent.includes('2 trade entries')`);
+    assert.equal(await evaluate('document.querySelector("[data-astra-stat=win-rate] .astra-stat-value").textContent'),'50.00%');
+    assert.equal(await evaluate('document.querySelector("[data-dashboard-trade-count]").getAttribute("data-dashboard-trade-count")'),'2');
+    await capture(join(evidenceDir,`partial-dashboard-${width}.png`));
+    await clickSelector('.astra-recent-trades .astra-text-link','View all');
+    await waitFor('document.querySelectorAll("[data-history-trade]").length === 2');
+    await clickSelector('[data-history-trade] summary','2 partial exits');
+    assert.equal(await evaluate('[...document.querySelectorAll("[data-partial-exit]")].filter(n=>n.checkVisibility()).length'),2);
+    assert.match(await evaluate('document.querySelector("[data-history-trade] details[open]").textContent'),/First exit note[\s\S]*Second exit note/);
+    await capture(join(evidenceDir,`partial-history-${width}.png`));
+    assert.deepEqual(await evaluate(`JSON.parse(localStorage.getItem(${JSON.stringify(key)})).trades`),partials);
+    const partialOverflow=await evaluate('document.documentElement.scrollWidth-document.documentElement.clientWidth');
+    assert.ok(partialOverflow<=1);
+    console.log('PARTIALS PASS',JSON.stringify({width,groupedTrades:2,rawRows:3,expandableExits:2,ledgerUnchanged:true,overflow:partialOverflow}));
     console.log('PASS',JSON.stringify({width,height,mobile,geometry,ranges:true,noteDialog:true,history:true,ledgerUnchanged:true}));
   }
   assert.deepEqual(consoleErrors,[]); assert.deepEqual(runtimeErrors,[]);
