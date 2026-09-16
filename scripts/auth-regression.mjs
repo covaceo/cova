@@ -383,7 +383,7 @@ test("provider status routes share one authenticated function within the Hobby d
       assert.match(requestUrl, /user_id=eq\.owner-1/);
       assert.match(requestUrl, /provider=eq\.tradovate/);
       assert.match(requestUrl, /id=eq\.connection-1/);
-      return new Response(JSON.stringify([{ status: "connected", expires_at: "2099-08-08T00:00:00.000Z" }]), { status: 200 });
+      return new Response(JSON.stringify([{ id: "connection-1", status: "connected", expires_at: "2099-08-08T00:00:00.000Z" }]), { status: 200 });
     }
     throw new Error(`unexpected consolidated status call ${requestUrl}`);
   };
@@ -402,6 +402,7 @@ test("provider status routes share one authenticated function within the Hobby d
     assert.deepEqual(response.body, {
       available: true,
       connected: true,
+      connectionId: "connection-1",
       provider: "Tradovate",
       status: "connected",
       expiresAt: "2099-08-08T00:00:00.000Z",
@@ -457,6 +458,7 @@ test("Tradovate status recovers the authenticated owner's durable connection whe
     assert.deepEqual(response.body, {
       available: true,
       connected: true,
+      connectionId: "durable-connection-1",
       provider: "Tradovate",
       status: "connected",
       expiresAt: "2099-08-08T00:00:00.000Z",
@@ -508,6 +510,7 @@ test("Tradovate status keeps a retained owner connection revocable while provide
     assert.deepEqual(response.body, {
       available: false,
       connected: true,
+      connectionId: "retained-connection-1",
       provider: "Tradovate",
       status: "configuration-unavailable",
       expiresAt: "2099-08-08T00:00:00.000Z",

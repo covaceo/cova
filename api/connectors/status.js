@@ -39,6 +39,7 @@ async function sendTradovateStatus(req, res, userId) {
   return res.status(200).json({
     available,
     connected: true,
+    connectionId: connection.id,
     provider: "Tradovate",
     status: available ? (connection.status || "connected") : "configuration-unavailable",
     expiresAt: connection.expires_at,
