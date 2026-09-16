@@ -35,7 +35,7 @@ async function run(options={}) {
       const name=body.params.find(p=>p.name==='account').value;assert(['Synthetic A','Synthetic B'].includes(name));
       if(options.reject && name==='Synthetic B')return json({error:'fixture-private-rejection'},403);
       if(options.oversized)return new Response('x',{headers:{'content-type':'application/json','content-length':'9999999'}});
-      return json({data:options.bad?text.replace('$10.00','$11.00'):options.empty?`${header}\r\n`:text});
+      return json({data:options.bad?text.replace('$10.00','$11.00'):options.empty?`${header}\r\n`:options.hourly?text.replace('00:00:05','01:02:04').replace(',5sec',',1h 2min 3sec'):text});
     }
     throw new Error('Unexpected network path '+target);
   };
@@ -54,6 +54,7 @@ try {
   assert.deepEqual(ok.res.body.accounts.map(a=>a.status),['ready','ready']);
   assert.notEqual(ok.res.body.accounts[0].trades[0].id,ok.res.body.accounts[1].trades[0].id);
   assert.equal(ok.res.body.accounts[0].trades[0].date,'2026-11-02T00:00:05.000Z');
+  const hourly=await run({hourly:true});assert.deepEqual(hourly.res.body.accounts.map(a=>a.status),['ready','ready']);assert(hourly.res.body.accounts.every(a=>a.trades[0].source.closedAt==='2026-11-02T01:02:04.000Z'));
   const empty=await run({empty:true});assert(empty.res.body.accounts.every(a=>a.status==='empty' && a.trades.length===0));
   const partial=await run({reject:true});assert.equal(partial.res.body.accounts[0].status,'ready');assert.equal(partial.res.body.accounts[1].status,'failed');assert.equal(partial.res.body.accounts[1].csv,undefined);
   const bad=await run({bad:true});assert(bad.res.body.accounts.every(a=>a.status==='failed' && !a.csv));

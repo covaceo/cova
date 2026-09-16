@@ -70,7 +70,7 @@ export function parsePerformanceReport(text, accountId, window) {
     if (Math.abs(Math.round((sell - buy) * contracts * POINTS[market] * 100) / 100 - pnl) > 0.005) fail();
     const bought = timestamp(row.boughtTimestamp), sold = timestamp(row.soldTimestamp);
     if (bought === sold) fail();
-    const duration = /^(?:(\d+)day\s*)?(?:(\d+)hour\s*)?(?:(\d+)min\s*)?(?:(\d+)sec)?$/.exec(row.duration);
+    const duration = /^(?:(\d+)day\s*)?(?:(\d+)(?:hour|h)\s*)?(?:(\d+)min\s*)?(?:(\d+)sec)?$/.exec(row.duration);
     if (!duration || !row.duration || Math.abs((Number(duration[1] || 0) * 86400 + Number(duration[2] || 0) * 3600 + Number(duration[3] || 0) * 60 + Number(duration[4] || 0)) * 1000 - Math.abs(bought - sold)) > 1000) fail();
     const close = Math.max(bought, sold);
     if (close < Date.parse(`${window.startDate}T00:00:00Z`) || close >= Date.parse(`${window.endDate}T00:00:00Z`)) fail();
