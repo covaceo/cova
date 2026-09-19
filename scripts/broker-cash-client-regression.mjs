@@ -1,0 +1,16 @@
+import test from 'node:test';import assert from 'node:assert/strict';import load from './helpers/load-ts.cjs';import {existsSync} from 'node:fs';
+const path='src/lib/brokerCash.ts';
+const trades=[{id:'tradovate-71:11:12',date:'2026-09-04',pnl:10,source:{provider:'Tradovate',accountId:'71',openedAt:'2026-09-04T10:00:00.000Z',closedAt:'2026-09-04T12:00:00.000Z',pnlBasis:'gross_before_fees',timeZone:'UTC'}}];
+const cash={status:'reconciled',version:1,accountId:'71',currency:'USD',window:{startDate:'2026-09-01',endDate:'2026-09-20'},asOf:'2026-09-19T12:00:00.000Z',basis:'cash_movements_no_trade_allocation',grossCents:1000,feeCents:-121,netCents:879,nonTradingCents:0,openingBalanceCents:100000,closingBalanceCents:100879,entries:[{id:'1',at:'2026-09-04T10:00:00.000Z',deltaCents:-121,balanceCents:99879,category:'fee',type:'Commission',currency:'USD',contract:'MNQU6'},{id:'2',at:'2026-09-04T12:00:00.000Z',deltaCents:1000,balanceCents:100879,category:'trade',type:'Trade Paired',currency:'USD',contract:'MNQU6'}]};
+function setup(){const data=new Map([['cova-active-storage-identity-v1','owner-a']]);const localStorage={getItem:k=>data.get(k)||null,setItem:(k,v)=>data.set(k,v),removeItem:k=>data.delete(k)};assert(existsSync(path),'cash client exists');globalThis.localStorage=localStorage;return {api:load(path),data};}
+test('normal history cash snapshot persists by owner and account and matches saved gross trades',()=>{const {api,data}=setup();api.saveBrokerCash('owner-a','71',cash,trades);let r=api.brokerCashSummary(trades,'all');assert.equal(r.status,'available');assert.equal(r.netCents,879);assert.equal(r.points.at(-1).value,8.79);assert.equal(api.brokerCashSummary(trades,'today').netCents,879);data.set('cova-active-storage-identity-v1','owner-b');assert.equal(api.brokerCashSummary(trades,'all').status,'unavailable');});
+test('rejects changed, incomplete, forged and foreign cash snapshots without guessing net',()=>{
+ const {api,data}=setup();
+ for(const change of [{netCents:880},{grossCents:1100},{asOf:'bad'},{window:{startDate:'2026-09-05',endDate:'2026-09-20'}},{entries:[...cash.entries,cash.entries[0]]},{entries:cash.entries.map((e,i)=>i?{...e,balanceCents:100880}:e)},{entries:cash.entries.map(e=>({...e,currency:'EUR'}))},{entries:cash.entries.map(e=>({...e,category:'trade'}))}]){api.saveBrokerCash('owner-a','71',{...cash,...change},trades);assert.equal(api.brokerCashSummary(trades,'all').status,'unavailable',JSON.stringify(change));}
+ api.saveBrokerCash('owner-a','71',cash,trades);assert.equal(api.brokerCashSummary([{...trades[0],pnl:11}],'all').status,'unavailable');
+ assert.equal(api.brokerCashSummary([...trades,{...trades[0],id:'older',date:'2026-08-01'}],'all').status,'unavailable');
+ const before=JSON.stringify([...data]);api.saveBrokerCash('owner-b','71',cash,trades);assert.equal(JSON.stringify([...data]),before);
+ api.saveBrokerCash('owner-a','71',{status:'unavailable'},trades);assert.equal(api.brokerCashSummary(trades,'all').status,'unavailable');
+});
+test('storage failures do not break the existing gross import',()=>{const {api}=setup();globalThis.localStorage.setItem=()=>{throw Error('quota')};globalThis.localStorage.removeItem=()=>{throw Error('unavailable')};assert.doesNotThrow(()=>api.saveBrokerCash('owner-a','71',cash,trades));});
+export {cash,trades,setup};

@@ -49,7 +49,7 @@ const protectedFiles = {
   "src/App.tsx": "3b691d7bf10a23d06eab1ca310aa146ddf1b1812804003b493376bb57750e6bf",
   "src/components/AstraEquityCurve.tsx": "0487554f9ea35b665e5b013172003a20d612f57e20662b687e5b181e26d2970f",
   "src/components/DashboardTradeDialog.tsx": "302d1c3851169baadf76180225e607254f09e340b447384f52e2322ac3d8752a",
-  "src/components/DashboardView.tsx": "7f50c156e223aa4ad0ac8658bf76a24221b70a9522ea697949b17f4da31ca7f5",
+  "src/components/DashboardView.tsx": "6c8ee41b9202694d845d8779aa770aefa7ad83118a92c384d5c67a306fb33f00",
   "src/components/WorkspaceShell.tsx": "1ba5ee114ebb09e8b37f841404ae595a9d323850524378231c15ff26ef623219",
   "src/index.css": "ea8b38ada867619addaced06a8a3a1c494c1de9ef6c30beb5cbe7435890729db",
   // Retain UTC ordering while preserving legacy same-day input order and member annotations.

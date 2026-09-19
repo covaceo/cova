@@ -1,3 +1,4 @@
+import { saveBrokerCash } from '../lib/brokerCash';
 import { useEffect, useMemo, useRef, useState } from "react";
 import { rememberAccountNames } from "../lib/accountNames";
 import { groupJournalEntries, parseCsvDetailed, type Trade, type TradeMergeResult } from "../lib/risk";
@@ -254,6 +255,12 @@ export function ImportDesk({ historyTrades = [], entitlements, importCsv, prepar
         const receipt = preparedImport.commitHistory(verified.csv, verified.accountId, coverage);
         if (!receipt) throw new Error("The active Cova account changed. Nothing was imported.");
         notice = `${receipt.added} new, ${receipt.corrected} corrected, ${receipt.unchanged} unchanged. ${coverage}`;
+      }
+      for (const item of verified.accounts) {
+        if (item.status === 'deferred') continue;
+        const cash = item.cash as {window?:{startDate?:string;endDate?:string}} | undefined;
+        const matchingWindow = cash?.window?.startDate === verified.window.startDate && cash.window.endDate === verified.window.endDate;
+        saveBrokerCash(preparedImport.scopeKey, item.account.id, matchingWindow ? cash : null, verified.trades.filter(t => t.source?.accountId === item.account.id));
       }
       saveHistorySummary(preparedImport.scopeKey, current.connectionId, { ...summary, accounts: verified.accounts, notice, outcome });
       rememberAccountNames(preparedImport.scopeKey, Object.fromEntries(verified.accounts.map(item => [`Tradovate:${item.account.id}`, item.account.name])));
