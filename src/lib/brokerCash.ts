@@ -49,7 +49,15 @@ export function brokerCashSummary(trades: Trade[], range: 'all'|'today'|'week'):
     if(start<cash.window.startDate || end>cash.window.endDate)return unavailable;
     const entries=cash.entries.filter(e=>e.at.slice(0,10)>=start && e.at.slice(0,10)<end && e.category!=='funding');
     const grossCents=entries.filter(e=>e.category==='trade').reduce((a,e)=>a+e.deltaCents,0),feeCents=entries.filter(e=>e.category==='fee').reduce((a,e)=>a+e.deltaCents,0);
-    let equity=0;const points=entries.map(e=>({label:e.at.slice(0,10),value:(equity+=e.deltaCents)/100}));
+    // Cash rows are accounting movements, not trades. Collapse to observed UTC
+    // days without allocating fees to fills or inventing funding/idle-day points.
+    const dailyCents = new Map<string, number>();
+    for (const entry of entries) {
+      const day = entry.at.slice(0, 10);
+      dailyCents.set(day, (dailyCents.get(day) ?? 0) + entry.deltaCents);
+    }
+    let equityCents = 0;
+    const points = [...dailyCents].map(([label, deltaCents]) => ({ label, value: (equityCents += deltaCents) / 100 }));
     return {status:'available',grossCents,feeCents,netCents:grossCents+feeCents,asOf:cash.asOf,startDate:start,endDate:end,points};
   } catch {return unavailable;}
 }

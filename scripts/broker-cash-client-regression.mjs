@@ -13,4 +13,17 @@ test('rejects changed, incomplete, forged and foreign cash snapshots without gue
  api.saveBrokerCash('owner-a','71',{status:'unavailable'},trades);assert.equal(api.brokerCashSummary(trades,'all').status,'unavailable');
 });
 test('storage failures do not break the existing gross import',()=>{const {api}=setup();globalThis.localStorage.setItem=()=>{throw Error('quota')};globalThis.localStorage.removeItem=()=>{throw Error('unavailable')};assert.doesNotThrow(()=>api.saveBrokerCash('owner-a','71',cash,trades));});
+test('net curve has one cumulative point per UTC cash day, not per fee transaction',()=>{
+ const {api}=setup();
+ const dailyTrades=[trades[0],{...trades[0],id:'second',date:'2026-09-06',pnl:-2}];
+ const rows=[['2026-09-03',2500000,'funding','Fund Transaction'],['2026-09-04',-100,'fee','Commission'],['2026-09-04',-21,'fee','Exchange Fee'],['2026-09-04',1000,'trade','Trade Paired'],['2026-09-05',-10,'fee','Clearing Fee'],['2026-09-06',-200,'trade','Trade Paired']];
+ let balance=0;
+ const entries=rows.map(([day,delta,category,type],i)=>({id:String(i+1),at:day+'T12:00:00.000Z',deltaCents:delta,balanceCents:balance+=delta,category,type,currency:'USD'}));
+ api.saveBrokerCash('owner-a','71',{...cash,entries,grossCents:800,feeCents:-131,netCents:669,nonTradingCents:2500000,openingBalanceCents:0,closingBalanceCents:2500669},dailyTrades);
+ const summary=api.brokerCashSummary(dailyTrades,'all');
+ assert.equal(summary.status,'available');
+ assert.deepEqual(summary.points,[{label:'2026-09-04',value:8.79},{label:'2026-09-05',value:8.69},{label:'2026-09-06',value:6.69}]);
+ assert.equal(Math.round(summary.points.at(-1).value*100),summary.netCents);
+ assert.deepEqual(api.brokerCashSummary(dailyTrades,'today').points,[{label:'2026-09-06',value:-2}]);
+});
 export {cash,trades,setup};

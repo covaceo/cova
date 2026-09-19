@@ -130,6 +130,17 @@ test('A single-trade range keeps Start before the ending session on the time axi
   assert.ok(html.indexOf('>Start</text>')<html.indexOf('>May 06</text>'),'A one-trade review must not label its final point Start');
 });
 
+test('Daily net chart names its actual basis and includes its first date', () => {
+  const { AstraEquityCurve } = loadSource('src/components/AstraEquityCurve.tsx');
+  const points = [{label:'2026-09-04',value:8.79},{label:'2026-09-05',value:8.69},{label:'2026-09-06',value:6.69}];
+  const html = renderToStaticMarkup(React.createElement(AstraEquityCurve,{points,basis:'daily-net'}));
+  assert.ok(html.includes('Daily cumulative net P&amp;L'));
+  assert.ok(!html.includes('explore trades'));
+  assert.ok(html.includes('>Sep 04</text>'));
+  const one = renderToStaticMarkup(React.createElement(AstraEquityCurve,{points:points.slice(0,1),basis:'daily-net'}));
+  assert.equal((one.match(/>Sep 04<\/text>/g)||[]).length,1);
+});
+
 test('Astra equity preserves every closed-trade value, including losses and the zero origin', async () => {
   const { buildEquityGeometry } = await presentation();
   const input = [{label:'Start',value:0},{label:'2026-08-01',value:240},{label:'2026-08-01',value:60},{label:'2026-08-02',value:-200},{label:'2026-08-03',value:1640}];
