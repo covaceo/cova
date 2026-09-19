@@ -49,7 +49,7 @@ async function run(options = {}) {
     }
     if (target === "https://rpt-demo.tradovateapi.com/v1/reports/requestreport") {
       assert.equal(init.method, "POST");
-      assert.deepEqual(JSON.parse(init.body), { name: "Performance", representationType: "csv", template: "Flex.html", timezone: -240, params: [
+      assert.deepEqual(JSON.parse(init.body), options.expectedReportBody || { name: "Performance", representationType: "csv", template: "Flex.html", timezone: -240, params: [
         { name: "startDate", value: "09/11/2026" }, { name: "endDate", value: options.expectedEndDate || "09/12/2026" },
         { name: "startTime", value: "00:00:00" }, { name: "endTime", value: "00:00:00" }, { name: "account", value: "fixture-owned-account" },
       ] });
@@ -145,6 +145,98 @@ try {
   const stalledBody = await run({ timeout: true, reportResponse: () => ({ status: 200, ok: true, headers: new Headers({ "content-type": "application/json" }), body: { getReader: () => ({ read: () => new Promise(() => {}), cancel: () => new Promise(() => {}) }) } }) });
   assert.equal(stalledBody.res.body.status, "timeout");
   for (const base of ["https://live.tradovateapi.com/v1", "https://demo.tradovateapi.com.fixture-private.invalid/v1", "https://demo.tradovateapi.com/v1?query", "invalid"]) { const denied = await run({ base }); assert.equal(denied.res.body.status, "unsupported_environment"); assert.equal(denied.provider.length, 0); }
+  // Synthetic descriptors only. The actual cash report identifier/schema is unknown.
+  const cashDefinition = { name: "FixtureCashReportV7", label: "Cash History (Detailed)", params: [
+    { name: "account", paramType: "accounts", optional: false },
+    { name: "endDate", paramType: "Date", optional: false },
+    { name: "startDate", paramType: "Date", optional: false },
+    { name: "endTime", paramType: "Time", optional: true },
+    { name: "startTime", paramType: "Time", optional: true },
+    { name: "cashChangeType", paramType: "cashChangeTypes", optional: true },
+  ] };
+  const feeDiscovery = await run({ query: { diagnostic: "fee-discovery" }, definitions: { reports: [
+    { ...cashDefinition, privatePayload: { secret: "fixture-private" }, params: cashDefinition.params.map(p => ({ ...p, defaultValue: "fixture-private" })),
+      fields: ["Synthetic Amount", { name: "syntheticDelta", label: "Synthetic Delta", fieldType: "Decimal", optional: true, unknown: "fixture-private", nested: { secret: "fixture-private" } }] },
+    { name: "Other Report", label: "Other Label", params: [] },
+  ] } });
+  assert.equal(feeDiscovery.res.body.status, "discovery");
+  assert.deepEqual(feeDiscovery.res.body.reports, [
+    { ...cashDefinition, fields: ["Synthetic Amount", { name: "syntheticDelta", label: "Synthetic Delta", fieldType: "Decimal", optional: true }] },
+    { name: "Other Report", label: "Other Label", params: [] },
+  ]);
+  assert.equal(feeDiscovery.provider.length, 1, "Metadata discovery must not fetch accounts or generate reports");
+  assert.equal(feeDiscovery.res.body.schemaValidated, false);
+  for (const descriptor of [
+    { ...cashDefinition, name: "fixture-provider-token" },
+    { ...cashDefinition, label: "Cash History fixture-provider-token" },
+    { ...cashDefinition, params: [{ name: "fixture-provider-token", paramType: "String", optional: true }] },
+    { ...cashDefinition, params: [{ name: "extra", paramType: "fixture-provider-token", optional: true }] },
+    { ...cashDefinition, fields: ["fixture-provider-token"] },
+    { ...cashDefinition, fields: [{ name: "amount", label: "fixture-provider-token" }] },
+  ]) {
+    const unsafe = await run({ query: { diagnostic: "fee-discovery" }, definitions: { reports: [descriptor] } });
+    assert.equal(unsafe.res.body.status, "unsafe_report_metadata");
+    assert.equal(unsafe.res.body.reports, undefined);
+  }
+  const feeQuery = { ...query, diagnostic: "fee-report", reportName: cashDefinition.name, connectionId: "fixture-connection" };
+  const feeBody = { name: cashDefinition.name, representationType: "csv", timezone: 0, params: [
+    { name: "account", value: "fixture-owned-account" }, { name: "endDate", value: "09/12/2026" },
+    { name: "startDate", value: "09/11/2026" }, { name: "endTime", value: "00:00:00" }, { name: "startTime", value: "00:00:00" },
+  ] };
+  const feeOptions = { query: feeQuery, definitions: { reports: [cashDefinition] }, expectedReportBody: feeBody };
+  const feeReport = await run(feeOptions);
+  assert.equal(feeReport.res.body.status, "report_data");
+  assert.equal(feeReport.res.body.reportText, reportText);
+  assert.equal(feeReport.res.body.schemaValidated, false);
+  assert.equal(feeReport.res.body.provenance.report, cashDefinition.name);
+  assert.equal(feeReport.res.body.provenance.account.id, "71");
+  assert.equal(feeReport.res.body.provenance.timeZone, "UTC");
+  assert.equal(feeReport.res.body.provenance.timezoneOffset, 0);
+  assert.deepEqual(feeReport.res.body.upstream, { definitions: 200, accounts: 200, report: 200 });
+  assert.deepEqual(JSON.parse(feeReport.reports[0].init.body), feeBody, "Only descriptor-listed parameters; no Performance template or cash filter defaults");
+  for (const diagnostic of ["fee-discovery", "fee-report"]) {
+    const stale = await run({ ...feeOptions, query: diagnostic === "fee-discovery" ? { diagnostic, connectionId: "fixture-stale" } : { ...feeQuery, connectionId: "fixture-stale" } });
+    assert.equal(stale.res.statusCode, 409);
+    assert.equal(stale.provider.length, 0, "Stale connections fail before any upstream call");
+  }
+  const foreignFeeAccount = await run({ ...feeOptions, accounts: [{ id: 72, name: "fixture-other-owned-account" }] });
+  assert.equal(foreignFeeAccount.res.body.status, "account_not_owned");
+  assert.equal(foreignFeeAccount.reports.length, 0);
+  for (const [change, expected] of [
+    [{ startDate: undefined }, 'invalid_dates'], [{ endDate: undefined }, 'invalid_dates'],
+    [{ endDate: '2026-10-12' }, 'invalid_date_window'], [{ endDate: '2026-09-11' }, 'invalid_date_window'],
+    [{ accountId: '071' }, 'invalid_account_id'], [{ accountId: ['71'] }, 'invalid_account_id'],
+    [{ reportName: 'Missing' }, 'invalid_report_name'], [{ reportName: ['FixtureCashReportV7'] }, 'invalid_report_name'],
+  ]) {
+    const denied = await run({ ...feeOptions, query: { ...feeQuery, ...change } });
+    assert.equal(denied.res.body.status, expected);
+    assert.equal(denied.reports.length, 0);
+  }
+  for (const [definitions, expected] of [
+    [{ reports: [cashDefinition, cashDefinition] }, 'ambiguous_report_name'],
+    [{ reports: [{ ...cashDefinition, label: 'Orders' }] }, 'unsupported_report_name'],
+    [{ reports: [{ ...cashDefinition, params: [...cashDefinition.params, { name: 'secretFilter', paramType: 'String', optional: false }] }] }, 'unsupported_required_parameter'],
+    [{ reports: [{ ...cashDefinition, params: cashDefinition.params.map(p => p.name === 'account' ? { ...p, paramType: 'String' } : p) }] }, 'unsupported_parameter_type'],
+    [{ reports: [{ ...cashDefinition, params: cashDefinition.params.filter(p => p.name !== 'account') }] }, 'missing_required_contract'],
+  ]) {
+    const denied = await run({ ...feeOptions, definitions });
+    assert.equal(denied.res.body.status, expected);
+    assert.equal(denied.reports.length, 0);
+  }
+  for (const [opts, expected] of [
+    [{ anonymous: true }, 401], [{ plan: 'free' }, 403], [{ wrongOwner: true }, 404], [{ expiry: '2000-01-01T00:00:00Z' }, 404],
+  ]) {
+    const denied = await run({ ...feeOptions, ...opts });
+    assert.equal(denied.res.statusCode, expected); assert.equal(denied.provider.length, 0);
+  }
+  for (const [response, expected] of [
+    [json({ data: 'fixture-provider-token' }), 'unsafe_report_data'],
+    [json({ errorText: 'fixture-private' }), 'provider_error'],
+    [json({ data: 'x'.repeat(524289) }), 'oversized_report_text'],
+  ]) {
+    const denied = await run({ ...feeOptions, reportResponse: () => response });
+    assert.equal(denied.res.body.status, expected); assert.equal(denied.res.body.reportText, undefined);
+  }
   console.log(`tradovate report diagnostic: ${count} cases passed`);
 } finally {
   globalThis.fetch = originalFetch; globalThis.setTimeout = originalTimer;

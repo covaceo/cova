@@ -38,6 +38,47 @@ function selectPerformance(payload) {
   if (!["startDate", "endDate", "account"].every(name => names.has(name))) fail("missing_required_contract");
   return { name: "Performance", params: safe };
 }
+// Metadata is projected, never copied wholesale from provider-controlled descriptors.
+function reportDefinitions(payload) {
+  if (hasError(payload)) fail("provider_error");
+  const reports = Array.isArray(payload) ? payload : payload?.reports;
+  if (hasError(reports) || Array.isArray(reports) && reports.some(hasError)) fail("provider_error");
+  if (!Array.isArray(reports) || reports.length > 256) fail("invalid_reports_envelope");
+  return reports.map(report => {
+    if (!report || !safeLabel(report.name)) fail("invalid_report_descriptor");
+    const safe = { name: report.name };
+    if (Object.hasOwn(report, "label")) {
+      if (!safeLabel(report.label)) fail("invalid_report_descriptor");
+      safe.label = report.label;
+    }
+    if (!Array.isArray(report.params) || report.params.length > 32) fail("invalid_report_params");
+    const names = new Set();
+    safe.params = report.params.map(param => {
+      if (hasError(param)) fail("provider_error");
+      if (!param || !safeLabel(param.name) || names.has(param.name) || !safeLabel(param.paramType)) fail("invalid_report_descriptor");
+      if (typeof param.optional !== "boolean") fail("missing_or_invalid_optional");
+      names.add(param.name);
+      return { name: param.name, paramType: param.paramType, optional: param.optional };
+    });
+    if (Object.hasOwn(report, "fields")) {
+      if (!Array.isArray(report.fields) || report.fields.length > 128) fail("invalid_report_fields");
+      safe.fields = report.fields.map(field => {
+        if (hasError(field)) fail("provider_error");
+        if (safeLabel(field)) return field;
+        if (!field || typeof field !== "object" || Array.isArray(field)) fail("invalid_report_fields");
+        const descriptor = {};
+        for (const key of ["name", "label", "type", "fieldType", "dataType", "optional"]) {
+          if (!Object.hasOwn(field, key)) continue;
+          const value = field[key];
+          if (!safeLabel(value) && typeof value !== "boolean" && !(typeof value === "number" && Number.isFinite(value))) fail("invalid_report_fields");
+          descriptor[key] = value;
+        }
+        return descriptor;
+      });
+    }
+    return safe;
+  });
+}
 function ownedAccounts(payload, token) {
   if (hasError(payload) || Array.isArray(payload) && payload.some(hasError)) fail("provider_error");
   if (!Array.isArray(payload) || payload.length > 256) fail("invalid_accounts");
@@ -139,6 +180,40 @@ export async function diagnoseTradovateReport(token, query, signal) {
     try { base = new URL(process.env.TRADOVATE_API_BASE_URL || ""); } catch { fail("unsupported_environment"); }
     if (base.origin !== "https://demo.tradovateapi.com" || !["/v1", "/v1/"].includes(base.pathname) || base.username || base.password || base.search || base.hash) fail("unsupported_environment");
     if (typeof token !== "string" || !token || token.length > 65536 || token !== token.trim() || /[\x00-\x1f\x7f]/.test(token)) fail("invalid_credential");
+    if (["fee-discovery", "fee-report"].includes(query.diagnostic)) {
+      const feeReport = query.diagnostic === "fee-report";
+      const keys = feeReport ? ["diagnostic", "reportName", "accountId", "startDate", "endDate", "connectionId"] : ["diagnostic", "connectionId"];
+      if (Object.keys(query).some(key => !keys.includes(key))) fail("invalid_request");
+      let window;
+      if (feeReport) {
+        if (typeof query.accountId !== "string" || !/^[1-9]\d{0,15}$/.test(query.accountId) || !Number.isSafeInteger(Number(query.accountId))) fail("invalid_account_id");
+        if (!safeLabel(query.reportName)) fail("invalid_report_name");
+        if (typeof query.startDate !== "string" || typeof query.endDate !== "string") fail("invalid_dates");
+        window = recentWindow(query);
+        if (Date.parse(window.endDate) - Date.parse(window.startDate) > 30 * 86400000) fail("invalid_date_window");
+      }
+      const reports = reportDefinitions(await request("definitions"));
+      if (JSON.stringify(reports).includes(JSON.stringify(token).slice(1, -1))) fail("unsafe_report_metadata");
+      if (!feeReport) return { ...result, status: "discovery", reports, schemaValidated: false };
+      const matches = reports.filter(report => report.name === query.reportName);
+      if (!matches.length) fail("invalid_report_name");
+      if (matches.length !== 1) fail("ambiguous_report_name");
+      const selected = matches[0];
+      if (![selected.name, selected.label].some(value => typeof value === "string" && /^cash[\s_-]*history(?:\b|$)/i.test(value))) fail("unsupported_report_name");
+      if (!["account", "startDate", "endDate"].every(name => selected.params.some(param => param.name === name))) fail("missing_required_contract");
+      for (const param of selected.params) {
+        if (!["account", "startDate", "endDate", "startTime", "endTime"].includes(param.name)) {
+          if (!param.optional) fail("unsupported_required_parameter");
+        } else if (TYPES[param.name] !== param.paramType) fail("unsupported_parameter_type");
+      }
+      const accounts = ownedAccounts(await request("accounts"), token);
+      const account = accounts.find(row => row.id === query.accountId);
+      if (!account) fail("account_not_owned");
+      const values = { account: account.name, startDate: window.startValue, endDate: window.endValue, startTime: window.startTime, endTime: window.endTime };
+      const params = selected.params.filter(param => Object.hasOwn(values, param.name)).map(param => ({ name: param.name, value: values[param.name] }));
+      result.provenance = { report: selected.name, representationType: "csv", account, startDate: window.startDate, endDate: window.endDate, startTime: window.startTime, endTime: window.endTime, timeZone: window.timeZone, timezoneOffset: window.timezoneOffset, coverage: "calendar_day_not_exchange_session" };
+      return reportData(await request("report", { name: selected.name, representationType: "csv", timezone: 0, params }));
+    }
     const reportMode = query.diagnostic === "history-report";
     const historyMode = query.history === "recent";
     if (!historyMode && !reportMode && query.diagnostic !== "history-discovery") fail("invalid_request");
@@ -182,6 +257,9 @@ export async function diagnoseTradovateReport(token, query, signal) {
       { name: "startDate", value: window.startValue }, { name: "endDate", value: window.endValue },
       { name: "startTime", value: window.startTime }, { name: "endTime", value: window.endTime }, { name: "account", value: account.name },
     ] });
+    return reportData(payload);
+  }
+  function reportData(payload) {
     if (hasError(payload?.data)) fail("provider_error");
     if (!payload || Array.isArray(payload) || typeof payload.data !== "string") fail("unsupported_report_envelope");
     const text = payload.data;

@@ -87,7 +87,7 @@ export default async function handler(req, res) {
       let connectionExpiresAt;
       try {
         // Reporting diagnostics reject expired rows without the normal lookup's pruning write.
-        const connection = Object.hasOwn(req.query || {}, "history") || ["history", "history-discovery", "history-report"].includes(req.query?.diagnostic)
+        const connection = Object.hasOwn(req.query || {}, "history") || ["history", "history-discovery", "history-report", "fee-discovery", "fee-report"].includes(req.query?.diagnostic)
           ? await getBrokerConnection({ connectionId, provider: "tradovate", userId: user.id, pruneExpired: false })
           : await getTradovateConnection(connectionId, user.id);
         if (!connection?.access_token_encrypted) {
@@ -116,8 +116,9 @@ export default async function handler(req, res) {
             providerController.abort();
           }
         }
-        if (["history-discovery", "history-report"].includes(req.query?.diagnostic)) {
+        if (["history-discovery", "history-report", "fee-discovery", "fee-report"].includes(req.query?.diagnostic)) {
           try {
+            if (["fee-discovery", "fee-report"].includes(req.query.diagnostic) && req.query.connectionId !== undefined && req.query.connectionId !== connectionId) return res.status(409).json({ error: "Tradovate connection changed. Check the connection and retry." });
             return res.status(200).json(await diagnoseTradovateReport(accessToken, req.query, providerSignal));
           } finally {
             providerController.abort();
