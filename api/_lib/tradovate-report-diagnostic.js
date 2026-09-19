@@ -1,5 +1,6 @@
 // Read-only diagnostics, not a ledger importer. Native current client supplies report POST contract.
 import { parsePerformanceReport } from "./tradovate-performance.js";
+import { parseCashHistory } from "./tradovate-cash.js";
 const URLS = Object.freeze({ definitions: "https://rpt-demo.tradovateapi.com/v1/reports/requestReportDefinitions", accounts: "https://demo.tradovateapi.com/v1/account/list", report: "https://rpt-demo.tradovateapi.com/v1/reports/requestreport" });
 const TYPES = Object.freeze({ startDate: "Date", endDate: "Date", startTime: "Time", endTime: "Time", account: "accounts", contract: "contracts" });
 const hasError = value => value !== null && typeof value === "object" && ["error", "errorText", "errorMessage", "errorCode", "errors"].some(key => Object.hasOwn(value, key));
@@ -217,12 +218,14 @@ export async function diagnoseTradovateReport(token, query, signal) {
     const reportMode = query.diagnostic === "history-report";
     const historyMode = query.history === "recent";
     if (!historyMode && !reportMode && query.diagnostic !== "history-discovery") fail("invalid_request");
-    const keys = historyMode ? ["history", "accountId", "startDate", "endDate", "connectionId"] : reportMode ? ["diagnostic", "accountId", "startDate", "endDate"] : ["diagnostic"];
+    const keys = historyMode ? ["history", "accountId", "startDate", "endDate", "connectionId", "cash"] : reportMode ? ["diagnostic", "accountId", "startDate", "endDate"] : ["diagnostic"];
     if (Object.keys(query).some(key => !keys.includes(key))) fail("invalid_request");
     if (reportMode && (typeof query.accountId !== "string" || !/^[1-9]\d{0,15}$/.test(query.accountId) || !Number.isSafeInteger(Number(query.accountId)))) fail("invalid_account_id");
     if (historyMode && query.accountId !== undefined && (typeof query.accountId !== "string" || !/^[1-9]\d{0,15}$/.test(query.accountId))) fail("invalid_account_id");
     const window = historyMode ? recentWindow(query) : reportMode ? reportWindow(query) : null;
-    const performance = selectPerformance(await request("definitions"));
+    if (query.cash !== undefined && (query.cash !== "1" || !historyMode || !query.accountId)) fail("invalid_request");
+    const definitions = await request("definitions");
+    const performance = selectPerformance(definitions);
     const accounts = ownedAccounts(await request("accounts"), token);
     if (historyMode) {
       if (!["startTime", "endTime"].every(name => performance.params.some(param => param.name === name))) fail("missing_time_contract");
@@ -238,7 +241,24 @@ export async function diagnoseTradovateReport(token, query, signal) {
           ] });
           if (hasError(payload?.data) || !payload || Array.isArray(payload) || typeof payload.data !== "string" || payload.data.includes(token)) fail("unsupported_report_envelope");
           const parsed = parsePerformanceReport(payload.data, account.id, window);
-          historyAccounts.push({ account, status: parsed.trades.length ? "ready" : "empty", ...parsed });
+          let cash;
+          { // Normal history sync always attempts actual fees; failures never invent net.
+            try {
+              const matches = reportDefinitions(definitions).filter(r => r.name === "Cash History");
+              if (matches.length !== 1) fail("missing_cash_contract");
+              const values = {startDate:window.startValue,endDate:window.endValue,startTime:"00:00:00",endTime:"00:00:00",account:account.name};
+              const descriptor=matches[0];
+              if (!["account","startDate","endDate","startTime","endTime"].every(name=>descriptor.params.some(p=>p.name===name))) fail("missing_cash_contract");
+              for(const p of descriptor.params) {
+                if(Object.hasOwn(values,p.name)){if(TYPES[p.name]!==p.paramType)fail("unsupported_parameter_type");}
+                else if(!p.optional)fail("unsupported_required_parameter");
+              }
+              const fees=await request("report",{name:"Cash History",representationType:"csv",timezone:0,params:descriptor.params.filter(p=>Object.hasOwn(values,p.name)).map(p=>({name:p.name,value:values[p.name]}))});
+              if(typeof fees?.data!=="string" || fees.data.includes(token))fail("unsupported_report_envelope");
+              cash=parseCashHistory(fees.data,account,window,parsed.trades);
+            } catch { cash={status:"unavailable",reason:"Cash history could not be reconciled. Gross trades are retained."}; }
+          }
+          historyAccounts.push({ account, status: parsed.trades.length ? "ready" : "empty", ...parsed, ...(cash ? {cash} : {}) });
         } catch (error) {
           if (signal.aborted) fail("timeout");
           historyAccounts.push({ account, status: "failed", reason: error instanceof DiagnosticFailure ? error.reason : "invalid_performance_report" });

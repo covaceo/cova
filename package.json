@@ -30,7 +30,7 @@
     "test:classic-auth": "node --test scripts/classic-auth-regression.mjs",
     "test:recovery-callback-browser": "node scripts/recovery-callback-browser-regression.mjs && node scripts/recovery-callback-browser-regression.mjs --reload && node scripts/recovery-callback-browser-regression.mjs --mismatched && node scripts/recovery-callback-browser-regression.mjs --forged-marker && node scripts/recovery-callback-browser-regression.mjs --ordinary-reload",
     "test:api-security": "node scripts/api-security-regression.mjs && node scripts/tradovate-history-diagnostic-regression.mjs && node scripts/tradovate-report-regression.mjs",
-    "test:tradovate-history": "node scripts/tradovate-performance-regression.mjs && node scripts/tradovate-auto-history-regression.mjs && node scripts/tradovate-history-client-regression.mjs && node scripts/tradovate-auto-history-browser-regression.mjs",
+    "test:tradovate-history": "node --test scripts/tradovate-cash-regression.mjs scripts/broker-cash-client-regression.mjs && node scripts/tradovate-performance-regression.mjs && node scripts/tradovate-auto-history-regression.mjs && node scripts/tradovate-history-client-regression.mjs && node scripts/tradovate-auto-history-browser-regression.mjs",
     "test:tradovate-capability": "node --test scripts/tradovate-capability-regression.mjs",
     "test:rithmic": "node --test scripts/rithmic-service-regression.mjs",
     "test:rithmic-ui": "node scripts/rithmic-ui-regression.mjs",

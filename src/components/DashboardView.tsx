@@ -9,6 +9,7 @@ import { FlagStack } from "./DashboardCards";
 import { RithmicAttribution } from "./RithmicAttribution";
 import { AstraEquityCurve } from "./AstraEquityCurve";
 import { DashboardTradeDialog } from "./DashboardTradeDialog";
+import { brokerCashSummary, type CashSummary } from '../lib/brokerCash';
 import { signedMoney } from "../lib/dashboardPresentation";
 export { signedMoney } from "../lib/dashboardPresentation";
 
@@ -37,6 +38,9 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, o
   }
   const scopedTrades = useMemo(() => filterTradesByRange(analysis.trades, range), [analysis.trades, range]);
   const scopedAnalysis = useMemo(() => analyze(scopedTrades, rules), [scopedTrades, rules]);
+  const cash = brokerCashSummary(analysis.trades, range);
+  const tradovateOnly = analysis.trades.length > 0 && analysis.trades.every(t => t.source?.provider === 'Tradovate');
+  const netCash = !journalReview && cash.status === 'available' ? cash : null;
   const journal = useMemo(() => journalSummary(scopedTrades), [scopedTrades]);
   const hasRithmicTrades = analysis.trades.some((trade) => trade.source?.provider === "Rithmic");
   const hasRithmicSource = hasRithmicTrades || rithmicSyncAvailable;
@@ -78,18 +82,19 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, o
         <button className="dashboard-empty-action" onClick={() => go("import")} type="button">Import trade history <ArrowUpRight aria-hidden="true" /></button>
       </div>
     </section> : <>
-      {journalReview ? <><p className="astra-mini-note">Account accuracy review · Beta · Your saved history is unchanged.</p><JournalHeadlineStats journal={journal} /></> : <DashboardStats analysis={scopedAnalysis} />}
+      {journalReview ? <><p className="astra-mini-note">Account accuracy review · Beta · Your saved history is unchanged.</p><JournalHeadlineStats journal={journal} /></> : <DashboardStats analysis={scopedAnalysis} cash={cash} tradovateOnly={tradovateOnly} />}
+      {tradovateOnly && <p className="astra-mini-note" data-cash-coverage>{netCash ? `Broker cash movements · ${netCash.startDate} to ${netCash.endDate} exclusive, UTC · Synced ${new Date(netCash.asOf).toLocaleString()}. Funding excluded. Fees are not allocated to individual trades; win rate, trade statistics and discipline remain before fees.` : cash.status === 'unavailable' ? cash.reason : 'Account review uses gross trade results.'}</p>}
       {hasRithmicSource && <div className="dashboard-attribution-row"><RithmicAttribution compact /></div>}
       <div className="astra-desk-grid">
         <section className="astra-panel astra-chart-panel" aria-labelledby="astra-equity-title">
           <div className="astra-panel-heading">
-            <div><h2 id="astra-equity-title">Equity curve</h2><p>Cumulative reported P&amp;L from the selected trade history.</p></div>
+            <div><h2 id="astra-equity-title">Equity curve</h2><p>{netCash ? "Cumulative net cash P&L after broker trading fees. Funding excluded." : "Cumulative gross / reported P&L from the selected trade history."}</p></div>
             <div className="dashboard-range-controls astra-segmented" role="group" aria-label="Dashboard review range">
               {rangeOptions.map(option => <button aria-pressed={range === option.id} className={range === option.id ? "dashboard-range-active" : ""} key={option.id} onClick={() => setRange(option.id)} type="button">{option.label}</button>)}
             </div>
           </div>
-          {journalReview && journal.money.status !== 'available' ? <p className="astra-mini-note">{journal.money.reason}</p> : <AstraEquityCurve points={journalReview && journal.money.status === 'available' ? journal.money.equityPoints : scopedAnalysis.equityPoints} />}
-          <div className="astra-chart-note"><span><i aria-hidden="true" />Reported P&amp;L</span><span data-dashboard-trade-count={journalReview ? scopedTrades.length : scopedAnalysis.tradeCount}>{journalReview ? scopedTrades.length : scopedAnalysis.tradeCount} {journalReview ? 'matched rows' : 'trades'} · {journalReview ? (journal.money.status === 'available' ? moneyText(journal.money.totalCents) : 'Unavailable') : signedMoney(scopedAnalysis.totalPnl)}</span></div>
+          {journalReview && journal.money.status !== 'available' ? <p className="astra-mini-note">{journal.money.reason}</p> : <AstraEquityCurve points={netCash ? netCash.points : journalReview && journal.money.status === 'available' ? journal.money.equityPoints : scopedAnalysis.equityPoints} />}
+          <div className="astra-chart-note"><span><i aria-hidden="true" />{netCash ? "Net cash P&L" : tradovateOnly ? "Gross P&L" : "Reported P&L"}</span><span data-dashboard-trade-count={journalReview ? scopedTrades.length : scopedAnalysis.tradeCount}>{journalReview ? scopedTrades.length : scopedAnalysis.tradeCount} {journalReview ? 'matched rows' : 'trades'} · {journalReview ? (journal.money.status === 'available' ? moneyText(journal.money.totalCents) : 'Unavailable') : signedMoney(netCash ? netCash.netCents / 100 : scopedAnalysis.totalPnl)}</span></div>
         </section>
         {journalReview ? <JournalDisciplineReview journal={journal} rules={rules} onRules={() => go('rules')} /> : <DisciplineReview analysis={scopedAnalysis} go={go} />}
       </div>
@@ -117,11 +122,12 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, o
   </section>;
 }
 
-function DashboardStats({ analysis }: { analysis: Analysis }) {
+function DashboardStats({ analysis, cash, tradovateOnly }: { analysis: Analysis; cash: CashSummary; tradovateOnly: boolean }) {
+  const net = cash.status === 'available' ? cash : null;
   const wins = analysis.winningTradeCount;
   const entries = analysis.entryGroups.some(group => group.entryIdentified);
   const cells = [
-    { id: "pnl", label: "Reported P&L", value: signedMoney(analysis.totalPnl), detail: `${analysis.tradeCount} ${entries ? 'trade entries · partial exits combined' : 'closed trades'}`, negative: analysis.totalPnl < 0 },
+    { id: "pnl", label: net ? "Net cash P&L" : tradovateOnly ? "Gross P&L · fees unavailable" : "Reported P&L", value: signedMoney(net ? net.netCents / 100 : analysis.totalPnl), detail: net ? `${signedMoney(net.grossCents / 100)} gross · ${signedMoney(net.feeCents / 100)} fees` : `${analysis.tradeCount} ${entries ? 'trade entries · partial exits combined' : 'closed trades'}`, negative: (net ? net.netCents : analysis.totalPnl) < 0 },
     { id: "win-rate", label: entries ? "Entry win rate" : "Win rate", value: `${entries ? (analysis.winRate * 100).toFixed(2) : Math.round(analysis.winRate * 100)}%`, detail: `${wins} wins / ${analysis.tradeCount} ${entries ? 'entries' : 'trades'}` },
     { id: "profit-factor", label: "Profit factor", value: Number.isFinite(analysis.profitFactor) ? analysis.profitFactor.toFixed(2) : "∞", detail: analysis.grossLoss ? "Gross profit / gross loss" : analysis.grossProfit ? "No losing trades in this range" : "No gross profit or gross loss" },
     { id: "drawdown", label: "Max drawdown", value: signedMoney(-analysis.maxDrawdown), detail: "Closed-trade peak to trough", negative: analysis.maxDrawdown > 0 },

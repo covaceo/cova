@@ -27,10 +27,15 @@ async function run(options={}) {
     }
     assert.equal(init.headers.Authorization,'Bearer fixture-provider-token');assert.equal(init.redirect,'error');
     if(options.timeout)return new Promise(()=>{});
-    if(target.endsWith('/requestReportDefinitions'))return json({reports:[definition]});
+    if(target.endsWith('/requestReportDefinitions'))return json({reports:options.cash?[definition,{...definition,name:'Cash History'}]:[definition]});
     if(target.endsWith('/account/list'))return json(options.accounts || [{id:71,name:'Synthetic A',active:true},{id:72,name:'Synthetic B',active:true}]);
     if(target.endsWith('/requestreport')){
-      const body=JSON.parse(init.body);assert.equal(init.method,'POST');assert.equal(body.template,'Flex.html');assert.equal(body.timezone,0);
+      const body=JSON.parse(init.body);assert.equal(init.method,'POST');
+      if(body.name==='Cash History') {
+        assert.equal(body.template,undefined);assert.equal(body.timezone,0);assert.equal(body.params.find(p=>p.name==='account').value,'Synthetic A');
+        return json(options.cashBad?{error:'fixture-private-rejection'}:{data:'Account,Transaction ID,Timestamp,Date,Delta,Amount,Cash Change Type,Currency,Contract\r\nSynthetic A,1,11/02/2026 00:00:00,2026-11-02,-1.21,998.79, Commission,USD,MNQZ6\r\nSynthetic A,2,11/02/2026 00:00:05,2026-11-02,10.00,"1,008.79", Trade Paired,USD,MNQZ6\r\n'});
+      }
+      assert.equal(body.template,'Flex.html');assert.equal(body.timezone,0);
       assert.equal(body.params.find(p=>p.name==='startDate').value,'11/01/2026');
       const name=body.params.find(p=>p.name==='account').value;assert(['Synthetic A','Synthetic B'].includes(name));
       if(options.reject && name==='Synthetic B')return json({error:'fixture-private-rejection'},403);
@@ -60,5 +65,7 @@ try {
   const bad=await run({bad:true});assert(bad.res.body.accounts.every(a=>a.status==='failed' && !a.csv));
   for(const options of [{anonymous:true},{plan:'free'},{missing:true},{expired:true},{base:'https://live.tradovateapi.com/v1'},{query:{startDate:'bad'}},{query:{startDate:'2026-01-01'}},{query:{accountId:'999'}},{query:{history:['recent']}}]) {const denied=await run(options);assert(!denied.res.body.accounts?.some(a=>a.status==='ready'));}
   for(const options of [{timeout:true},{oversized:true}]) {const result=await run(options);assert(!result.res.body.accounts?.some(a=>a.status==='ready'));}
+  const net=await run({cash:true,query:{accountId:'71'}});assert.equal(net.res.body.accounts?.[0]?.cash?.netCents,879);assert.equal(net.res.body.accounts[0].trades[0].pnl,10,'Gross ledger remains intact');
+  const missingCash=await run({cash:true,cashBad:true,query:{accountId:'71',cash:'1'}});assert.equal(missingCash.res.body.accounts[0].status,'ready');assert.equal(missingCash.res.body.accounts[0].cash.status,'unavailable');
   console.log(`Tradovate automatic history: ${cases} actual-handler cases passed`);
 } finally {globalThis.fetch=nativeFetch;globalThis.setTimeout=nativeTimer;for(const key of Object.keys(process.env))if(!(key in env))delete process.env[key];Object.assign(process.env,env);}

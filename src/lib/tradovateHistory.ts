@@ -1,6 +1,6 @@
 import { parseCsvDetailed, type Trade } from "./risk";
 
-export type HistoryAccount = { account: { id: string; name: string }; status: "ready" | "empty" | "failed" | "deferred"; csv?: string; counts?: { trades: number }; trades?: Trade[]; reason?: string };
+export type HistoryAccount = { account: { id: string; name: string }; status: "ready" | "empty" | "failed" | "deferred"; csv?: string; counts?: { trades: number }; trades?: Trade[]; reason?: string; cash?: unknown };
 const HISTORY_HEADER = "date,market,side,contracts,entry,exit,pnl,risk,setup,notes,sourceProvider,sourceAccountId,sourceTradeId,sourceOpenedAt,sourceClosedAt,sourceTimeZone,sourcePnlBasis";
 const POINTS: Record<string, number> = { NQ: 20, MNQ: 2, ES: 50, MES: 5, YM: 5, MYM: 0.5, RTY: 50, M2K: 5, CL: 1000, MCL: 100, GC: 100, MGC: 10, SI: 5000, SIL: 1000, HG: 25000, ZB: 1000, ZN: 1000, ZF: 1000, ZT: 1000 };
 export function recentHistoryWindow(now = new Date()) {

@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createServer } from 'vite';
 import { parsePerformanceReport } from '../api/_lib/tradovate-performance.js';
+import { parseCashHistory } from '../api/_lib/tradovate-cash.js';
 const output=process.env.AUTO_HISTORY_EVIDENCE || join(tmpdir(),'cova-auto-history-browser');
 await mkdir(output,{recursive:true});
 const profile=await mkdtemp(join(tmpdir(),'cova-auto-history-chrome-'));
@@ -15,6 +16,10 @@ const window={startDate:day,endDate:tomorrow,timeZone:'UTC',timezoneOffset:0};
 const header='symbol,_priceFormat,_priceFormatType,_tickSize,buyFillId,sellFillId,qty,buyPrice,sellPrice,pnl,boughtTimestamp,soldTimestamp,duration';
 const report=`${header}\r\nMNQZ6,-2,0,0.25,101,102,1,20000,20006,$12.00,${date} 00:00:00,${date} 00:00:10,10sec\r\n`;
 const payload={status:'history_ready',provider:'Tradovate',coverage:'bounded_matched_fill_pairs',pnlBasis:'gross_before_fees',window,accounts:[71,72].map(id=>({account:{id:String(id),name:`Synthetic ${id}`},status:'ready',...parsePerformanceReport(report,String(id),window)}))};
+for(const item of payload.accounts){const fee=item.account.id==='71'?'1.21':'2.42';const final=item.account.id==='71'?'10.79':'9.58';item.cash=parseCashHistory(`Account,Transaction ID,Timestamp,Date,Delta,Amount,Cash Change Type,Currency,Contract
+${item.account.name},1,${date} 00:00:00,${day},-${fee},-${fee}, Commission,USD,MNQZ6
+${item.account.name},2,${date} 00:00:10,${day},12.00,${final}, Trade Paired,USD,MNQZ6
+`,item.account,window,item.trades);}
 const token=`${Buffer.from(JSON.stringify({alg:'none'})).toString('base64url')}.${Buffer.from(JSON.stringify({sub:'history-owner',session_id:'history-session',exp:Math.floor(Date.now()/1000)+3600,amr:[{method:'password'}]})).toString('base64url')}.synthetic`;
 for(const key of Object.keys(process.env))if(key.startsWith('VITE_'))delete process.env[key];
 Object.assign(process.env,{VITE_SUPABASE_URL:'https://synthetic.supabase.test',VITE_SUPABASE_ANON_KEY:'synthetic-anon',VITE_ENABLE_DEMO_PREVIEW:'false'});
@@ -37,6 +42,7 @@ if(url.pathname==='/api/tradovate/sync'){
  if(window.__fixtureError)return json({error:'Synthetic report failure'},502);
  const data=${JSON.stringify(payload)};data.window.startDate=url.searchParams.get('startDate')||data.window.startDate;data.window.endDate=url.searchParams.get('endDate')||data.window.endDate;
  for(const account of data.accounts){
+  account.cash.window={startDate:data.window.startDate,endDate:data.window.endDate};
   if(window.__fixtureCorrection){account.csv=account.csv.replace('20006','20010').replace(',12,',',20,');account.trades[0].exit=20010;account.trades[0].pnl=20;}
   if(window.__fixtureMode==='malformed')account.csv=account.csv.replace('20000','oops');
   if(window.__fixtureMode==='empty'){account.csv=account.csv.split('\\n')[0];account.trades=[];account.counts.trades=0;account.status='empty';}
@@ -66,7 +72,7 @@ const imported=async()=>{await evaluate('location.hash="import"');await wait(`Bo
 const screenshot=async(name)=>{await wait("document.fonts.status==='loaded'");await sleep(350);await writeFile(join(output,name+'.png'),Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));};
 await send('Runtime.enable');await send('Page.enable');
 for(const mobile of [false,true]){
-if(mobile) await evaluate('localStorage.clear();sessionStorage.clear()');
+if(mobile) {await evaluate('localStorage.clear();sessionStorage.clear()');await send('Page.navigate',{url:'about:blank'});await wait(`location.href==='about:blank'`);}
 await send('Emulation.setDeviceMetricsOverride',{width:mobile?390:1440,height:mobile?844:900,deviceScaleFactor:mobile?3:1,mobile});await send('Emulation.setTouchEmulationEnabled',{enabled:mobile,maxTouchPoints:mobile?5:1});
 await send('Page.navigate',{url:`http://127.0.0.1:${port}/__history.html?broker=tradovate&brokerStatus=connected#import`});
 await wait('Boolean(document.querySelector(".workspace-sidebar"))');
@@ -82,12 +88,13 @@ assert.equal(await evaluate('JSON.parse(localStorage.getItem("cova-react-risk-os
 assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth'),true);
 assert.deepEqual(await evaluate('[innerWidth,document.documentElement.clientWidth,Math.round(visualViewport.width)]'),mobile?[390,390,390]:[1440,1440,1440]);
 await wait('document.querySelector(".astra-source-label")?.textContent.includes("1 trades")');
-assert.match(await evaluate('document.querySelector(".astra-kpi-strip")?.innerText || document.body.innerText'),/\+\$12/);
+assert.match(await evaluate(`document.querySelector('[data-astra-stat="pnl"]').innerText`),/Net cash P&L[\s\S]*\+\$10\.79/);
 await wait(`!document.body.innerText.includes('History sync:')`);
-await screenshot(mobile?'mobile-dashboard':'desktop-dashboard');
+await wait(`!document.querySelector('.auth-overlay')`);await screenshot(mobile?'mobile-dashboard':'desktop-dashboard');
 assert.equal(await evaluate(`document.querySelector('[data-account-switcher]').getBoundingClientRect().height<=56`),true,'Switcher stays compact');
 await select('Trade account','Tradovate:72');
 assert.equal(await evaluate(`document.querySelector('[aria-label="Trade account"]').selectedOptions[0].textContent`),'Synthetic 72');
+assert.match(await evaluate(`document.querySelector('[data-astra-stat="pnl"]').innerText`),/\+\$9\.58/);
 await select('Trade account','all');
 assert.equal(await evaluate(`document.querySelector('[aria-label="Trade account"]').selectedOptions[0].textContent`),'All accounts');
 await select('Trade account','Tradovate:71');
@@ -105,6 +112,11 @@ await select('Trade account','Tradovate:71');
 await evaluate('[...document.querySelectorAll("button")].find(b=>b.textContent.trim()==="Load history").click()');await wait('location.hash==="#dashboard"');
 assert.equal(await evaluate('JSON.parse(localStorage.getItem("cova-react-risk-os-v2:history-owner")).trades.length'),3);
 receipts[receipts.length-1].repeatAdds=0;
+assert.match(await evaluate(`document.querySelector('[data-astra-stat="pnl"]').innerText`),/\+\$10\.79/,'Repeat sync must not deduct fees twice');
+const netBeforeReload=await evaluate('performance.timeOrigin');await send('Page.reload');await wait(`performance.timeOrigin!==${netBeforeReload} && Boolean(document.querySelector('[data-astra-stat="pnl"]'))`);
+assert.match(await evaluate(`document.querySelector('[data-astra-stat="pnl"]').innerText`),/Net cash P&L[\s\S]*\+\$10\.79/,'Net survives reload');
+for(const label of ['Latest session','Last 7 days','All trades']) {await evaluate(`[...document.querySelectorAll('.dashboard-range-controls button')].find(b=>b.textContent===${JSON.stringify(label)}).click()`);await sleep(60);assert.match(await evaluate(`document.querySelector('[data-astra-stat="pnl"]').innerText`),/\+\$10\.79/);}
+
 if(!mobile){
  await evaluate('location.hash="import"');await wait(`Boolean(document.querySelector('[aria-label="History account"]'))`);
  const before=await evaluate('localStorage.getItem("cova-react-risk-os-v2:history-owner")');
