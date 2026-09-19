@@ -88,12 +88,12 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, o
       <div className="astra-desk-grid">
         <section className="astra-panel astra-chart-panel" aria-labelledby="astra-equity-title">
           <div className="astra-panel-heading">
-            <div><h2 id="astra-equity-title">Equity curve</h2><p>{netCash ? "Cumulative net cash P&L after broker trading fees. Funding excluded." : "Cumulative gross / reported P&L from the selected trade history."}</p></div>
+            <div><h2 id="astra-equity-title">Equity curve</h2><p>{netCash ? "Daily cumulative net P&L · UTC cash dates · Fees included, funding excluded." : "Cumulative gross / reported P&L from the selected trade history."}</p></div>
             <div className="dashboard-range-controls astra-segmented" role="group" aria-label="Dashboard review range">
               {rangeOptions.map(option => <button aria-pressed={range === option.id} className={range === option.id ? "dashboard-range-active" : ""} key={option.id} onClick={() => setRange(option.id)} type="button">{option.label}</button>)}
             </div>
           </div>
-          {journalReview && journal.money.status !== 'available' ? <p className="astra-mini-note">{journal.money.reason}</p> : <AstraEquityCurve points={netCash ? netCash.points : journalReview && journal.money.status === 'available' ? journal.money.equityPoints : scopedAnalysis.equityPoints} />}
+          {journalReview && journal.money.status !== 'available' ? <p className="astra-mini-note">{journal.money.reason}</p> : <AstraEquityCurve basis={netCash ? "daily-net" : "trades"} points={netCash ? netCash.points : journalReview && journal.money.status === 'available' ? journal.money.equityPoints : scopedAnalysis.equityPoints} />}
           <div className="astra-chart-note"><span><i aria-hidden="true" />{netCash ? "Net cash P&L" : tradovateOnly ? "Gross P&L" : "Reported P&L"}</span><span data-dashboard-trade-count={journalReview ? scopedTrades.length : scopedAnalysis.tradeCount}>{journalReview ? scopedTrades.length : scopedAnalysis.tradeCount} {journalReview ? 'matched rows' : 'trades'} · {journalReview ? (journal.money.status === 'available' ? moneyText(journal.money.totalCents) : 'Unavailable') : signedMoney(netCash ? netCash.netCents / 100 : scopedAnalysis.totalPnl)}</span></div>
         </section>
         {journalReview ? <JournalDisciplineReview journal={journal} rules={rules} onRules={() => go('rules')} /> : <DisciplineReview analysis={scopedAnalysis} go={go} />}
