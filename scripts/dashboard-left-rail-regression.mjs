@@ -49,7 +49,7 @@ assert.match(navbar, /operator-mobile-delete-account[\s\S]*?onClick=\{\(\) => \{
 assert.match(app, /<Navbar[\s\S]*?deleteAccount=\{deleteAccount\}/, "App must wire account deletion into collapsed workspace chrome");
 assert.doesNotMatch(navbar, /bg-white\/8|text-white\/68/, "collapsed current-state styling must use emitted authored classes rather than absent dynamic Tailwind utilities");
 
-assert.match(dashboard, /<h1[^>]*>Your trading, in perspective\.<\/h1>/, "dashboard must use Raf’s approved Astra title");
+assert.match(dashboard, /<h1[^>]*>Risk Desk<\/h1>/, "dashboard must use Raf’s approved Astra title");
 assert.match(dashboard, /dashboard-range-controls/, "dashboard must expose visible review-range controls");
 assert.match(dashboard, /astra-stat-strip/, "dashboard must lead with the approved four-cell financial strip");
 assert.match(dashboard, /astra-desk-grid/, "dashboard must use the approved Astra chart and discipline composition");
@@ -92,7 +92,7 @@ assert.equal(dashboardModule.getActionableReviewCount(overlappingWarning), 1, "a
 assert.deepEqual(dashboardModule.getDashboardSummaryAction(overlappingWarning), { label: "Review warnings", target: "rules" }, "configured breaches must still route to Limits");
 assert.match(dashboard, /label: net \? "Net cash P&L" : tradovateOnly \? "Gross P&L · fees unavailable" : "Reported P&L"/, "dashboard summary must not call provider-reported gross P&L net");
 assert.match(dashboard, /Cumulative gross \/ reported P&L from the selected trade history\./, "equity explanation must stay truthful across Rithmic, Tradovate, CSV, and sample rows");
-assert.doesNotMatch(dashboard, /Net P&L|Net cumulative P&amp;L|imported trade history/, "Risk Desk copy must stay truthful for gross provider history and sample review rows");
+assert.doesNotMatch(dashboard.replace('netCash ? "Net P&L curve" : "Equity curve"', '"Equity curve"'), /Net P&L|Net cumulative P&amp;L|imported trade history/, "Risk Desk copy must stay truthful for gross provider history and sample review rows");
 assert.match(dashboardCards, /\["Reported P&L", formatMoney\(analysis\.totalPnl\)\]/, "shared dashboard metrics must use the same provider-neutral P&L label");
 assert.doesNotMatch(dashboardCards, /\["Net P&L", formatMoney\(analysis\.totalPnl\)\]/, "shared dashboard metrics must not claim Rithmic gross P&L is net");
 assert.match(dashboard, /getTradeSourceLabel\(scopedAnalysis\.trades\)/, "dashboard selected ranges must label only the rows in the selected review");

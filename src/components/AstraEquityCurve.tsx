@@ -30,7 +30,8 @@ export function AstraEquityCurve({ points, basis = "trades" }: { points: Point[]
   useEffect(() => { setSelected(null); setPinned(false); }, [points]);
   const active = selected === null ? null : chart.points[Math.min(selected, chart.points.length - 1)];
   const last = chart.points[chart.points.length - 1];
-  const dateIndices = [...new Set(chart.points.length <= 2 ? [0, chart.points.length - 1] : [dailyNet ? 0 : 1, Math.floor((chart.points.length - 1) / 2), chart.points.length - 1])];
+  const showObservationLabels = dailyNet && chart.points.length > 1 && (chart.width - chart.left - chart.right) / (chart.points.length - 1) >= 85;
+  const dateIndices = showObservationLabels ? chart.points.map((_, index) => index) : [...new Set(chart.points.length <= 2 ? [0, chart.points.length - 1] : [dailyNet ? 0 : 1, Math.floor((chart.points.length - 1) / 2), chart.points.length - 1])];
 
   function pointIndex(event: PointerEvent<SVGSVGElement> | MouseEvent<SVGSVGElement>) {
     const svg = event.currentTarget;
@@ -58,8 +59,10 @@ export function AstraEquityCurve({ points, basis = "trades" }: { points: Point[]
       {chart.min < 0 && <line x1={chart.left} x2={chart.width - chart.right} y1={chart.zeroY} y2={chart.zeroY} className="astra-chart-zero" />}
       <path d={chart.area} fill={`url(#${gradient})`} />
       <path className="dashboard-equity-path astra-curve" d={chart.line} fill="none" stroke="#4f7dff" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+      {dailyNet && chart.points.length <= 40 && chart.points.map((point, index) => <circle className="astra-observation" key={index} cx={point.x} cy={point.y} r="3" fill="#d5e3ff" stroke="#4f7dff" strokeWidth="1.5" />)}
       <circle cx={last.x} cy={last.y} r="4" fill="#b2c8ff" stroke="#263b63" strokeWidth="5" />
       {dateIndices.map((index, position) => <text key={index} x={position === 0 ? chart.left : position === dateIndices.length - 1 ? chart.width - chart.right : chart.points[index].x} y={chart.height - 3} textAnchor={position === 0 ? "start" : position === dateIndices.length - 1 ? "end" : "middle"}>{dateLabel(chart.points[index].label)}</text>)}
+      {showObservationLabels && chart.points.map((point, index) => <text className="astra-observation-value" key={index} x={point.x} y={chart.height - 18} textAnchor={index === 0 ? "start" : index === chart.points.length - 1 ? "end" : "middle"}>{money(point.value)}</text>)}
       {active && <g aria-hidden="true"><line x1={active.x} x2={active.x} y1={chart.top} y2={chart.height - chart.bottom} className="astra-crosshair" /><circle cx={active.x} cy={active.y} r="4" fill="#e8eeff" /></g>}
     </svg>
     {active && <output className="astra-chart-tooltip" aria-live="polite" style={{ left: `clamp(95px, ${active.x / chart.width * 100}%, calc(100% - 95px))`, top: `${Math.max(5, Math.min(25, active.y / chart.height * 100 - 20))}%` }}><span>{active.label === "Start" ? "Range start · $0 P&L" : dailyNet ? `${dateLabel(active.label)} · UTC` : `Trade ${selected} · ${active.label}`}</span><strong>{money(active.value)}</strong>{dailyNet && <><small>Cumulative net</small><small>Day net {signedMoney((Math.round(active.value * 100) - Math.round((chart.points[(selected ?? 0) - 1]?.value ?? 0) * 100)) / 100)}</small></>}<small>{pinned ? "Pinned · Escape to clear" : "Click to pin"}</small></output>}
