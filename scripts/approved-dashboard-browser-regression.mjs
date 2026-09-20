@@ -42,11 +42,16 @@ try{
   const overflow=await evaluate(`['.astra-stat-strip','.astra-chart-panel','.astra-discipline','.astra-header-controls','.astra-journal'].filter(s=>{const e=document.querySelector(s);return e.scrollWidth>e.clientWidth+1})`);assert.deepEqual(overflow,[],name+' '+JSON.stringify(await evaluate(`[...document.querySelectorAll('.astra-stat-cell')].map(e=>({id:e.dataset.astraStat,width:e.clientWidth,scroll:e.scrollWidth,value:e.querySelector('.astra-stat-value').textContent,font:getComputedStyle(e.querySelector('.astra-stat-value')).fontSize}))`)));
   assert.equal(await evaluate(`document.querySelectorAll('[data-recent-trade]').length`),4);
   if(fixture?.cash)assert.match(await evaluate(`document.querySelector('[data-astra-stat="pnl"]').innerText`),/801\.22/);
+  const firstRead=await evaluate(`document.querySelector('.dashboard-workspace').innerText`);
+  for(const clutter of ['Cash report','End exclusive','Gross profit / gross loss','Closed-trade peak to trough','Evidence-based review. Not a trading permission.','Historical review','Evidence and review status'])assert.ok(!firstRead.includes(clutter),name+' default view must not show '+clutter);
+  assert.equal(await evaluate(`document.querySelectorAll('.astra-data-content .astra-stat-detail').length`),4,'All four original metric explanations remain in Data details');
+  assert.equal(await evaluate(`document.querySelectorAll('.astra-observation-value').length`),0,'Exact point values belong in the interactive tooltip, not on every date');
+  assert.ok(!await evaluate(`document.querySelector('.astra-chart-note').innerText.includes('$')`),'Do not repeat the headline total in the chart footer');
   await capture(name+'-dashboard');
   await evaluate(`document.querySelector('.astra-chart-svg').focus()`);await key('End',35);await wait(`Boolean(document.querySelector('.astra-chart-tooltip'))`);await contained();await capture(name+'-tooltip');await key('Escape',27);
   await evaluate(`document.querySelector('.astra-chart-svg').blur();window.scrollTo({top:0,behavior:'instant'})`);
   for(const label of ['Latest session','Last 7 days','All trades']){await evaluate(`[...document.querySelectorAll('.dashboard-range-controls button')].find(b=>b.textContent===${JSON.stringify(label)}).click()`);await wait(`[...document.querySelectorAll('.dashboard-range-controls button')].some(b=>b.textContent===${JSON.stringify(label)}&&b.getAttribute('aria-pressed')==='true')`);}
-  await evaluate(`document.querySelector('.astra-data-details summary').click()`);await wait(`document.querySelector('.astra-data-details').open`);await evaluate(`document.querySelector('.astra-data-details summary').click()`);
+  await evaluate(`document.querySelector('.astra-data-details summary').click()`);await wait(`document.querySelector('.astra-data-details').open`);assert.equal(await evaluate(`[...document.querySelectorAll('.astra-stat-detail')].filter(e=>e.checkVisibility()).length`),4,'Original metric explanations are readable on demand');await capture(name+'-data-details');await evaluate(`document.querySelector('.astra-data-details summary').click()`);
   await evaluate(`document.querySelector('.astra-trade-link').click()`);await wait(`Boolean(document.querySelector('dialog[open] textarea'))`);
   await evaluate(`document.querySelector('.astra-dialog-close').click()`);await wait(`!document.querySelector('dialog[open]')`);
   await evaluate(`document.querySelector('.astra-import-action').click()`);assert.equal(await evaluate('window.__visualRoute'),'import');

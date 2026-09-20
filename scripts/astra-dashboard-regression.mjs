@@ -77,7 +77,7 @@ test('Approved dashboard composition uses real analytics, recent trades, and an 
   const analysis = analyze(sampleTrades, defaultRules);
   const html = renderToStaticMarkup(React.createElement(Dashboard, {analysis,rules:defaultRules,go:()=>{}}));
   assert.ok(html.includes('<h1>Risk Desk</h1>'), 'Owner-approved reference replaces the older promotional heading');
-  for (const label of ['Reported P&amp;L','Win rate','Profit factor','Max drawdown','Discipline review','Recent trades','From the journal']) assert.ok(html.includes(label),label);
+  for (const label of ['Reported P&amp;L','Win rate','Profit factor','Max drawdown','Discipline review','Recent trades','Journal']) assert.ok(html.includes(label),label);
   assert.equal((html.match(/data-astra-stat=/g)||[]).length,4,'One four-cell financial strip');
   assert.equal((html.match(/data-recent-trade=/g)||[]).length,4,'Latest four actual ledger records');
   assert.ok(html.includes(String(analysis.score)), 'Score must come from risk.analyze');
@@ -97,7 +97,7 @@ test('Approved visual header receives the unchanged account control and keeps re
   assert.ok(html.includes('Open trade note'));
   assert.ok(html.includes('Import trades'));
   assert.ok(html.includes('Dashboard review range'));
-  assert.ok(html.includes('Evidence &amp; score factors'));
+  assert.ok(html.includes('<summary><span>Details</span>'),'Review disclosure is a short label, not another status line');
   assert.ok(!html.includes('Trade rows are available in history.'));
   assert.equal(JSON.stringify(analysis),before,'Presentation must not mutate the analysis');
 });
@@ -130,7 +130,7 @@ test('An account without trades stays blank and older rows without notes remain 
   assert.ok(empty.includes('data-dashboard-empty="true"'));
   assert.ok(!empty.includes('data-astra-stat=')&&!empty.includes('astra-score-ring'));
   const html = renderToStaticMarkup(React.createElement(Dashboard,{analysis:analyze([{...sampleTrades[0],notes:undefined}],defaultRules),rules:defaultRules,go:()=>{}}));
-  assert.ok(html.includes('No journal notes in this range.'));
+  assert.ok(html.includes('No notes yet.'));
 });
 
 test('The equity viewport follows its actual container so phone labels stay legible', async () => {
@@ -163,7 +163,7 @@ test('Reference daily chart marks actual observations without changing their geo
   const points=[{label:'2026-09-04',value:-12.37},{label:'2026-09-05',value:8.79},{label:'2026-09-06',value:6.69}];
   const html=renderToStaticMarkup(React.createElement(AstraEquityCurve,{points,basis:'daily-net'}));
   assert.equal((html.match(/class="astra-observation"/g)||[]).length,3);
-  assert.ok(html.includes('−$12.37'));
+  assert.ok(!html.includes('astra-observation-value'),'Per-day amounts remain available through the tooltip rather than duplicated along the axis');
   assert.ok(html.includes('$6.69'));
 });
 

@@ -317,10 +317,10 @@ async function auditDarkDashboard(label) {
     };
     const contrast = (a, b) => { const la = luminance(a); const lb = luminance(b); return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05); };
     const contrastSelectors = [
-      '.astra-data-details summary', '.astra-header-meta > span', '.dashboard-range-controls button:not(.dashboard-range-active)',
-      ...(document.querySelector('.astra-data-details')?.open ? ['.astra-source-label', ...(document.querySelector('.astra-data-content p') ? ['.astra-data-content p'] : [])] : []), '.astra-stat-label', '.astra-stat-detail', '.astra-panel-heading p',
-      '.astra-chart-note > span', '.astra-score-ring small', '.astra-score-row p', '.astra-historical-label',
-      '.astra-warning-link > span > span', '.astra-warning-link small', '.astra-evidence-details summary span',
+      '.astra-data-details summary', '.dashboard-range-controls button:not(.dashboard-range-active)',
+      ...(document.querySelector('.astra-data-details')?.open ? ['.astra-source-label', '.astra-stat-detail', '.astra-metric-explanations dt', ...(document.querySelector('.astra-data-content p') ? ['.astra-data-content p'] : [])] : []), '.astra-stat-label', '.astra-panel-heading h2',
+      '.astra-chart-note > span', '.astra-score-ring small', '.astra-score-row p',
+      '.astra-warning-link strong', '.astra-warning-link small', '.astra-evidence-details summary span',
       '.astra-note-date', '.astra-mini-note > p', '.astra-trade-table th', '.astra-review-details > summary span',
       '.astra-dashboard-footer > span',
       ...(innerWidth >= 851 ? ['.workspace-sidebar-group-label', '.workspace-account-copy small', '.astra-rail-account small'] : []),
