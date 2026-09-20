@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const chromePath = process.env.CHROME_PATH || "C:/Program Files/Google/Chrome/Application/chrome.exe";
-const evidenceDir = join(root, "node_modules/.cache/journal-accuracy");
+const evidenceDir = process.env.WORKSPACE_EVIDENCE || join(root, "node_modules/.cache/journal-accuracy");
 await mkdir(evidenceDir, { recursive: true });
 const profileDir = await mkdtemp(join(evidenceDir, "chrome-"));
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -220,8 +220,8 @@ async function press(key, code = key, modifiers = 0) {
     await sleep(100);
     return;
   }
-  await cdp.send("Input.dispatchKeyEvent", { type: "keyDown", key, code, modifiers });
-  await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", key, code, modifiers });
+  await cdp.send("Input.dispatchKeyEvent", { type: "keyDown", key, code, modifiers, windowsVirtualKeyCode: key === "Escape" ? 27 : undefined });
+  await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", key, code, modifiers, windowsVirtualKeyCode: key === "Escape" ? 27 : undefined });
   await sleep(100);
 }
 
@@ -283,7 +283,7 @@ try {
     } else void cdp.send('Fetch.continueRequest',{requestId:e.requestId});
   });
   await Promise.all([cdp.send('Page.enable'),cdp.send('Runtime.enable'),cdp.send('Network.enable'),cdp.send('Fetch.enable',{patterns:[{urlPattern:'*',requestStage:'Request'}]})]);
-  for (const [width,height,mobile] of [[1440,1000,false],[390,844,true]]) {
+  for (const [width,height,mobile] of [[1440,1000,false],[1280,720,false],[850,900,true],[851,900,false],[390,844,true],[360,800,true]]) {
     console.log('Opening dashboard',width); await openDashboard(width,height,mobile); console.log('Dashboard mounted',width);
     const key = await evaluate("'cova-react-risk-os-v2:' + localStorage.getItem('cova-active-storage-identity-v1')");
     const rows = [tradeFixture(),tradeFixture({id:'row-b',pnl:-129,date:'2026-09-02'})];
@@ -331,6 +331,60 @@ try {
     const partialOverflow=await evaluate('document.documentElement.scrollWidth-document.documentElement.clientWidth');
     assert.ok(partialOverflow<=1);
     console.log('PARTIALS PASS',JSON.stringify({width,groupedTrades:2,rawRows:3,expandableExits:2,ledgerUnchanged:true,overflow:partialOverflow}));
+    await clickSelector('[aria-label="Close trade history"]');
+    const longRows=Array.from({length:53},(_,i)=>tradeFixture({id:'history-pagination-'+i,notes:'Saved note '+i,date:'2026-09-10'}));
+    await evaluate(`localStorage.setItem(${JSON.stringify(key)},${JSON.stringify(JSON.stringify({trades:longRows,rules}))})`);
+    const paginationDocument=await evaluate('performance.timeOrigin');
+    await cdp.send('Page.navigate',{url:`${origin}/?historyPagination=${width}#dashboard`});
+    await waitFor(`performance.timeOrigin !== ${paginationDocument} && document.querySelector('.astra-trade-link')`);
+    await clickSelector('.dashboard-range-controls button','Latest session');
+    await clickSelector('.astra-recent-trades .astra-text-link','View all');
+    await waitFor(`document.querySelector('[data-full-trade-history][open]') && document.querySelectorAll('[data-history-trade]').length===50`);
+    assert.match(await evaluate(`document.querySelector('.astra-history-header').innerText`),/53 trade entries.*All dates/s);
+    assert.equal(await evaluate(`document.querySelector('.astra-history-pagination button').disabled`),true);
+    await clickSelector('.astra-history-pagination button','Next');
+    await waitFor(`document.querySelectorAll('[data-history-trade]').length===3`);
+    assert.match(await evaluate(`document.querySelector('.astra-history-table').innerText`),/Saved note 0/,'Oldest stored note remains reachable');
+    assert.equal(await evaluate(`document.querySelector('.astra-history-pagination button:last-child').disabled`),true);
+    await clickSelector('.astra-history-pagination button','Previous');
+    await waitFor(`document.querySelectorAll('[data-history-trade]').length===50`);
+    await evaluate(`document.querySelector('[aria-label="Close trade history"]').focus()`);
+    await press('Tab','Tab',8);
+    assert.equal(await evaluate(`document.activeElement.textContent`),'Next','Shift-Tab wraps within the modal');
+    await press('Tab','Tab');
+    assert.equal(await evaluate(`document.activeElement.getAttribute('aria-label')`),'Close trade history');
+    await press('Escape','Escape');
+    await waitFor(`!document.querySelector('[data-full-trade-history][open]')`);
+    assert.equal(await evaluate('location.hash'),'#dashboard','Full history never enters the linking route');
+    assert.deepEqual(await evaluate(`JSON.parse(localStorage.getItem(${JSON.stringify(key)})).trades`),longRows,'Pagination never rewrites saved rows');
+    const referenceStyle=await evaluate(`(()=>{const s=getComputedStyle(document.querySelector('.astra-dashboard'));return {background:s.backgroundColor,font:s.getPropertyValue('--astra-display').trim()};})()`);
+    for(const route of ['rules','coach','passport','import']) {
+      await evaluate(`location.hash=${JSON.stringify(route)}`);
+      await waitFor(`document.querySelector('[data-astra-route="${route}"] .section-shell-title-workspace') && document.fonts.status==='loaded'`);
+      await evaluate(`window.scrollTo({top:0,behavior:'instant'})`);
+      const routeStyle=await evaluate(`(()=>{const s=getComputedStyle(document.querySelector('.astra-workspace-page'));return {background:s.backgroundColor,font:s.getPropertyValue('--astra-display').trim()};})()`);
+      assert.deepEqual(routeStyle,referenceStyle,route+' must share the approved Risk Desk material and typography');
+      assert.equal(await evaluate(`document.querySelectorAll('.workspace-sidebar-link').length`),4);
+      assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth'),true,route+' root overflow');
+      assert.equal(await evaluate(`(()=>{const n=document.querySelector('.workspace-top-header'),b=document.querySelector('.astra-deskbar .astra-button');return !n || !n.checkVisibility() || b.getBoundingClientRect().top>=n.getBoundingClientRect().bottom;})()`),true,route+' top actions clear mobile navigation');
+      assert.equal(await evaluate(`[...document.images].filter(i=>i.complete&&!i.naturalWidth).length`),0,route+' assets');
+      if(route==='coach') {
+        assert.ok(await evaluate(`document.querySelectorAll('.insight-evidence').length>0`),'Evidence must be available on demand');
+        assert.equal(await evaluate(`document.querySelector('.insight-evidence').open`),false,'Evidence collapsed initially');
+        await clickSelector('.insight-evidence summary');
+        assert.ok(await evaluate(`document.querySelector('.insight-evidence p').checkVisibility()`),'Evidence reads when opened');
+        await clickSelector('.insight-evidence summary');
+      }
+      if(route==='import') {
+        assert.equal(await evaluate(`document.querySelector('.section-shell-title-workspace').textContent`),'Link account');
+        assert.equal(await evaluate(`document.querySelector('[aria-label="Saved trade history"]')`),null,'No ledger on connection page');
+        assert.ok(await evaluate(`document.querySelector('input[type="file"]') !== null`),'CSV upload preserved');
+      }
+      await evaluate(`window.scrollTo({top:0,behavior:'instant'})`);
+      await waitFor('scrollY===0');
+      await capture(join(evidenceDir,`${route}-${width}.png`));
+      console.log('WORKSPACE PASS',JSON.stringify({route,width,style:routeStyle,overflow:false}));
+    }
     console.log('PASS',JSON.stringify({width,height,mobile,geometry,ranges:true,noteDialog:true,history:true,ledgerUnchanged:true}));
   }
   assert.deepEqual(consoleErrors,[]); assert.deepEqual(runtimeErrors,[]);

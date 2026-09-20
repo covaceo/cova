@@ -12,8 +12,8 @@ function isProtectedSection(section: Section) {
 }
 
 const appNav = [
-  { id: "dashboard", label: "Dashboard" },
-  { id: "import", label: "Link account" },
+  { id: "dashboard", label: "Risk Desk" },
+
   { id: "rules", label: "Limits" },
   { id: "coach", label: "Insights" },
   { id: "passport", label: "Passport" },
@@ -226,7 +226,7 @@ export function Navbar({ section, go, openAuth, mobileOpen, setMobileOpen, authS
               {!authSession ? (
                 <StartFreeButton compact className="w-full" onClick={() => { setMobileOpen(false); openAuth("signup"); }} />
               ) : (
-                <button className="cova-button cova-button-primary px-4 py-3 font-body text-sm font-semibold" onClick={() => { setMobileOpen(false); go("import"); }} type="button">
+                <button className="cova-button cova-button-primary operator-mobile-link-account px-4 py-3 font-body text-sm font-semibold" aria-current={isAppMode && isWorkspaceNavActive(section, "import") ? "page" : undefined} onClick={() => { setMobileOpen(false); go("import"); }} type="button">
                   Link account
                 </button>
               )}

@@ -372,8 +372,8 @@ async function desktopVisualState() {
 
   await cdp.send("Page.navigate", { url: `${origin}/?dashboardDesktopOauth=${Date.now()}#oauth` });
   await waitFor("location.hash === '#oauth' && document.querySelector('.workspace-sidebar')");
-  const desktopOauth = await evaluate(`(() => { const current = [...document.querySelectorAll('.workspace-sidebar [aria-current="page"]')]; return { count: current.length, text: current[0]?.textContent.trim() }; })()`);
-  assert.deepEqual(desktopOauth, { count: 1, text: "Trade History" }, "desktop OAuth must retain Trade History current-route state");
+  const desktopOauth = await evaluate(`(() => { const current = [...document.querySelectorAll('.workspace-sidebar [aria-current="page"]')]; return { count: current.length, text: current[0]?.querySelector("strong")?.textContent.trim() || current[0]?.textContent.trim() }; })()`);
+  assert.deepEqual(desktopOauth, { count: 1, text: "Accounts" }, "desktop OAuth must mark the Accounts utility as current");
 }
 
 async function collapsedWorkspace(width, height) {
@@ -421,7 +421,7 @@ async function collapsedWorkspace(width, height) {
   assert.equal(menu.panelRole, "navigation");
   assert.equal(menu.panelLabel, "Workspace navigation");
   assert.equal(menu.currentCount, 1);
-  assert.equal(menu.currentText, "Dashboard");
+  assert.equal(menu.currentText, "Risk Desk");
   assert.ok(Number(menu.activeWeight) > Number(menu.inactiveWeight));
   assert.equal(menu.activeShadow, "none");
   assert.equal(menu.activeBackground, "rgb(23, 26, 33)", "collapsed OA state must use the traveling neutral pill");
@@ -435,7 +435,7 @@ async function collapsedWorkspace(width, height) {
   await waitFor("location.hash === '#oauth' && document.querySelector('.workspace-shell')", 30_000);
   await evaluate("document.querySelector('.operator-mobile-menu-toggle').click(); true");
   await waitFor("document.querySelector('.operator-mobile-menu-toggle').getAttribute('aria-expanded') === 'true' && document.querySelector('#operator-mobile-menu')");
-  const oauthCurrent = await evaluate(`(() => { const current = [...document.querySelectorAll('#operator-mobile-menu [aria-current="page"]')]; return { count: current.length, text: current[0]?.textContent.trim(), active: current[0]?.classList.contains('operator-mobile-menu-link-active') }; })()`);
+  const oauthCurrent = await evaluate(`(() => { const current = [...document.querySelectorAll('#operator-mobile-menu [aria-current="page"]')]; return { count: current.length, text: current[0]?.textContent.trim(), active: current[0]?.classList.contains('operator-mobile-link-account') }; })()`);
   assert.deepEqual(oauthCurrent, { count: 1, text: "Link account", active: true }, `${width}x${height} OAuth must retain Link account current-route state`);
 }
 

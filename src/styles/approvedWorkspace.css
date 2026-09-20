@@ -1,0 +1,52 @@
+/* Carry the owner-selected Risk Desk system across app chrome, not Passport artwork. */
+.oa-dashboard-app { --astra-bg:#090f15; --astra-panel:#0c121b; --astra-line:#26303e; --astra-ink:#f0f3fa; --astra-quiet:#a4b1c5; --astra-blue:#6f96ff; --astra-display:Inter,Arial,sans-serif; --astra-mono:Inter,Arial,sans-serif; }
+.oa-dashboard-app .oa-dashboard-shell .workspace-sidebar { background:#090e16!important; border-right-color:#26303e!important; }
+.oa-dashboard-app .oa-dashboard-shell .workspace-sidebar-copy { font-size:13px!important; }
+.oa-dashboard-app .oa-dashboard-shell .workspace-sidebar-link-active { background:#162a47!important; }
+.oa-dashboard-app .astra-rail-account[aria-current="page"] { background:#162a47; border-color:#447eef; }
+.oa-dashboard-app .astra-workspace-page { max-width:none; padding:20px 28px 28px; font-variant-numeric:tabular-nums; }
+.oa-dashboard-app .astra-workspace-page .astra-deskbar { min-height:40px; height:auto; padding:0; margin:0 0 18px; gap:16px; }
+.oa-dashboard-app .astra-workspace-page .astra-deskbar-tools { flex-wrap:wrap; }
+.oa-dashboard-app .astra-workspace-page .astra-deskbar .astra-button { min-height:40px; padding:8px 14px; font:500 13px/1.4 Inter,Arial,sans-serif; }
+.oa-dashboard-app .astra-workspace-page .astra-import-action { background:#2b6cf3; border-color:#447eef; color:#fff; }
+.oa-dashboard-app .astra-workspace-page .astra-import-action:hover { background:#3979ff; }
+.oa-dashboard-app .astra-workspace-page > [data-account-switcher] { max-width:300px; margin:0 0 18px!important; }
+.oa-dashboard-app .astra-workspace-page [data-account-switcher]>label { min-height:50px; border-radius:5px; background:transparent; }
+.oa-dashboard-app .astra-workspace-page [data-account-switcher] select { min-height:48px; font:500 13px/1.4 Inter,Arial,sans-serif; }
+.oa-dashboard-app .astra-workspace-page .section-shell-heading { margin:0 0 20px!important; gap:16px; }
+.oa-dashboard-app .astra-workspace-page .section-shell-title-workspace { font:600 34px/1.15 Inter,Arial,sans-serif!important; letter-spacing:-.045em!important; }
+.oa-dashboard-app .astra-workspace-page :is(.source-ledger-panel,.csv-export-ledger,.import-workflow-panel,.import-next-ledger,.import-raw-ledger,.rules-ledger-summary,.rules-ledger-row,.insight-briefing-row) { padding:20px 22px!important; border-color:#293140!important; border-radius:5px!important; background:#0c121b!important; }
+.oa-dashboard-app .astra-workspace-page :is(.import-source-workflow,.rules-ledger-grid,.rules-ledger-list,.insights-briefing-feed) { gap:18px; }
+.oa-dashboard-app .astra-workspace-page .import-source-workflow :is(h3,h4),
+.oa-dashboard-app .astra-workspace-page .rules-ledger-summary h3,
+.oa-dashboard-app .astra-workspace-page .rules-ledger-row h3,
+.oa-dashboard-app .astra-workspace-page .insight-briefing-row h3 { font:600 19px/1.3 Inter,Arial,sans-serif!important; letter-spacing:-.025em!important; }
+.oa-dashboard-app .astra-workspace-page .passport-workspace-toolbar { border-color:#293140; }
+.oa-dashboard-app .astra-workspace-page .passport-workspace-detail { border-radius:5px; background:#0c121b; }
+.oa-dashboard-app .astra-workspace-page .passport-workspace-actions > .passport-workspace-share { background:#2b6cf3!important; border-color:#447eef!important; color:#fff!important; }
+.oa-dashboard-app .astra-workspace-page .insight-briefing-row { grid-template-rows:auto auto; }
+.oa-dashboard-app .astra-workspace-page .insight-briefing-row > div:not(:last-child) { grid-column:3; grid-row:1; padding:0; border:0; }
+.oa-dashboard-app .astra-workspace-page .insight-briefing-row > div:not(:last-child) > p { margin:0!important; color:var(--astra-ink)!important; }
+.oa-dashboard-app .astra-workspace-page .insight-evidence { grid-column:3; grid-row:2; min-width:0; border-top:1px solid #26303e; padding-top:12px; }
+.oa-dashboard-app .astra-workspace-page .insight-evidence summary { cursor:pointer; color:#82adff; font:12px/1.5 Inter,Arial,sans-serif; }
+.oa-dashboard-app .astra-workspace-page .insight-evidence summary:focus-visible { outline:2px solid #6f96ff; outline-offset:3px; }
+.oa-dashboard-app .astra-workspace-page .insight-evidence p { margin:10px 0 0!important; }
+@media(max-width:620px) {
+ .oa-dashboard-app .astra-workspace-page .insight-briefing-row > div:not(:last-child) { grid-column:2; grid-row:3; }
+ .oa-dashboard-app .astra-workspace-page .insight-evidence { grid-column:2; grid-row:4; }
+}
+@media(min-width:1450px) {
+ .oa-dashboard-app .oa-dashboard-shell .workspace-sidebar { width:240px!important; padding:28px 18px 18px!important; }
+ .oa-dashboard-app .oa-dashboard-shell .workspace-content { margin-left:240px!important; }
+}
+@media(max-width:1250px) and (min-width:851px) { .oa-dashboard-app .astra-workspace-page { padding-inline:22px; } }
+@media(max-width:850px) {
+ .oa-dashboard-app .astra-workspace-page { padding:88px 20px 25px; }
+ .oa-dashboard-app .astra-workspace-page .astra-deskbar { flex-wrap:wrap; }
+}
+@media(max-width:620px) {
+ .oa-dashboard-app .astra-workspace-page { padding-inline:16px; }
+ .oa-dashboard-app .astra-workspace-page .section-shell-title-workspace { font-size:30px!important; }
+ .oa-dashboard-app .astra-workspace-page :is(.source-ledger-panel,.csv-export-ledger,.import-workflow-panel,.import-next-ledger,.import-raw-ledger,.rules-ledger-summary,.rules-ledger-row,.insight-briefing-row) { padding:16px!important; }
+ .oa-dashboard-app .astra-workspace-page .astra-deskbar .astra-button { min-height:44px; }
+}

@@ -55,7 +55,14 @@ try{
   await evaluate(`document.querySelector('.astra-trade-link').click()`);await wait(`Boolean(document.querySelector('dialog[open] textarea'))`);
   await evaluate(`document.querySelector('.astra-dialog-close').click()`);await wait(`!document.querySelector('dialog[open]')`);
   await evaluate(`document.querySelector('.astra-import-action').click()`);assert.equal(await evaluate('window.__visualRoute'),'import');
-  await evaluate(`document.querySelector('.astra-recent-trades .astra-text-link').click()`);assert.equal(await evaluate('window.__visualRoute'),'import');
+  await evaluate(`window.__visualRoute=null;document.querySelector('.astra-recent-trades .astra-text-link').focus();document.querySelector('.astra-recent-trades .astra-text-link').click()`);
+  await wait(`Boolean(document.querySelector('[data-full-trade-history][open]'))`);
+  assert.equal(await evaluate('window.__visualRoute'),null,'History opens in Risk Desk, not Import');
+  assert.ok(await evaluate(`document.querySelectorAll('[data-history-trade]').length>4`),'All saved entries remain available');
+  assert.equal(await evaluate(`(()=>{const d=document.querySelector('[data-full-trade-history]').getBoundingClientRect(),b=document.querySelector('.astra-history-header .astra-dialog-close').getBoundingClientRect();return b.left>=d.left+8 && b.right<=d.right-8 && b.top>=d.top+8 && b.bottom<=d.bottom-8;})()`),true,'Close target safely inside modal');
+  await capture(name+'-full-history');
+  await key('Escape',27);await wait(`!document.querySelector('[data-full-trade-history][open]')`);
+  await wait(`document.activeElement===document.querySelector('.astra-recent-trades .astra-text-link')`);
   receipts.push({name,width,height,rootOverflow:false,localOverflow:false,realRows:4,chartKeyboard:true,tooltipContained:true,rangeControls:true,tradeDialog:true,importAndHistoryRoutes:true});
  }
  assert.deepEqual(errors,[]);await writeFile(join(output,'browser.json'),JSON.stringify({status:'passed',receipts,errors},null,2));console.log(JSON.stringify({status:'passed',receipts,output}));

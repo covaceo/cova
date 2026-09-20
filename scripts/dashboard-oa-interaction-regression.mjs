@@ -474,8 +474,8 @@ async function desktopInteractions() {
   const inventory = await evaluate(`(() => [...document.querySelectorAll('button, input')].filter((node) => {
     const style = getComputedStyle(node); const rect = node.getBoundingClientRect();
     return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
-  }).map((node) => node.tagName === 'INPUT' ? node.getAttribute('aria-label') : node.textContent.trim()))()`);
-  for (const expected of ["Search workspace", "Risk Desk", "Trade History", "Limits", "Insights", "Passport", "Latest session", "Last 7 days", "All trades", "Manage source", "Delete account", "Sign out"]) {
+  }).map((node) => node.tagName === 'INPUT' ? node.getAttribute('aria-label') : node.matches('.astra-rail-account') ? node.querySelector('strong').textContent.trim() : node.textContent.trim()))()`);
+  for (const expected of ["Search workspace", "Risk Desk", "Accounts", "Limits", "Insights", "Passport", "Latest session", "Last 7 days", "All trades", "Manage source", "Delete account", "Sign out"]) {
     assert.ok(inventory.includes(expected) || inventory.some((item) => item.startsWith(expected)), `Desktop control inventory must include ${expected}`);
   }
 
@@ -496,10 +496,13 @@ async function desktopInteractions() {
   await goBack("#dashboard");
   await evaluate("document.querySelector('.workspace-sidebar-search input').focus(); document.querySelector('.workspace-sidebar-search input').select(); true");
   await press("Backspace", "Backspace");
-  await waitFor("document.querySelectorAll('.workspace-sidebar-link').length === 5");
+  await waitFor("document.querySelectorAll('.workspace-sidebar-link').length === 4");
 
+  await clickSelector(".astra-rail-account");
+  await waitFor("location.hash === '#import'");
+  await goBack("#dashboard");
   const navTargets = [
-    ["Trade History", "#import"],
+
     ["Limits", "#rules"],
     ["Insights", "#coach"],
     ["Passport", "#passport"],
@@ -634,12 +637,12 @@ async function mobileDashboard() {
     return { expanded: document.querySelector('.operator-mobile-menu-toggle').getAttribute('aria-expanded'), current: current.map((node) => node.textContent.trim()), del: hit(del), signOut: hit(signOut) };
   })()`);
   assert.equal(menu.expanded, "true");
-  assert.deepEqual(menu.current, ["Dashboard"]);
+  assert.deepEqual(menu.current, ["Risk Desk"]);
   for (const action of [menu.del, menu.signOut]) {
     assert.ok(action.rect.top >= 0 && action.rect.bottom <= 844 && action.rect.height >= 24, "Mobile account actions must remain fully visible");
     assert.equal(action.hit, true, "Mobile account actions must receive pointer hit testing");
   }
-  await clickSelector("#operator-mobile-menu .operator-mobile-menu-link", "Link account");
+  await clickSelector("#operator-mobile-menu .operator-mobile-link-account", "Link account");
   await waitFor("location.hash === '#import'");
   await evaluate("history.back(); true");
   await waitFor("location.hash === '#dashboard' && document.querySelector('.dashboard-workspace')");
