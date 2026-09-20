@@ -317,9 +317,9 @@ async function auditDarkDashboard(label) {
     };
     const contrast = (a, b) => { const la = luminance(a); const lb = luminance(b); return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05); };
     const contrastSelectors = [
-      '.dashboard-workspace-header > div > p', '.dashboard-range-controls button:not(.dashboard-range-active)',
-      '.astra-source-label', '.astra-stat-label', '.astra-stat-detail', '.astra-panel-heading p',
-      '.astra-chart-note > span', '.astra-score-ring small', '.astra-score-row p', '.astra-scale-ends span',
+      '.astra-data-details summary', '.astra-header-meta > span', '.dashboard-range-controls button:not(.dashboard-range-active)',
+      ...(document.querySelector('.astra-data-details')?.open ? ['.astra-source-label', ...(document.querySelector('.astra-data-content p') ? ['.astra-data-content p'] : [])] : []), '.astra-stat-label', '.astra-stat-detail', '.astra-panel-heading p',
+      '.astra-chart-note > span', '.astra-score-ring small', '.astra-score-row p', '.astra-historical-label',
       '.astra-warning-link > span > span', '.astra-warning-link small', '.astra-evidence-details summary span',
       '.astra-note-date', '.astra-mini-note > p', '.astra-trade-table th', '.astra-review-details > summary span',
       '.astra-dashboard-footer > span',
@@ -378,7 +378,7 @@ async function auditDarkDashboard(label) {
   assert.deepEqual(audit.light, [], `${label} must not contain light card surfaces`);
   for (const check of audit.contrastChecks) assert.ok(check.ratio >= 4.5, `${label} ${check.selector} contrast ${check.ratio.toFixed(2)} must meet WCAG AA`);
   assert.equal(audit.bodyBackground, "rgb(8, 9, 12)");
-  assert.equal(audit.shellBackground, "rgb(8, 9, 12)");
+  assert.equal(audit.shellBackground, "rgb(9, 15, 21)", "Owner-selected matte Risk Desk surface");
   assert.equal(audit.chartStroke, "rgb(79, 125, 255)");
   assert.equal(audit.primaryBackground, "rgba(0, 0, 0, 0)", "Astra warning action is an integrated review row, not the retired filled summary CTA");
   assert.equal(audit.primaryColor, "rgb(224, 232, 247)");
@@ -402,7 +402,7 @@ async function openDetails(selector) {
 }
 
 async function detailsContract(label) {
-  for (const selector of [".astra-evidence-details", ".astra-review-details"]) {
+  for (const selector of [".astra-data-details", ".astra-evidence-details", ".astra-review-details"]) {
     assert.equal(await evaluate(`document.querySelector(${JSON.stringify(selector)})?.open`), false, `${label} ${selector} must begin collapsed`);
     await evaluate(`document.querySelector(${JSON.stringify(`${selector} > summary`)}).scrollIntoView({block:'center',behavior:'instant'}); document.querySelector(${JSON.stringify(`${selector} > summary`)}).focus(); true`);
     await press("Enter");
@@ -410,7 +410,7 @@ async function detailsContract(label) {
     assert.equal(await evaluate("document.activeElement.matches('summary:focus-visible')"), true, "Native summary must retain visible keyboard focus after opening");
   }
   await auditDarkDashboard(`${label} expanded evidence and Next review`);
-  for (const selector of [".astra-evidence-details", ".astra-review-details"]) {
+  for (const selector of [".astra-data-details", ".astra-evidence-details", ".astra-review-details"]) {
     await clickSelector(`${selector} > summary`);
     await waitFor(`!document.querySelector(${JSON.stringify(selector)}).open`);
   }
@@ -574,7 +574,7 @@ async function sourceLifecycle() {
         sourceText: document.querySelector('.astra-source-label').textContent.trim(),
         account: document.querySelector('.workspace-account-copy small').textContent.trim(),
         attribution: document.querySelectorAll('.dashboard-attribution-row [data-rithmic-attribution]').length,
-        syncActions: [...document.querySelectorAll('.astra-deskbar-tools button, .dashboard-summary-actions button')].map(node => node.textContent.trim()),
+        syncActions: [...document.querySelectorAll('.astra-header-controls button, .dashboard-summary-actions button')].map(node => node.textContent.trim()),
         empty: document.querySelectorAll('[data-dashboard-empty="true"]').length,
       }))()`);
       assert.deepEqual(state, { source: `Review source: ${scenario.source}`, sourceText: `${scenario.source} / ${scenario.count} trades`, account: scenario.account, attribution: scenario.attribution, syncActions: ['Sync new trades', 'Sync new trades'], empty: scenario.count ? 0 : 1 }, scenario.name);

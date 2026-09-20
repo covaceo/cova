@@ -270,10 +270,13 @@ async function press(key, code = key) {
 }
 
 async function auditMicrocopy() {
-  // Native review disclosure is part of the readable contract, not a hidden-node pass.
-  await evaluate("document.querySelector('.astra-review-details > summary').scrollIntoView({block:'center',behavior:'instant'}); document.querySelector('.astra-review-details > summary').focus(); true");
-  await press("Enter");
-  await waitFor("document.querySelector('.astra-review-details').open");
+  // Exercise both native disclosures before checking their informative copy.
+  for (const selector of ['.astra-data-details', '.astra-review-details']) {
+    assert.equal(await evaluate(`document.querySelector(${JSON.stringify(selector)}).open`), false);
+    await evaluate(`document.querySelector(${JSON.stringify(selector+' > summary')}).scrollIntoView({block:'center',behavior:'instant'}); document.querySelector(${JSON.stringify(selector+' > summary')}).focus(); true`);
+    await press("Enter");
+    await waitFor(`document.querySelector(${JSON.stringify(selector)}).open`);
+  }
   const checks = await evaluate(`(() => {
     const parse = color => { const parts = color.match(/[\\d.]+/g)?.map(Number); if (!parts || parts.length < 3) throw new Error('Unparseable CSS color: ' + color); return [...parts.slice(0, 3), parts[3] ?? 1]; };
     const composite = (fg, bg) => fg.slice(0, 3).map((value, i) => value * fg[3] + bg[i] * (1 - fg[3]));
@@ -293,9 +296,11 @@ async function auditMicrocopy() {
     });
   })()`);
   for (const check of checks) assert.ok(check.ratio >= 4.5, `${check.selector} composited contrast ${check.ratio.toFixed(2)} must meet WCAG AA`);
-  await evaluate("document.querySelector('.astra-review-details > summary').focus(); true");
-  await press("Enter");
-  await waitFor("!document.querySelector('.astra-review-details').open");
+  for (const selector of ['.astra-data-details', '.astra-review-details']) {
+    await evaluate(`document.querySelector(${JSON.stringify(selector+' > summary')}).focus(); true`);
+    await press("Enter");
+    await waitFor(`!document.querySelector(${JSON.stringify(selector)}).open`);
+  }
   await evaluate("window.scrollTo({top:0,behavior:'instant'}); true");
 }
 
@@ -314,7 +319,7 @@ async function desktopVisualState() {
     const style = getComputedStyle(active);
     return { background: style.backgroundColor, border: style.borderColor };
   })()`);
-  assert.equal(base.background, "rgb(23, 33, 56)", "Astra selected rail must use the approved filled dark-blue surface");
+  assert.equal(base.background, "rgb(22, 42, 71)", "Astra selected rail must use the approved filled dark-blue surface");
     assert.equal(hovered.background, base.background, "Astra selected fill must survive active+hovered");
 
   await evaluate("document.querySelector('.workspace-sidebar-search input').focus()");
@@ -329,12 +334,12 @@ async function desktopVisualState() {
   assert.equal(focus.outlineStyle, "solid");
   assert.equal(focus.outlineWidth, "2px");
   assert.equal(focus.outlineColor, "rgb(111, 150, 255)", "Astra rail focus must retain the approved cobalt outline");
-  assert.equal(await evaluate("getComputedStyle(document.activeElement).backgroundColor"), "rgb(23, 33, 56)", "Keyboard focus must preserve the selected dark-blue fill");
+  assert.equal(await evaluate("getComputedStyle(document.activeElement).backgroundColor"), "rgb(22, 42, 71)", "Keyboard focus must preserve the selected dark-blue fill");
 
   await auditMicrocopy();
   await cdp.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: "reduce" }] });
   const reduced = await evaluate(`(() => { const node = document.querySelector('.workspace-sidebar-link-active'); const style = getComputedStyle(node); return { background: style.backgroundColor, animation: style.animationName, transition: style.transitionDuration }; })()`);
-  assert.deepEqual(reduced, { background: "rgb(23, 33, 56)", animation: "none", transition: "0s" }, "Reduced motion must preserve Astra selected state without animation");
+  assert.deepEqual(reduced, { background: "rgb(22, 42, 71)", animation: "none", transition: "0s" }, "Reduced motion must preserve Astra selected state without animation");
   await cdp.send("Emulation.setEmulatedMedia", { features: [] });
   const reviewCopy = await evaluate("document.querySelector('.dashboard-workspace').innerText");
   assert.match(reviewCopy, /Reported P&L/i, "compiled Risk Desk must expose provider-neutral reported P&L");
@@ -491,7 +496,7 @@ async function mobileEmptyState() {
     };
   })()`);
   assert.ok(layout.actionHeight >= 42, "Empty-account import action must retain its usable target height");
-  assert.equal(layout.emptyWidth, 350, "Astra empty-account panel must fit the approved 20px phone gutters");
+  assert.equal(layout.emptyWidth, 358, "Reference dashboard empty-account panel must fit the 16px phone gutters");
   assert.equal(layout.overflow, 0);
   assert.deepEqual(layout.visibleRiskStatuses, []);
   assert.equal(layout.statPanels, 0);

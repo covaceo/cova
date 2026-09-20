@@ -104,8 +104,16 @@ assert.equal(await evaluate(`(()=>{const tip=document.querySelector('.astra-char
 await screenshot(mobile?'mobile-net-tooltip':'desktop-net-tooltip');
 await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
 await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+await evaluate(`document.querySelector('.astra-chart-svg').blur();window.scrollTo({top:0,behavior:'instant'})`);
 await screenshot(mobile?'mobile-dashboard':'desktop-dashboard');
 assert.equal(await evaluate(`document.querySelector('[data-account-switcher]').getBoundingClientRect().height<=56`),true,'Switcher stays compact');
+assert.equal(await evaluate(`Boolean(document.querySelector('.astra-reference-header [data-account-switcher]'))`),true,'Same account control lives in approved header');
+assert.equal(await evaluate(`document.querySelectorAll('[aria-label="Trade account"]').length`),1,'One authoritative account selector');
+assert.equal(await evaluate(`parseFloat(getComputedStyle(document.querySelector('[data-astra-stat="pnl"] .astra-stat-value')).fontSize)>parseFloat(getComputedStyle(document.querySelector('[data-astra-stat="win-rate"] .astra-stat-value')).fontSize)`),true,'Reference gives profit primary hierarchy');
+assert.equal(await evaluate(`Boolean(document.querySelector('.astra-stat-basis'))`),true,'Gross trade stats are visibly separated from net');
+await evaluate(`document.querySelector('.astra-data-details summary').click()`);
+assert.match(await evaluate(`document.querySelector('[data-cash-coverage]').innerText`),/Funding excluded/);
+await evaluate(`document.querySelector('.astra-data-details summary').click()`);
 await select('Trade account','Tradovate:72');
 assert.equal(await evaluate(`document.querySelector('[aria-label="Trade account"]').selectedOptions[0].textContent`),'Synthetic 72');
 assert.match(await evaluate(`document.querySelector('[data-astra-stat="pnl"]').innerText`),/\+\$9\.58/);

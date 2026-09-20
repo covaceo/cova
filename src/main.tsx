@@ -44,6 +44,7 @@ import "./styles/passportWorkspace.css";
 import "./styles/astraWorkspace.css";
 import "./styles/astraWorkspaceContent.css";
 import "./styles/astraDashboard.css";
+import "./styles/approvedDashboard.css";
 import "./styles/homeStory.css";
 import "./styles/publicPassportExample.css";
 import "./styles/siteInteractionPolish.css";

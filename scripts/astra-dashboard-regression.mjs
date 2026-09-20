@@ -44,7 +44,7 @@ test('Astra styles load after the legacy dashboard cascade', () => {
   const imports = [...main.matchAll(/import \"([^\"]+\.css)\"/g)].map(match=>match[1]);
   const astra = imports.indexOf('./styles/astraDashboard.css');
   assert.ok(astra > imports.indexOf('./styles/dashboardOaDark.css'), 'Astra follows the legacy dashboard cascade');
-  assert.deepEqual(imports.slice(astra + 1), ['./styles/homeStory.css', './styles/publicPassportExample.css', './styles/siteInteractionPolish.css'], 'Only scoped public/card/interaction styles follow Astra');
+  assert.deepEqual(imports.slice(astra + 1), ['./styles/approvedDashboard.css', './styles/homeStory.css', './styles/publicPassportExample.css', './styles/siteInteractionPolish.css'], 'Only scoped public/card/interaction styles follow Astra');
 });
 
 test('Financial labels preserve cents without a half-formatted dollar amount', () => {
@@ -76,13 +76,30 @@ test('Approved dashboard composition uses real analytics, recent trades, and an 
   const { Dashboard } = loadSource('src/components/DashboardView.tsx');
   const analysis = analyze(sampleTrades, defaultRules);
   const html = renderToStaticMarkup(React.createElement(Dashboard, {analysis,rules:defaultRules,go:()=>{}}));
-  assert.ok(html.includes('Your trading, in perspective.'), 'Use the approved Astra heading, not the previous dashboard layout');
+  assert.ok(html.includes('<h1>Risk Desk</h1>'), 'Owner-approved reference replaces the older promotional heading');
   for (const label of ['Reported P&amp;L','Win rate','Profit factor','Max drawdown','Discipline review','Recent trades','From the journal']) assert.ok(html.includes(label),label);
   assert.equal((html.match(/data-astra-stat=/g)||[]).length,4,'One four-cell financial strip');
   assert.equal((html.match(/data-recent-trade=/g)||[]).length,4,'Latest four actual ledger records');
   assert.ok(html.includes(String(analysis.score)), 'Score must come from risk.analyze');
   assert.ok(html.includes(sampleTrades.at(-1).notes), 'Journal copy comes from the ledger, not the design study');
   assert.ok(!html.includes('Patience was')&&!html.includes('A solid baseline.'),'Do not ship invented editorial claims');
+});
+
+test('Approved visual header receives the unchanged account control and keeps real rows/actions', () => {
+  const { analyze, sampleTrades, defaultRules } = loadSource('src/lib/risk.ts');
+  const { Dashboard } = loadSource('src/components/DashboardView.tsx');
+  const analysis = analyze(sampleTrades,defaultRules);
+  const before = JSON.stringify(analysis);
+  const html = renderToStaticMarkup(React.createElement(Dashboard,{analysis,rules:defaultRules,go:()=>{},accountControl:React.createElement('select',{'aria-label':'Trade account'},React.createElement('option',null,'Owned account'))}));
+  assert.ok(html.includes('data-dashboard-visual="reference"'));
+  assert.ok(html.includes('aria-label="Trade account"'));
+  assert.equal((html.match(/data-recent-trade=/g)||[]).length,4);
+  assert.ok(html.includes('Open trade note'));
+  assert.ok(html.includes('Import trades'));
+  assert.ok(html.includes('Dashboard review range'));
+  assert.ok(html.includes('Evidence &amp; score factors'));
+  assert.ok(!html.includes('Trade rows are available in history.'));
+  assert.equal(JSON.stringify(analysis),before,'Presentation must not mutate the analysis');
 });
 
 test('Trade-note keyboard focus wraps at both modal boundaries', () => {
@@ -139,6 +156,15 @@ test('Daily net chart names its actual basis and includes its first date', () =>
   assert.ok(html.includes('>Sep 04</text>'));
   const one = renderToStaticMarkup(React.createElement(AstraEquityCurve,{points:points.slice(0,1),basis:'daily-net'}));
   assert.equal((one.match(/>Sep 04<\/text>/g)||[]).length,1);
+});
+
+test('Reference daily chart marks actual observations without changing their geometry', () => {
+  const { AstraEquityCurve } = loadSource('src/components/AstraEquityCurve.tsx');
+  const points=[{label:'2026-09-04',value:-12.37},{label:'2026-09-05',value:8.79},{label:'2026-09-06',value:6.69}];
+  const html=renderToStaticMarkup(React.createElement(AstraEquityCurve,{points,basis:'daily-net'}));
+  assert.equal((html.match(/class="astra-observation"/g)||[]).length,3);
+  assert.ok(html.includes('−$12.37'));
+  assert.ok(html.includes('$6.69'));
 });
 
 test('Astra equity preserves every closed-trade value, including losses and the zero origin', async () => {

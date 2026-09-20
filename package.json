@@ -45,7 +45,7 @@
     "test:homepage-story-browser": "npm run build && node scripts/homepage-story-browser-regression.mjs",
     "test:visual-continuity": "node --test scripts/passport-clarity-regression.mjs scripts/workspace-motion-regression.mjs scripts/workspace-entry-clarity-regression.mjs",
     "test:passport-integration": "node --test scripts/passport-integration-preservation-regression.mjs scripts/passport-workspace-regression.mjs scripts/dashboard-preview-export-regression.mjs scripts/passport-holo-regression.mjs scripts/passport-etched-regression.mjs scripts/passport-share-actions-regression.mjs scripts/passport-share-export-regression.mjs scripts/passport-square-export-regression.mjs",
-    "test:astra-dashboard": "node --test scripts/astra-dashboard-regression.mjs scripts/astra-workspace-shell-regression.mjs scripts/astra-workspace-layout-regression.mjs scripts/astra-workspace-content-regression.mjs && node scripts/net-curve-browser-regression.mjs",
+    "test:astra-dashboard": "node --test scripts/astra-dashboard-regression.mjs scripts/astra-workspace-shell-regression.mjs scripts/astra-workspace-layout-regression.mjs scripts/astra-workspace-content-regression.mjs && node scripts/net-curve-browser-regression.mjs && node scripts/approved-dashboard-preservation.mjs && node scripts/approved-dashboard-browser-regression.mjs",
     "test:site-polish": "node --test scripts/site-motion-polish-regression.mjs scripts/public-polish-regression.mjs && node scripts/auth-connection-visual-regression.mjs --source",
     "test:site-polish-browser": "npm run build && node scripts/public-polish-browser-regression.mjs && node scripts/auth-connection-visual-regression.mjs"
   },
