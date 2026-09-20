@@ -47,9 +47,9 @@ const protectedFiles = {
   // Auto-history adds principal+selection guarded merge, scoped account review and saved-history props.
   // Callback hints never authorize imports; all marketing, OAuth and Passport artwork remain unchanged.
   "src/App.tsx": "3ff96b7908418c3ed54fa05bf4a8329c0abcdde07f17679d0772830310429107",
-  "src/components/AstraEquityCurve.tsx": "374ed06563f6f5b0ebb1743430045023cb9f7ea25afee8655d300f9785afb83d",
+  "src/components/AstraEquityCurve.tsx": "080bdba310e0b45aac25cef67702f29ab6e49c674a74559d45af15ff3dbc4433",
   "src/components/DashboardTradeDialog.tsx": "302d1c3851169baadf76180225e607254f09e340b447384f52e2322ac3d8752a",
-  "src/components/DashboardView.tsx": "668119c7d5d4f1cb94ca04355ea50224bda1508a7e5c40cd2cfc0932d77c7c63",
+  "src/components/DashboardView.tsx": "21e87d4ccc2bea59650cd4dc1a5ec608bf655ef5d759cc6a74ecd0ef39817366",
   "src/components/WorkspaceShell.tsx": "1ba5ee114ebb09e8b37f841404ae595a9d323850524378231c15ff26ef623219",
   "src/index.css": "ea8b38ada867619addaced06a8a3a1c494c1de9ef6c30beb5cbe7435890729db",
   // Retain UTC ordering while preserving legacy same-day input order and member annotations.

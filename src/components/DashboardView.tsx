@@ -1,4 +1,4 @@
-import { ArrowRight, ArrowUpRight, BookOpen, CalendarDays, ChevronDown, Database, FileText, FileUp, Info, TriangleAlert } from "lucide-react";
+import { ArrowRight, ArrowUpRight, BookOpen, CalendarDays, ChevronDown, Database, FileText, FileUp, TriangleAlert } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { analyze, type RiskRule, type Trade } from "../lib/risk";
 import { getActionableReviewCount, getDashboardSummaryAction } from "../lib/dashboardReviewState";
@@ -71,11 +71,14 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, o
         <button className="astra-button astra-import-action" onClick={manageSource} type="button"><FileUp aria-hidden="true" />{hasRithmicSource ? "Sync new trades" : "Import trades"}</button>
       </div>
       <div className="astra-header-meta">
-        <span>{netCash ? `Cash report ${shortDate(netCash.startDate)} – ${shortDate(netCash.endDate)} · UTC · End exclusive` : hasTradeHistory ? "Your selected trade history" : "Import trade history to begin your first risk review."}</span>
+
         <details className="astra-data-details"><summary>Data details <ChevronDown aria-hidden="true" /></summary>
           <div className="astra-data-content">
+            <p>{netCash ? `Cash report ${shortDate(netCash.startDate)} – ${shortDate(netCash.endDate)} · UTC · End exclusive` : hasTradeHistory ? "Your selected trade history" : "Import trade history to begin your first risk review."}</p>
             <span className="astra-source-label" aria-label={`Review source: ${sourceLabel}`} title={`Review source: ${sourceLabel}`}>{sourceLabel} / {journalReview ? scopedTrades.length : scopedAnalysis.tradeCount} {journalReview ? 'matched rows' : 'trades'}</span>
             {tradovateOnly && <p data-cash-coverage>{netCash ? `Broker cash movements · ${netCash.startDate} to ${netCash.endDate} exclusive, UTC · Synced ${new Date(netCash.asOf).toLocaleString()}. Funding excluded. Fees are not allocated to individual trades; win rate, trade statistics and discipline remain before fees.` : cash.status === 'unavailable' ? cash.reason : 'Account review uses gross trade results.'}</p>}
+            {hasTradeHistory && !journalReview && <DashboardStats analysis={scopedAnalysis} cash={cash} tradovateOnly={tradovateOnly} detailsOnly />}
+            {hasTradeHistory && <p>{netCash ? "Daily cumulative · USD · UTC" : "Cumulative gross / reported P&L from the selected trade history."}</p>}
           </div>
         </details>
       </div>
@@ -95,13 +98,13 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, o
       <div className="astra-desk-grid">
         <section className="astra-panel astra-chart-panel" aria-labelledby="astra-equity-title">
           <div className="astra-panel-heading">
-            <div><h2 id="astra-equity-title">{netCash ? "Net P&L curve" : "Equity curve"}</h2><p>{netCash ? "Daily cumulative · USD · UTC" : "Cumulative gross / reported P&L from the selected trade history."}</p></div>
+            <div><h2 id="astra-equity-title">{netCash ? "Net P&L curve" : "Equity curve"}</h2></div>
             <div className="dashboard-range-controls astra-segmented" role="group" aria-label="Dashboard review range">
               {rangeOptions.map(option => <button aria-pressed={range === option.id} className={range === option.id ? "dashboard-range-active" : ""} key={option.id} onClick={() => setRange(option.id)} type="button">{option.label}</button>)}
             </div>
           </div>
           {journalReview && journal.money.status !== 'available' ? <p className="astra-mini-note">{journal.money.reason}</p> : <AstraEquityCurve basis={netCash ? "daily-net" : "trades"} points={netCash ? netCash.points : journalReview && journal.money.status === 'available' ? journal.money.equityPoints : scopedAnalysis.equityPoints} />}
-          <div className="astra-chart-note"><span><i aria-hidden="true" />{netCash ? "Net cash P&L" : tradovateOnly ? "Gross P&L" : "Reported P&L"}</span><span data-dashboard-trade-count={journalReview ? scopedTrades.length : scopedAnalysis.tradeCount}>{journalReview ? scopedTrades.length : scopedAnalysis.tradeCount} {journalReview ? 'matched rows' : 'trades'} · {journalReview ? (journal.money.status === 'available' ? moneyText(journal.money.totalCents) : 'Unavailable') : signedMoney(netCash ? netCash.netCents / 100 : scopedAnalysis.totalPnl)}</span></div>
+          <div className="astra-chart-note"><span>{netCash ? "Daily · USD" : tradovateOnly ? "Gross P&L" : "Reported P&L"}</span><span data-dashboard-trade-count={journalReview ? scopedTrades.length : scopedAnalysis.tradeCount}>{journalReview ? scopedTrades.length : scopedAnalysis.tradeCount} {journalReview ? `matched rows · ${journal.money.status === 'available' ? moneyText(journal.money.totalCents) : 'Unavailable'}` : 'trades'}</span></div>
         </section>
         {journalReview ? <JournalDisciplineReview journal={journal} rules={rules} onRules={() => go('rules')} /> : <DisciplineReview analysis={scopedAnalysis} go={go} />}
       </div>
@@ -116,20 +119,20 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, o
           </tbody></table></div>
         </section>
         <section className="astra-panel astra-journal" aria-labelledby="astra-journal-title">
-          <div className="astra-panel-heading"><h2 id="astra-journal-title"><BookOpen aria-hidden="true" />From the journal</h2></div>
+          <div className="astra-panel-heading"><h2 id="astra-journal-title"><BookOpen aria-hidden="true" />Journal</h2></div>
           <div className="astra-mini-note">
-            {journalTrade ? <><div className="astra-note-date">{shortDate(journalTrade.date)} / {journalTrade.market} trade note</div><h3>{journalTrade.setup || "Your latest note."}</h3><p className="astra-note-excerpt">“{journalTrade.notes}”</p><button className="astra-text-link" onClick={() => openTrade(journalTrade.id)} type="button">Open trade note <ArrowRight aria-hidden="true" /></button></> : <><FileText className="astra-journal-empty-icon" aria-hidden="true" /><p>No journal notes in this range. Open a recent trade to add the context behind it.</p>{recentTrades[0] && <button className="astra-text-link" onClick={() => openTrade(recentTrades[0].id)} type="button">Add a trade note <ArrowRight aria-hidden="true" /></button>}</>}
+            {journalTrade ? <><div className="astra-note-date">{shortDate(journalTrade.date)} / {journalTrade.market} trade note</div><h3>{journalTrade.setup || "Your latest note."}</h3><p className="astra-note-excerpt">“{journalTrade.notes}”</p><button className="astra-text-link" onClick={() => openTrade(journalTrade.id)} type="button">Open trade note <ArrowRight aria-hidden="true" /></button></> : <><FileText className="astra-journal-empty-icon" aria-hidden="true" /><p>No notes yet.</p>{recentTrades[0] && <button className="astra-text-link" onClick={() => openTrade(recentTrades[0].id)} type="button">Add a trade note <ArrowRight aria-hidden="true" /></button>}</>}
           </div>
         </section>
       </div>
-      {!journalReview && <details className="astra-review-details"><summary>Next review <span>Evidence and review status</span><ChevronDown aria-hidden="true" /></summary><DashboardReviewRow analysis={scopedAnalysis} go={go} /></details>}
+      {!journalReview && <details className="astra-review-details"><summary><span>Next review</span><ChevronDown aria-hidden="true" /></summary><DashboardReviewRow analysis={scopedAnalysis} go={go} /></details>}
     </>}
     <footer className="astra-dashboard-footer"><span>Retrospective review only. No live brokerage execution.</span><div className="dashboard-summary-actions"><button className="astra-text-link" onClick={manageSource} type="button">{hasRithmicSource ? "Sync new trades" : "Manage source"}<ArrowUpRight aria-hidden="true" /></button></div></footer>
     <DashboardTradeDialog journalReview={journalReview} trade={selectedTrade} onClose={() => setSelectedTradeId(null)} onSave={noteSaveRef.current} />
   </section>;
 }
 
-function DashboardStats({ analysis, cash, tradovateOnly }: { analysis: Analysis; cash: CashSummary; tradovateOnly: boolean }) {
+function DashboardStats({ analysis, cash, tradovateOnly, detailsOnly = false }: { analysis: Analysis; cash: CashSummary; tradovateOnly: boolean; detailsOnly?: boolean }) {
   const net = cash.status === 'available' ? cash : null;
   const wins = analysis.winningTradeCount;
   const entries = analysis.entryGroups.some(group => group.entryIdentified);
@@ -139,12 +142,12 @@ function DashboardStats({ analysis, cash, tradovateOnly }: { analysis: Analysis;
     { id: "profit-factor", label: "Profit factor", value: Number.isFinite(analysis.profitFactor) ? analysis.profitFactor.toFixed(2) : "∞", detail: analysis.grossLoss ? "Gross profit / gross loss" : analysis.grossProfit ? "No losing trades in this range" : "No gross profit or gross loss" },
     { id: "drawdown", label: "Max drawdown", value: signedMoney(-analysis.maxDrawdown), detail: "Closed-trade peak to trough", negative: analysis.maxDrawdown > 0 },
   ];
-  return <div className="astra-stat-strip">
-    <div className="astra-stat-basis">{tradovateOnly ? "Trade statistics before fees" : "Trade statistics"}</div>
+  return detailsOnly ? <dl className="astra-metric-explanations">{cells.map(cell => <div data-metric={cell.id} key={cell.id}><dt>{cell.label}</dt><dd className="astra-stat-detail">{cell.detail}</dd></div>)}</dl> : <div className="astra-stat-strip">
+    <div className="astra-stat-basis">{tradovateOnly ? "Before fees" : ""}</div>
     {cells.map(cell => <div className="astra-stat-cell" data-astra-stat={cell.id} key={cell.id}>
-      <div className="astra-stat-label">{cell.label}{cell.id === 'pnl' && net ? <span className="astra-net-basis">Fees included · Funding excluded</span> : <Info aria-hidden="true" />}</div>
+      <div className="astra-stat-label">{cell.label}{cell.id === 'pnl' && net && <span className="astra-net-basis">Fees included</span>}</div>
       <div className={`astra-stat-value ${cell.negative ? "astra-negative" : ""}`}>{cell.value}</div>
-      <div className="astra-stat-detail">{cell.detail}</div>
+
     </div>)}
   </div>;
 }
@@ -154,14 +157,14 @@ function DisciplineReview({ analysis, go }: { analysis: Analysis; go: (section: 
   const warningCount = getActionableReviewCount(analysis);
   const flag = analysis.behaviorFlags.find(item => item.severity === "critical" || item.severity === "warning") ?? analysis.behaviorFlags[0];
   return <section className="astra-panel astra-discipline" aria-labelledby="astra-discipline-title">
-    <div className="astra-panel-heading"><div><h2 id="astra-discipline-title"><FileText aria-hidden="true" />Discipline review</h2><p>Evidence-based review. Not a trading permission.</p></div></div>
+    <div className="astra-panel-heading"><div><h2 id="astra-discipline-title"><FileText aria-hidden="true" />Discipline review</h2></div></div>
     <div className="astra-score-row"><div className="astra-score-ring" aria-label={`Cova Score ${analysis.score} out of 100`}>
       <svg viewBox="0 0 100 100" fill="none" aria-hidden="true"><circle cx="50" cy="50" r="43" stroke="#2c364b" strokeWidth="3" /><circle cx="50" cy="50" r="43" stroke="#8eafff" strokeWidth="3" pathLength="100" strokeDasharray={`${analysis.score} 100`} strokeLinecap="round" transform="rotate(-90 50 50)" /><circle cx="50" cy="50" r="36" stroke="#354159" strokeWidth=".5" strokeDasharray="1 4" /></svg>
       <div><strong>{analysis.score}</strong><small>/100</small></div>
-    </div><div><strong>{analysis.score >= 80 ? "Strong risk discipline" : analysis.score >= 60 ? "Room to tighten." : "Risk needs attention."}</strong><p>{analysis.evidenceQuality.label} · {analysis.tradeCount} {analysis.entryGroups.some(group => group.entryIdentified) ? 'entries' : 'trades'} checked</p></div></div>
-    <div className="astra-historical-label">Historical review</div>
-    <button className="astra-warning-link dashboard-summary-primary" onClick={() => go(action.target)} type="button"><TriangleAlert aria-hidden="true" /><span><strong>{flag?.label || action.label}</strong><span>{flag?.summary || analysis.evidenceQuality.summary}</span><small>{action.label} <ArrowUpRight aria-hidden="true" /></small></span></button>
-    <details className="astra-evidence-details"><summary><span>{warningCount} {warningCount === 1 ? "warning" : "warnings"} · Evidence &amp; score factors</span><ChevronDown aria-hidden="true" /></summary><p>{analysis.evidenceQuality.summary}</p><div className="astra-factor-list">{analysis.scoreFactors.slice(0, 3).map(factor => <div key={factor.label}><span>{factor.label}</span><strong className={factor.impact === "negative" ? "astra-negative" : factor.impact === "positive" ? "astra-positive" : ""}>{factor.impact}</strong></div>)}</div><FlagStack analysis={analysis} onReviewRisk={() => go("rules")} /></details>
+    </div><div><strong>{analysis.score >= 80 ? "Strong risk discipline" : analysis.score >= 60 ? "Room to tighten." : "Risk needs attention."}</strong><p>{analysis.evidenceQuality.label}</p></div></div>
+
+    <button className="astra-warning-link dashboard-summary-primary" onClick={() => go(action.target)} type="button"><TriangleAlert aria-hidden="true" /><span><strong>{flag?.label || action.label}</strong><small>{action.label} <ArrowUpRight aria-hidden="true" /></small></span></button>
+    <details className="astra-evidence-details"><summary><span>Details</span><ChevronDown aria-hidden="true" /></summary><p>{warningCount} {warningCount === 1 ? "warning" : "warnings"}</p><p>{flag?.summary || analysis.evidenceQuality.summary}</p><p>{analysis.tradeCount} {analysis.entryGroups.some(group => group.entryIdentified) ? 'entries' : 'trades'} checked · {analysis.evidenceQuality.summary}</p><p>Evidence-based review. Not a trading permission.</p><div className="astra-factor-list">{analysis.scoreFactors.slice(0, 3).map(factor => <div key={factor.label}><span>{factor.label}</span><strong className={factor.impact === "negative" ? "astra-negative" : factor.impact === "positive" ? "astra-positive" : ""}>{factor.impact}</strong></div>)}</div><FlagStack analysis={analysis} onReviewRisk={() => go("rules")} /></details>
   </section>;
 }
 

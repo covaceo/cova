@@ -281,7 +281,7 @@ async function auditMicrocopy() {
     const parse = color => { const parts = color.match(/[\\d.]+/g)?.map(Number); if (!parts || parts.length < 3) throw new Error('Unparseable CSS color: ' + color); return [...parts.slice(0, 3), parts[3] ?? 1]; };
     const composite = (fg, bg) => fg.slice(0, 3).map((value, i) => value * fg[3] + bg[i] * (1 - fg[3]));
     const luminance = color => color.slice(0, 3).map(value => { const n = value / 255; return n <= .04045 ? n / 12.92 : ((n + .055) / 1.055) ** 2.4; }).reduce((sum, channel, i) => sum + channel * [.2126, .7152, .0722][i], 0);
-    return ['.workspace-account-copy small', '.workspace-sidebar-watermark span', '.dashboard-range-controls button:not(.dashboard-range-active)', '.astra-stat-label', '.astra-stat-detail', '.astra-panel-heading p', '.astra-source-label', '.astra-review-details > summary span', '.dashboard-review-disclosure'].flatMap(selector => {
+    return ['.workspace-account-copy small', '.workspace-sidebar-watermark span', '.dashboard-range-controls button:not(.dashboard-range-active)', '.astra-stat-label', '.astra-stat-detail', '.astra-panel-heading h2', '.astra-source-label', '.astra-review-details > summary span', '.dashboard-review-disclosure'].flatMap(selector => {
       const nodes = [...document.querySelectorAll(selector)];
       if (!nodes.length) throw new Error('Required microcopy missing: ' + selector);
       return nodes.map(node => {

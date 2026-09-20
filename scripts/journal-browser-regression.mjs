@@ -317,7 +317,7 @@ try {
     await evaluate(`localStorage.setItem(${JSON.stringify(key)},${JSON.stringify(JSON.stringify({trades:partials,rules}))})`);
     const before=await evaluate('performance.timeOrigin');
     await cdp.send('Page.navigate',{url:`${origin}/?partialExits=${width}#dashboard`});
-    await waitFor(`performance.timeOrigin !== ${before} && document.querySelector('[data-astra-stat="pnl"] .astra-stat-detail')?.textContent.includes('2 trade entries')`);
+    await waitFor(`performance.timeOrigin !== ${before} && document.querySelector('[data-metric="pnl"] .astra-stat-detail')?.textContent.includes('2 trade entries')`);
     assert.equal(await evaluate('document.querySelector("[data-astra-stat=win-rate] .astra-stat-value").textContent'),'50.00%');
     assert.equal(await evaluate('document.querySelector("[data-dashboard-trade-count]").getAttribute("data-dashboard-trade-count")'),'2');
     await capture(join(evidenceDir,`partial-dashboard-${width}.png`));
