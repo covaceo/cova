@@ -1,4 +1,16 @@
 {
+  "redirects": [
+    {
+      "source": "/disclosures",
+      "destination": "/#disclosures",
+      "permanent": false
+    },
+    {
+      "source": "/%23disclosures",
+      "destination": "/disclosures",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/tradovate/status",
