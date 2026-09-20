@@ -10,9 +10,9 @@ test('history and note detail disclose row evidence and preserve cent-precise so
   const html = renderToStaticMarkup(React.createElement(DashboardTradeDialog,{trade:tradeFixture(),onClose:()=>{},journalReview:true}));
   assert.doesNotMatch(html, /completed trade/);
   assert.match(html, /matched fill row/);
-  const source = readFileSync('src/components/ImportDesk.tsx','utf8');
-  assert.match(source, /<JournalHeadlineStats journal=\{historyJournal\}/);
-  assert.match(source, /journalSummary\(historyTrades\)/);
+  const source = readFileSync('src/components/TradeHistoryDialog.tsx','utf8');
+  assert.match(source, /<JournalHeadlineStats journal=\{journal\}/);
+  assert.match(source, /journalSummary\(trades\)/);
   assert.match(source, /JournalEntryRow/);
   assert.match(readFileSync('src/components/JournalEntryRow.tsx','utf8'), /rowMoneyText\(row, value\)/);
   const { rowMoneyText } = load('src/lib/journalAccuracy.ts');

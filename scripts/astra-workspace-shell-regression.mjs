@@ -22,6 +22,17 @@ function load(file) {
   });
   return module.exports;
 }
+test('workspace has four review destinations; account linking is a separate utility',()=>{
+  const {WorkspaceShell}=load('src/components/WorkspaceShell.tsx');
+  const html=renderToStaticMarkup(React.createElement(WorkspaceShell,{...props,section:'import'}));
+  assert.equal((html.match(/class="workspace-sidebar-link(?: |")/g)||[]).length,4);
+  assert.doesNotMatch(html,/Trade History/);
+  assert.match(html,/astra-rail-account[^>]*aria-current="page"/);
+  const importer=readFileSync(resolve(root,'src/components/ImportDesk.tsx'),'utf8');
+  assert.doesNotMatch(importer,/aria-label="Saved trade history"/,'Import is now connection and upload only');
+  const navbar=readFileSync(resolve(root,'src/components/Navbar.tsx'),'utf8');
+  assert.doesNotMatch(navbar,/\{ id: "import", label:/,'Mobile navigation has the same four destinations');
+});
 const props={brokerLabel:'User-supplied CSV',email:'review@example.test',riskScore:0,go:()=>{},signOut:()=>{},deleteAccount:()=>{},children:React.createElement('div',{'data-content':'preserved'},'existing route')};
 test('all workspace destinations share the approved rail without wrapping or changing Risk Desk',()=>{
   const {WorkspaceShell}=load('src/components/WorkspaceShell.tsx');

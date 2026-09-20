@@ -44,7 +44,7 @@ test('Astra styles load after the legacy dashboard cascade', () => {
   const imports = [...main.matchAll(/import \"([^\"]+\.css)\"/g)].map(match=>match[1]);
   const astra = imports.indexOf('./styles/astraDashboard.css');
   assert.ok(astra > imports.indexOf('./styles/dashboardOaDark.css'), 'Astra follows the legacy dashboard cascade');
-  assert.deepEqual(imports.slice(astra + 1), ['./styles/approvedDashboard.css', './styles/homeStory.css', './styles/publicPassportExample.css', './styles/siteInteractionPolish.css'], 'Only scoped public/card/interaction styles follow Astra');
+  assert.deepEqual(imports.slice(astra + 1), ['./styles/approvedDashboard.css', './styles/approvedWorkspace.css', './styles/tradeHistory.css', './styles/homeStory.css', './styles/publicPassportExample.css', './styles/siteInteractionPolish.css'], 'Only scoped public/card/interaction styles follow Astra');
 });
 
 test('Financial labels preserve cents without a half-formatted dollar amount', () => {

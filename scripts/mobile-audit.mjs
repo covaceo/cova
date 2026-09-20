@@ -13,7 +13,7 @@ const routes = [
   { name: "overview-auth", hash: "overview", needsAuth: true, requiredText: ["Link account", "Explore the workflow", "DIAMOND", "Sample data · Not account verified"] },
   { name: "pricing", hash: "pricing", needsAuth: false, requiredText: ["MOST CHOSEN BY ACTIVE TRADERS", "Cova Pro"] },
   { name: "import", hash: "import", needsAuth: true, requiredText: ["Upload CSV first", "TopstepX export", "CSV guide"] },
-  { name: "insights", hash: "coach", needsAuth: true, requiredText: ["Current risk review", "Review note"] },
+  { name: "insights", hash: "coach", needsAuth: true, requiredText: ["Insights", "Details"] },
   { name: "passport", hash: "passport", needsAuth: true, requiredText: ["Sample data · Not account verified", "Unlock export", "Review detail"] },
 ];
 const selectedRouteNames = new Set((process.env.COVA_ROUTES ?? "").split(",").map((name) => name.trim()).filter(Boolean));

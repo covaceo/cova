@@ -42,7 +42,7 @@ export function RulesEngine({ analysis, entitlements, rules, setRules, go, upgra
   return (
     <SectionShell
       eyebrow="Guardrails"
-      title="Rules that protect the payout."
+      title="Limits"
       variant="workspace"
       backdrop={<ImageAtmosphere src="/media/cova-dashboard-plate.jpg" align="right" opacity="opacity-[0.18]" />}
     >
@@ -213,7 +213,7 @@ export function Coach({ analysis, entitlements, go, upgradeToPro }: { analysis: 
   return (
     <SectionShell
       eyebrow="Insights"
-      title="Current risk review."
+      title="Insights"
       variant="workspace"
       backdrop={<ImageAtmosphere src="/media/cova-dashboard-plate.jpg" align="right" opacity="opacity-[0.2]" />}
     >
@@ -229,9 +229,9 @@ export function Coach({ analysis, entitlements, go, upgradeToPro }: { analysis: 
               <insight.icon className={`h-10 w-10 ${isWarningTone ? "text-amber-300" : "text-[#18c887]"}`} />
               <span className="mt-10 inline-block rounded-full bg-white/5 px-3 py-1 font-body text-xs text-white/50">{insight.tone}</span>
               <h3 className="mt-5 font-heading text-4xl italic leading-[1] tracking-normal">{insight.title}</h3>
-              <p className="mt-5 font-body font-light leading-relaxed text-white/58">{insight.body}</p>
+
               <div className="mt-6 border-t border-white/10 pt-4">
-                <p className="font-body text-[10px] uppercase tracking-[0.22em] text-[#18c887]">Review note</p>
+
                 <p className="mt-2 font-body text-sm font-medium leading-relaxed text-white/82">{insight.action}</p>
                 {index === 0 && analysis.breaches.length > 0 && (
                   <button className="mt-4 inline-flex items-center gap-2 font-body text-sm font-medium text-amber-200" onClick={() => go("rules")} type="button">
@@ -239,11 +239,13 @@ export function Coach({ analysis, entitlements, go, upgradeToPro }: { analysis: 
                   </button>
                 )}
               </div>
-              <div className="mt-5 space-y-2 border-t border-white/10 pt-4">
+              <details className="insight-evidence">
+                <summary>Details</summary>
+                <p>{insight.body}</p>
                 {insight.evidence.map((line) => (
                   <p className="font-mono text-xs text-white/42" key={line}>Checked: {line}</p>
                 ))}
-              </div>
+              </details>
             </motion.article>
           );
         })}

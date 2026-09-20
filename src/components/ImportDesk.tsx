@@ -1,7 +1,7 @@
 import { saveBrokerCash } from '../lib/brokerCash';
 import { useEffect, useMemo, useRef, useState } from "react";
 import { rememberAccountNames } from "../lib/accountNames";
-import { groupJournalEntries, parseCsvDetailed, type Trade, type TradeMergeResult } from "../lib/risk";
+import { parseCsvDetailed, type Trade, type TradeMergeResult } from "../lib/risk";
 import { type PropFirmId } from "../lib/propFirms";
 import { clearBrokerStatus, readBrokerStatus, writeBrokerStatus, type BrokerStatus } from "../lib/brokerStatus";
 import { canRedirectToTradovate } from "../lib/tradovateConnect";
@@ -10,9 +10,7 @@ import { fetchHistoryJson, HistoryRunGuard, readHistorySummary, saveHistorySumma
 import { ImageAtmosphere, SectionShell } from "./LayoutShell";
 import { BrokerConnectPanel, CsvExportGuide, CsvPreview, CsvUploadPanel, ImportNextSteps } from "./ImportPanels";
 
-import { journalSummary, journalReviewEnabled } from "../lib/journalAccuracy";
-import { JournalHeadlineStats } from "./JournalAccuracyPanels";
-import { JournalEntryRow } from "./JournalEntryRow";
+
 
 type ImportMode = "append" | "replace" | "merge";
 type ImportCommit = (text: string, mode?: ImportMode) => TradeMergeResult["receipt"] | null;
@@ -75,11 +73,8 @@ function brokerStatusFromTradovate(data: TradovateStatusResponse): BrokerStatus 
   };
 }
 
-export function ImportDesk({ historyTrades = [], entitlements, importCsv, prepareImportCsv, openFirmOAuth, status, reset, upgradeToPro }: { historyTrades?: Trade[]; entitlements: ImportEntitlements; importCsv: ImportCommit; prepareImportCsv: PrepareImportCsv; openFirmOAuth: (firm: PropFirmId) => void; status: string; reset: () => void; upgradeToPro: () => void }) {
-  const historyJournal = useMemo(() => journalSummary(historyTrades), [historyTrades]);
-  const historyGroups = useMemo(() => groupJournalEntries(historyTrades), [historyTrades]);
-  const [historyPage, setHistoryPage] = useState(0);
-  useEffect(() => setHistoryPage(0), [historyTrades]);
+export function ImportDesk({ entitlements, importCsv, prepareImportCsv, openFirmOAuth, status, reset, upgradeToPro }: { entitlements: ImportEntitlements; importCsv: ImportCommit; prepareImportCsv: PrepareImportCsv; openFirmOAuth: (firm: PropFirmId) => void; status: string; reset: () => void; upgradeToPro: () => void }) {
+
   const [text, setText] = useState("date,market,side,contracts,entry,exit,pnl,risk,setup,notes\n2026-05-06,NQ,Long,1,18900,18915,300,250,Opening range,Smoke row");
   const [mode, setMode] = useState<ImportMode>("append");
   const [dragActive, setDragActive] = useState(false);
@@ -473,8 +468,8 @@ export function ImportDesk({ historyTrades = [], entitlements, importCsv, prepar
 
   return (
     <SectionShell
-      eyebrow="Trade history"
-      title="Get trades into Cova."
+      eyebrow="Accounts"
+      title="Link account"
       variant="workspace"
       backdrop={<ImageAtmosphere src="/media/cova-dashboard-plate.jpg" align="right" opacity="opacity-[0.22]" />}
     >
@@ -516,18 +511,7 @@ export function ImportDesk({ historyTrades = [], entitlements, importCsv, prepar
             <p className="mt-3 text-sm text-white/60" role="status">{brokerNotice}</p>
           </section>
         )}
-        <section className="min-w-0 rounded-2xl border border-white/10 bg-[#0d0f14] p-5" aria-label="Saved trade history">
-          <h3 className="text-lg font-semibold">Saved trade history</h3>
-          {journalReviewEnabled() && <JournalHeadlineStats journal={historyJournal} />}
-          <p className="mt-2 text-sm text-white/60">{historyGroups.length} trade entries from {historyTrades.length} saved rows. Partial exits with the same broker entry ID appear together. Tradovate times are UTC and P&amp;L is gross before fees. Older saved history stays here after an empty or failed sync.</p>
-          <div className="mt-4 overflow-x-auto" tabIndex={0} role="region" aria-label="Saved trades, horizontally scrollable">
-            <table className="w-full text-left text-sm"><thead><tr className="border-b border-white/10 text-white/60">{["Closed", "Market", "Side", "Qty", "P&L", "Planned risk", "Notes"].map(label => <th key={label} className="whitespace-nowrap p-3 font-normal" scope="col">{label}</th>)}</tr></thead>
-              <tbody>{[...historyGroups].reverse().slice(historyPage * 50, (historyPage + 1) * 50).map(group => <JournalEntryRow key={group.id} group={group} journalReview={journalReviewEnabled()} />)}</tbody>
-            </table>
-          </div>
-          {!historyTrades.length && <p className="mt-3 text-sm text-white/60">No saved trades for this selection.</p>}
-          {historyGroups.length > 50 && <div className="mt-3 flex gap-4 text-sm"><button disabled={historyPage === 0} onClick={() => setHistoryPage(page => page - 1)}>Previous</button><span>Page {historyPage + 1} of {Math.ceil(historyGroups.length / 50)}</span><button disabled={(historyPage + 1) * 50 >= historyGroups.length} onClick={() => setHistoryPage(page => page + 1)}>Next</button></div>}
-        </section>
+
         <CsvExportGuide selectedFirmId={selectedFirmId} setSelectedFirmId={setSelectedFirmId} />
 
         <div className="import-csv-grid grid gap-6 lg:grid-cols-[0.92fr_1.08fr]">

@@ -98,7 +98,7 @@ test('marketing retains the original wait-mode RouteFrames', () => {
 test('route props preserve behavior with owner-approved history account isolation and reset', () => {
   const expected = {
     Dashboard: 'key={`${authSession?.userId || authSession?.email}:${tradeAccount}`} analysis={analysis} rules={rules} go={go} onSaveTradeNote={saveTradeNote} rithmicSyncAvailable={brokerStatus?.provider === "Rithmic" && brokerStatus.status === "imported"}',
-    ImportDesk: 'key={authSession?.userId || authSession?.email} historyTrades={analysis.trades} entitlements={entitlements} importCsv={importCsv} prepareImportCsv={prepareImportCsv} openFirmOAuth={openFirmOAuth} status={status} reset={() => { const demoTrades = entitlements.plan === "free" ? sampleTrades.slice(0, entitlements.maxStoredTrades) : sampleTrades; tradesRef.current = demoTrades; setTrades(demoTrades); selectTradeAccount("local"); setRules(defaultRules); clearBrokerStatus(); window.dispatchEvent(new CustomEvent("cova:broker-status")); setStatus("Demo trades restored."); announce("Demo trades restored.", "success"); }} upgradeToPro={upgradeToPro}',
+    ImportDesk: 'key={authSession?.userId || authSession?.email} entitlements={entitlements} importCsv={importCsv} prepareImportCsv={prepareImportCsv} openFirmOAuth={openFirmOAuth} status={status} reset={() => { const demoTrades = entitlements.plan === "free" ? sampleTrades.slice(0, entitlements.maxStoredTrades) : sampleTrades; tradesRef.current = demoTrades; setTrades(demoTrades); selectTradeAccount("local"); setRules(defaultRules); clearBrokerStatus(); window.dispatchEvent(new CustomEvent("cova:broker-status")); setStatus("Demo trades restored."); announce("Demo trades restored.", "success"); }} upgradeToPro={upgradeToPro}',
     OAuthConnectPage: 'firmId={oauthFirmId} onApprove={completeFirmOAuth} onCancel={cancelFirmOAuth}',
     RulesEngine: 'analysis={analysis} entitlements={entitlements} rules={rules} setRules={setRules} go={go} upgradeToPro={upgradeToPro}',
     Coach: 'analysis={analysis} entitlements={entitlements} go={go} upgradeToPro={upgradeToPro}',
@@ -167,8 +167,11 @@ test('section content alone enters at 8px over 200ms without opacity or exit; re
       assert.deepEqual(content.props.transition, { duration: reduced ? 0 : 0.2, ease: 'easeOut' });
       assert.equal(captures.filter(({ props }) => props.className === 'workspace-shell operator-workspace oa-dashboard-shell' || props.className === 'workspace-sidebar').length, 0, 'fixed chrome is outside all transforms');
       const highlight = captures.find(({ props }) => props.className === 'oa-workspace-nav-highlight');
-      assert.equal(highlight.props.layoutId, 'oa-workspace-nav-highlight');
-      assert.deepEqual(highlight.props.transition, reduced ? { duration: 0 } : { type: 'spring', stiffness: 550, damping: 40 });
+      if (section === 'import' || section === 'oauth') assert.equal(highlight, undefined, 'Linking uses the separate Accounts utility');
+      else {
+        assert.equal(highlight.props.layoutId, 'oa-workspace-nav-highlight');
+        assert.deepEqual(highlight.props.transition, reduced ? { duration: 0 } : { type: 'spring', stiffness: 550, damping: 40 });
+      }
       assert.equal((html.match(/aria-current="page"/g) || []).length, 1, `${section}: one current nav highlight`);
       assert.match(html, new RegExp(`data-current-content="${section}"`), 'new content is present on the first render');
       assert.equal((html.match(/class="cova-site-footer"/g) || []).length, 1, 'the shared footer slot stays in the current content stage; vendor regressions render its real contents');

@@ -15,7 +15,7 @@ const workspaceNavGroups = [
     label: "Review",
     items: [
       { id: "dashboard", label: "Risk Desk", icon: BarChart3 },
-      { id: "import", label: "Trade History", icon: FileUp },
+
     ],
   },
   {
@@ -68,7 +68,7 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
           </button>
         </div>
 
-        <button className="astra-rail-account" onClick={() => go("import")} type="button"><span className="astra-rail-account-icon" aria-hidden="true">{(email || "C").slice(0, 1).toUpperCase()}</span><span><strong>Account review</strong><small>{brokerLabel}</small></span><ArrowUpRight aria-hidden="true" /></button>
+        <button className="astra-rail-account" aria-current={isWorkspaceNavActive(section, "import") ? "page" : undefined} onClick={() => go("import")} type="button"><span className="astra-rail-account-icon" aria-hidden="true">{(email || "C").slice(0, 1).toUpperCase()}</span><span><strong>Accounts</strong><small>{brokerLabel}</small></span><ArrowUpRight aria-hidden="true" /></button>
 
         <label className="workspace-sidebar-search">
           <Search aria-hidden="true" className="h-4 w-4" />
@@ -157,8 +157,8 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
         {section === "dashboard" ? children : (
           <div className="astra-workspace-page" data-astra-route={section}>
             <div className="astra-deskbar">
-              <div className="astra-breadcrumb"><span>Workspace</span><span aria-hidden="true">/</span><strong>{workspaceNavGroups.flatMap<WorkspaceNavItem>(group => group.items).find(item => isWorkspaceNavActive(section,item.id))?.label}</strong></div>
-              <div className="astra-deskbar-tools"><span className="astra-source-label">{brokerLabel}</span><button type="button" className="astra-button" onClick={() => go("dashboard")}>Risk Desk <ArrowUpRight aria-hidden="true" /></button></div>
+              <div className="astra-breadcrumb"><span>Workspace</span><span aria-hidden="true">/</span><strong>{workspaceNavGroups.flatMap<WorkspaceNavItem>(group => group.items).find(item => isWorkspaceNavActive(section,item.id))?.label || "Link account"}</strong></div>
+              <div className="astra-deskbar-tools">{!isWorkspaceNavActive(section, "import") && <button type="button" className="astra-button astra-import-action" onClick={() => go("import")}><FileUp aria-hidden="true" />Import trades</button>}<button type="button" className="astra-button" onClick={() => go("dashboard")}>Risk Desk <ArrowUpRight aria-hidden="true" /></button></div>
             </div>
             {children}
           </div>

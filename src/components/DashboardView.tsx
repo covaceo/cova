@@ -9,6 +9,7 @@ import { FlagStack } from "./DashboardCards";
 import { RithmicAttribution } from "./RithmicAttribution";
 import { AstraEquityCurve } from "./AstraEquityCurve";
 import { DashboardTradeDialog } from "./DashboardTradeDialog";
+import { TradeHistoryDialog } from "./TradeHistoryDialog";
 import { brokerCashSummary, type CashSummary } from '../lib/brokerCash';
 import { signedMoney } from "../lib/dashboardPresentation";
 export { signedMoney } from "../lib/dashboardPresentation";
@@ -32,6 +33,7 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, o
 }) {
   const [range, setRange] = useState<TimeRange>(() => readDashboardRange());
   const [selectedTradeId, setSelectedTradeId] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const noteSaveRef = useRef(onSaveTradeNote);
   function openTrade(id: string) {
     noteSaveRef.current = onSaveTradeNote;
@@ -110,7 +112,7 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, o
       </div>
       <div className="astra-desk-bottom">
         <section className="astra-panel astra-recent-trades" aria-labelledby="astra-recent-title">
-          <div className="astra-panel-heading"><div><h2 id="astra-recent-title"><FileText aria-hidden="true" />Recent trades</h2></div><button className="astra-text-link" onClick={() => go("import")} type="button">View all <ArrowUpRight aria-hidden="true" /></button></div>
+          <div className="astra-panel-heading"><div><h2 id="astra-recent-title"><FileText aria-hidden="true" />Recent trades</h2></div><button className="astra-text-link" onClick={() => setHistoryOpen(true)} type="button">View all <ArrowUpRight aria-hidden="true" /></button></div>
           <div className="astra-table-scroll"><table className="astra-trade-table"><thead><tr><th scope="col">Market</th><th scope="col">Side</th><th scope="col">Reported P&amp;L</th></tr></thead><tbody>
             {recentTrades.map(trade => <tr data-recent-trade={trade.id} key={trade.id}>
               <td><button type="button" className="astra-trade-link" onClick={() => openTrade(trade.id)} aria-label={`Review ${trade.market} trade from ${trade.date}`}><span className="astra-symbol" aria-hidden="true">{trade.market.slice(0, 2)}</span><span>{trade.market}</span></button></td>
@@ -128,6 +130,7 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, o
       {!journalReview && <details className="astra-review-details"><summary><span>Next review</span><ChevronDown aria-hidden="true" /></summary><DashboardReviewRow analysis={scopedAnalysis} go={go} /></details>}
     </>}
     <footer className="astra-dashboard-footer"><span>Retrospective review only. No live brokerage execution.</span><div className="dashboard-summary-actions"><button className="astra-text-link" onClick={manageSource} type="button">{hasRithmicSource ? "Sync new trades" : "Manage source"}<ArrowUpRight aria-hidden="true" /></button></div></footer>
+    {historyOpen && <TradeHistoryDialog trades={analysis.trades} journalReview={journalReview} onClose={() => setHistoryOpen(false)} />}
     <DashboardTradeDialog journalReview={journalReview} trade={selectedTrade} onClose={() => setSelectedTradeId(null)} onSave={noteSaveRef.current} />
   </section>;
 }

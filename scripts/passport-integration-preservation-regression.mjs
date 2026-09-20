@@ -46,11 +46,11 @@ const protectedFiles = {
   // Route-prop and real-footer regressions cover the authorized presentation-only wiring.
   // Auto-history adds principal+selection guarded merge, scoped account review and saved-history props.
   // Callback hints never authorize imports; all marketing, OAuth and Passport artwork remain unchanged.
-  "src/App.tsx": "3ff96b7908418c3ed54fa05bf4a8329c0abcdde07f17679d0772830310429107",
+  "src/App.tsx": "947f2cce1bdf35d1402b1ef6e8592e6776d6af61e44455ec492640feff239c8c",
   "src/components/AstraEquityCurve.tsx": "080bdba310e0b45aac25cef67702f29ab6e49c674a74559d45af15ff3dbc4433",
   "src/components/DashboardTradeDialog.tsx": "302d1c3851169baadf76180225e607254f09e340b447384f52e2322ac3d8752a",
-  "src/components/DashboardView.tsx": "21e87d4ccc2bea59650cd4dc1a5ec608bf655ef5d759cc6a74ecd0ef39817366",
-  "src/components/WorkspaceShell.tsx": "1ba5ee114ebb09e8b37f841404ae595a9d323850524378231c15ff26ef623219",
+  "src/components/DashboardView.tsx": "cff291aea0a00f37fc93090eeb12df8d61057f48ab646023250624bc18c3691b",
+  "src/components/WorkspaceShell.tsx": "ef2b0bb324e9c59189e3700d0483eab16b7d70dd33c38b02dab544be047c8ba6",
   "src/index.css": "ea8b38ada867619addaced06a8a3a1c494c1de9ef6c30beb5cbe7435890729db",
   // Retain UTC ordering while preserving legacy same-day input order and member annotations.
     "src/lib/risk.ts": "78991b6b2f932c3d91ddf7d5cb29fc6953a1732cda2be8cbc953d55b6b400ef9",
