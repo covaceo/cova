@@ -3,7 +3,14 @@
 .oa-dashboard-app .oa-dashboard-shell .workspace-sidebar { background:#090e16!important; border-right-color:#26303e!important; }
 .oa-dashboard-app .oa-dashboard-shell .workspace-sidebar-copy { font-size:13px!important; }
 .oa-dashboard-app .oa-dashboard-shell .workspace-sidebar-link-active { background:#162a47!important; }
-.oa-dashboard-app .astra-rail-account[aria-current="page"] { background:#162a47; border-color:#447eef; }
+/* Accounts is a quiet navigation utility, not a duplicate personal avatar. */
+.oa-dashboard-app .astra-rail-account { gap:12px; min-height:58px; padding:10px 12px; margin:0 2px 14px; background:transparent; border-color:rgba(125,148,180,.12); border-radius:5px; }
+.oa-dashboard-app .astra-rail-account .astra-rail-account-copy { display:grid; gap:3px; min-width:0; flex:1; }
+.oa-dashboard-app .astra-rail-account strong { font:500 13px/1.4 Inter,Arial,sans-serif; }
+.oa-dashboard-app .astra-rail-account small { font:11px/1.5 Inter,Arial,sans-serif; color:#a4b1c5; }
+.oa-dashboard-app .astra-rail-account>svg { width:16px; height:16px; color:#a4b1c5; }
+.oa-dashboard-app .astra-rail-account:hover { background:rgba(125,148,180,.06); border-color:rgba(125,148,180,.22); }
+.oa-dashboard-app .astra-rail-account[aria-current="page"] { background:rgba(55,103,180,.12); border-color:rgba(111,150,255,.28); }
 .oa-dashboard-app .astra-workspace-page { max-width:none; padding:20px 28px 28px; font-variant-numeric:tabular-nums; }
 .oa-dashboard-app .astra-workspace-page .astra-deskbar { min-height:40px; height:auto; padding:0; margin:0 0 18px; gap:16px; }
 .oa-dashboard-app .astra-workspace-page .astra-deskbar-tools { flex-wrap:wrap; }

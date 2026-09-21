@@ -53,13 +53,13 @@ const protectedFiles = {
   "src/components/DashboardTradeDialog.tsx": "302d1c3851169baadf76180225e607254f09e340b447384f52e2322ac3d8752a",
   // Owner-added averages are isolated; original financial logic remains locked by approved-dashboard-preservation.
   "src/components/DashboardView.tsx": "19a2aa6da5fb5c4fc523c2162781fec5b1dbf35d4457e2610b85a41cc329a9b0",
-  // Owner-approved pointer focus styling only; chart/account/trade behavior remains separately locked.
-  "src/components/WorkspaceShell.tsx": "dc676fb11935676469bffb09541576ef30bde3e298111223e4ab33ff71d290a3",
+  // Owner-approved Accounts utility redesign removes the initial badge and obsolete badge CSS; handlers remain intact.
+  "src/components/WorkspaceShell.tsx": "42aff47eb5a02497debc749d77d41cf7d7dd2f9f492c45c054ceeb7fc4d24a61",
   "src/index.css": "ea8b38ada867619addaced06a8a3a1c494c1de9ef6c30beb5cbe7435890729db",
   // Retain UTC ordering while preserving legacy same-day input order and member annotations.
     "src/lib/risk.ts": "78991b6b2f932c3d91ddf7d5cb29fc6953a1732cda2be8cbc953d55b6b400ef9",
   "src/lib/storageScope.ts": "3cd9c57c38bb10e9f7b61776f00422ab9590bdebd1d0e458eba5a33cc676e183",
-  "src/styles/astraDashboard.css": "fb12899dfb8fc4f5ccf191e61e594db1de03a866310dd2388b4baf44b997ff8b",
+  "src/styles/astraDashboard.css": "3291c68685e2118bbcfa68296fa78ea43decb7129db1403c3a6d782a52f43ae8",
   "supabase/migrations/20260807010000_auth_policy_acceptances.sql": "0cf48fb5788748c426e686bf1a0c67975da1faf812a73f63a3e444e86b99cec4",
   "supabase/migrations/20260807020000_unique_broker_provider_connections.sql": "5a9b4956fb5b1a6ddf99767b633160ff0826771b6fc1db526b0acf3250594ac3",
   "supabase/migrations/20260807030000_retire_projectx_connector.sql": "e783e6bb4c0647af87ae57168e237a566182be4923cd1622717765abef45ab0c",

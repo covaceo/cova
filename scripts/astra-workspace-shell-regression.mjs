@@ -28,6 +28,8 @@ test('workspace has four review destinations; account linking is a separate util
   assert.equal((html.match(/class="workspace-sidebar-link(?: |")/g)||[]).length,4);
   assert.doesNotMatch(html,/Trade History/);
   assert.match(html,/astra-rail-account[^>]*aria-current="page"/);
+  assert.doesNotMatch(html,/astra-rail-account-icon/,'Accounts utility must not show a user initial badge');
+  assert.match(html,/astra-rail-account-copy/);
   const importer=readFileSync(resolve(root,'src/components/ImportDesk.tsx'),'utf8');
   assert.doesNotMatch(importer,/aria-label="Saved trade history"/,'Import is now connection and upload only');
   const navbar=readFileSync(resolve(root,'src/components/Navbar.tsx'),'utf8');
