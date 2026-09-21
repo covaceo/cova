@@ -17,7 +17,7 @@ test('Accounts offers shared Tradovate / NinjaTrader and Rithmic connections; CS
  const html=renderToStaticMarkup(React.createElement(BrokerConnectPanel,base));
  assert.match(html,/>Tradovate \/ NinjaTrader</);assert.match(html,/>Rithmic</);
  assert.doesNotMatch(html,/TopstepX|Apex|MFFU|Tradeify|Other firm|atomic nonce|API gated|Choose a source|data-platform="ninjatrader"/);
- assert.match(html,/Sign in with Tradovate/);assert.match(html,/Connect Rithmic/);assert.doesNotMatch(html,/type="password"/);
+ assert.match(html,/Connect Tradovate/);assert.match(html,/Connect Rithmic/);assert.doesNotMatch(html,/type="password"/);
  const guide=renderToStaticMarkup(React.createElement(CsvExportGuide,{selectedFirmId:'rithmic',setSelectedFirmId:noop}));
  assert.doesNotMatch(guide,/Rithmic|TopstepX|Apex|MFFU|Tradeify/);
 });
@@ -39,11 +39,11 @@ test('Rithmic sync disables competing Tradovate actions',()=>{
 });
 test('Retained Tradovate connections can disconnect while unavailable, never sync or reconnect',()=>{
  const html=renderToStaticMarkup(React.createElement(BrokerConnectPanel,{...base,tradovateAvailable:false,brokerStatus:{provider:'Tradovate',connected:true}}));
- assert.match(html,/Disconnect/);assert.match(html,/Sync unavailable/);assert.doesNotMatch(html,/>Sync trades</);assert.doesNotMatch(html,/Sign in with Tradovate/);
+ assert.match(html,/Disconnect/);assert.match(html,/Sync unavailable/);assert.doesNotMatch(html,/>Sync trades</);assert.doesNotMatch(html,/Connect Tradovate/);
 });
 test('Active connections retain sync; non-Pro accounts cannot start a connection',()=>{
  const connected=renderToStaticMarkup(React.createElement(BrokerConnectPanel,{...base,brokerStatus:{provider:'Tradovate',connected:true}}));
  assert.match(connected,/Sync trades/);assert.match(connected,/Disconnect/);
  const free=renderToStaticMarkup(React.createElement(BrokerConnectPanel,{...base,entitlements:{...base.entitlements,canUseDirectSync:false,plan:'free'}}));
- assert.doesNotMatch(free,/Sign in with Tradovate/);assert.match(free,/Pro/);assert.doesNotMatch(free,/type="password"/);
+ assert.doesNotMatch(free,/Connect Tradovate/);assert.match(free,/Pro/);assert.doesNotMatch(free,/type="password"/);
 });

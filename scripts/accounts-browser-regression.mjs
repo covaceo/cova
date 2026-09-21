@@ -22,9 +22,9 @@ try {
  const evaluate=async expression=>{const r=await send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw Error(JSON.stringify(r.exceptionDetails));return r.result?.value};
  const wait=async expression=>{for(let i=0;i<120;i++){if(await evaluate(`Boolean(${expression})`))return;await sleep(50)}throw Error('Timeout '+expression)};
  const click=async selector=>{await evaluate(`document.querySelector(${JSON.stringify(selector)}).scrollIntoView({block:'center',behavior:'instant'})`);const b=await evaluate(`(()=>{const r=document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()`);await send('Input.dispatchMouseEvent',{type:'mousePressed',...b,button:'left',clickCount:1});await send('Input.dispatchMouseEvent',{type:'mouseReleased',...b,button:'left',clickCount:1})};
- const capture=async name=>{await evaluate("window.scrollTo({top:0,behavior:'instant'})");await writeFile(join(out,name+'.png'),Buffer.from((await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:true})).data,'base64'))};
+ const capture=async name=>{await evaluate("window.scrollTo({top:0,behavior:'instant'})");await writeFile(join(out,name+'.png'),Buffer.from((await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:!(await evaluate("Boolean(document.querySelector('dialog:modal'))"))})).data,'base64'))};
  await send('Runtime.enable');await send('Page.enable');
- for(const [name,width,height,mobile] of [['desktop',1672,941,false],['laptop',1280,720,false],['edge',851,800,false],['mobile',390,844,true],['small-phone',360,800,true]]){
+ for(const [name,width,height,mobile] of [['desktop',1672,941,false],['laptop',1280,720,false],['edge',851,800,false],['mobile',390,844,true],['small-phone',360,800,true],['short-phone',390,568,true]]){
   await send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile});await send('Page.navigate',{url:`http://127.0.0.1:${port}/__accounts.html`});await wait("document.querySelector('.accounts-page') && document.fonts.status==='loaded'");
   assert.deepEqual(await evaluate('[innerWidth,document.documentElement.clientWidth]'),[width,width]);assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth'));
   assert.deepEqual(await evaluate("[...document.querySelectorAll('[data-platform] h3')].map(e=>e.textContent)"),['Tradovate / NinjaTrader','Rithmic']);
@@ -34,19 +34,25 @@ try {
   const {root}=await send('DOM.getDocument');const {nodeId}=await send('DOM.querySelector',{nodeId:root.nodeId,selector:'input[type="file"]'});await send('DOM.setFileInputFiles',{nodeId,files:[file]});await wait("document.querySelector('.accounts-preview-row') && !document.querySelector('[data-csv-import] .accounts-button-primary').disabled");
   assert.equal(await evaluate("document.querySelectorAll('.accounts-preview-row').length"),1);await capture(name+'-file');await click('[data-csv-import] .accounts-button-primary');assert.deepEqual(await evaluate('window.__import'),{text:csv,mode:'append'});
   await evaluate("window.__setBroker('connected')");await wait("document.querySelector('[data-platform=tradovate]').innerText.includes('Sync trades')");await click('[data-platform="tradovate"] .accounts-button-primary');assert.deepEqual(await evaluate('window.__actions'),['sync']);
-  await evaluate("window.__setBroker('unavailable')");await wait("document.querySelector('[data-platform=tradovate]').innerText.includes('Sync unavailable')");assert.doesNotMatch(await evaluate("document.querySelector('[data-platform=tradovate]').innerText"),/Sign in with Tradovate|Sync trades/);await click('[data-platform="tradovate"] .accounts-text-button:last-child');assert.deepEqual(await evaluate('window.__actions'),['sync','disconnect']);
+  await evaluate("window.__setBroker('unavailable')");await wait("document.querySelector('[data-platform=tradovate]').innerText.includes('Sync unavailable')");assert.doesNotMatch(await evaluate("document.querySelector('[data-platform=tradovate]').innerText"),/Connect Tradovate|Sync trades/);await click('[data-platform="tradovate"] .accounts-text-button:last-child');assert.deepEqual(await evaluate('window.__actions'),['sync','disconnect']);
   // Exercise the real login component using only synthetic credentials and an in-memory callback.
   await evaluate("window.__setBroker('ready')");
   await click('[data-platform="rithmic"] button');await wait("document.querySelector('[data-rithmic-connect]')");
+  assert.equal(await evaluate("Boolean(document.querySelector('dialog.accounts-rithmic-dialog:modal'))"),true,'Rithmic opens as a modal, not inline');
   assert.equal(await evaluate("document.querySelectorAll('[data-rithmic-attribution] img').length"),2);
   await wait("[...document.querySelectorAll('[data-rithmic-attribution] img')].every(i=>i.complete&&i.naturalWidth>0)");
   const fill=async(selector,value)=>{await click(selector);await send('Input.insertText',{text:value});};
   const choose=async(selector,value)=>evaluate(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});e.value=${JSON.stringify(value)};e.dispatchEvent(new Event('change',{bubbles:true}))})()`);
   const emptyLogin=()=>evaluate("[...document.querySelectorAll('[data-rithmic-connect] input')].every(i=>i.value==='')");
-  await capture(name+'-login');
+  const modal=await evaluate("(()=>{const d=document.querySelector('dialog:modal'),r=d.getBoundingClientRect();return {label:d.getAttribute('aria-labelledby'),blur:getComputedStyle(d,'::backdrop').backdropFilter,locked:document.body.style.overflow,x:r.x,y:r.y,right:r.right,bottom:r.bottom,overflow:d.scrollWidth-d.clientWidth}})()");
+  assert.equal(modal.label,'rithmic-login-title');assert.match(modal.blur,/blur\(8px\)/);assert.equal(modal.locked,'hidden');assert.ok(modal.x>=0&&modal.y>=0&&modal.right<=width&&modal.bottom<=height&&modal.overflow<=1);
+  const key=async(key,modifiers=0)=>{await send('Input.dispatchKeyEvent',{type:'keyDown',key,code:key,windowsVirtualKeyCode:key==='Tab'?9:27,modifiers});await send('Input.dispatchKeyEvent',{type:'keyUp',key,code:key,windowsVirtualKeyCode:key==='Tab'?9:27,modifiers})};
+  await evaluate("document.querySelector('[data-rithmic-connect] button[type=submit]').focus()");await key('Tab');assert.equal(await evaluate("document.activeElement.getAttribute('aria-label')"),'Close Rithmic login');await key('Tab',8);assert.equal(await evaluate("document.activeElement.type"),'submit');
+  await evaluate("document.querySelector('dialog:modal').scrollTop=0");await capture(name+'-login');
   await fill('[aria-label="Rithmic username"]','fixture-user');await fill('[aria-label="Rithmic password"]','fixture-password-not-real');
   await click('[data-rithmic-connect] button[type="submit"]');await wait('window.__rCalls===1');
   assert.equal(await emptyLogin(),true);assert.equal(await evaluate("document.querySelector('[data-rithmic-connect] fieldset').disabled"),true);
+  assert.equal(await evaluate("document.querySelector('[aria-label=\"Close Rithmic login\"]').disabled"),true);await key('Escape');assert.equal(await evaluate("Boolean(document.querySelector('dialog:modal'))"),true);
   assert.deepEqual(await evaluate('window.__rRequest'),{username:'fixture-user',password:'fixture-password-not-real',lookbackDays:90,systemName:'Rithmic Paper Trading'});
   await evaluate("document.querySelector('[data-rithmic-connect]').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}))");assert.equal(await evaluate('window.__rCalls'),1);
   await evaluate("window.__resolveR({selectionRequired:true,accounts:[{accountKey:'fixture-a',accountName:'Account A'},{accountKey:'fixture-b',accountName:'Account B'}]})");await wait("document.querySelector('[data-rithmic-account]') && !document.querySelector('[data-rithmic-connect] fieldset').disabled");
@@ -59,7 +65,11 @@ try {
   await evaluate('window.__rejectR()');await wait("document.querySelector('.accounts-notice')?.innerText.includes('sync failed')");assert.equal(await emptyLogin(),true);
   assert.equal(await evaluate("JSON.stringify({...localStorage,...sessionStorage}).includes('fixture-password-not-real')"),false);
   await fill('[aria-label="Rithmic username"]','fixture-user');await fill('[aria-label="Rithmic password"]','fixture-password-not-real');
-  await click('[data-platform="rithmic"] button');await wait("!document.querySelector('[data-rithmic-connect]')");await click('[data-platform="rithmic"] button');await wait("document.querySelector('[data-rithmic-connect]')");assert.equal(await emptyLogin(),true);
+  await click('[aria-label="Close Rithmic login"]');await wait("!document.querySelector('[data-rithmic-connect]')");await click('[data-platform="rithmic"] button');await wait("document.querySelector('[data-rithmic-connect]')");assert.equal(await emptyLogin(),true);
+  await key('Escape');await wait("!document.querySelector('dialog:modal')");assert.equal(await evaluate("document.activeElement.textContent.trim()"),'Connect Rithmic');assert.equal(await evaluate("document.body.style.overflow"),'');
+  await click('[data-platform="rithmic"] button');await wait("document.querySelector('dialog:modal')");assert.equal(await emptyLogin(),true);
+  await send('Input.dispatchMouseEvent',{type:'mousePressed',x:2,y:2,button:'left',clickCount:1});await send('Input.dispatchMouseEvent',{type:'mouseReleased',x:2,y:2,button:'left',clickCount:1});await wait("!document.querySelector('dialog:modal')");
+  await click('[data-platform="rithmic"] button');await wait("document.querySelector('dialog:modal')");
   await evaluate("window.__setRithmic('unavailable')");await wait("!document.querySelector('[data-rithmic-connect]') && document.querySelector('[data-rithmic-unavailable]')");await click('[data-rithmic-unavailable]');await wait("document.activeElement?.type==='file'");
   await evaluate("window.__setRithmic('checking')");await wait("document.querySelector('[data-platform=rithmic]').innerText.includes('Checking')");assert.equal(await evaluate("Boolean(document.querySelector('[data-rithmic-connect]'))"),false);
   await evaluate("window.__setPro(false);window.__setRithmic('ready')");await wait("document.querySelector('[data-platform=rithmic]').innerText.includes('Connect with Pro')");assert.equal(await evaluate("Boolean(document.querySelector('input[type=password]'))"),false);

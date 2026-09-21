@@ -49,7 +49,7 @@ export function RithmicLogin({ busy, sync, notice }: {
   }
 
   return <form id="rithmic-login" className="accounts-panel accounts-rithmic-login" data-rithmic-connect onSubmit={submit} aria-busy={locked}>
-    <h3>Rithmic login</h3>
+    <h3 id="rithmic-login-title">Rithmic login</h3>
     <p>Read-only trade history. No orders or money movement. Your login is not stored.</p>
     <fieldset disabled={locked} className="accounts-login-fields">
       <label className="accounts-field">System<select aria-label="Rithmic system" data-rithmic-environment value={credentials.systemName} onChange={event => {
