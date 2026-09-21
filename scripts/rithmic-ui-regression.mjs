@@ -129,6 +129,9 @@ assert.ok(existsSync(path.join(root, ...rithmicLogo)) && existsSync(path.join(ro
 assert.equal(hash(...rithmicLogo), "187febae74c28fc370fe27a8196ba81ccc89af1150b1f641ad6b25ea5fa48cd8", "Rithmic artwork must remain byte-identical to the provider file.");
 assert.equal(hash(...omneLogo), "7af9acab16c4d75ddc11efd0e1011230a8cb33ffe1ea01e362706f6c70957994", "OMNE artwork must remain byte-identical to the provider file.");
 
-assert.doesNotMatch(importPanels, /data-rithmic-connect|data-rithmic-environment|type="password"/, "Owner-retired provider must not expose a credential form in Accounts.");
+assert.match(importPanels, /entitlements\.canUseDirectSync && rithmicStatusChecked && rithmicAvailable && <RithmicLogin/, "Rithmic login requires Pro and a verified available connector.");
+const login = read("src", "components", "RithmicLogin.tsx");
+assert.match(login, /<RithmicAttribution compact/);
+assert.doesNotMatch(login, /localStorage|sessionStorage|console\./, "One-time credentials must not be persisted or logged.");
 assert.match(importPanels, /NinjaTrader/);
-console.log("legacy Rithmic data/security preservation: passed; provider selection retired by owner");
+console.log("Rithmic data/security preservation and gated login: passed");

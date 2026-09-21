@@ -588,7 +588,7 @@ async function sourceLifecycle() {
       // Selection is a lifecycle handoff only. Never enter credentials or start a broker sync.
       await clickSelector('.dashboard-summary-actions button', 'Update trades');
       await waitFor("location.hash === '#import'");
-      await waitFor("document.querySelector('[data-csv-import]') && document.querySelector('[data-platform=\"ninjatrader\"]')");
+      await waitFor("document.querySelector('[data-csv-import]') && document.querySelector('[data-platform=\"rithmic\"]')");
       assert.equal(await evaluate("document.querySelectorAll('[data-platform]').length"), 2, `${scenario.name} must land on the simplified Accounts screen`);
       assert.equal(await evaluate("document.querySelectorAll('[data-rithmic-connect], input[type=password]').length"), 0, 'Retired provider cannot expose a login form');
       console.log(`Astra source lifecycle: ${scenario.name} passed`);
