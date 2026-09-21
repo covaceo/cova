@@ -1,5 +1,6 @@
 // Real component/browser proof. Default data is synthetic; optional private points stay outside git.
 import assert from 'node:assert/strict';
+import {checkDashboardFocusAlignment} from './helpers/dashboard-focus-alignment.mjs';
 import {spawn,execFileSync} from 'node:child_process';
 import {readFile,writeFile,mkdtemp,mkdir,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
@@ -33,7 +34,7 @@ try{
  const capture=async(name)=>{await writeFile(join(output,name+'.png'),Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));};
  const contained=async()=>assert.equal(await evaluate(`(()=>{const t=document.querySelector('.astra-chart-tooltip').getBoundingClientRect(),p=document.querySelector('.astra-chart-main').getBoundingClientRect();return t.left>=p.left && t.right<=p.right && t.top>=p.top && t.bottom<=p.bottom;})()`),true,'Tooltip contained');
  await send('Runtime.enable');await send('Page.enable');
- for(const [name,width,height,mobile] of [['desktop',1672,941,false],['laptop',1280,720,false],['mobile',390,844,true],['small-phone',360,800,true]]){
+ for(const [name,width,height,mobile] of [['desktop',1672,941,false],['laptop',1280,720,false],['compact',1024,768,false],['desktop-edge',851,800,false],['mobile',390,844,true],['small-phone',360,800,true]]){
   await send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile});await send('Emulation.setTouchEmulationEnabled',{enabled:mobile,maxTouchPoints:mobile?5:1});
   await send('Page.navigate',{url:`http://127.0.0.1:${port}/__curve.html`});
   await wait(`document.querySelector('[data-dashboard-visual="reference"]') && document.fonts.status==='loaded'`);await sleep(120);
@@ -48,6 +49,7 @@ try{
   assert.equal(await evaluate(`document.querySelectorAll('.astra-observation-value').length`),0,'Exact point values belong in the interactive tooltip, not on every date');
   assert.ok(!await evaluate(`document.querySelector('.astra-chart-note').innerText.includes('$')`),'Do not repeat the headline total in the chart footer');
   await capture(name+'-dashboard');
+  await checkDashboardFocusAlignment({evaluate,send,capture,name,mobile});
   await evaluate(`document.querySelector('.astra-chart-svg').focus()`);await key('End',35);await wait(`Boolean(document.querySelector('.astra-chart-tooltip'))`);await contained();await capture(name+'-tooltip');await key('Escape',27);
   await evaluate(`document.querySelector('.astra-chart-svg').blur();window.scrollTo({top:0,behavior:'instant'})`);
   for(const label of ['Latest session','Last 7 days','All trades']){await evaluate(`[...document.querySelectorAll('.dashboard-range-controls button')].find(b=>b.textContent===${JSON.stringify(label)}).click()`);await wait(`[...document.querySelectorAll('.dashboard-range-controls button')].some(b=>b.textContent===${JSON.stringify(label)}&&b.getAttribute('aria-pressed')==='true')`);}

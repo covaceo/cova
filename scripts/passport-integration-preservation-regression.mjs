@@ -52,7 +52,8 @@ const protectedFiles = {
   "src/components/AstraEquityCurve.tsx": "080bdba310e0b45aac25cef67702f29ab6e49c674a74559d45af15ff3dbc4433",
   "src/components/DashboardTradeDialog.tsx": "302d1c3851169baadf76180225e607254f09e340b447384f52e2322ac3d8752a",
   "src/components/DashboardView.tsx": "cff291aea0a00f37fc93090eeb12df8d61057f48ab646023250624bc18c3691b",
-  "src/components/WorkspaceShell.tsx": "680ed5cb5e3d99ff26aa4b864fd38a9db5dee13c361f506549d9784c3d68f5d5",
+  // Owner-approved pointer focus styling only; chart/account/trade behavior remains separately locked.
+  "src/components/WorkspaceShell.tsx": "dc676fb11935676469bffb09541576ef30bde3e298111223e4ab33ff71d290a3",
   "src/index.css": "ea8b38ada867619addaced06a8a3a1c494c1de9ef6c30beb5cbe7435890729db",
   // Retain UTC ordering while preserving legacy same-day input order and member annotations.
     "src/lib/risk.ts": "78991b6b2f932c3d91ddf7d5cb29fc6953a1732cda2be8cbc953d55b6b400ef9",
