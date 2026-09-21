@@ -287,7 +287,7 @@ assert.match(read("src", "styles", "astraDashboard.css"), /@media\(max-width:620
 assert.match(importPanels, /data-csv-import/, "Universal CSV remains available without a Pro entitlement.");
 assert.match(importPanels, /Tradovate \/ NinjaTrader/, "The shared connection must not label NinjaTrader CSV-only.");
 assert.match(app, /if \(!entitlements\.canUseDirectSync\)/, "App-level OAuth entry must enforce the direct-sync entitlement.");
-assert.match(workspaceShell, /Retrospective review only\. No live brokerage execution\./, "Workspace safety copy should preserve the no-execution boundary.");
+assert.match(workspaceShell, /<SiteFooter go=\{go\} \/>/, "Keep the original legal footer after removing the duplicate rail copy.");
 assert.match(app, /const hasSampleTrades = visibleTrades\.some\(\(trade\) => trade\.id\.startsWith\("demo-"\)\)/, "Any demo row in the selected account keeps a mixed Passport visibly sample-derived.");
 assert.match(app, /const isSampleReview = hasSampleTrades/, "Passport should derive sample provenance from any demo rows in the review.");
 assert.match(tradeSourceLabel, /Sample[\s\S]*CSV[\s\S]*sourceLabels\.join\(" \+ "\)/, "Mixed demo and imported rows should disclose both sources.");

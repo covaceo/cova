@@ -1,4 +1,4 @@
-import { Activity, ArrowUpRight, BarChart3, BookOpen, ChevronRight, FileUp, Gauge, Home, LayoutGrid, Network, Search, ShieldCheck } from "lucide-react";
+import { Activity, ArrowUpRight, BarChart3, BookOpen, ChevronRight, FileUp, Gauge, Home, LayoutGrid, Search, BookUser } from "lucide-react";
 import { ProfileMenu } from "./UserProfile";
 import { motion, useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -29,7 +29,7 @@ const workspaceNavGroups = [
   {
     label: "Proof",
     items: [
-      { id: "passport", label: "Passport", icon: ShieldCheck },
+      { id: "passport", label: "Passport", icon: BookUser },
     ],
   },
 ] satisfies { items: WorkspaceNavItem[]; label: string }[];
@@ -133,11 +133,8 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
         </div>
 
         <div className="workspace-account-menu">
-          <ProfileMenu email={email} signOut={signOut} deleteAccount={deleteAccount} />
-          <div className="workspace-sidebar-watermark">
-            <Network aria-hidden="true" className="h-3.5 w-3.5" />
-            <span>Retrospective review only. No live brokerage execution.</span>
-          </div>
+          <ProfileMenu email={email} signOut={signOut} deleteAccount={deleteAccount} manageAccounts={() => go("import")} />
+
         </div>
       </aside>
 

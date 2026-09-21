@@ -215,7 +215,7 @@ export function Navbar({ section, go, openAuth, mobileOpen, setMobileOpen, authS
                 {item.label}
               </button>
             ))}
-            {authSession && <ProfileMenu mobile email={authSession.email} signOut={signOut} deleteAccount={deleteAccount} />}
+            {authSession && <ProfileMenu mobile email={authSession.email} signOut={signOut} deleteAccount={deleteAccount} manageAccounts={() => { setMobileOpen(false); go("import"); }} />}
             <div className="operator-mobile-account-actions mt-3 grid grid-cols-2 gap-2 border-t border-white/10 pt-3">
               {authSession && (
                 <button className="cova-button cova-button-secondary operator-mobile-delete-account col-span-2 px-4 py-3 font-body text-sm" onClick={() => { setMobileOpen(false); deleteAccount(); }} type="button">

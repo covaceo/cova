@@ -324,8 +324,7 @@ async function auditDarkDashboard(label) {
       '.astra-note-date', '.astra-mini-note > p', '.astra-trade-table th', '.astra-review-details > summary span',
       '.astra-dashboard-footer > span',
       ...(innerWidth >= 851 ? ['.workspace-sidebar-group-label', '.cova-profile-trigger > span:nth-child(2)', '.astra-rail-account small'] : []),
-      // Legacy short-height chrome hides this duplicate; the identical footer disclosure stays required above.
-      ...(innerWidth >= 851 && !(innerWidth >= 1024 && innerHeight <= 800) ? ['.workspace-sidebar-watermark span'] : []),
+      // Owner removed the duplicate rail disclaimer; the actual dashboard footer remains required above.
       ...(document.querySelector('.astra-evidence-details')?.open ? ['.astra-evidence-details > p', '.astra-factor-list span', '.oa-card-header > span', '.oa-watch-row'] : []),
       ...(document.querySelector('.astra-review-details')?.open ? ['.dashboard-review-grid span', '.dashboard-review-disclosure'] : []),
     ];
@@ -544,6 +543,8 @@ async function desktopInteractions() {
   await evaluate("window.__covaConfirmMessage = ''; window.confirm = (message) => { window.__covaConfirmMessage = message; return false; }; true");
   await clickSelector(".cova-profile-trigger");
   await clickSelector(".cova-profile-popup button", "Settings");
+  await clickSelector("dialog [role=tab]", "Account");
+  await clickSelector(".cova-settings-danger summary", "Delete account");
   await waitFor("Boolean(document.querySelector('dialog[open] .cova-profile-delete'))");
   await clickSelector(".cova-profile-delete", "Delete account");
   assert.match(await evaluate("window.__covaConfirmMessage"), /Permanently delete your Cova account/, "Delete account must reach the destructive confirmation boundary");

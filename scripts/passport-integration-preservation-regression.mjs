@@ -54,8 +54,8 @@ const protectedFiles = {
   "src/components/DashboardTradeDialog.tsx": "302d1c3851169baadf76180225e607254f09e340b447384f52e2322ac3d8752a",
   // Owner-approved legacy source CTA wording and averages; original financial logic remains locked by approved-dashboard-preservation.
   "src/components/DashboardView.tsx": "045eca344119d7654e271f0088b4c8d14276cffbdf4fb579b1fe4f9b4f174280",
-  // Owner-approved Accounts utility redesign removes the initial badge and obsolete badge CSS; handlers remain intact.
-  "src/components/WorkspaceShell.tsx": "42aff47eb5a02497debc749d77d41cf7d7dd2f9f492c45c054ceeb7fc4d24a61",
+  // Owner-approved Passport book icon, duplicate rail copy removal and Settings-to-Accounts entry; shell handlers remain intact.
+  "src/components/WorkspaceShell.tsx": "b5e4b9f0418607abcca8822298aae898d18c8f71ad9365914deefa21736a9e83",
   "src/index.css": "ea8b38ada867619addaced06a8a3a1c494c1de9ef6c30beb5cbe7435890729db",
   // Retain UTC ordering while preserving legacy same-day input order and member annotations.
     "src/lib/risk.ts": "78991b6b2f932c3d91ddf7d5cb29fc6953a1732cda2be8cbc953d55b6b400ef9",
