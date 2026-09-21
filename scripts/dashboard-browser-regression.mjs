@@ -281,7 +281,7 @@ async function auditMicrocopy() {
     const parse = color => { const parts = color.match(/[\\d.]+/g)?.map(Number); if (!parts || parts.length < 3) throw new Error('Unparseable CSS color: ' + color); return [...parts.slice(0, 3), parts[3] ?? 1]; };
     const composite = (fg, bg) => fg.slice(0, 3).map((value, i) => value * fg[3] + bg[i] * (1 - fg[3]));
     const luminance = color => color.slice(0, 3).map(value => { const n = value / 255; return n <= .04045 ? n / 12.92 : ((n + .055) / 1.055) ** 2.4; }).reduce((sum, channel, i) => sum + channel * [.2126, .7152, .0722][i], 0);
-    return ['.workspace-account-copy small', '.workspace-sidebar-watermark span', '.dashboard-range-controls button:not(.dashboard-range-active)', '.astra-stat-label', '.astra-stat-detail', '.astra-panel-heading h2', '.astra-source-label', '.astra-review-details > summary span', '.dashboard-review-disclosure'].flatMap(selector => {
+    return ['.cova-profile-trigger > span:nth-child(2)', '.workspace-sidebar-watermark span', '.dashboard-range-controls button:not(.dashboard-range-active)', '.astra-stat-label', '.astra-stat-detail', '.astra-panel-heading h2', '.astra-source-label', '.astra-review-details > summary span', '.dashboard-review-disclosure'].flatMap(selector => {
       const nodes = [...document.querySelectorAll(selector)];
       if (!nodes.length) throw new Error('Required microcopy missing: ' + selector);
       return nodes.map(node => {
@@ -563,7 +563,7 @@ async function shortHeight(width, height) {
       }
       return { label: button.textContent.trim(), rect: { top: rect.top, bottom: rect.bottom, height: rect.height }, visibleHeight: Math.max(0, bottom - top), visibleWidth: Math.max(0, right - left), hit: button.contains(document.elementFromPoint((left + right) / 2, (top + bottom) / 2)) };
     };
-    const buttons = [...document.querySelectorAll('.workspace-account-actions button')].map(clipping);
+    const buttons = [...document.querySelectorAll('.workspace-sidebar .cova-profile-trigger')].map(clipping);
     const header = document.querySelector('.workspace-top-header');
     const content = document.querySelector('[data-astra-dashboard="integrated"]').getBoundingClientRect();
     return { rail: { top: railRect.top, bottom: railRect.bottom }, railVisible: rail.checkVisibility(), headerVisible: header.checkVisibility(), contentClearsRail: content.left >= railRect.right, account: { top: accountRect.top, bottom: accountRect.bottom, shrink: getComputedStyle(account).flexShrink }, nav: { scrollHeight: nav.scrollHeight, clientHeight: nav.clientHeight }, buttons };
@@ -572,7 +572,7 @@ async function shortHeight(width, height) {
   assert.equal(state.railVisible, true, `${width}px must use the desktop rail at and above 851px`);
   assert.equal(state.headerVisible, false, `${width}px must not overlap a collapsed header with the rail`);
   assert.equal(state.contentClearsRail, true, `${width}px dashboard content must clear the fixed rail`);
-  assert.deepEqual(state.buttons.map(button => button.label), ["Delete account", "Sign out"], "Both account escape paths are required");
+  assert.deepEqual(state.buttons.map(button => button.label), ["Set username"], "Profile menu must remain reachable; Settings/delete and sign-out are exercised in profile and OA interaction regressions");
   assert.deepEqual(state.rail, { top: 0, bottom: height });
   assert.equal(state.account.shrink, "0");
   assert.ok(state.account.bottom <= height + 0.5, `${height}px account menu must stay inside the rail`);

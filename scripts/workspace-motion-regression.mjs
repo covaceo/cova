@@ -135,6 +135,7 @@ function loadMotionComponent(file, reducedMotion, captures) {
     if (name === 'motion/react') return { motion, useReducedMotion: () => reducedMotion };
     if (name === '../lib/appRoutes') return { isWorkspaceNavActive: (section, id) => section === id || (section === 'oauth' && id === 'import') };
     // This test isolates shell motion; the real shared footer is exercised by vendor SSR/browser regressions.
+    if (name === './UserProfile') return { ProfileMenu: () => React.createElement('div', { className: 'cova-profile' }) }; // Actual profile behavior has its own browser regression.
     if (name === './PlanSections') return { SiteFooter: () => React.createElement('footer', { className: 'cova-site-footer' }) };
     if (name === '../lib/vendorCompliance') return loadMotionComponent('src/lib/vendorCompliance.ts', reducedMotion, captures);
     return require(name);

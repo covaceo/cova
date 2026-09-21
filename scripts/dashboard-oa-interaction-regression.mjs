@@ -323,7 +323,7 @@ async function auditDarkDashboard(label) {
       '.astra-warning-link strong', '.astra-warning-link small', '.astra-evidence-details summary span',
       '.astra-note-date', '.astra-mini-note > p', '.astra-trade-table th', '.astra-review-details > summary span',
       '.astra-dashboard-footer > span',
-      ...(innerWidth >= 851 ? ['.workspace-sidebar-group-label', '.workspace-account-copy small', '.astra-rail-account small'] : []),
+      ...(innerWidth >= 851 ? ['.workspace-sidebar-group-label', '.cova-profile-trigger > span:nth-child(2)', '.astra-rail-account small'] : []),
       // Legacy short-height chrome hides this duplicate; the identical footer disclosure stays required above.
       ...(innerWidth >= 851 && !(innerWidth >= 1024 && innerHeight <= 800) ? ['.workspace-sidebar-watermark span'] : []),
       ...(document.querySelector('.astra-evidence-details')?.open ? ['.astra-evidence-details > p', '.astra-factor-list span', '.oa-card-header > span', '.oa-watch-row'] : []),
@@ -475,7 +475,7 @@ async function desktopInteractions() {
     const style = getComputedStyle(node); const rect = node.getBoundingClientRect();
     return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
   }).map((node) => node.tagName === 'INPUT' ? node.getAttribute('aria-label') : node.matches('.astra-rail-account') ? node.querySelector('strong').textContent.trim() : node.textContent.trim()))()`);
-  for (const expected of ["Search workspace", "Risk Desk", "Accounts", "Limits", "Insights", "Passport", "Latest session", "Last 7 days", "All trades", "Manage source", "Delete account", "Sign out"]) {
+  for (const expected of ["Search workspace", "Risk Desk", "Accounts", "Limits", "Insights", "Passport", "Latest session", "Last 7 days", "All trades", "Manage source", "Set username"]) {
     assert.ok(inventory.includes(expected) || inventory.some((item) => item.startsWith(expected)), `Desktop control inventory must include ${expected}`);
   }
 
@@ -542,11 +542,15 @@ async function desktopInteractions() {
   await capture(process.env.COVA_DASHBOARD_DESKTOP_SCREENSHOT);
 
   await evaluate("window.__covaConfirmMessage = ''; window.confirm = (message) => { window.__covaConfirmMessage = message; return false; }; true");
-  await clickSelector(".workspace-account-actions button", "Delete account");
+  await clickSelector(".cova-profile-trigger");
+  await clickSelector(".cova-profile-popup button", "Settings");
+  await waitFor("Boolean(document.querySelector('dialog[open] .cova-profile-delete'))");
+  await clickSelector(".cova-profile-delete", "Delete account");
   assert.match(await evaluate("window.__covaConfirmMessage"), /Permanently delete your Cova account/, "Delete account must reach the destructive confirmation boundary");
   assert.ok(await evaluate("localStorage.getItem('cova-auth-session-v1')"), "Cancelled deletion must preserve the session");
 
-  await clickSelector(".workspace-account-actions button", "Sign out");
+  await clickSelector(".cova-profile-trigger");
+  await clickSelector(".cova-profile-popup button", "Sign out");
   await waitFor("location.hash === '#overview' && !localStorage.getItem('cova-auth-session-v1')");
 }
 
@@ -575,7 +579,7 @@ async function sourceLifecycle() {
       const state = await evaluate(`(() => ({
         source: document.querySelector('.astra-source-label').getAttribute('aria-label'),
         sourceText: document.querySelector('.astra-source-label').textContent.trim(),
-        account: document.querySelector('.workspace-account-copy small').textContent.trim(),
+        account: document.querySelector('.astra-rail-account small').textContent.trim(),
         attribution: document.querySelectorAll('.dashboard-attribution-row [data-rithmic-attribution]').length,
         syncActions: [...document.querySelectorAll('.astra-header-controls button, .dashboard-summary-actions button')].map(node => node.textContent.trim()),
         empty: document.querySelectorAll('[data-dashboard-empty="true"]').length,
@@ -599,13 +603,14 @@ async function shortLaptop() {
   const account = await evaluate(`(() => {
     const rail = document.querySelector('.workspace-sidebar');
     const card = document.querySelector('.workspace-account-menu');
-    const buttons = [...document.querySelectorAll('.workspace-account-actions button')].map((button) => {
+    const buttons = [...document.querySelectorAll('.cova-profile-trigger')].filter(b => b.checkVisibility()).map((button) => {
       const rect = button.getBoundingClientRect();
       const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)?.closest('button');
       return { text: button.textContent.trim(), top: rect.top, bottom: rect.bottom, height: rect.height, hit: hit === button };
     });
     return { railBottom: rail.getBoundingClientRect().bottom, cardBottom: card.getBoundingClientRect().bottom, buttons };
   })()`);
+  assert.equal(account.buttons.length, 1, 'Short laptop profile control is visible');
   assert.ok(account.cardBottom <= 760, "Short-laptop account card must stay inside the rail");
   for (const button of account.buttons) {
     assert.ok(button.top >= 0 && button.bottom <= 760 && button.height >= 24, `${button.text} must remain fully visible at 760px height`);
@@ -632,7 +637,7 @@ async function mobileDashboard() {
     const panel = document.querySelector('#operator-mobile-menu');
     const current = [...panel.querySelectorAll('[aria-current=\"page\"]')];
     const del = panel.querySelector('.operator-mobile-delete-account');
-    const signOut = [...panel.querySelectorAll('button')].find((button) => button.textContent.trim() === 'Sign out');
+    const signOut = [...panel.querySelectorAll('button')].find((button) => button.checkVisibility() && button.textContent.trim() === 'Sign out');
     const hit = (node) => { const rect = node.getBoundingClientRect(); return { rect: rect.toJSON(), hit: document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)?.closest('button') === node }; };
     return { expanded: document.querySelector('.operator-mobile-menu-toggle').getAttribute('aria-expanded'), current: current.map((node) => node.textContent.trim()), del: hit(del), signOut: hit(signOut) };
   })()`);

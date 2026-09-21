@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {existsSync,readFileSync} from 'node:fs';
+const path='src/components/UserProfile.tsx';
+assert.ok(existsSync(path),'approved profile UI must exist');
+const src=readFileSync(path,'utf8');
+for(const text of ['Edit profile','Change photo','Username','Save changes','Cancel','Settings','Sign out','Delete account']) assert.ok(src.includes(text),text);
+assert.ok(src.includes('showModal()'),'use a real focus-trapping native modal');
+assert.ok(src.includes('aria-expanded'),'menu state must be accessible');
+assert.ok(src.includes('createImageBitmap'),'decode and resize real image files');
+assert.ok(src.includes('256'),'bound thumbnail dimensions');
+assert.ok(src.includes('image/jpeg'),'re-encode uploads instead of retaining metadata or SVG');
+const app=readFileSync('src/App.tsx','utf8'),rail=readFileSync('src/components/WorkspaceShell.tsx','utf8'),nav=readFileSync('src/components/Navbar.tsx','utf8');
+assert.match(app,/<UserProfileProvider/);
+assert.match(rail,/<ProfileMenu/);
+assert.match(nav,/<ProfileMenu/,'phone must retain the profile capability');
+assert.doesNotMatch(readFileSync('src/components/AuthPanels.tsx','utf8'),/Username or email/,'email sign-in is unchanged');
+console.log('PASS approved sidebar/editor contract and mobile capability');

@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 // Owner-authorized cent formatting and opt-in account accuracy review have executable journal regressions.
+// Authorized profile UI adds an owner-scoped context and replaces rail identity/actions; no accounting/auth changes.
+// Lockfile adds only the PGlite dev dependency for executable PostgreSQL uniqueness/RLS tests.
 const protectedFiles = {
   "api/_lib/auth.js": "446e3e5afa5afe711f0c340143707917959ca5f9a8a4c390e7e462c06292b16a",
   "api/_lib/cookies.js": "8dd442d3e4480190c3470526ac75e410464b04df51a182dbce14fac85c2a7314",
@@ -27,7 +29,7 @@ const protectedFiles = {
   "api/tradovate/connect.js": "0e32e6d9d728c0a1ee42a6b8c6edd44ee159d6c89ad7c064cd1c1502475e267d",
   // Owner-approved recent-history mode reuses owner lookup, limiter and deadline; legacy sync remains.
   "api/tradovate/sync.js": "10bf3fad88e4f267abf064aa789856a028328a1e14f7e520f1757c705c4116b4",
-  "package-lock.json": "2de7e8e1b0c84266be29c1609e3185bbe58a2babe1e57e49a22538b6f2cf853e",
+  "package-lock.json": "a2d899f6c11dbc9b82887ace8b252d015983fcc1d878d6f699ff3ff1e2df8613",
   "public/.well-known/security.txt": "c944f837cb8c32091a4aba3afdea372afa7ffbd058ab24b5d6fbfc285e3490d9",
   "public/cova-logo-minimal-black.svg": "539ead98bec67d21afe240ea2ff60aba7e3f9e988b4d1742e0de953f01a6f6dd",
   "public/cova-logo-minimal-white.svg": "3cab047eb026b8c3160fdab46218c0aa82978681ec9d60ec2e0116317178cbab",
@@ -46,11 +48,11 @@ const protectedFiles = {
   // Route-prop and real-footer regressions cover the authorized presentation-only wiring.
   // Auto-history adds principal+selection guarded merge, scoped account review and saved-history props.
   // Callback hints never authorize imports; all marketing, OAuth and Passport artwork remain unchanged.
-  "src/App.tsx": "947f2cce1bdf35d1402b1ef6e8592e6776d6af61e44455ec492640feff239c8c",
+  "src/App.tsx": "63403cb4c06117d15a29eb7eaa8260ebcdc01ddbe138aa1a027b4b35a5084b9b",
   "src/components/AstraEquityCurve.tsx": "080bdba310e0b45aac25cef67702f29ab6e49c674a74559d45af15ff3dbc4433",
   "src/components/DashboardTradeDialog.tsx": "302d1c3851169baadf76180225e607254f09e340b447384f52e2322ac3d8752a",
   "src/components/DashboardView.tsx": "cff291aea0a00f37fc93090eeb12df8d61057f48ab646023250624bc18c3691b",
-  "src/components/WorkspaceShell.tsx": "ef2b0bb324e9c59189e3700d0483eab16b7d70dd33c38b02dab544be047c8ba6",
+  "src/components/WorkspaceShell.tsx": "680ed5cb5e3d99ff26aa4b864fd38a9db5dee13c361f506549d9784c3d68f5d5",
   "src/index.css": "ea8b38ada867619addaced06a8a3a1c494c1de9ef6c30beb5cbe7435890729db",
   // Retain UTC ordering while preserving legacy same-day input order and member annotations.
     "src/lib/risk.ts": "78991b6b2f932c3d91ddf7d5cb29fc6953a1732cda2be8cbc953d55b6b400ef9",

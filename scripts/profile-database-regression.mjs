@@ -1,0 +1,35 @@
+import assert from 'node:assert/strict';
+import {readFileSync,existsSync} from 'node:fs';
+import {PGlite} from '@electric-sql/pglite';
+const file='supabase/migrations/20260920010000_user_profiles.sql';
+assert.ok(existsSync(file),'profile migration must exist');
+const db=new PGlite();
+const A='11111111-1111-4111-8111-111111111111',B='22222222-2222-4222-8222-222222222222';
+try {
+ await db.exec(`create role anon; create role authenticated; create role service_role bypassrls; create schema auth; create table auth.users(id uuid primary key,email text); create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$; grant usage on schema auth to authenticated; grant execute on function auth.uid() to authenticated; insert into auth.users values ('${A}','one@example.test'),('${B}','two@example.test');`);
+ await db.exec(readFileSync(file,'utf8'));
+ await db.exec(`set role authenticated; select set_config('request.jwt.claim.sub','${A}',false)`);
+ await db.query('insert into public.user_profiles(user_id,username) values ($1,$2)',[A,'lino']);
+ await assert.rejects(db.query('insert into public.user_profiles(user_id,username) values ($1,$2)',[B,'other']),/row-level security/);
+ await assert.rejects(db.query('update public.user_profiles set user_id=$1 where user_id=$2',[B,A]),/row-level security/);
+ for(const username of ['a','a'.repeat(25),'linó','with space','@@lino','has.dot']) await assert.rejects(db.query('update public.user_profiles set username=$1 where user_id=$2',[username,A]),e=>e.code==='23514');
+ for(const data of ['data:image/svg+xml,<svg/>','https://tracker.example/a','data:image/jpeg;base64,'+'a'.repeat(100001)]) await assert.rejects(db.query('update public.user_profiles set avatar_data=$1 where user_id=$2',[data,A]),e=>e.code==='23514');
+ await db.query('update public.user_profiles set avatar_data=$1 where user_id=$2',['data:image/jpeg;base64,/9j/2Q==',A]);
+ await db.exec(`select set_config('request.jwt.claim.sub','${B}',false)`);
+ await assert.rejects(db.query('insert into public.user_profiles(user_id,username) values ($1,$2)',[B,'lino']),e=>e.code==='23505');
+ await assert.rejects(db.query('insert into public.user_profiles(user_id,username) values ($1,$2)',[B,'LINO']),e=>e.code==='23514');
+ assert.equal((await db.query('select * from public.user_profiles')).rows.length,0,'other owner rows are invisible');
+ assert.equal((await db.query("update public.user_profiles set username='stolen' where user_id=$1 returning *",[A])).rows.length,0);
+ await assert.rejects(db.query('select * from public.lookup_cova_account($1)',['lino']),/permission denied/);
+ await db.exec('reset role; set role anon');
+ await assert.rejects(db.query('select * from public.user_profiles'),/permission denied/);
+ await assert.rejects(db.query("select * from public.lookup_cova_account('one@example.test')"),/permission denied/);
+ await db.exec('reset role; set role service_role');
+ for(const term of ['lino','LINO',' @lino ','ONE@example.test']) assert.equal((await db.query('select * from public.lookup_cova_account($1)',[term])).rows[0].user_id,A);
+ assert.equal((await db.query("select * from public.lookup_cova_account('two@example.test')")).rows[0].user_id,B,'email lookup includes users without a profile');
+ assert.equal((await db.query("select * from public.lookup_cova_account('lin')")).rows.length,0,'no fuzzy match');
+ await db.exec('reset role');
+ await db.query('delete from auth.users where id=$1',[A]);
+ assert.equal((await db.query('select * from public.user_profiles')).rows.length,0,'auth deletion cascades');
+ console.log('PASS real PostgreSQL migration: uniqueness, owner read/write isolation, private admin username/email lookup, cascade deletion');
+} finally {await db.close();}
