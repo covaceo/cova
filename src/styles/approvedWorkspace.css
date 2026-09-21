@@ -31,6 +31,13 @@
 .oa-dashboard-app .astra-workspace-page .insight-evidence summary { cursor:pointer; color:#82adff; font:12px/1.5 Inter,Arial,sans-serif; }
 .oa-dashboard-app .astra-workspace-page .insight-evidence summary:focus-visible { outline:2px solid #6f96ff; outline-offset:3px; }
 .oa-dashboard-app .astra-workspace-page .insight-evidence p { margin:10px 0 0!important; }
+/* Pointer clicks keep the resting control edge; keyboard navigation retains its focus indicator. */
+.oa-dashboard-app .oa-dashboard-shell[data-focus-source="pointer"] :is(button,a,input,select,textarea,summary,[tabindex]):focus { outline:none!important; box-shadow:none!important; }
+.oa-dashboard-app .oa-dashboard-shell[data-focus-source="pointer"] .workspace-sidebar-search:focus-within { outline:none!important; box-shadow:none!important; border-color:#303745!important; }
+.oa-dashboard-app .oa-dashboard-shell[data-focus-source="pointer"] [data-account-switcher]>label:focus-within { border-color:#293140!important; }
+@media(forced-colors:active) {
+ .oa-dashboard-app .oa-dashboard-shell[data-focus-source="pointer"] :is(button,a,input,select,textarea,summary,[tabindex]):focus { outline:2px solid Highlight!important; }
+}
 @media(max-width:620px) {
  .oa-dashboard-app .astra-workspace-page .insight-briefing-row > div:not(:last-child) { grid-column:2; grid-row:3; }
  .oa-dashboard-app .astra-workspace-page .insight-evidence { grid-column:2; grid-row:4; }

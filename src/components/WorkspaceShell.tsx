@@ -1,7 +1,7 @@
 import { Activity, ArrowUpRight, BarChart3, BookOpen, FileUp, Gauge, Home, LayoutGrid, Network, Search, ShieldCheck } from "lucide-react";
 import { ProfileMenu } from "./UserProfile";
 import { motion, useReducedMotion } from "motion/react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { isWorkspaceNavActive, type Section } from "../lib/appRoutes";
 import { SiteFooter } from "./PlanSections";
 
@@ -48,6 +48,15 @@ type WorkspaceShellProps = {
 export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go, riskScore, section, signOut }: WorkspaceShellProps) {
   const reducedMotion = useReducedMotion();
   const [search, setSearch] = useState("");
+  const [focusSource, setFocusSource] = useState<"pointer" | "keyboard">("keyboard");
+  useEffect(() => {
+    // Listen outside the shell too, so the first Tab into the workspace is visible.
+    const keyboard = (event: KeyboardEvent) => {
+      if (["Tab", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) setFocusSource("keyboard");
+    };
+    document.addEventListener("keydown", keyboard, true);
+    return () => document.removeEventListener("keydown", keyboard, true);
+  }, []);
   const filteredGroups = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) return workspaceNavGroups;
@@ -61,7 +70,7 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
   const riskScoreLabel = typeof riskScore === "number" && Number.isFinite(riskScore) ? String(riskScore) : "--";
 
   return (
-    <div className="workspace-shell operator-workspace oa-dashboard-shell" data-workspace-section={section}>
+    <div className="workspace-shell operator-workspace oa-dashboard-shell" data-workspace-section={section} data-focus-source={focusSource} onPointerDownCapture={() => setFocusSource("pointer")}>
       <aside className="workspace-sidebar" aria-label="Cova workspace navigation">
         <div className="workspace-sidebar-brand">
           <button className="workspace-brand-button" onClick={() => go("dashboard")} type="button" aria-label="Go to Cova risk desk">
