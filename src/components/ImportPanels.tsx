@@ -1,7 +1,8 @@
 import { FileUp, ArrowUpRight } from "lucide-react";
 import { type CsvParseResult, formatMoney, type TradeMergeResult } from "../lib/risk";
 import { type PropFirmId } from "../lib/propFirms";
-import { RithmicLogin, type RithmicCredentials, type RithmicSyncResult } from "./RithmicLogin";
+import { type RithmicCredentials, type RithmicSyncResult } from "./RithmicLogin";
+import { RithmicLoginDialog } from "./RithmicLoginDialog";
 
 type ImportMode = "append" | "replace" | "merge";
 type ImportEntitlements = { canUseDirectSync: boolean; maxStoredTrades: number; maxTradesPerImport: number; plan: "free" | "pro" };
@@ -76,7 +77,7 @@ export function BrokerConnectPanel({ brokerBusy, brokerNotice, brokerStatus, can
         <div className="accounts-section-heading"><h3>Tradovate / NinjaTrader</h3><span className="accounts-connection-status">{!tradovateStatusChecked ? "Checking…" : !tradovateAvailable ? "Sync unavailable" : connected ? "Connected" : "Not connected"}</span></div>
         <p>Read-only trade history. No orders placed.</p>
         <div className="accounts-actions">
-          {ready && entitlements.canUseDirectSync && !connected && <button className="accounts-button accounts-button-primary" type="button" disabled={brokerBusy || syncBusy || rithmicBusy} onClick={connect}>Sign in with Tradovate <ArrowUpRight aria-hidden="true" /></button>}
+          {ready && entitlements.canUseDirectSync && !connected && <button className="accounts-button accounts-button-primary" type="button" disabled={brokerBusy || syncBusy || rithmicBusy} onClick={connect}>Connect Tradovate <ArrowUpRight aria-hidden="true" /></button>}
           {ready && entitlements.canUseDirectSync && connected && <button className="accounts-button accounts-button-primary" type="button" disabled={syncBusy || brokerBusy || rithmicBusy} onClick={syncTradovate}>{syncBusy ? "Syncing…" : "Sync trades"}</button>}
           {!entitlements.canUseDirectSync && <button className="accounts-button" type="button" onClick={upgradeToPro}>Connect with Pro</button>}
           {tradovateStatusChecked && !tradovateAvailable && <button className="accounts-button" type="button" onClick={useCsv} data-tradovate-unavailable>Use CSV</button>}
@@ -88,13 +89,13 @@ export function BrokerConnectPanel({ brokerBusy, brokerNotice, brokerStatus, can
         <div className="accounts-section-heading"><h3>Rithmic</h3><span>{!rithmicStatusChecked ? "Checking…" : !rithmicAvailable ? "Sync unavailable" : "One-time sync"}</span></div>
         <p>For accounts that use a Rithmic login.</p>
         <div className="accounts-actions">
-          {rithmicStatusChecked && rithmicAvailable && entitlements.canUseDirectSync && <button className="accounts-button accounts-button-primary" type="button" aria-expanded={selectedFirmId === "rithmic"} aria-controls="rithmic-login" disabled={rithmicBusy || syncBusy || brokerBusy} onClick={() => { setBrokerNotice(""); setSelectedFirmId(selectedFirmId === "rithmic" ? "other" : "rithmic"); }}>{selectedFirmId === "rithmic" ? "Close login" : "Connect Rithmic"}</button>}
+          {rithmicStatusChecked && rithmicAvailable && entitlements.canUseDirectSync && <button className="accounts-button accounts-button-primary" type="button" aria-expanded={selectedFirmId === "rithmic"} aria-haspopup="dialog" aria-controls="rithmic-login-dialog" disabled={rithmicBusy || syncBusy || brokerBusy} onClick={() => { setBrokerNotice(""); setSelectedFirmId("rithmic"); }}>Connect Rithmic</button>}
           {!entitlements.canUseDirectSync && <button className="accounts-button" type="button" onClick={upgradeToPro}>Connect with Pro</button>}
           {rithmicStatusChecked && !rithmicAvailable && <button className="accounts-button" type="button" onClick={useCsv} data-rithmic-unavailable>Use CSV</button>}
         </div>
       </article>
     </div>
-    {selectedFirmId === "rithmic" && entitlements.canUseDirectSync && rithmicStatusChecked && rithmicAvailable && <RithmicLogin busy={rithmicBusy || syncBusy || brokerBusy} sync={syncRithmic} notice={setBrokerNotice} />}
-    {brokerNotice && <p className="accounts-notice" role="status">{brokerNotice}</p>}
+    {selectedFirmId === "rithmic" && entitlements.canUseDirectSync && rithmicStatusChecked && rithmicAvailable && <RithmicLoginDialog busy={rithmicBusy || syncBusy || brokerBusy} sync={syncRithmic} notice={setBrokerNotice} message={brokerNotice} onClose={() => setSelectedFirmId("other")} />}
+    {brokerNotice && !(selectedFirmId === "rithmic" && entitlements.canUseDirectSync && rithmicStatusChecked && rithmicAvailable) && <p className="accounts-notice" role="status">{brokerNotice}</p>}
   </section>;
 }

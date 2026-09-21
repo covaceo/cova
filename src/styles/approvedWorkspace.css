@@ -59,7 +59,19 @@
 .oa-dashboard-app .accounts-page .accounts-notice { border-left:2px solid #6f96ff; padding:10px 14px; margin-top:14px; }
 .oa-dashboard-app .accounts-csv-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(230px,.38fr); gap:22px; align-items:start; }
 .oa-dashboard-app .accounts-csv-main { min-width:0; }
-.oa-dashboard-app .accounts-rithmic-login { margin-top:18px; }
+/* Native top-layer sign-in: a matte panel over the requested blurred backdrop. */
+.oa-dashboard-app .accounts-rithmic-dialog { width:min(560px,calc(100% - 32px)); max-width:none; max-height:calc(100dvh - 32px); margin:auto; padding:0; overflow:auto; overscroll-behavior:contain; color:#f0f3fa; background:#0c121b; border:1px solid #303c50; border-radius:10px; box-shadow:0 24px 80px rgba(0,0,0,.45); color-scheme:dark; }
+.oa-dashboard-app .accounts-rithmic-dialog::backdrop { background:rgba(3,7,12,.65); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); }
+.oa-dashboard-app .accounts-rithmic-dialog .accounts-rithmic-login { margin:0; padding:28px; border:0; background:transparent; }
+.oa-dashboard-app .accounts-rithmic-dialog h3 { padding-right:36px; }
+.oa-dashboard-app .accounts-rithmic-dialog .accounts-login-fields { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.oa-dashboard-app .accounts-rithmic-dialog .accounts-login-fields button[type="submit"] { grid-column:1 / -1; width:100%; margin-top:4px; }
+.oa-dashboard-app .accounts-dialog-close { position:absolute; top:16px; right:16px; display:grid; place-items:center; width:40px; height:40px; border:0; border-radius:5px; color:#a4b1c5; background:transparent; cursor:pointer; }
+.oa-dashboard-app .accounts-dialog-close:hover:not(:disabled) { background:#172231; color:#f0f3fa; }
+.oa-dashboard-app .accounts-dialog-close svg { width:20px; height:20px; }
+.oa-dashboard-app .accounts-rithmic-dialog .accounts-notice { margin:0 28px 24px; }
+@media(max-width:620px) { .oa-dashboard-app .accounts-rithmic-dialog .accounts-rithmic-login { padding:24px 20px; } .oa-dashboard-app .accounts-rithmic-dialog .accounts-login-fields { grid-template-columns:minmax(0,1fr); gap:12px; } .oa-dashboard-app .accounts-rithmic-dialog .accounts-notice { margin:0 20px 20px; } }
+
 .oa-dashboard-app .accounts-login-fields { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); align-items:end; gap:16px; border:0; padding:0; margin:20px 0 0; min-width:0; }
 .oa-dashboard-app .accounts-login-fields input { width:100%; min-width:0; min-height:40px; padding:8px 10px; color:#e6ebf4; background:#101722; border:1px solid #303c50; border-radius:5px; font:13px/1.4 Inter,Arial,sans-serif; }
 .oa-dashboard-app .accounts-login-fields input:focus-visible { outline:2px solid #6f96ff; outline-offset:3px; }
