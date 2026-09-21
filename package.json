@@ -21,7 +21,7 @@
     "test:resources-quickstart": "node scripts/resources-quickstart-regression.mjs",
     "test:community-discord": "node scripts/community-discord-regression.mjs",
     "test:risk": "node scripts/risk-regression.mjs",
-    "test:ui-content": "node scripts/ui-content-regression.mjs",
+    "test:ui-content": "node --test scripts/accounts-cleanup-regression.mjs && node scripts/accounts-browser-regression.mjs && node scripts/ui-content-regression.mjs",
     "test:dashboard-shell": "node scripts/dashboard-left-rail-regression.mjs",
     "test:dashboard-palette": "node scripts/dashboard-cobalt-palette-regression.mjs",
     "test:dashboard-oa": "npm run build && npm run test:dashboard-palette && node scripts/dashboard-oa-interaction-regression.mjs",

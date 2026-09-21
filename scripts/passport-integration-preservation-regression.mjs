@@ -51,8 +51,8 @@ const protectedFiles = {
   "src/App.tsx": "63403cb4c06117d15a29eb7eaa8260ebcdc01ddbe138aa1a027b4b35a5084b9b",
   "src/components/AstraEquityCurve.tsx": "080bdba310e0b45aac25cef67702f29ab6e49c674a74559d45af15ff3dbc4433",
   "src/components/DashboardTradeDialog.tsx": "302d1c3851169baadf76180225e607254f09e340b447384f52e2322ac3d8752a",
-  // Owner-added averages are isolated; original financial logic remains locked by approved-dashboard-preservation.
-  "src/components/DashboardView.tsx": "19a2aa6da5fb5c4fc523c2162781fec5b1dbf35d4457e2610b85a41cc329a9b0",
+  // Owner-approved legacy source CTA wording and averages; original financial logic remains locked by approved-dashboard-preservation.
+  "src/components/DashboardView.tsx": "045eca344119d7654e271f0088b4c8d14276cffbdf4fb579b1fe4f9b4f174280",
   // Owner-approved Accounts utility redesign removes the initial badge and obsolete badge CSS; handlers remain intact.
   "src/components/WorkspaceShell.tsx": "42aff47eb5a02497debc749d77d41cf7d7dd2f9f492c45c054ceeb7fc4d24a61",
   "src/index.css": "ea8b38ada867619addaced06a8a3a1c494c1de9ef6c30beb5cbe7435890729db",

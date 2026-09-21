@@ -141,14 +141,14 @@ assert.match(workspace, /Review warnings/, "Limits should provide a direct route
 assert.match(workspace, /Review active limits/, "Insights should provide a direct route back to the guardrails that generated warnings.");
 assert.match(workspace, /data-tone=\{insight\.tone\.toLowerCase\(\)\}/, "Insights should expose severity to the visual system.");
 
-assert.match(importPanels, /Upload CSV first/, "Trade History should make the CSV-first path obvious.");
+assert.match(importPanels, /CSV upload/, "Trade History should make the CSV-first path obvious.");
 assert.match(importPanels, /data-csv-primary/, "Trade History should expose a primary CSV decision lane.");
 assert.match(propFirms, /id: "topstepx"[\s\S]*?status: "guided"/, "TopstepX must remain available only as a CSV export guide.");
 assert.doesNotMatch(propFirms, /ProjectX|VITE_TOPSTEPX_CONNECT_URL|CSV-first beta|Try TopstepX beta/, "The retired TopstepX direct connector must not remain in provider configuration.");
 assert.doesNotMatch(importPanels, /ProjectX|projectx|data-projectx-connect|TopstepX direct sync|Paste API key/, "Trade History must not expose the retired TopstepX credential flow.");
 assert.doesNotMatch(importDesk, /ProjectX|projectx|\/api\/projectx\//, "Trade History must not call the retired TopstepX connector APIs.");
 assert.doesNotMatch(mobileAudit, /Beta connector/, "Browser QA must not expect the retired TopstepX beta connector.");
-assert.match(mobileAudit, /TopstepX export/, "Browser QA must verify the surviving TopstepX CSV guide.");
+assert.match(mobileAudit, /NinjaTrader/, "Browser QA verifies the approved Accounts choices.");
 assert.doesNotMatch(app, /readOAuthFirmId\(\) \?\? "topstepx"/, "A stale OAuth route must not default to the retired TopstepX connector.");
 assert.match(app, /firmId === "topstepx"[\s\S]*?CSV/, "TopstepX must be rejected by any stale direct-connection callback and returned to CSV import.");
 assert.match(app, /saved === "tradovate" \? "tradovate" : null/, "Only the retained Tradovate OAuth route may be restored from browser state.");
@@ -284,8 +284,8 @@ assert.match(dashboard, /astra-stat-strip/, "Risk Desk should use the approved A
 assert.match(dashboard, /astra-desk-grid/, "Risk Desk should use the approved Astra chart-and-discipline grid.");
 assert.match(read("src", "styles", "astraDashboard.css"), /@media\(max-width:620px\)[\s\S]*?\.astra-stat-strip\s*\{[\s\S]*?grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/, "Risk Desk financial strip should reflow to two columns on phone.");
 
-assert.match(importPanels, /if \(firm\.status === "guided"\)[\s\S]*?if \(!entitlements\.canUseDirectSync\)/, "CSV-guided providers must remain available on Free before direct-sync entitlement checks.");
-assert.match(importPanels, /selectedFirm\.status !== "guided"[\s\S]*?Unlock sync/, "CSV-only provider cards must not advertise an unavailable direct-sync upgrade.");
+assert.match(importPanels, /onClick=\{useCsv\}>Upload CSV/, "CSV handoff remains available without a Pro entitlement.");
+assert.doesNotMatch(importPanels.split('data-platform="ninjatrader"')[1], /upgradeToPro|Connect with Pro/, "NinjaTrader CSV must not advertise a direct-sync upgrade.");
 assert.match(app, /if \(!entitlements\.canUseDirectSync\)/, "App-level OAuth entry must enforce the direct-sync entitlement.");
 assert.match(workspaceShell, /Retrospective review only\. No live brokerage execution\./, "Workspace safety copy should preserve the no-execution boundary.");
 assert.match(app, /const hasSampleTrades = visibleTrades\.some\(\(trade\) => trade\.id\.startsWith\("demo-"\)\)/, "Any demo row in the selected account keeps a mixed Passport visibly sample-derived.");

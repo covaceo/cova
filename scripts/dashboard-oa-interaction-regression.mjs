@@ -584,12 +584,13 @@ async function sourceLifecycle() {
         syncActions: [...document.querySelectorAll('.astra-header-controls button, .dashboard-summary-actions button')].map(node => node.textContent.trim()),
         empty: document.querySelectorAll('[data-dashboard-empty="true"]').length,
       }))()`);
-      assert.deepEqual(state, { source: `Review source: ${scenario.source}`, sourceText: `${scenario.source} / ${scenario.count} trades`, account: scenario.account, attribution: scenario.attribution, syncActions: ['Sync new trades', 'Sync new trades'], empty: scenario.count ? 0 : 1 }, scenario.name);
+      assert.deepEqual(state, { source: `Review source: ${scenario.source}`, sourceText: `${scenario.source} / ${scenario.count} trades`, account: scenario.account, attribution: scenario.attribution, syncActions: ['Update trades', 'Update trades'], empty: scenario.count ? 0 : 1 }, scenario.name);
       // Selection is a lifecycle handoff only. Never enter credentials or start a broker sync.
-      await clickSelector('.dashboard-summary-actions button', 'Sync new trades');
+      await clickSelector('.dashboard-summary-actions button', 'Update trades');
       await waitFor("location.hash === '#import'");
-      await waitFor("document.querySelector('[data-provider-picker] [data-firm-id=\"rithmic\"][aria-pressed=\"true\"]')");
-      assert.equal(await evaluate("document.querySelectorAll('[data-provider-picker] [aria-pressed=\"true\"]').length"), 1, `${scenario.name} must hand off to exactly the Rithmic provider`);
+      await waitFor("document.querySelector('[data-csv-import]') && document.querySelector('[data-platform=\"ninjatrader\"]')");
+      assert.equal(await evaluate("document.querySelectorAll('[data-platform]').length"), 2, `${scenario.name} must land on the simplified Accounts screen`);
+      assert.equal(await evaluate("document.querySelectorAll('[data-rithmic-connect], input[type=password]').length"), 0, 'Retired provider cannot expose a login form');
       console.log(`Astra source lifecycle: ${scenario.name} passed`);
     }
   } finally {

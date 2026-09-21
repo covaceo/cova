@@ -12,7 +12,7 @@ const routes = [
   { name: "overview", hash: "overview", needsAuth: false, requiredText: ["See the patterns", "behind your risk.", "Explore the workflow", "DIAMOND", "Sample data · Not account verified"] },
   { name: "overview-auth", hash: "overview", needsAuth: true, requiredText: ["Link account", "Explore the workflow", "DIAMOND", "Sample data · Not account verified"] },
   { name: "pricing", hash: "pricing", needsAuth: false, requiredText: ["MOST CHOSEN BY ACTIVE TRADERS", "Cova Pro"] },
-  { name: "import", hash: "import", needsAuth: true, requiredText: ["Upload CSV first", "TopstepX export", "CSV guide"] },
+  { name: "import", hash: "import", needsAuth: true, requiredText: ["Tradovate", "NinjaTrader", "CSV upload"] },
   { name: "insights", hash: "coach", needsAuth: true, requiredText: ["Insights", "Details"] },
   { name: "passport", hash: "passport", needsAuth: true, requiredText: ["Sample data · Not account verified", "Unlock export", "Review detail"] },
 ];

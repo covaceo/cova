@@ -193,7 +193,7 @@ if(!mobile){
  assert.equal(await evaluate('localStorage.getItem("cova-react-risk-os-v2:history-owner")'),ledger);
  receipts[receipts.length-1].connectionRace=true;receipts[receipts.length-1].signoutRace=true;
 } else {
- await imported();await evaluate(`[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Review trades').click()`);await wait('location.hash==="#dashboard"');
+ await imported();await evaluate(`{const t=document.querySelector('textarea[aria-label="CSV text"]');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(t,'date,market,side,contracts,entry,exit,pnl,risk,setup,notes\\n2026-05-06,NQ,Long,1,18900,18915,300,250,Opening range,Synthetic browser fixture');t.dispatchEvent(new Event('input',{bubbles:true}));}`);await wait(`!document.querySelector('[data-csv-import] .accounts-button-primary').disabled`);await evaluate(`[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Review trades').click()`);await wait('location.hash==="#dashboard"');
  assert.equal(await evaluate(`document.querySelector('[aria-label="Trade account"]').value`),'local','CSV restores local source selection');
  await imported();await evaluate(`[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Reset demo').click()`);await sleep(100);
  assert.equal(await evaluate('JSON.parse(localStorage.getItem("cova-react-risk-os-v2:history-owner")).tradeAccount'),'local','demo reset does not leave empty provider filter');
