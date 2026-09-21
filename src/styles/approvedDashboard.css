@@ -108,6 +108,20 @@
 .oa-dashboard-app .oa-dashboard-shell[data-workspace-section="dashboard"] .workspace-sidebar-copy { font-size:13px!important; }
 .oa-dashboard-app .oa-dashboard-shell[data-workspace-section="dashboard"] .workspace-sidebar-link-active { background:#162a47!important; }
 /* Shared desktop rows align labels and number baselines; fee context sits below, not above, the metrics. */
+.astra-dashboard[data-dashboard-visual] .astra-stats-panel { margin-bottom:18px; border:1px solid #293140; border-radius:5px; background:#0d121d; }
+.astra-dashboard[data-dashboard-visual] .astra-stats-panel .astra-stat-strip { margin-bottom:0; border:0; border-radius:5px 5px 0 0; }
+.astra-dashboard[data-dashboard-visual] .astra-average-strip { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); border-top:1px solid #252d3d; }
+.astra-dashboard[data-dashboard-visual] .astra-average-cell { display:flex; justify-content:space-between; align-items:baseline; gap:8px 16px; padding:14px 24px; min-width:0; }
+.astra-dashboard[data-dashboard-visual] .astra-average-cell:first-child { border-right:1px solid #252d3d; }
+.astra-dashboard[data-dashboard-visual] .astra-average-cell .astra-stat-value { font-size:24px; margin:0; white-space:nowrap; }
+@media(max-width:1000px) {
+ .astra-dashboard[data-dashboard-visual] .astra-average-cell { display:grid; grid-template-rows:subgrid; grid-row:1/3; gap:6px; padding:14px 16px; }
+ .astra-dashboard[data-dashboard-visual] .astra-average-cell .astra-stat-value { font-size:24px; }
+}
+@media(max-width:365px) {
+ .astra-dashboard[data-dashboard-visual] .astra-average-cell { padding-inline:12px; }
+ .astra-dashboard[data-dashboard-visual] .astra-average-cell .astra-stat-value { font-size:21px; }
+}
 @media(min-width:851px) {
  .astra-dashboard[data-dashboard-visual] .astra-stat-strip { grid-template-rows:auto auto auto; padding:18px 0; min-height:0; }
  .astra-dashboard[data-dashboard-visual] .astra-stat-cell { grid-row:1/3; display:grid; grid-template-rows:subgrid; align-items:baseline; padding:0 22px; }

@@ -78,7 +78,7 @@ test('Approved dashboard composition uses real analytics, recent trades, and an 
   const html = renderToStaticMarkup(React.createElement(Dashboard, {analysis,rules:defaultRules,go:()=>{}}));
   assert.ok(html.includes('<h1>Risk Desk</h1>'), 'Owner-approved reference replaces the older promotional heading');
   for (const label of ['Reported P&amp;L','Win rate','Profit factor','Max drawdown','Discipline review','Recent trades','Journal']) assert.ok(html.includes(label),label);
-  assert.equal((html.match(/data-astra-stat=/g)||[]).length,4,'One four-cell financial strip');
+  assert.equal((html.match(/data-astra-stat=/g)||[]).length,6,'Four headline metrics plus average winner and average loser');
   assert.equal((html.match(/data-recent-trade=/g)||[]).length,4,'Latest four actual ledger records');
   assert.ok(html.includes(String(analysis.score)), 'Score must come from risk.analyze');
   assert.ok(html.includes(sampleTrades.at(-1).notes), 'Journal copy comes from the ledger, not the design study');
