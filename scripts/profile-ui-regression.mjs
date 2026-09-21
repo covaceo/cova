@@ -14,4 +14,6 @@ assert.match(app,/<UserProfileProvider/);
 assert.match(rail,/<ProfileMenu/);
 assert.match(nav,/<ProfileMenu/,'phone must retain the profile capability');
 assert.doesNotMatch(readFileSync('src/components/AuthPanels.tsx','utf8'),/Username or email/,'email sign-in is unchanged');
+assert.match(rail, /id: "passport", label: "Passport", icon: BookUser/);
+assert.doesNotMatch(rail, /workspace-sidebar-watermark/,'Remove the requested text under the profile');
 console.log('PASS approved sidebar/editor contract and mobile capability');
