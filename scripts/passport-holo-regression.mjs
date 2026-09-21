@@ -28,6 +28,29 @@ function load(path) {
   return module.exports;
 }
 
+test('Passport identity uses the saved username while Ghost never exposes it', () => {
+  const { buildHoloPassportModel } = load('src/lib/passportHolo.ts');
+  const { analyze, sampleTrades, defaultRules } = load('src/lib/risk.ts');
+  const { PassportHoloCard } = load('src/components/PassportHoloCard.tsx');
+  const analysis = analyze(sampleTrades, defaultRules);
+  for (const username of ['profile_qa', 'abcdefghijklmnopqrstuvwx']) {
+    for (const mode of ['flex', 'discipline', 'coach', 'private']) {
+      const model = buildHoloPassportModel(analysis, 'Gold', mode, true, username);
+      assert.equal(model.identity, mode === 'private' ? 'Private profile' : '@' + username);
+      const html = renderToStaticMarkup(React.createElement(PassportHoloCard, {model, engraved:true}));
+      if (mode === 'private') assert.ok(!html.includes(username), 'Ghost must omit identity from visible and accessible SVG');
+      else assert.ok(html.includes('@' + username), 'Live SVG/export source includes the complete username');
+    }
+  }
+});
+
+test('Missing usernames stay explicit instead of inventing a trader identity', () => {
+  const { buildHoloPassportModel } = load('src/lib/passportHolo.ts');
+  const { analyze, sampleTrades, defaultRules } = load('src/lib/risk.ts');
+  const a = analyze(sampleTrades, defaultRules);
+  for (const username of [undefined, null, '']) assert.equal(buildHoloPassportModel(a, 'Gold', 'flex', false, username).identity, 'Username not set');
+});
+
 test('Family material profiles enumerate seven ranks and four independent finishes without changing rank data', async () => {
   const { materialRanks, materialFinishes, getMaterialSpec, loadPassportAppearance } = load('src/lib/passportMaterials.ts');
   assert.deepEqual(materialRanks, ['Unranked','Bronze','Silver','Gold','Platinum','Diamond','Market Maker']);
@@ -183,9 +206,9 @@ test('Approved pearl holo card is real vector artwork with data-bound identity, 
   const { buildHoloPassportModel } = load('src/lib/passportHolo.ts');
   const { analyze, sampleTrades, defaultRules } = load('src/lib/risk.ts');
   const analysis = analyze(sampleTrades, defaultRules);
-  const model = buildHoloPassportModel(analysis, 'Gold', 'flex', true);
+  const model = buildHoloPassportModel(analysis, 'Gold', 'flex', true, 'profile_qa');
   const html = renderToStaticMarkup(React.createElement(PassportHoloCard, { model }));
-  for (const value of ['passport-holo-art','Risk Passport','Trader 6714','+$1,007.50','4/6 rules held','1.11 profit factor','2 flags','Sample data','Not account verified']) assert.ok(html.includes(value), value);
+  for (const value of ['passport-holo-art','Risk Passport','@profile_qa','+$1,007.50','4/6 rules held','1.11 profit factor','2 flags','Sample data','Not account verified']) assert.ok(html.includes(value), value);
   assert.match(html, /viewBox="0 0 1672 941"/);
   assert.doesNotMatch(html, /<img|passport-sample-watermark|passport-rank-progress/,'No pasted UI or rejected certificate layout');
   assert.equal((html.match(/<image /g)||[]).length,1,'One text-free material plate only; all content remains live vector text');

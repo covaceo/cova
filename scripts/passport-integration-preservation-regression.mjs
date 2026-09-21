@@ -87,7 +87,8 @@ const protectedFiles = {
   "src/components/PassportEtchedContent.tsx": "ea395bed2473dff8f2cc530a9b8eed837d8bf9933b744db4a8a32306778b9481",
   "src/components/PassportHoloCard.tsx": "aba6bb8294044f0dd37b7573a7aceb5219ce6d608e350470133216adef59eb07",
   "src/lib/passportEngraving.ts": "f434163673b3dbc8c84be759b025927f5340dd95329fc903d1d7463c4e566f82",
-  "src/lib/passportHolo.ts": "750dac62675f516ffbf0dbfda8172683dc8e15ee32dc2769f55119e55fa41baf",
+  // Owner-approved username binding; Ghost privacy and all financial outputs retain executable coverage.
+  "src/lib/passportHolo.ts": "1ad2c4d851283a66ed5487834f73e272e995a170fda47431048bc252e31603c2",
   "src/lib/passportHoloExport.ts": "3b2a42ba41b829702e6d2aa83171cfccc4f07441a4f2645b8f28f83795d339da",
   "src/lib/passportMaterials.ts": "1d84c8f36205c468dd4007d7aaaebd745dc41cb7dd534931302072ff0bc1903c",
   "src/lib/passportOptics.ts": "04ce7bdf59de25713e1df7e047b290835c87e4ee4ee9fbff001fcf2f6856ab10",

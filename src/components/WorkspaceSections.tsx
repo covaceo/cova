@@ -24,6 +24,7 @@ import {
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { scopedStorageKey } from "../lib/storageScope";
 import { PassportHoloCard } from "./PassportHoloCard";
+import { useProfileUsername } from "./UserProfile";
 import { PassportShareComposer } from "./PassportShareComposer";
 import { buildHoloPassportModel, type HoloPassportMode } from "../lib/passportHolo";
 import { loadPassportAppearance, type PassportAppearance } from "../lib/passportMaterials";
@@ -808,6 +809,7 @@ function getPassportDiamondPreviewStats(mode: PassportShareModeId): PassportStat
 }
 
 export function Passport({ analysis, entitlements, isSampleReview, go, upgradeToPro }: { analysis: ReturnType<typeof analyze>; entitlements: WorkspaceEntitlements; isSampleReview: boolean; go: (section: Section) => void; upgradeToPro: () => void }) {
+  const username = useProfileUsername();
   const initialPreferences = useMemo(() => readPassportPreferences(), []);
   const [shareModeId, setShareModeId] = useState<PassportShareModeId>(initialPreferences.shareModeId);
   const [exportPresetId, setExportPresetId] = useState<PassportExportPresetId>(initialPreferences.exportPresetId);
@@ -817,7 +819,7 @@ export function Passport({ analysis, entitlements, isSampleReview, go, upgradeTo
   const faceRef = useRef<HTMLDivElement>(null);
   // Eligibility stays owned by the existing review calculation, never the visual catalog.
   const tier = getPassportTier(analysis);
-  const model = useMemo(() => buildHoloPassportModel(analysis, tier.rank, shareModeId, isSampleReview), [analysis, tier.rank, shareModeId, isSampleReview]);
+  const model = useMemo(() => buildHoloPassportModel(analysis, tier.rank, shareModeId, isSampleReview, username), [analysis, tier.rank, shareModeId, isSampleReview, username]);
   const sourceKey = JSON.stringify(model);
   const appearance = material?.rank === tier.rank ? material.appearance : undefined;
   const materialError = material?.rank === tier.rank ? material.error : undefined;

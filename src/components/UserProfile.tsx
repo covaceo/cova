@@ -57,6 +57,10 @@ export function UserProfileProvider({ userId, email = "", children, repository =
   }
   return <ProfileContext.Provider value={{ identity: userId, profile: profile?.user_id === userId ? profile : null, email, loading: Boolean(userId) && (loading || loadedOwner !== userId), error, editable: Boolean(userId), retry: () => setAttempt(value => value + 1), save, resetPassword }}>{children}</ProfileContext.Provider>;
 }
+export function useProfileUsername() {
+  const { profile, loading, error } = useContext(ProfileContext);
+  return loading || error ? null : profile?.username ?? null;
+}
 function Avatar({ data, large = false }: { data: string | null; large?: boolean }) {
   return <span className={`cova-profile-avatar ${large ? "cova-profile-avatar-large" : ""}`} aria-hidden="true">{data && !validateAvatarData(data) ? <img src={data} alt="" /> : <UserRound />}</span>;
 }
