@@ -110,13 +110,13 @@ test('route props preserve behavior with owner-approved history account isolatio
     const elements = descendants(main, (node) => (ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node)) && node.tagName.getText(app) === name);
     assert.ok(elements.length, `${name}: still rendered`);
     for (const node of elements) {
-      let actual = node.attributes.getText(app);
-      if (name === 'Dashboard') {
+      let actual = node.attributes.getText(app) + ' ';
+      if (['Dashboard','RulesEngine','Coach'].includes(name)) {
         const visualSlot = 'accountControl={tradeAccounts.some(account => account !== "local") ? <div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} value={tradeAccount} onChange={selectTradeAccount} /></div> : undefined} ';
         assert.ok(actual.includes(visualSlot),'Visual header reuses the exact owner-bound selector and existing onChange');
-        actual = actual.replace(visualSlot,'');
+        actual = actual.replace(visualSlot,'').trim();
       }
-      assert.equal(actual, attributes, `${name}: exact original behavioral props`);
+      assert.equal(actual.trim(), attributes, `${name}: exact original behavioral props`);
     }
   }
 });

@@ -7,7 +7,7 @@ test('operational rows are readable on first paint, without nested fade/blur/sta
   const file = ts.createSourceFile('WorkspaceSections.tsx', readFileSync(new URL('../src/components/WorkspaceSections.tsx', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const rows = [];
   function visit(node) {
-    if (ts.isJsxOpeningElement(node) && node.attributes.properties.some(a => ts.isJsxAttribute(a) && a.name.getText(file) === 'className' && /rules-ledger-row|insight-briefing-row/.test(a.initializer?.getText(file) || ''))) rows.push(node);
+    if (ts.isJsxOpeningElement(node) && node.attributes.properties.some(a => ts.isJsxAttribute(a) && a.name.getText(file) === 'className' && /oa-limit-row|oa-insight-primary|oa-insight-locked/.test(a.initializer?.getText(file) || ''))) rows.push(node);
     ts.forEachChild(node, visit);
   }
   visit(file);

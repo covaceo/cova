@@ -6,6 +6,7 @@ import {
   BadgeCheck,
   CalendarDays,
   CheckCircle2,
+  ChevronDown,
   CircleDot,
   Copy,
   Download,
@@ -20,7 +21,7 @@ import {
   Trash2,
   Trophy,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { scopedStorageKey } from "../lib/storageScope";
 import { PassportHoloCard } from "./PassportHoloCard";
 import { PassportShareComposer } from "./PassportShareComposer";
@@ -38,128 +39,80 @@ type WorkspaceEntitlements = {
   plan: "free" | "pro";
 };
 
-export function RulesEngine({ analysis, entitlements, rules, setRules, go, upgradeToPro }: { analysis: ReturnType<typeof analyze>; entitlements: WorkspaceEntitlements; rules: RiskRule[]; setRules: (rules: RiskRule[]) => void; go: (section: Section) => void; upgradeToPro: () => void }) {
+export function RulesEngine({ analysis, entitlements, rules, setRules, go, upgradeToPro, accountControl }: { analysis: ReturnType<typeof analyze>; entitlements: WorkspaceEntitlements; rules: RiskRule[]; setRules: (rules: RiskRule[]) => void; go: (section: Section) => void; upgradeToPro: () => void; accountControl?: ReactNode }) {
+  const renderRule = (rule: RiskRule) => {
+  const status = analysis.ruleStatuses.find((item) => item.rule.id === rule.id);
+  const isMinimumRule = rule.metric.includes("min");
+  const isCountRule = rule.metric === "maxContracts" || rule.metric === "maxLossStreak";
+  const rangeMax = rule.metric === "maxContracts" ? 10 : rule.metric === "maxLossStreak" ? 8 : isMinimumRule ? 3 : 10000;
+  const rangeMin = isCountRule ? 1 : isMinimumRule ? 0 : 100;
+  const rangeStep = isCountRule ? 1 : isMinimumRule ? 0.05 : 50;
+  const formattedLimit = isCountRule ? rule.limit : isMinimumRule ? rule.limit.toFixed(2) : formatMoney(rule.limit);
+  const locked = isMinimumRule && !entitlements.canEditAdvancedLimits;
+  const ruleState = !rule.enabled ? "off" : status?.breached ? "breach" : "inside";
+  const ruleStateLabel = ruleState === "off" ? "Not checked" : ruleState === "breach" ? "Breach in history" : "Inside limit";
+    return (
+      <article className="oa-limit-row" key={rule.id} data-rule-id={rule.id} data-rule-state={ruleState}>
+        <div className="oa-limit-copy">
+          <h3>{friendlyRuleMetric(rule.metric)}</h3>
+          <details className="oa-limit-adjust">
+            <summary aria-label={`Adjust ${rule.name}`}><span>{ruleStateLabel}</span><ChevronDown aria-hidden="true" /></summary>
+            <div className="oa-limit-adjust-content">
+              <p>{rule.enabled ? status?.summary : "Disabled — excluded from the current review."}</p>
+              <label><span>{rule.name}: {formattedLimit}</span>
+                <input type="range" min={rangeMin} max={rangeMax} step={rangeStep} value={rule.limit}
+                  onChange={(event) => setRules(rules.map((item) => item.id === rule.id ? { ...item, limit: Number(event.target.value) } : item))}
+                  disabled={locked} aria-label={`${rule.name} slider`} />
+              </label>
+            </div>
+          </details>
+          {locked && <button className="oa-review-text-button" onClick={upgradeToPro} type="button">View-only on Free · Pro to edit</button>}
+        </div>
+        <label className="oa-limit-value">
+          {!isCountRule && !isMinimumRule && <span aria-hidden="true">$</span>}
+          <input min={rangeMin} max={rangeMax} step={rangeStep} type="number" value={rule.limit}
+            onChange={(event) => setRules(rules.map((item) => item.id === rule.id ? { ...item, limit: Number(event.target.value) } : item))}
+            disabled={locked} aria-label={`${rule.name} limit`} />
+        </label>
+        <button className="oa-limit-switch" onClick={() => setRules(rules.map((item) => item.id === rule.id ? { ...item, enabled: !item.enabled } : item))}
+          disabled={locked} type="button" role="switch" aria-checked={rule.enabled} aria-label={`${rule.enabled ? "Disable" : "Enable"} ${rule.name}`}>
+          <span aria-hidden="true" />
+        </button>
+      </article>
+    );
+  };
   return (
-    <SectionShell
-      eyebrow="Guardrails"
-      title="Limits"
-      variant="workspace"
-      backdrop={<ImageAtmosphere src="/media/cova-dashboard-plate.jpg" align="right" opacity="opacity-[0.18]" />}
-    >
-      <div className="rules-desk-grid rules-ledger-grid grid gap-6 lg:grid-cols-[0.64fr_1.36fr]">
-        <div className="rules-summary-card rules-ledger-summary p-6 md:p-7">
-          <SlidersHorizontal className="h-10 w-10 text-[#18c887]" />
-          <h3 className="mt-7 font-body text-3xl font-semibold leading-[0.98] tracking-[-0.05em] md:text-4xl">Review the limits behind the warnings.</h3>
-          <p className="mt-5 font-body font-light leading-relaxed text-white/60">
-            Set review thresholds for imported history. Cova flags trades that cross them; it never blocks orders or changes broker settings.
-          </p>
-          <div className="mt-8 grid grid-cols-2 gap-3">
-            <div className="rules-ledger-stat p-5">
-              <p className="font-body text-xs uppercase tracking-[0.22em] text-white/40">Breaches in history</p>
-              <p className="mt-2 font-body text-4xl text-red-400">{analysis.breaches.length}</p>
-            </div>
-            <div className="rules-ledger-stat p-5">
-              <p className="font-body text-xs uppercase tracking-[0.22em] text-white/40">Rules followed</p>
-              <p className="mt-2 font-body text-4xl text-emerald-400">{formatPercent(analysis.compliance)}</p>
-            </div>
-          </div>
-          <div className={`mt-4 border p-4 ${analysis.breaches.length ? "border-red-400/20 bg-red-400/[0.045]" : "border-emerald-300/16 bg-emerald-300/[0.035]"}`}>
-            <p className={`font-body text-sm font-semibold ${analysis.breaches.length ? "text-red-200" : "text-emerald-200"}`}>
-              {analysis.breaches.length ? `${analysis.breaches.length} warning${analysis.breaches.length === 1 ? " needs" : "s need"} a decision.` : "The imported history is inside your active limits."}
-            </p>
-            <p className="mt-2 font-body text-xs leading-relaxed text-white/48">Changing a threshold can change which warnings appear. It re-checks the same imported history; it does not rewrite a trade.</p>
-            {analysis.breaches.length > 0 && (
-              <button className="mt-4 inline-flex items-center gap-2 font-body text-sm font-medium text-[#b9f5df]" onClick={() => go("coach")} type="button">
-                Review warnings <ArrowUpRight className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div className="grid gap-4">
-          {rules.map((rule) => {
-            const status = analysis.ruleStatuses.find((item) => item.rule.id === rule.id);
-            const isMinimumRule = rule.metric.includes("min");
-            const isCountRule = rule.metric === "maxContracts" || rule.metric === "maxLossStreak";
-            const rangeMax = rule.metric === "maxContracts" ? 10 : rule.metric === "maxLossStreak" ? 8 : isMinimumRule ? 3 : 10000;
-            const rangeMin = isCountRule ? 1 : isMinimumRule ? 0 : 100;
-            const rangeStep = isCountRule ? 1 : isMinimumRule ? 0.05 : 50;
-            const formattedLimit = isCountRule ? rule.limit : isMinimumRule ? rule.limit.toFixed(2) : formatMoney(rule.limit);
-            const locked = isMinimumRule && !entitlements.canEditAdvancedLimits;
-            const ruleState = !rule.enabled ? "off" : status?.breached ? "breach" : "inside";
-            const ruleStateLabel = ruleState === "off" ? "Not checked" : ruleState === "breach" ? "Breach in history" : "Inside limit";
-            const ruleStateClass = ruleState === "off" ? "bg-white/7 text-white/45" : ruleState === "breach" ? "bg-red-500/15 text-red-300" : "bg-emerald-400/15 text-emerald-300";
-            return (
-              <motion.article
-                key={rule.id}
-                className="rule-control-card rules-ledger-row p-4 md:p-5"
-              >
-                <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <p className="font-body text-xs uppercase tracking-[0.22em] text-[#18c887]">{friendlyRuleMetric(rule.metric)}</p>
-                    <h3 className="mt-2 font-body text-xl font-medium">{rule.name}</h3>
-                    <p className="mt-1 font-body text-sm font-light text-white/50">{rule.enabled ? status?.summary : "Disabled — excluded from the current review."}</p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    {locked && (
-                      <button className="border border-[#18c887]/24 bg-[#18c887]/10 px-3 py-1 font-body text-xs text-[#b9f5df]" onClick={upgradeToPro} type="button">
-                        View-only on Free · Pro to edit
-                      </button>
-                    )}
-                    <span className={`rounded-full px-3 py-1 font-body text-xs ${ruleStateClass}`}>
-                      {ruleStateLabel}
-                    </span>
-                    <span className="font-body text-[10px] uppercase tracking-[0.16em] text-white/38">{rule.enabled ? "On" : "Off"}</span>
-                    <button
-                      className={`h-8 w-14 rounded-full border p-1 transition ${rule.enabled ? "border-emerald-300/50 bg-emerald-400/20" : "border-white/15 bg-white/5"}`}
-                      onClick={() => setRules(rules.map((item) => item.id === rule.id ? { ...item, enabled: !item.enabled } : item))}
-                      disabled={locked}
-                      type="button"
-                      role="switch"
-                      aria-checked={rule.enabled}
-                      aria-label={`${rule.enabled ? "Disable" : "Enable"} ${rule.name}`}
-                    >
-                      <span className={`block h-6 w-6 rounded-full bg-white transition ${rule.enabled ? "translate-x-6" : ""}`} />
-                    </button>
-                  </div>
-                </div>
-                <div className="mt-6 grid gap-3 md:grid-cols-[1fr_150px] md:items-center">
-                  <input
-                    type="range"
-                    min={rangeMin}
-                    max={rangeMax}
-                    step={rangeStep}
-                    value={rule.limit}
-                    onChange={(event) => setRules(rules.map((item) => item.id === rule.id ? { ...item, limit: Number(event.target.value) } : item))}
-                    disabled={locked}
-                    className="cova-range"
-                  />
-                  <label className="grid gap-1">
-                    <span className="font-body text-[10px] uppercase tracking-[0.18em] text-white/35">Limit</span>
-                    <input
-                      className="rounded-full border border-white/10 bg-black/30 px-4 py-2 text-right font-mono text-lg text-[#18c887] outline-none transition focus:border-[#18c887]"
-                      min={rangeMin}
-                      max={rangeMax}
-                      step={rangeStep}
-                      type="number"
-                      value={rule.limit}
-                      onChange={(event) => setRules(rules.map((item) => item.id === rule.id ? { ...item, limit: Number(event.target.value) } : item))}
-                      disabled={locked}
-                      aria-label={`${rule.name} limit`}
-                    />
-                    <span className="text-right font-body text-[11px] text-white/35">{formattedLimit}</span>
-                  </label>
-                </div>
-              </motion.article>
-            );
-          })}
-        </div>
-      </div>
-    </SectionShell>
+    <section className="oa-review-page oa-limits" aria-labelledby="oa-limits-title">
+      <header className="oa-review-header"><div><h1 id="oa-limits-title">Limits</h1><p>Set thresholds for reviewing your trades.</p></div>{accountControl}</header>
+      <p className="oa-review-state" data-warning={analysis.breaches.length > 0} role="status">
+        <span aria-hidden="true" />{analysis.breaches.length ? `${analysis.breaches.length} warning${analysis.breaches.length === 1 ? "" : "s"} in history` : "No warnings in history"}
+      </p>
+      <section className="oa-limit-group" aria-labelledby="oa-loss-heading">
+        <h2 id="oa-loss-heading"><Gauge aria-hidden="true" />Loss limits</h2>
+        <div className="oa-review-plate">{rules.filter(rule => rule.metric === "maxDailyLoss" || rule.metric === "maxTradeLoss").map(renderRule)}</div>
+      </section>
+      <section className="oa-limit-group" aria-labelledby="oa-discipline-heading">
+        <h2 id="oa-discipline-heading"><SlidersHorizontal aria-hidden="true" />Trade discipline</h2>
+        <div className="oa-review-plate">{rules.filter(rule => rule.metric === "maxContracts" || rule.metric === "maxLossStreak").map(renderRule)}</div>
+      </section>
+      <details className="oa-advanced-limits">
+        <summary><span>Advanced limits<small>Profit factor · Average R</small></span><ChevronDown aria-hidden="true" /></summary>
+        <div className="oa-review-plate">{rules.filter(rule => rule.metric.includes("min")).map(renderRule)}</div>
+      </details>
+      <footer className="oa-review-footer">
+        {analysis.breaches.length > 0 && <button className="oa-review-button oa-review-primary" onClick={() => go("coach")} type="button">Review warnings</button>}
+        <span>Reviews history. Does not block orders.</span>
+        <details className="oa-review-about"><summary>About this review<ChevronDown aria-hidden="true" /></summary>
+          <p>Set review thresholds for imported history. Cova flags trades that cross them; it never blocks orders or changes broker settings.</p>
+          <p>Changing a threshold can change which warnings appear. It re-checks the same imported history; it does not rewrite a trade.</p>
+          <p>Breaches in history: {analysis.breaches.length} · Rules followed: {formatPercent(analysis.compliance)}</p>
+        </details>
+      </footer>
+    </section>
   );
 }
 
-export function Coach({ analysis, entitlements, go, upgradeToPro }: { analysis: ReturnType<typeof analyze>; entitlements: WorkspaceEntitlements; go: (section: Section) => void; upgradeToPro: () => void }) {
+export function Coach({ analysis, entitlements, go, upgradeToPro, accountControl }: { analysis: ReturnType<typeof analyze>; entitlements: WorkspaceEntitlements; go: (section: Section) => void; upgradeToPro: () => void; accountControl?: ReactNode }) {
   const primaryBreach = analysis.breaches[0];
   const bestSetup = analysis.bySetup[0];
   const brief = analysis.nextSessionBrief;
@@ -211,64 +164,45 @@ export function Coach({ analysis, entitlements, go, upgradeToPro }: { analysis: 
   const visibleInsights = insights.slice(0, entitlements.insightLimit);
   const lockedInsightCount = Math.max(0, insights.length - visibleInsights.length);
   return (
-    <SectionShell
-      eyebrow="Insights"
-      title="Insights"
-      variant="workspace"
-      backdrop={<ImageAtmosphere src="/media/cova-dashboard-plate.jpg" align="right" opacity="opacity-[0.2]" />}
-    >
-      <div className="insights-briefing-feed grid gap-0">
+    <section className="oa-review-page oa-insights" aria-labelledby="oa-insights-title">
+      <header className="oa-review-header"><div><h1 id="oa-insights-title">Insights</h1><p>A closer look at your imported trades.</p></div>{accountControl}</header>
+      <div className="oa-insight-feed">
         {visibleInsights.map((insight, index) => {
           const isWarningTone = insight.tone !== "GOOD" && insight.tone !== "READY";
           return (
-            <motion.article
-              key={insight.title}
-              className="insight-briefing-row p-6 md:p-7"
-              data-tone={insight.tone.toLowerCase()}
-            >
-              <insight.icon className={`h-10 w-10 ${isWarningTone ? "text-amber-300" : "text-[#18c887]"}`} />
-              <span className="mt-10 inline-block rounded-full bg-white/5 px-3 py-1 font-body text-xs text-white/50">{insight.tone}</span>
-              <h3 className="mt-5 font-heading text-4xl italic leading-[1] tracking-normal">{insight.title}</h3>
-
-              <div className="mt-6 border-t border-white/10 pt-4">
-
-                <p className="mt-2 font-body text-sm font-medium leading-relaxed text-white/82">{insight.action}</p>
-                {index === 0 && analysis.breaches.length > 0 && (
-                  <button className="mt-4 inline-flex items-center gap-2 font-body text-sm font-medium text-amber-200" onClick={() => go("rules")} type="button">
-                    Review active limits <ArrowUpRight className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
+            <article key={insight.title} className={index === 0 ? "oa-insight-primary oa-review-plate" : "oa-insight-secondary"} data-tone={insight.tone.toLowerCase()}>
+              {index === 0 ? <>
+                <span className="oa-review-state" data-warning={isWarningTone}><span aria-hidden="true" />{isWarningTone ? "Needs review" : "No active warnings"}</span>
+                <h2>{analysis.breaches.length ? `${analysis.breaches.length} limit warning${analysis.breaches.length === 1 ? "" : "s"} in your history.` : "No active limit warnings."}</h2>
+                <p className="oa-insight-action">{insight.action}</p>
+                <div className="oa-insight-proof" aria-label="Limit warning evidence">{insight.evidence.map(line => <p key={line}>{line}</p>)}</div>
+              </> : <>
+                <insight.icon aria-hidden="true" />
+                <div className="oa-insight-copy"><h2>{index === 1 ? insight.title : "Review status"}</h2><p>{index === 1 ? "Compare results by setup." : insight.action}</p></div>
+              </>}
+              {index === 0 && analysis.breaches.length > 0 && <button className="oa-review-button oa-review-primary" onClick={() => go("rules")} type="button">Review active limits</button>}
               <details className="insight-evidence">
-                <summary>Details</summary>
-                <p>{insight.body}</p>
-                {insight.evidence.map((line) => (
-                  <p className="font-mono text-xs text-white/42" key={line}>Checked: {line}</p>
-                ))}
+                <summary>Details<ChevronDown aria-hidden="true" /></summary>
+                <div className="oa-insight-detail-content">
+                  <h3>{insight.title}</h3><p>{insight.body}</p>
+                  {index !== 0 && <p>{insight.action}</p>}
+                  <p className="oa-review-tone">Review note: {insight.tone}</p>
+                  {insight.evidence.map(line => <p key={line}>Checked: {line}</p>)}
+                </div>
               </details>
-            </motion.article>
+            </article>
           );
         })}
-        {lockedInsightCount > 0 && (
-          <motion.article
-            className="insight-briefing-row insight-briefing-locked p-6 md:p-7"
-          >
-            <LockKeyhole className="h-10 w-10 text-[#18c887]" />
-            <span className="mt-10 inline-block rounded-full bg-[#18c887]/10 px-3 py-1 font-body text-xs text-[#b9f5df]">PRO</span>
-            <h3 className="mt-5 font-heading text-4xl italic leading-[1] tracking-normal">Unlock deeper risk briefs.</h3>
-            <p className="mt-5 font-body font-light leading-relaxed text-white/58">
-              Pro shows the full three-part brief for the current imported history.
-            </p>
-            <div className="mt-6">
-              <GlassButton strong onClick={upgradeToPro}>Unlock Pro <ArrowUpRight className="h-4 w-4" /></GlassButton>
-            </div>
-          </motion.article>
-        )}
+        {lockedInsightCount > 0 && <article className="oa-insight-locked">
+          <LockKeyhole aria-hidden="true" /><div><h2>Unlock deeper risk briefs.</h2><p>Pro shows the full three-part brief for the current imported history.</p></div>
+          <button className="oa-review-button" onClick={upgradeToPro} type="button">Unlock Pro<ArrowUpRight aria-hidden="true" /></button>
+        </article>}
       </div>
-      <div className="mt-8 flex flex-wrap gap-3">
-        <GlassButton onClick={() => go("passport")}>Share Risk Passport <ArrowUpRight className="h-4 w-4" /></GlassButton>
-      </div>
-    </SectionShell>
+      <footer className="oa-review-footer oa-insight-footer">
+        <button className="oa-review-text-button" onClick={() => go("passport")} type="button">Share Risk Passport<ArrowUpRight aria-hidden="true" /></button>
+        <span>Historical review, not a trade signal.</span>
+      </footer>
+    </section>
   );
 }
 

@@ -360,13 +360,13 @@ try {
     const referenceStyle=await evaluate(`(()=>{const s=getComputedStyle(document.querySelector('.astra-dashboard'));return {background:s.backgroundColor,font:s.getPropertyValue('--astra-display').trim()};})()`);
     for(const route of ['rules','coach','passport','import']) {
       await evaluate(`location.hash=${JSON.stringify(route)}`);
-      await waitFor(`document.querySelector('[data-astra-route="${route}"] .section-shell-title-workspace') && document.fonts.status==='loaded'`);
+      await waitFor(`document.querySelector('[data-astra-route="${route}"] :is(.section-shell-title-workspace,.oa-review-header h1)') && document.fonts.status==='loaded'`);
       await evaluate(`window.scrollTo({top:0,behavior:'instant'})`);
       const routeStyle=await evaluate(`(()=>{const s=getComputedStyle(document.querySelector('.astra-workspace-page'));return {background:s.backgroundColor,font:s.getPropertyValue('--astra-display').trim()};})()`);
       assert.deepEqual(routeStyle,referenceStyle,route+' must share the approved Risk Desk material and typography');
       assert.equal(await evaluate(`document.querySelectorAll('.workspace-sidebar-link').length`),4);
       assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth'),true,route+' root overflow');
-      assert.equal(await evaluate(`(()=>{const n=document.querySelector('.workspace-top-header'),b=document.querySelector('.astra-deskbar .astra-button');return !n || !n.checkVisibility() || b.getBoundingClientRect().top>=n.getBoundingClientRect().bottom;})()`),true,route+' top actions clear mobile navigation');
+      assert.equal(await evaluate(`(()=>{const n=document.querySelector('.workspace-top-header'),b=document.querySelector('.oa-review-header [data-account-switcher]')||document.querySelector('.astra-deskbar .astra-button');return !n || !n.checkVisibility() || b.getBoundingClientRect().top>=n.getBoundingClientRect().bottom;})()`),true,route+' top actions clear mobile navigation');
       assert.equal(await evaluate(`[...document.images].filter(i=>i.complete&&!i.naturalWidth).length`),0,route+' assets');
       if(route==='coach') {
         assert.ok(await evaluate(`document.querySelectorAll('.insight-evidence').length>0`),'Evidence must be available on demand');
