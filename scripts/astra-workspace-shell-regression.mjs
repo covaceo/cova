@@ -41,7 +41,8 @@ test('all workspace destinations share the approved rail without wrapping or cha
     assert.match(html,/workspace-shell operator-workspace oa-dashboard-shell/,section);
     assert.match(html,/astra-rail-account/,section);
     assert.match(html,/Back to website/,section);
-    assert.match(html,/aria-label="Delete account"/,section);
+    assert.match(html,/aria-label="Profile menu"/,section);
+    assert.match(html,/Settings/,section); // Delete account is reached through Settings, verified in profile browser QA.
     assert.match(html,/aria-label="Sign out"/,section);
     assert.match(html,/Cova risk score 0/,section);
     assert.equal((html.match(/aria-current="page"/g)||[]).length,1,section);

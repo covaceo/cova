@@ -313,6 +313,9 @@ try {
         if (url.hostname === 'synthetic.supabase.test' && url.pathname.includes('/auth/v1/token')) {
           return new Response(JSON.stringify({ error: 'unexpected token exchange' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
         }
+        if (url.hostname === 'synthetic.supabase.test' && url.pathname === '/rest/v1/user_profiles' && actualMethod === 'GET') {
+          return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
         if (url.origin === location.origin && url.pathname === '/api/auth/consent') {
           return new Response(JSON.stringify({ accepted: true, privacyVersion: 'synthetic', termsVersion: 'synthetic' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
         }
@@ -417,7 +420,10 @@ try {
       appSessionWrites: 2,
       providerSessionPresent: true,
       recoveryMarkerPresent: false,
-      requests: [{ host: "cova.localhost", path: "/api/auth/consent", method: "GET" }],
+      requests: [
+        { host: "cova.localhost", path: "/api/auth/consent", method: "GET" },
+        { host: "synthetic.supabase.test", path: "/rest/v1/user_profiles", method: "GET" },
+      ],
     };
     assert.deepEqual(await readState(), ordinaryState, "A matching validated Cova/Supabase session must survive ordinary reload validation.");
     const freshAccountStats = await evaluate(`(() => {

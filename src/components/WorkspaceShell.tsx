@@ -1,4 +1,5 @@
-import { Activity, ArrowUpRight, BarChart3, BookOpen, FileUp, Gauge, Home, LayoutGrid, LogOut, Network, Search, ShieldCheck, Trash2 } from "lucide-react";
+import { Activity, ArrowUpRight, BarChart3, BookOpen, FileUp, Gauge, Home, LayoutGrid, Network, Search, ShieldCheck } from "lucide-react";
+import { ProfileMenu } from "./UserProfile";
 import { motion, useReducedMotion } from "motion/react";
 import { useMemo, useState, type ReactNode } from "react";
 import { isWorkspaceNavActive, type Section } from "../lib/appRoutes";
@@ -123,23 +124,7 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
         </div>
 
         <div className="workspace-account-menu">
-          <div className="workspace-account-identity">
-            <span className="workspace-account-avatar" aria-hidden="true">{(email || "C").slice(0, 1).toUpperCase()}</span>
-            <span className="workspace-account-copy">
-              <strong>{email || "Cova user"}</strong>
-              <small>{brokerLabel}</small>
-            </span>
-          </div>
-          <div className="workspace-account-actions">
-            <button onClick={deleteAccount} type="button" aria-label="Delete account" title="Delete account">
-              <Trash2 className="h-4 w-4" />
-              <span>Delete account</span>
-            </button>
-            <button onClick={signOut} type="button" aria-label="Sign out" title="Sign out">
-              <LogOut className="h-4 w-4" />
-              <span>Sign out</span>
-            </button>
-          </div>
+          <ProfileMenu email={email} signOut={signOut} deleteAccount={deleteAccount} />
           <div className="workspace-sidebar-watermark">
             <Network aria-hidden="true" className="h-3.5 w-3.5" />
             <span>Retrospective review only. No live brokerage execution.</span>

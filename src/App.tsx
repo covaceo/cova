@@ -60,6 +60,7 @@ import { Navbar } from "./components/Navbar";
 import { OAuthConnectPage } from "./components/OAuthConnectPage";
 import { Toast } from "./components/Toast";
 import { WorkspaceShell } from "./components/WorkspaceShell";
+import { UserProfileProvider } from "./components/UserProfile";
 import { getHostedLogoutUrl, isDemoPreviewEnabled } from "./lib/authEnvironment";
 import { CURRENT_PRIVACY_VERSION, CURRENT_TERMS_VERSION } from "./lib/legal";
 import { isImportPrincipalCurrent, toImportPrincipalIdentity, type ImportPrincipal } from "./lib/importGuard";
@@ -1250,6 +1251,7 @@ export default function App() {
   }
 
   return (
+    <UserProfileProvider userId={isSignedIn && authSession?.source === "supabase" ? authSession.userId : undefined} email={authSession?.email}>
     <div className={`min-h-screen bg-black text-white ${isProtectedSection(section) ? "oa-dashboard-app" : ""}`}>
       <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_70%_20%,rgba(255,255,255,0.055),transparent_30%),linear-gradient(180deg,#000,rgba(1,9,6,0.94))]" />
       <div className="pointer-events-none fixed inset-0 z-0 bg-grid opacity-70" />
@@ -1362,6 +1364,7 @@ export default function App() {
         {!(isProtectedSection(section) && isSignedIn) && (section === "disclosures" ? <RiskDisclosureFooter /> : <SiteFooter go={go} />)}
       </main>
     </div>
+    </UserProfileProvider>
   );
 }
 

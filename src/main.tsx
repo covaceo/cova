@@ -46,6 +46,7 @@ import "./styles/astraWorkspaceContent.css";
 import "./styles/astraDashboard.css";
 import "./styles/approvedDashboard.css";
 import "./styles/approvedWorkspace.css";
+import "./styles/userProfile.css";
 import "./styles/tradeHistory.css";
 import "./styles/homeStory.css";
 import "./styles/publicPassportExample.css";
