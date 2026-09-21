@@ -57,6 +57,7 @@ function routeHarness(initialProps) {
       return [states[index], value => { states[index] = typeof value === 'function' ? value(states[index]) : value; }];
     },
     useRef(initial) { return hooks.useState(() => ({ current: initial }))[0]; },
+    useContext(context) { return context._currentValue; },
     useMemo(fn) { return fn(); },
     useEffect(fn, deps) {
       const index = effectCursor++, previous = effects[index];
@@ -66,7 +67,7 @@ function routeHarness(initialProps) {
     },
   };
   const workspace = 'src/components/WorkspaceSections.tsx';
-  const local = loader({ [resolve(root, workspace)]: { react: hooks } });
+  const local = loader({ [resolve(root, workspace)]: { react: hooks }, [resolve(root, "src/components/UserProfile.tsx")]: { react: hooks } });
   const { Passport } = local(workspace);
   return {
     load: local,

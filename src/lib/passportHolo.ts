@@ -15,16 +15,16 @@ export type HoloPassportModel = {
   sample: boolean;
 };
 
-export function buildHoloPassportModel(analysis: ReturnType<typeof analyze>, rank: string, mode: HoloPassportMode, sample: boolean): HoloPassportModel {
+export function buildHoloPassportModel(analysis: ReturnType<typeof analyze>, rank: string, mode: HoloPassportMode, sample: boolean, username?: string | null): HoloPassportModel {
   const held = analysis.ruleStatuses.filter(status => !status.breached).length;
   const count = analysis.ruleStatuses.length;
-  const reviewId = `COVA-${analysis.latestDate.replace(/-/g, "").slice(2)}-${analysis.score}${held}`;
-  const number = reviewId.replace(/\D/g, "").slice(-4).padStart(4, "0");
+
+
   const markets = [...new Set(analysis.trades.map(trade => trade.market).filter(Boolean))].slice(0, 2).join(" / ");
   const ruleSummary = count ? `${held}/${count} rules held` : "Rules not checked";
   const flags = `${analysis.breaches.length} flag${analysis.breaches.length === 1 ? "" : "s"}`;
   const model: HoloPassportModel = {
-    mode, modeLabel: "Flex", identity: `Trader ${number}`, rank, ruleSummary,
+    mode, modeLabel: "Flex", identity: username ? `@${username}` : "Username not set", rank, ruleSummary,
     marketLine: `${markets ? `${markets} · ` : ""}${analysis.tradeCount} reviewed trades`,
     heroValue: `${analysis.totalPnl > 0 ? "+" : ""}${formatMoney(analysis.totalPnl)}`,
     heroLabel: "Reported P&L",
