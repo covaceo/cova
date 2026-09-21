@@ -376,7 +376,7 @@ try {
         await clickSelector('.insight-evidence summary');
       }
       if(route==='import') {
-        assert.equal(await evaluate(`document.querySelector('.section-shell-title-workspace').textContent`),'Link account');
+        assert.equal(await evaluate(`document.querySelector('.section-shell-title-workspace').textContent`),'Accounts');
         assert.equal(await evaluate(`document.querySelector('[aria-label="Saved trade history"]')`),null,'No ledger on connection page');
         assert.ok(await evaluate(`document.querySelector('input[type="file"]') !== null`),'CSV upload preserved');
       }

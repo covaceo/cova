@@ -37,38 +37,38 @@ assert.doesNotMatch(app, /Powered by Rithmic/i, "The approved homepage must not 
 assert.match(propFirms, /Rithmic account sync/, "The provider selector must expose the implemented Rithmic connection path.");
 assert.doesNotMatch(propFirms, /Rithmic Test connector/, "Customer-facing provider selection must not stay Test-only.");
 assert.doesNotMatch(propFirms, /Rithmic direct sync is planned/, "Rithmic must no longer be left as a planned-only CSV route.");
-assert.match(importPanels, /systemName: "Rithmic Paper Trading"/, "Paper trading must be the safe default environment.");
-assert.match(importPanels, /data-rithmic-environment/, "The user must explicitly choose the Rithmic environment.");
-assert.match(importPanels, /Rithmic Paper Trading[\s\S]*Rithmic 01[\s\S]*Rithmic Test/, "Paper, live R01, and provider Test environments must remain explicit.");
-assert.doesNotMatch(importPanels, /Test username|Test password|Private Test connector/, "The production connector form must not masquerade as a Test-only preview.");
-assert.match(importPanels, /autoComplete="username"/, "The production Rithmic form must label the username field for password managers.");
-assert.match(importPanels, /autoComplete="current-password"/, "The production Rithmic password field must be explicit and masked.");
-assert.match(importPanels, /data-provider-picker/, "The provider choice needs one compact, testable selector.");
-assert.match(importPanels, /active \? "Selected" : "Select"/, "Every provider card needs a clear select/selected action state.");
-assert.match(importPanels, /onClick=\{\(\) => selectFirm\(firm\)\}/, "Choosing a provider must select it without immediately starting a connection flow.");
-assert.match(importPanels, /data-broker-lifecycle/, "Production status, sync, and disconnect controls must remain available.");
-assert.match(importPanels, /checkTradovateStatus[\s\S]*syncTradovate[\s\S]*disconnectBroker/, "The compact selector must preserve existing provider lifecycle controls.");
-assert.doesNotMatch(importPanels, /\{firm\.summary\}/, "Provider cards must not repeat explanatory paragraphs.");
-assert.doesNotMatch(importPanels, /<ImportStat label="Firm"/, "The selector must not repeat provider metadata in a separate stat strip.");
-assert.doesNotMatch(importPanels, /source-route-ledger/, "The selector must not repeat internal routing reasoning below the form.");
-assert.match(importPanels, /function changeRithmicEnvironment\(systemName: RithmicCredentials\["systemName"\]\)[\s\S]*setRithmicAccounts\(\[\]\)[\s\S]*accountKey: undefined[\s\S]*systemName/, "Changing Rithmic environments must clear accounts and the old environment's opaque account key.");
-assert.match(importPanels, /data-rithmic-environment[\s\S]*disabled=\{rithmicBusy\}[\s\S]*onChange=\{\(event\) => changeRithmicEnvironment/, "The environment cannot change underneath an in-flight account-discovery response.");
-assert.match(importPanels, /data-rithmic-account[\s\S]*disabled=\{rithmicBusy\}[\s\S]*onChange=\{\(event\) => setRithmicCredentials/, "The selected account cannot change underneath an in-flight sync.");
-assert.match(importPanels, /onChange=\{\(event\) => changeRithmicEnvironment\(event\.target\.value as RithmicCredentials\["systemName"\]\)\}/, "The environment selector must use the account-reset transition.");
-assert.match(importPanels, /Cova makes no order or funds calls/i, "Rithmic copy must describe Cova's application behavior without inventing a provider-enforced credential scope.");
-assert.doesNotMatch(importPanels, /No order access/i, "Rithmic copy must not overstate provider-enforced read-only scope.");
-assert.match(importPanels, /Cova never stores it/i, "The credentials lifecycle must be stated beside the form.");
-assert.match(importPanels, /gross before commissions/i, "Rithmic-imported P&L must not be presented as net P&L.");
-assert.match(importPanels, /RithmicAttribution/, "The provider form must display required Rithmic and OMNE attribution.");
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 assert.match(importDesk, /authorizedFetch\("\/api\/rithmic\/sync"/, "Rithmic sync must use the authenticated same-origin API.");
 assert.match(importDesk, /authorizedFetch\("\/api\/rithmic\/status"/, "The login form must be gated by the private connector capability check.");
-assert.match(importPanels, /data-rithmic-unavailable/, "Unavailable environments must show a truthful gate instead of credential fields.");
-assert.match(importPanels, /Private sync unavailable/, "Unavailable private sync must not render an enabled-status claim.");
-assert.match(importPanels, /disabled=\{rithmicBusy\}/, "The Rithmic submit control must block duplicate in-flight syncs.");
-assert.match(importPanels, /username: "", password: ""/, "The frontend must clear both Rithmic fields after a sync attempt.");
-assert.match(importPanels, /rithmicAccounts\.map/, "Multiple Rithmic accounts must render an explicit selector.");
-assert.match(importPanels, /accountKey/, "Duplicate provider account ids must be selected with an opaque composite key.");
-assert.doesNotMatch(importPanels, /<option value=\{365\}>/, "The UI must not offer history ranges outside the bounded serverless runtime budget.");
+
+
+
+
+
+
+
 assert.match(endpoint, /new Set\(\[30, 90, 180\]\)/, "The public boundary must enforce the bounded history range.");
 assert.match(bridge, /AbortSignal\.timeout\(250_000\)/, "The bridge must retain cleanup and response margin inside Vercel's 300-second limit.");
 assert.match(vercel, /"api\/rithmic\/status\.js"\s*:\s*\{\s*"maxDuration"\s*:\s*30\s*\}/, "The signed status check must retain margin for authentication and the private capability request.");
@@ -95,7 +95,7 @@ assert.doesNotMatch(rithmicFinallyBlock, /preparedImport\.isCurrent\(\)/, "A ben
 assert.match(app, /mode === "replace" && brokerStatus\?\.mode === "ephemeral"[\s\S]*clearBrokerStatus\(\)/, "Only a replacement CSV import may clear the last Rithmic import status.");
 assert.match(app, /reset=\{\(\) => \{[\s\S]*clearBrokerStatus\(\)[\s\S]*cova:broker-status/, "Resetting the demo must clear ephemeral Rithmic status too.");
 assert.match(dashboard, /trade\.source\?\.provider === "Rithmic"/, "Rithmic attribution must follow the imported trades, including mixed datasets.");
-assert.match(dashboard, /Sync new trades/, "A Rithmic ledger must expose an explicit dashboard resync action.");
+assert.match(dashboard, /Update trades/, "Existing Rithmic history must retain an update entry point to CSV.");
 assert.match(app, /rithmicSyncAvailable=\{brokerStatus\?\.provider === "Rithmic" && brokerStatus\.status === "imported"\}/, "A successful zero-trade Rithmic sync must keep the dashboard resync action available.");
 assert.match(dashboard, /const hasRithmicTrades = analysis\.trades\.some/, "Rithmic resync discovery must use the complete ledger, not the currently filtered dashboard range.");
 assert.match(dashboard, /hasRithmicTrades \|\| rithmicSyncAvailable/, "Rithmic resync discovery must survive a valid zero-trade import receipt.");
@@ -129,4 +129,6 @@ assert.ok(existsSync(path.join(root, ...rithmicLogo)) && existsSync(path.join(ro
 assert.equal(hash(...rithmicLogo), "187febae74c28fc370fe27a8196ba81ccc89af1150b1f641ad6b25ea5fa48cd8", "Rithmic artwork must remain byte-identical to the provider file.");
 assert.equal(hash(...omneLogo), "7af9acab16c4d75ddc11efd0e1011230a8cb33ffe1ea01e362706f6c70957994", "OMNE artwork must remain byte-identical to the provider file.");
 
-console.log("rithmic ui/security regression: passed");
+assert.doesNotMatch(importPanels, /data-rithmic-connect|data-rithmic-environment|type="password"/, "Owner-retired provider must not expose a credential form in Accounts.");
+assert.match(importPanels, /NinjaTrader/);
+console.log("legacy Rithmic data/security preservation: passed; provider selection retired by owner");

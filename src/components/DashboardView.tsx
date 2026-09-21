@@ -71,7 +71,7 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, o
       <div className="astra-header-controls">
         {accountControl}
         {hasTradeHistory && <span className="astra-date-range"><CalendarDays aria-hidden="true" />{dateRangeLabel(scopedAnalysis.trades)}</span>}
-        <button className="astra-button astra-import-action" onClick={manageSource} type="button"><FileUp aria-hidden="true" />{hasRithmicSource ? "Sync new trades" : "Import trades"}</button>
+        <button className="astra-button astra-import-action" onClick={manageSource} type="button"><FileUp aria-hidden="true" />{hasRithmicSource ? "Update trades" : "Import trades"}</button>
       </div>
       <div className="astra-header-meta">
 
@@ -131,7 +131,7 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, o
       </div>
       {!journalReview && <details className="astra-review-details"><summary><span>Next review</span><ChevronDown aria-hidden="true" /></summary><DashboardReviewRow analysis={scopedAnalysis} go={go} /></details>}
     </>}
-    <footer className="astra-dashboard-footer"><span>Retrospective review only. No live brokerage execution.</span><div className="dashboard-summary-actions"><button className="astra-text-link" onClick={manageSource} type="button">{hasRithmicSource ? "Sync new trades" : "Manage source"}<ArrowUpRight aria-hidden="true" /></button></div></footer>
+    <footer className="astra-dashboard-footer"><span>Retrospective review only. No live brokerage execution.</span><div className="dashboard-summary-actions"><button className="astra-text-link" onClick={manageSource} type="button">{hasRithmicSource ? "Update trades" : "Manage source"}<ArrowUpRight aria-hidden="true" /></button></div></footer>
     {historyOpen && <TradeHistoryDialog trades={analysis.trades} journalReview={journalReview} onClose={() => setHistoryOpen(false)} />}
     <DashboardTradeDialog journalReview={journalReview} trade={selectedTrade} onClose={() => setSelectedTradeId(null)} onSave={noteSaveRef.current} />
   </section>;

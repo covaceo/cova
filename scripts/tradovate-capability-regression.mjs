@@ -58,14 +58,10 @@ test("Trade History discovers Tradovate capability before offering direct connec
   assert.match(importDeskSource, /tradovateStatusChecked=\{tradovateCapability\.checked\}/);
   assert.match(importDeskSource, /const verified = validateTradovateHistory\(data, historyAccount\)[\s\S]*verified\.window\.startDate !== historyWindow\.startDate[\s\S]*preparedImport\.commitHistory\(verified\.csv/);
   assert.match(importDeskSource, /data\?\.connected === true[\s\S]*writeBrokerStatus\(nextStatus\)/);
-  assert.match(importPanelsSource, /const selectedConnected = connected && brokerStatus\?\.provider === selectedFirm\.name/);
-  assert.match(importPanelsSource, /hidden sm:inline/);
-  assert.match(importPanelsSource, /tradovateUnavailable \? "Stored · sync unavailable" : "Connected"/);
-  assert.match(importPanelsSource, /tradovateUnavailable \? "Unavailable" : providerStatus/);
-  assert.match(importPanelsSource, /tradovateAvailable && selectedConnected[\s\S]*Sync trades/);
-  assert.match(importPanelsSource, /data-tradovate-unavailable/);
-  assert.match(importPanelsSource, /tradovateStatusChecked && !tradovateAvailable[\s\S]*Use CSV/);
-  assert.match(importPanelsSource, /selectedFirm\.id === "tradovate"[\s\S]*!tradovateAvailable[\s\S]*CSV import remains available/);
+  assert.match(importPanelsSource, /const ready = tradovateStatusChecked && tradovateAvailable/);
+  assert.match(importPanelsSource, /ready && entitlements.canUseDirectSync && connected/);
+  assert.match(importPanelsSource, /connected && <button[\s\S]*?Disconnect/);
+  assert.match(importPanelsSource, /if \(!ready \|\| !entitlements.canUseDirectSync/);
 });
 
 test("actual status handler supplies the owner-bound connection revision required by auto history", async () => {

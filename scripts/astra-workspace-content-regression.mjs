@@ -48,36 +48,12 @@ function assertIsolation(tree) {
   });
 }
 
-test('Import uses the approved panel system and keeps source/input states legible', () => {
-  const tree = stylesheet();
-  assertIsolation(tree);
-  for (const [name, token] of Object.entries({ panel: '#0c0f15', ink: '#e8eeff', quiet: '#9198a8', blue: '#6f96ff', red: '#ff8191' })) {
-    assert.ok(approved.includes(`--astra-${name}:${token}`), `Approved ${name} token changed; review the content contract`);
-  }
-  for (const owner of ['source-ledger-panel', 'csv-export-ledger', 'import-workflow-panel', 'import-next-ledger', 'import-raw-ledger']) {
-    assert.ok(importSource.includes(owner));
-    assert.equal(value(tree, `.${owner}`, 'background'), 'var(--astra-panel)');
-    assert.equal(value(tree, `.${owner}`, 'border'), '1px solid #2c3340');
-    assert.equal(value(tree, `.${owner}`, 'border-radius'), '7px');
-    assert.equal(value(tree, `.${owner}`, 'box-shadow'), 'none');
-  }
-  assert.equal(value(tree, '.source-ledger-panel [data-provider-picker]', 'grid-template-columns'), 'repeat(4, minmax(0, 1fr))');
-  assert.equal(value(tree, '.source-ledger-panel .provider-choice-button', 'min-height'), '76px');
-  assert.equal(value(tree, '.source-ledger-panel .provider-choice-button[aria-pressed="true"]', 'border-color'), 'var(--astra-blue)');
-  assert.equal(value(tree, '.source-ledger-panel [data-provider-picker]', 'grid-template-columns', '(max-width: 1050px)'), 'repeat(2, minmax(0, 1fr))');
-  assert.equal(value(tree, '.source-ledger-panel [data-rithmic-connect] > .grid', 'grid-template-columns'), 'repeat(2, minmax(0, 1fr))');
-  assert.equal(value(tree, '.source-ledger-panel [data-rithmic-connect] > .grid', 'grid-template-columns', '(max-width: 620px)'), 'minmax(0, 1fr)');
-  assert.equal(value(tree, '.import-raw-ledger textarea', 'resize'), 'vertical');
-  assert.equal(value(tree, '.import-raw-ledger textarea', 'font-family'), 'var(--astra-mono)');
-  assert.equal(value(tree, '.import-workflow-panel .terminal-tab-active', 'background'), '#26324a');
-  assert.equal(value(tree, '.import-source-workflow .terminal-tab-label', 'background'), '#101620');
-  assert.equal(value(tree, '.import-source-workflow .terminal-tab-label', 'border-color'), 'var(--astra-line)');
-  assert.equal(value(tree, '.import-workflow-panel label.liquid-glass:focus-within', 'outline'), '2px solid var(--astra-blue)');
-  assert.equal(value(tree, '.source-ledger-panel input:disabled', 'cursor'), 'not-allowed');
-  assert.equal(value(tree, '.import-source-workflow .cova-button:focus-visible', 'outline'), '2px solid var(--astra-blue)');
-  assert.match(importSource, /type="file"/);
-  assert.match(importSource, /data-broker-lifecycle/);
-  assert.match(importSource, /Read-only/);
+test('Accounts uses quiet dashboard materials and preserves basic import controls', () => {
+  const css=read('src/styles/approvedWorkspace.css');
+  assert.match(css,/accounts-panel[^}]*background:rgba\(12,18,27,\.34\)/);
+  assert.match(css,/accounts-platforms[^}]*grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(importSource,/data-csv-import/);assert.match(importSource,/data-broker-lifecycle/);assert.match(importSource,/Read-only/);
+  assert.doesNotMatch(importSource,/data-provider-picker|atomic nonce store/);
 });
 
 

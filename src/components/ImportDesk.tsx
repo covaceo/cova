@@ -7,8 +7,8 @@ import { clearBrokerStatus, readBrokerStatus, writeBrokerStatus, type BrokerStat
 import { canRedirectToTradovate } from "../lib/tradovateConnect";
 import { authorizedFetch } from "../lib/apiClient";
 import { fetchHistoryJson, HistoryRunGuard, readHistorySummary, saveHistorySummary, recentHistoryWindow, validateTradovateHistory, type HistoryAccount } from "../lib/tradovateHistory";
-import { ImageAtmosphere, SectionShell } from "./LayoutShell";
-import { BrokerConnectPanel, CsvExportGuide, CsvPreview, CsvUploadPanel, ImportNextSteps } from "./ImportPanels";
+import { SectionShell } from "./LayoutShell";
+import { BrokerConnectPanel, CsvExportGuide, CsvPreview, CsvUploadPanel } from "./ImportPanels";
 
 
 
@@ -75,7 +75,7 @@ function brokerStatusFromTradovate(data: TradovateStatusResponse): BrokerStatus 
 
 export function ImportDesk({ entitlements, importCsv, prepareImportCsv, openFirmOAuth, status, reset, upgradeToPro }: { entitlements: ImportEntitlements; importCsv: ImportCommit; prepareImportCsv: PrepareImportCsv; openFirmOAuth: (firm: PropFirmId) => void; status: string; reset: () => void; upgradeToPro: () => void }) {
 
-  const [text, setText] = useState("date,market,side,contracts,entry,exit,pnl,risk,setup,notes\n2026-05-06,NQ,Long,1,18900,18915,300,250,Opening range,Smoke row");
+  const [text, setText] = useState("");
   const [mode, setMode] = useState<ImportMode>("append");
   const [dragActive, setDragActive] = useState(false);
   const [fileName, setFileName] = useState("");
@@ -469,11 +469,11 @@ export function ImportDesk({ entitlements, importCsv, prepareImportCsv, openFirm
   return (
     <SectionShell
       eyebrow="Accounts"
-      title="Link account"
+      title="Accounts"
       variant="workspace"
-      backdrop={<ImageAtmosphere src="/media/cova-dashboard-plate.jpg" align="right" opacity="opacity-[0.22]" />}
+
     >
-      <div className="import-desk-flow import-source-workflow grid gap-6">
+      <div className="accounts-page">
         <BrokerConnectPanel
           brokerBusy={brokerBusy}
           brokerNotice={brokerNotice}
@@ -499,23 +499,23 @@ export function ImportDesk({ entitlements, importCsv, prepareImportCsv, openFirm
         />
 
         {tradovateCapability.available && brokerStatus?.provider === "Tradovate" && brokerStatus.connected && (
-          <section className="rounded-2xl border border-white/10 bg-[#0d0f14] p-5" aria-label="Tradovate recent history">
-            <h3 className="text-lg font-semibold">Tradovate history · UTC</h3>
-            <p className="mt-2 text-sm text-white/60">Last 30 calendar days by default, including today. Load up to 90 days per request. Gross P&L before fees; missing planned risk is unknown. Each row is a matched fill pair. At most 4 accounts load per request. Select a deferred or failed account below and Load history to retry it.</p>
+          <section className="accounts-panel accounts-history" aria-label="Tradovate recent history">
+            <h3>Trade history</h3>
+            <details className="accounts-help"><summary>History details</summary><p>Starts with the last 30 days. Choose up to 90 days per load. Dates use UTC; the end date is not included. P&amp;L is before fees. Up to 4 accounts load at once. Select an account to retry missing history.</p></details>
             <div className="mt-4 flex flex-wrap items-end gap-3">
               <label className="grid gap-1 text-sm">Account<select aria-label="History account" className="max-w-full rounded-lg border border-white/15 bg-[#171a21] p-2" value={historyAccount} onChange={event => { historyGuard.current.cancel(); setSyncBusy(false); setHistoryAccount(event.target.value); }}><option value="">Active accounts (up to 4)</option>{historyAccounts.map(item => <option key={item.account.id} value={item.account.id}>{item.account.name} · {item.status}</option>)}</select></label>
               <label className="grid gap-1 text-sm">From<input aria-label="History start date" type="date" className="rounded-lg border border-white/15 bg-[#171a21] p-2" value={historyWindow.startDate} onChange={event => { historyGuard.current.cancel(); setSyncBusy(false); setHistoryWindow(current => ({ ...current, startDate: event.target.value })); }} /></label>
-              <label className="grid gap-1 text-sm">To (exclusive)<input aria-label="History end date" type="date" className="rounded-lg border border-white/15 bg-[#171a21] p-2" value={historyWindow.endDate} onChange={event => { historyGuard.current.cancel(); setSyncBusy(false); setHistoryWindow(current => ({ ...current, endDate: event.target.value })); }} /></label>
+              <label className="grid gap-1 text-sm">Before<input aria-label="History end date" type="date" className="rounded-lg border border-white/15 bg-[#171a21] p-2" value={historyWindow.endDate} onChange={event => { historyGuard.current.cancel(); setSyncBusy(false); setHistoryWindow(current => ({ ...current, endDate: event.target.value })); }} /></label>
               <button className="rounded-lg bg-[#4f7dff] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" disabled={syncBusy || !entitlements.canUseDirectSync} onClick={() => void syncTradovate()}>{syncBusy ? "Loading history…" : "Load history"}</button>
             </div>
-            <p className="mt-3 text-sm text-white/60" role="status">{brokerNotice}</p>
+
           </section>
         )}
 
-        <CsvExportGuide selectedFirmId={selectedFirmId} setSelectedFirmId={setSelectedFirmId} />
 
-        <div className="import-csv-grid grid gap-6 lg:grid-cols-[0.92fr_1.08fr]">
-          <div className="space-y-6">
+
+        <div className="accounts-csv-grid">
+          <div className="accounts-csv-main">
             <CsvUploadPanel
               dragActive={dragActive}
               entitlements={entitlements}
@@ -532,21 +532,19 @@ export function ImportDesk({ entitlements, importCsv, prepareImportCsv, openFirm
               upgradeToPro={upgradeToPro}
             />
 
-            <ImportNextSteps entitlements={entitlements} />
-            <CsvPreview parsed={parsed} />
+            {text.trim() && <CsvPreview parsed={parsed} />}
           </div>
 
-          <div className="import-raw-editor import-raw-ledger p-3">
-            <div className="flex items-center justify-between px-3 pb-3 pt-1">
-              <span className="font-body text-xs uppercase tracking-[0.2em] text-white/38">Raw CSV</span>
-              <span className="font-body text-xs text-white/34">Advanced edit</span>
-            </div>
+          <div className="accounts-csv-help">
+            <CsvExportGuide selectedFirmId={selectedFirmId} setSelectedFirmId={setSelectedFirmId} />
+            <details className="accounts-help accounts-csv-editor"><summary>Paste or edit CSV</summary>
             <textarea
-              className="min-h-[430px] w-full resize-y rounded-[22px] border border-white/10 bg-black/50 p-5 font-mono text-sm leading-relaxed text-white/75 outline-none transition focus:border-[#18c887]"
+              aria-label="CSV text" className="accounts-csv-text"
               value={text}
               onChange={(event) => setText(event.target.value)}
               spellCheck={false}
             />
+            </details>
           </div>
         </div>
       </div>
