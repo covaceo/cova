@@ -3,6 +3,18 @@ import test from 'node:test';
 import {existsSync} from 'node:fs';
 import load from './helpers/load-ts.cjs';
 const source='src/lib/userProfile.ts';
+test('username cooldown is 14 elapsed days, fails closed without timestamp, and accepts the exact boundary',()=>{
+ const {usernameChangeStatus,profileErrorMessage}=load(source);
+ assert.equal(typeof usernameChangeStatus,'function');
+ const profile={user_id:'a',username:'lino',avatar_data:null,username_changed_at:'2026-09-01T12:00:00.000Z'};
+ assert.equal(usernameChangeStatus(null,Date.parse('2026-09-01T12:00:00Z')).allowed,true);
+ assert.equal(usernameChangeStatus(profile,Date.parse('2026-09-15T11:59:59.999Z')).allowed,false);
+ assert.equal(usernameChangeStatus(profile,Date.parse('2026-09-15T12:00:00.000Z')).allowed,true);
+ assert.equal(usernameChangeStatus(profile,Date.parse('2026-09-02T12:00:00Z')).nextAt,'2026-09-15T12:00:00.000Z');
+ assert.equal(usernameChangeStatus({...profile,username_changed_at:undefined}).allowed,false);
+ assert.equal(usernameChangeStatus({...profile,username_changed_at:'garbage'}).allowed,false);
+ assert.match(profileErrorMessage({code:'P0001',message:'username_change_cooldown'}),/14 days/);
+});
 test('usernames normalize to one lowercase ASCII identity',()=>{
  assert.ok(existsSync(source),'user profile rules must exist');
  const {normalizeUsername,validateUsername}=load(source);

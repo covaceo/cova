@@ -10,6 +10,12 @@ Owner-approved contract: usernames are unique across Cova accounts, ignoring cas
 - Profile photos are decoded, center-cropped to 256×256, and re-encoded as JPEG. Only JPG/PNG/WebP inputs up to 5 MB are accepted. Store only this bounded thumbnail (at most 100,000 ASCII characters) in the owner-private profile row, atomically with the username. No public upload bucket, remote image URL, original EXIF, or SVG. This intentionally small private-avatar representation avoids orphaned uploads and follows auth-user deletion automatically.
 - Save failures retain the prior profile. Identity changes abort old requests and close the profile dialog. No browser-only success is presented as persistence.
 
+## Username change cooldown
+- Once assigned, a username can change only after 14 elapsed days (336 hours). PostgreSQL owns `username_changed_at` and enforces the rule for direct updates and upserts; browser restrictions are only a convenience.
+- Apply `20260920020000_username_change_cooldown.sql` before the updated UI. Existing profiles start their first window at migration time because prior change history was not tracked. New profiles start at creation.
+- The trigger ignores client-supplied timestamps. Photo-only and unchanged-name saves remain allowed and preserve the last name-change timestamp. Deleting a profile to reset the clock is not permitted to app users.
+- The editor shows the next eligible date/time and unlocks at the boundary. Username uniqueness and email-based sign-in are unchanged.
+
 ## Admin lookup
 The following exact lookup is callable only as a database administrator or service role, never from the browser:
 

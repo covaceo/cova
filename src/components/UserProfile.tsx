@@ -1,7 +1,7 @@
 import { ChevronDown, LogOut, Settings, UserRound, UserRoundPen, X } from "lucide-react";
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { createProfileRepository, type ProfileRepository } from "../lib/profileRepository";
-import { normalizeUsername, validateAvatarData, validateUsername, type UserProfile } from "../lib/userProfile";
+import { normalizeUsername, usernameChangeStatus, validateAvatarData, validateUsername, type UserProfile } from "../lib/userProfile";
 
 const useIdentityEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
@@ -106,11 +106,19 @@ function ProfileDialog({ mode, email, deleteAccount, close }: { mode: "edit" | "
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState("");
   const locked = busy || processing;
+  const [now, setNow] = useState(Date.now);
+  const usernameStatus = usernameChangeStatus(profile.profile, now);
+  useEffect(() => {
+    if (usernameStatus.allowed || !usernameStatus.nextAt) return;
+    const timer = window.setTimeout(() => setNow(Date.now()), Math.min(2147483647, Math.max(0, Date.parse(usernameStatus.nextAt) - Date.now()) + 20));
+    return () => window.clearTimeout(timer);
+  }, [usernameStatus.allowed, usernameStatus.nextAt, now]);
   useEffect(() => { alive.current = true; ref.current?.showModal(); return () => { alive.current = false; }; }, []);
   useEffect(() => { setName(profile.profile?.username || ""); setAvatar(profile.profile?.avatar_data || null); }, [profile.profile]);
   async function save(event: React.FormEvent) {
     event.preventDefault(); if (locked) return;
     const validation = validateUsername(name); if (validation) { setError(validation); return; }
+    if (profile.profile && normalizeUsername(name) !== profile.profile.username && !usernameChangeStatus(profile.profile).allowed) { setError("You can change your username once every 14 days."); return; }
     setBusy(true); setError("");
     try { await profile.save(name, avatar); if (alive.current) close(true); }
     catch (caught) { if (alive.current) setError(caught instanceof Error ? caught.message : "Your profile could not be saved."); }
@@ -129,8 +137,8 @@ function ProfileDialog({ mode, email, deleteAccount, close }: { mode: "edit" | "
           finally { if (alive.current) setProcessing(false); }
         }} />
         <label className="cova-profile-label" htmlFor="cova-username">Username</label>
-        <div className="cova-profile-input"><span aria-hidden="true">@</span><input autoFocus autoComplete="off" autoCapitalize="none" spellCheck={false} id="cova-username" name="username" value={name} maxLength={25} aria-describedby="cova-username-help" aria-invalid={Boolean(error)} disabled={locked || profile.loading || !profile.editable || Boolean(profile.error)} onChange={event => { setName(event.target.value); setError(""); }} onBlur={() => setName(normalizeUsername(name))} /></div>
-        <p className="cova-profile-help" id="cova-username-help">3–24 letters, numbers, or underscores. Each username is unique.</p>
+        <div className="cova-profile-input"><span aria-hidden="true">@</span><input autoFocus autoComplete="off" autoCapitalize="none" spellCheck={false} id="cova-username" name="username" readOnly={!usernameStatus.allowed} value={name} maxLength={25} aria-describedby="cova-username-help" aria-invalid={Boolean(error)} disabled={locked || profile.loading || !profile.editable || Boolean(profile.error)} onChange={event => { setName(event.target.value); setError(""); }} onBlur={() => setName(normalizeUsername(name))} /></div>
+        <p className="cova-profile-help" id="cova-username-help">{usernameStatus.allowed ? "3–24 letters, numbers, or underscores. Changes are limited to once every 14 days." : usernameStatus.nextAt ? <>Next change: <time dateTime={usernameStatus.nextAt}>{new Date(usernameStatus.nextAt).toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}</time>. Usernames can be changed every 14 days.</> : "Reload your profile to check when you can change your username."}</p>
         {profile.loading && <p className="cova-profile-help" role="status">Loading profile…</p>}
         {!profile.editable && <p className="cova-profile-help">Sign in to a Cova account to save your profile.</p>}
         {profile.error && <div className="cova-profile-error" role="alert">{profile.error} <button type="button" onClick={profile.retry}>Try again</button></div>}

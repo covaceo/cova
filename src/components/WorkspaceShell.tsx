@@ -1,4 +1,4 @@
-import { Activity, ArrowUpRight, BarChart3, BookOpen, FileUp, Gauge, Home, LayoutGrid, Network, Search, ShieldCheck } from "lucide-react";
+import { Activity, ArrowUpRight, BarChart3, BookOpen, ChevronRight, FileUp, Gauge, Home, LayoutGrid, Network, Search, ShieldCheck } from "lucide-react";
 import { ProfileMenu } from "./UserProfile";
 import { motion, useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -78,7 +78,7 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
           </button>
         </div>
 
-        <button className="astra-rail-account" aria-current={isWorkspaceNavActive(section, "import") ? "page" : undefined} onClick={() => go("import")} type="button"><span className="astra-rail-account-icon" aria-hidden="true">{(email || "C").slice(0, 1).toUpperCase()}</span><span><strong>Accounts</strong><small>{brokerLabel}</small></span><ArrowUpRight aria-hidden="true" /></button>
+        <button className="astra-rail-account" aria-current={isWorkspaceNavActive(section, "import") ? "page" : undefined} onClick={() => go("import")} type="button"><span className="astra-rail-account-copy"><strong>Accounts</strong><small>{brokerLabel}</small></span><ChevronRight aria-hidden="true" /></button>
 
         <label className="workspace-sidebar-search">
           <Search aria-hidden="true" className="h-4 w-4" />

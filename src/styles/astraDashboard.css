@@ -7,8 +7,8 @@
 .oa-dashboard-app .oa-dashboard-shell .workspace-brand-button { width:77px!important; height:30px!important; padding:0!important; }
 .oa-dashboard-app .oa-dashboard-shell .workspace-brand-button img { width:77px!important; height:30px!important; object-fit:contain; }
 .oa-dashboard-app .astra-rail-account { display:flex; align-items:center; gap:9px; padding:11px; margin:0 2px 14px; text-align:left; border:1px solid #2b3342; background:#11151e; border-radius:6px; flex-shrink:0; min-width:0; }
-.oa-dashboard-app .astra-rail-account-icon { display:grid; place-items:center; width:28px; height:28px; flex:none; border:1px solid #344261; border-radius:5px; color:#c4d4ff; font:12px var(--astra-display); }
-.oa-dashboard-app .astra-rail-account>span:nth-child(2) { min-width:0; flex:1; }
+
+
 .oa-dashboard-app .astra-rail-account strong { display:block; font:11px/1.5 var(--astra-body); color:var(--astra-ink); }
 .oa-dashboard-app .astra-rail-account small { display:block; font:9px/1.6 var(--astra-mono); color:#92a0b9; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .oa-dashboard-app .astra-rail-account>svg { width:12px; height:12px; color:#919db5; flex:none; }

@@ -5,7 +5,7 @@ const file='src/lib/profileRepository.ts';
 assert.ok(existsSync(file),'owner-scoped profile repository must exist');
 const {createProfileRepository}=load(file);
 let owner='user-a',stored=null,conflict=false;const calls=[];
-const client={auth:{getSession:async()=>({data:{session:{user:{id:owner}}}})},from(table){assert.equal(table,'user_profiles');let value=null,filter;const chain={select(){return chain},eq(k,v){assert.equal(k,'user_id');filter=v;return chain},abortSignal(){return chain},upsert(v,opts){assert.equal(opts.onConflict,'user_id');value=v;calls.push(v);return chain},maybeSingle:async()=>({data:stored?.user_id===filter?stored:null,error:null}),single:async()=>{if(conflict)return {data:null,error:{code:'23505',message:'database detail'}};stored=value;return{data:stored,error:null}}};return chain;}};
+const client={auth:{getSession:async()=>({data:{session:{user:{id:owner}}}})},from(table){assert.equal(table,'user_profiles');let value=null,filter;const chain={select(columns){assert.ok(columns.includes("username_changed_at"),"Read server cooldown timestamp");return chain},eq(k,v){assert.equal(k,'user_id');filter=v;return chain},abortSignal(){return chain},upsert(v,opts){assert.equal(opts.onConflict,'user_id');value=v;calls.push(v);return chain},maybeSingle:async()=>({data:stored?.user_id===filter?stored:null,error:null}),single:async()=>{if(conflict)return {data:null,error:{code:'23505',message:'database detail'}};stored={...value,username_changed_at:"2026-09-01T12:00:00.000Z"};return{data:stored,error:null}}};return chain;}};
 const repo=createProfileRepository(client);
 assert.equal(await repo.load('user-a'),null);
 assert.equal((await repo.save('user-a',' @LINO ',null)).username,'lino');
