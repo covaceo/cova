@@ -62,9 +62,9 @@ test('Limits retains review controls with distinct checked, focus and disabled s
   assertIsolation(tree);
   for (const owner of ['rules-ledger-summary', 'rules-ledger-row']) {
     assert.ok(workspaceSource.includes(owner));
-    assert.equal(value(tree, `.${owner}`, 'background'), 'var(--astra-panel)');
-    assert.equal(value(tree, `.${owner}`, 'border'), '1px solid #2c3340');
-    assert.equal(value(tree, `.${owner}`, 'border-radius'), '7px');
+    assert.equal(value(tree, `.${owner}`, 'background'), 'var(--review-fill)');
+    assert.equal(value(tree, `.${owner}`, 'border'), '1px solid var(--review-edge)');
+    assert.equal(value(tree, `.${owner}`, 'border-radius'), '5px');
   }
   assert.equal(value(tree, '.rules-ledger-row button[role="switch"][aria-checked="true"]', 'background'), '#26324a');
   assert.equal(value(tree, '.rules-ledger-row button[role="switch"][aria-checked="false"]', 'background'), '#101620');
@@ -82,17 +82,17 @@ test('Limits retains review controls with distinct checked, focus and disabled s
 test('Insights preserves readable severity, review notes and evidence at narrow widths', () => {
   const tree = stylesheet();
   assertIsolation(tree);
-  assert.equal(value(tree, '.insight-briefing-row', 'background'), 'var(--astra-panel)');
-  assert.equal(value(tree, '.insight-briefing-row h3', 'font'), '500 20px/1.25 var(--astra-display)');
+  assert.equal(value(tree, '.insight-briefing-row', 'background'), 'var(--review-fill)');
+  assert.equal(value(tree, '.insight-briefing-row h3', 'font'), '600 19px/1.3 var(--astra-display)');
   for (const tone of ['warn', 'pause', 'caution']) {
     assert.equal(value(tree, `.insight-briefing-row[data-tone="${tone}"] > span`, 'color'), 'var(--astra-red)');
   }
   for (const tone of ['good', 'ready']) {
     assert.equal(value(tree, `.insight-briefing-row[data-tone="${tone}"] > span`, 'color'), 'var(--astra-blue)');
   }
-  assert.equal(value(tree, '.insight-briefing-row > div:last-child p', 'font-family'), 'var(--astra-mono)');
+  assert.equal(value(tree, '.insight-evidence p', 'margin'), '10px 0 0');
   assert.equal(value(tree, '.insight-briefing-row > p', 'grid-row', '(max-width: 620px)'), '3');
-  assert.equal(value(tree, '.insight-briefing-row > div:last-child', 'grid-row', '(max-width: 620px)'), '5');
+  assert.equal(value(tree, '.insight-briefing-row > div:last-child', 'grid-row', '(max-width: 620px)'), '4');
   assert.equal(value(tree, '.insight-briefing-row button:focus-visible', 'outline'), '2px solid var(--astra-blue)');
   assert.match(workspaceSource, /insight-briefing-locked/);
   assert.match(workspaceSource, /Checked: \{line\}/);
