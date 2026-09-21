@@ -51,7 +51,8 @@ const protectedFiles = {
   "src/App.tsx": "63403cb4c06117d15a29eb7eaa8260ebcdc01ddbe138aa1a027b4b35a5084b9b",
   "src/components/AstraEquityCurve.tsx": "080bdba310e0b45aac25cef67702f29ab6e49c674a74559d45af15ff3dbc4433",
   "src/components/DashboardTradeDialog.tsx": "302d1c3851169baadf76180225e607254f09e340b447384f52e2322ac3d8752a",
-  "src/components/DashboardView.tsx": "cff291aea0a00f37fc93090eeb12df8d61057f48ab646023250624bc18c3691b",
+  // Owner-added averages are isolated; original financial logic remains locked by approved-dashboard-preservation.
+  "src/components/DashboardView.tsx": "19a2aa6da5fb5c4fc523c2162781fec5b1dbf35d4457e2610b85a41cc329a9b0",
   // Owner-approved pointer focus styling only; chart/account/trade behavior remains separately locked.
   "src/components/WorkspaceShell.tsx": "dc676fb11935676469bffb09541576ef30bde3e298111223e4ab33ff71d290a3",
   "src/index.css": "ea8b38ada867619addaced06a8a3a1c494c1de9ef6c30beb5cbe7435890729db",

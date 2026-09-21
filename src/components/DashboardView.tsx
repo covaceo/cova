@@ -4,6 +4,7 @@ import { analyze, type RiskRule, type Trade } from "../lib/risk";
 import { getActionableReviewCount, getDashboardSummaryAction } from "../lib/dashboardReviewState";
 import { journalSummary, moneyText, rowMoneyText, journalReviewEnabled } from "../lib/journalAccuracy";
 import { JournalHeadlineStats, JournalDisciplineReview } from "./JournalAccuracyPanels";
+import { TradeAverageStats } from "./TradeAverageStats";
 import { getTradeSourceLabel } from "../lib/tradeSourceLabel";
 import { FlagStack } from "./DashboardCards";
 import { RithmicAttribution } from "./RithmicAttribution";
@@ -80,6 +81,7 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, o
             <span className="astra-source-label" aria-label={`Review source: ${sourceLabel}`} title={`Review source: ${sourceLabel}`}>{sourceLabel} / {journalReview ? scopedTrades.length : scopedAnalysis.tradeCount} {journalReview ? 'matched rows' : 'trades'}</span>
             {tradovateOnly && <p data-cash-coverage>{netCash ? `Broker cash movements · ${netCash.startDate} to ${netCash.endDate} exclusive, UTC · Synced ${new Date(netCash.asOf).toLocaleString()}. Funding excluded. Fees are not allocated to individual trades; win rate, trade statistics and discipline remain before fees.` : cash.status === 'unavailable' ? cash.reason : 'Account review uses gross trade results.'}</p>}
             {hasTradeHistory && !journalReview && <DashboardStats analysis={scopedAnalysis} cash={cash} tradovateOnly={tradovateOnly} detailsOnly />}
+            {hasTradeHistory && !journalReview && <TradeAverageStats trades={analysis.trades} selectedTrades={scopedTrades} detailsOnly />}
             {hasTradeHistory && <p>{netCash ? "Daily cumulative · USD · UTC" : "Cumulative gross / reported P&L from the selected trade history."}</p>}
           </div>
         </details>
@@ -94,7 +96,7 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, o
         <button className="dashboard-empty-action" onClick={() => go("import")} type="button">Import trade history <ArrowUpRight aria-hidden="true" /></button>
       </div>
     </section> : <>
-      {journalReview ? <><p className="astra-mini-note">Account accuracy review · Beta · Your saved history is unchanged.</p><JournalHeadlineStats journal={journal} /></> : <DashboardStats analysis={scopedAnalysis} cash={cash} tradovateOnly={tradovateOnly} />}
+      {journalReview ? <><p className="astra-mini-note">Account accuracy review · Beta · Your saved history is unchanged.</p><JournalHeadlineStats journal={journal} /></> : <div className="astra-stats-panel"><DashboardStats analysis={scopedAnalysis} cash={cash} tradovateOnly={tradovateOnly} /><TradeAverageStats trades={analysis.trades} selectedTrades={scopedTrades} /></div>}
 
       {hasRithmicSource && <div className="dashboard-attribution-row"><RithmicAttribution compact /></div>}
       <div className="astra-desk-grid">
