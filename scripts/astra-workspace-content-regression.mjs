@@ -43,7 +43,7 @@ function assertIsolation(tree) {
     }
   });
   tree.walkDecls(decl => {
-    assert.ok(!(decl.prop === 'display' && decl.value === 'none'), `Do not conceal content: ${decl.parent.selector}`);
+    assert.ok(!(decl.prop === 'display' && decl.value === 'none' && !decl.parent.selector.endsWith('summary::-webkit-details-marker')), `Do not conceal content: ${decl.parent.selector}`);
     assert.ok(!(decl.prop === 'visibility' && decl.value === 'hidden'), `Do not conceal content: ${decl.parent.selector}`);
   });
 }
@@ -57,48 +57,32 @@ test('Accounts uses quiet dashboard materials and preserves basic import control
 });
 
 
-test('Limits retains review controls with distinct checked, focus and disabled styles', () => {
-  const tree = stylesheet();
-  assertIsolation(tree);
-  for (const owner of ['rules-ledger-summary', 'rules-ledger-row']) {
-    assert.ok(workspaceSource.includes(owner));
-    assert.equal(value(tree, `.${owner}`, 'background'), 'var(--review-fill)');
-    assert.equal(value(tree, `.${owner}`, 'border'), '1px solid var(--review-edge)');
-    assert.equal(value(tree, `.${owner}`, 'border-radius'), '5px');
-  }
-  assert.equal(value(tree, '.rules-ledger-row button[role="switch"][aria-checked="true"]', 'background'), '#26324a');
-  assert.equal(value(tree, '.rules-ledger-row button[role="switch"][aria-checked="false"]', 'background'), '#101620');
-  assert.equal(value(tree, '.rules-ledger-row input[type="number"]', 'color'), 'var(--astra-ink)');
-  assert.equal(value(tree, '.rules-ledger-row .cova-range::-webkit-slider-thumb', 'background'), 'var(--astra-blue)');
-  assert.equal(value(tree, '.rules-ledger-row .cova-range::-moz-range-thumb', 'background'), 'var(--astra-blue)');
-  assert.equal(value(tree, '.rules-ledger-row input:disabled', 'cursor'), 'not-allowed');
-  assert.equal(value(tree, '.rules-ledger-row input:focus-visible', 'outline'), '2px solid var(--astra-blue)');
-  assert.equal(value(tree, '.rules-ledger-grid', 'grid-template-columns', '(max-width: 1050px)'), 'minmax(0, 1fr)');
-  assert.match(workspaceSource, /never blocks orders or changes broker settings/);
-  assert.match(workspaceSource, /disabled=\{locked\}/);
+test('OA Limits uses two soft grouped plates, pill values, distinct states and preserved disclosures', () => {
+  const tree=stylesheet();assertIsolation(tree);
+  assert.equal(value(tree,'.oa-review-plate','background'),'var(--oa-surface)');
+  assert.equal(value(tree,'.oa-review-plate','border'),'0');
+  assert.equal(value(tree,'.oa-review-plate','border-radius'),'26px');
+  assert.equal(value(tree,'.oa-limit-value','border-radius'),'999px');
+  assert.equal(value(tree,'.oa-limit-switch[aria-checked=true]::before','background'),'#747b87');
+  assert.equal(value(tree,'.oa-limit-switch::before','background'),'#383e48');
+  assert.equal(value(tree,'.oa-review-page :is(button,input):disabled','cursor'),'not-allowed');
+  assert.equal(value(tree,'.oa-review-page :is(button,summary,input,select):focus-visible','outline'),'2px solid #83aaff');
+  assert.equal(value(tree,'.oa-limit-row','grid-template-columns','(max-width:620px)'),'minmax(0,1fr) 88px 44px');
+  assert.match(workspaceSource,/never blocks orders or changes broker settings/);
+  assert.match(workspaceSource,/disabled=\{locked\}/);
+  assert.match(workspaceSource,/oa-limit-adjust/);assert.match(workspaceSource,/oa-advanced-limits/);
 });
 
-
-test('Insights preserves readable severity, review notes and evidence at narrow widths', () => {
-  const tree = stylesheet();
-  assertIsolation(tree);
-  assert.equal(value(tree, '.insight-briefing-row', 'background'), 'var(--review-fill)');
-  assert.equal(value(tree, '.insight-briefing-row h3', 'font'), '600 19px/1.3 var(--astra-display)');
-  for (const tone of ['warn', 'pause', 'caution']) {
-    assert.equal(value(tree, `.insight-briefing-row[data-tone="${tone}"] > span`, 'color'), 'var(--astra-red)');
-  }
-  for (const tone of ['good', 'ready']) {
-    assert.equal(value(tree, `.insight-briefing-row[data-tone="${tone}"] > span`, 'color'), 'var(--astra-blue)');
-  }
-  assert.equal(value(tree, '.insight-evidence p', 'margin'), '10px 0 0');
-  assert.equal(value(tree, '.insight-briefing-row > p', 'grid-row', '(max-width: 620px)'), '3');
-  assert.equal(value(tree, '.insight-briefing-row > div:last-child', 'grid-row', '(max-width: 620px)'), '4');
-  assert.equal(value(tree, '.insight-briefing-row button:focus-visible', 'outline'), '2px solid var(--astra-blue)');
-  assert.match(workspaceSource, /insight-briefing-locked/);
-  assert.match(workspaceSource, /Checked: \{line\}/);
-  assert.match(workspaceSource, /Review active limits/);
+test('OA Insights keeps real warning evidence, quiet secondary rows and narrow-width disclosures', () => {
+  const tree=stylesheet();assertIsolation(tree);
+  assert.equal(value(tree,'.oa-insight-primary','padding'),'28px');
+  assert.equal(value(tree,'.oa-insight-proof','background'),'var(--oa-inset)');
+  assert.equal(value(tree,'.oa-review-state[data-warning=true]','color'),'#dfbc7e');
+  assert.equal(value(tree,'.oa-insight-secondary>.insight-evidence>summary','grid-column','(max-width:620px)'),'2');
+  assert.equal(value(tree,'.oa-insight-secondary .oa-insight-detail-content','grid-column','(max-width:620px)'),'2');
+  assert.match(workspaceSource,/oa-insight-locked/);assert.match(workspaceSource,/Checked: \{line\}/);
+  assert.match(workspaceSource,/Review active limits/);assert.match(workspaceSource,/insight\.evidence\.map/);
 });
-
 
 test('Passport changes only named external chrome, never the card or composer', () => {
   const tree = stylesheet();

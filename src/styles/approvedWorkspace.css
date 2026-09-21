@@ -25,6 +25,9 @@
 .oa-dashboard-app .astra-workspace-page .passport-workspace-toolbar { border-color:#293140; }
 .oa-dashboard-app .astra-workspace-page .passport-workspace-detail { border-radius:5px; background:#0c121b; }
 .oa-dashboard-app .astra-workspace-page .passport-workspace-actions > .passport-workspace-share { background:#2b6cf3!important; border-color:#447eef!important; color:#fff!important; }
+/* OA review headers own their account slot; all destinations remain in the unchanged rail. */
+.oa-dashboard-app .astra-workspace-page[data-astra-route="rules"]>.astra-deskbar,
+.oa-dashboard-app .astra-workspace-page[data-astra-route="coach"]>.astra-deskbar { display:none; }
 /* Accounts uses the same quiet surfaces and cobalt controls as Risk Desk. */
 .oa-dashboard-app .accounts-page { display:grid; gap:22px; color:#f0f3fa; font:13px/1.6 Inter,Arial,sans-serif; }
 .oa-dashboard-app .accounts-platforms { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; }
