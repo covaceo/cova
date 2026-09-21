@@ -59,6 +59,15 @@
 .oa-dashboard-app .accounts-page .accounts-notice { border-left:2px solid #6f96ff; padding:10px 14px; margin-top:14px; }
 .oa-dashboard-app .accounts-csv-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(230px,.38fr); gap:22px; align-items:start; }
 .oa-dashboard-app .accounts-csv-main { min-width:0; }
+.oa-dashboard-app .accounts-rithmic-login { margin-top:18px; }
+.oa-dashboard-app .accounts-login-fields { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); align-items:end; gap:16px; border:0; padding:0; margin:20px 0 0; min-width:0; }
+.oa-dashboard-app .accounts-login-fields input { width:100%; min-width:0; min-height:40px; padding:8px 10px; color:#e6ebf4; background:#101722; border:1px solid #303c50; border-radius:5px; font:13px/1.4 Inter,Arial,sans-serif; }
+.oa-dashboard-app .accounts-login-fields input:focus-visible { outline:2px solid #6f96ff; outline-offset:3px; }
+.oa-dashboard-app .accounts-login-fields:disabled { opacity:.6; }
+.oa-dashboard-app .accounts-rithmic-login [data-rithmic-attribution] { margin-top:18px; border:0; border-top:1px solid rgba(125,148,180,.13); border-radius:0; background:none; padding:18px 0 0; }
+.oa-dashboard-app .accounts-rithmic-login [data-rithmic-attribution] p { font-size:12px; margin:4px 0 0; }
+@media(max-width:1050px) { .oa-dashboard-app .accounts-login-fields { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:620px) { .oa-dashboard-app .accounts-login-fields { grid-template-columns:minmax(0,1fr); } .oa-dashboard-app .accounts-login-fields input { min-height:44px; } }
 .oa-dashboard-app .accounts-dropzone { position:relative; display:flex; align-items:center; gap:16px; padding:24px; margin-top:20px; border:1px dashed #3b4657; border-radius:5px; background:rgba(125,148,180,.025); cursor:pointer; font-size:14px; }
 .oa-dashboard-app .accounts-dropzone>svg { width:24px; height:24px; flex:none; color:#8faaff; }
 .oa-dashboard-app .accounts-dropzone>span { min-width:0; overflow-wrap:anywhere; }

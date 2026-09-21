@@ -1,12 +1,11 @@
 import { FileUp, ArrowUpRight } from "lucide-react";
 import { type CsvParseResult, formatMoney, type TradeMergeResult } from "../lib/risk";
 import { type PropFirmId } from "../lib/propFirms";
+import { RithmicLogin, type RithmicCredentials, type RithmicSyncResult } from "./RithmicLogin";
 
 type ImportMode = "append" | "replace" | "merge";
 type ImportEntitlements = { canUseDirectSync: boolean; maxStoredTrades: number; maxTradesPerImport: number; plan: "free" | "pro" };
 type BrokerStatus = { provider: string; status: string; connected: boolean; mode?: "linked" | "ephemeral"; connectionId?: string; message: string; updatedAt: string };
-type RithmicCredentials = { username: string; password: string; accountKey?: string; lookbackDays: 30 | 90 | 180; systemName: "Rithmic Paper Trading" | "Rithmic 01" | "Rithmic Test" };
-type RithmicSyncResult = { selectionRequired?: boolean; accounts?: { accountKey?: string; accountId?: string; accountName?: string }[] };
 
 export function CsvUploadPanel({ dragActive, entitlements, fileName, importCsv, mode, parsed, readFile, reset, setDragActive, setMode, status, text }: {
   dragActive: boolean; entitlements: ImportEntitlements; fileName: string;
@@ -49,7 +48,7 @@ export function CsvExportGuide(_props: { selectedFirmId: PropFirmId; setSelected
   return <details className="accounts-help" data-export-guide><summary>CSV format</summary><p>Export your trade history as CSV. Include the date, market, buy or sell side, quantity, and P&amp;L. Cova checks the columns before importing.</p><p>If your export is not recognized, use the CSV editor below with these columns:</p><code>date,market,side,contracts,entry,exit,pnl,risk,setup,notes</code></details>;
 }
 
-export function BrokerConnectPanel({ brokerBusy, brokerNotice, brokerStatus, canRedirectToTradovate, checkTradovateStatus, disconnectBroker, entitlements, tradovateAvailable, tradovateStatusChecked, setBrokerNotice, startTradovateConnect, syncBusy, syncTradovate, upgradeToPro }: {
+export function BrokerConnectPanel({ brokerBusy, brokerNotice, brokerStatus, canRedirectToTradovate, checkTradovateStatus, disconnectBroker, entitlements, rithmicAvailable, rithmicBusy, rithmicStatusChecked, selectedFirmId, setSelectedFirmId, tradovateAvailable, tradovateStatusChecked, setBrokerNotice, startTradovateConnect, syncBusy, syncRithmic, syncTradovate, upgradeToPro }: {
   brokerBusy: boolean; brokerNotice: string; brokerStatus: BrokerStatus | null;
   canRedirectToTradovate: () => boolean; checkTradovateStatus: () => void; disconnectBroker: () => Promise<void> | void;
   entitlements: ImportEntitlements; openFirmOAuth: (firm: PropFirmId) => void;
@@ -67,30 +66,35 @@ export function BrokerConnectPanel({ brokerBusy, brokerNotice, brokerStatus, can
     (document.querySelector('[aria-label="Choose CSV file"]') as HTMLInputElement | null)?.focus({ preventScroll: true });
   }
   function connect() {
-    if (!ready || !entitlements.canUseDirectSync || brokerBusy || syncBusy) return;
+    if (!ready || !entitlements.canUseDirectSync || brokerBusy || syncBusy || rithmicBusy) return;
     if (!canRedirectToTradovate()) { setBrokerNotice("Connection unavailable. Upload a CSV instead."); return; }
     startTradovateConnect();
   }
   return <section className="accounts-connections" aria-label="Trading platforms">
     <div className="accounts-platforms">
       <article className="accounts-panel accounts-platform" data-platform="tradovate" data-broker-lifecycle>
-        <div className="accounts-section-heading"><h3>Tradovate</h3><span className="accounts-connection-status">{!tradovateStatusChecked ? "Checking…" : !tradovateAvailable ? "Sync unavailable" : connected ? "Connected" : "Not connected"}</span></div>
+        <div className="accounts-section-heading"><h3>Tradovate / NinjaTrader</h3><span className="accounts-connection-status">{!tradovateStatusChecked ? "Checking…" : !tradovateAvailable ? "Sync unavailable" : connected ? "Connected" : "Not connected"}</span></div>
         <p>Read-only trade history. No orders placed.</p>
         <div className="accounts-actions">
-          {ready && entitlements.canUseDirectSync && !connected && <button className="accounts-button accounts-button-primary" type="button" disabled={brokerBusy || syncBusy} onClick={connect}>Sign in with Tradovate <ArrowUpRight aria-hidden="true" /></button>}
-          {ready && entitlements.canUseDirectSync && connected && <button className="accounts-button accounts-button-primary" type="button" disabled={syncBusy || brokerBusy} onClick={syncTradovate}>{syncBusy ? "Syncing…" : "Sync trades"}</button>}
+          {ready && entitlements.canUseDirectSync && !connected && <button className="accounts-button accounts-button-primary" type="button" disabled={brokerBusy || syncBusy || rithmicBusy} onClick={connect}>Sign in with Tradovate <ArrowUpRight aria-hidden="true" /></button>}
+          {ready && entitlements.canUseDirectSync && connected && <button className="accounts-button accounts-button-primary" type="button" disabled={syncBusy || brokerBusy || rithmicBusy} onClick={syncTradovate}>{syncBusy ? "Syncing…" : "Sync trades"}</button>}
           {!entitlements.canUseDirectSync && <button className="accounts-button" type="button" onClick={upgradeToPro}>Connect with Pro</button>}
           {tradovateStatusChecked && !tradovateAvailable && <button className="accounts-button" type="button" onClick={useCsv} data-tradovate-unavailable>Use CSV</button>}
-          <button className="accounts-text-button" type="button" disabled={brokerBusy || syncBusy} onClick={checkTradovateStatus}>{brokerBusy ? "Checking…" : "Refresh status"}</button>
-          {connected && <button className="accounts-text-button" type="button" disabled={brokerBusy || syncBusy} onClick={disconnectBroker}>Disconnect</button>}
+          <button className="accounts-text-button" type="button" disabled={brokerBusy || syncBusy || rithmicBusy} onClick={checkTradovateStatus}>{brokerBusy ? "Checking…" : "Refresh status"}</button>
+          {connected && <button className="accounts-text-button" type="button" disabled={brokerBusy || syncBusy || rithmicBusy} onClick={disconnectBroker}>Disconnect</button>}
         </div>
       </article>
-      <article className="accounts-panel accounts-platform" data-platform="ninjatrader">
-        <div className="accounts-section-heading"><h3>NinjaTrader</h3><span>CSV import</span></div>
-        <p>Export your trades from NinjaTrader, then upload the CSV.</p>
-        <div className="accounts-actions"><button className="accounts-button" type="button" onClick={useCsv}>Upload CSV <FileUp aria-hidden="true" /></button></div>
+      <article className="accounts-panel accounts-platform" data-platform="rithmic">
+        <div className="accounts-section-heading"><h3>Rithmic</h3><span>{!rithmicStatusChecked ? "Checking…" : !rithmicAvailable ? "Sync unavailable" : "One-time sync"}</span></div>
+        <p>For accounts that use a Rithmic login.</p>
+        <div className="accounts-actions">
+          {rithmicStatusChecked && rithmicAvailable && entitlements.canUseDirectSync && <button className="accounts-button accounts-button-primary" type="button" aria-expanded={selectedFirmId === "rithmic"} aria-controls="rithmic-login" disabled={rithmicBusy || syncBusy || brokerBusy} onClick={() => { setBrokerNotice(""); setSelectedFirmId(selectedFirmId === "rithmic" ? "other" : "rithmic"); }}>{selectedFirmId === "rithmic" ? "Close login" : "Connect Rithmic"}</button>}
+          {!entitlements.canUseDirectSync && <button className="accounts-button" type="button" onClick={upgradeToPro}>Connect with Pro</button>}
+          {rithmicStatusChecked && !rithmicAvailable && <button className="accounts-button" type="button" onClick={useCsv} data-rithmic-unavailable>Use CSV</button>}
+        </div>
       </article>
     </div>
+    {selectedFirmId === "rithmic" && entitlements.canUseDirectSync && rithmicStatusChecked && rithmicAvailable && <RithmicLogin busy={rithmicBusy || syncBusy || brokerBusy} sync={syncRithmic} notice={setBrokerNotice} />}
     {brokerNotice && <p className="accounts-notice" role="status">{brokerNotice}</p>}
   </section>;
 }
