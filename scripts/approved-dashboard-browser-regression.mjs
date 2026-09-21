@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import loadSource from './helpers/load-ts.cjs';
 import {checkDashboardFocusAlignment} from './helpers/dashboard-focus-alignment.mjs';
+import {checkQuietDashboardPanels} from './helpers/dashboard-quiet-panels.mjs';
 import {spawn,execFileSync} from 'node:child_process';
 import {readFile,writeFile,mkdtemp,mkdir,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
@@ -62,6 +63,7 @@ try{
   assert.equal(await evaluate(`document.querySelectorAll('.astra-observation-value').length`),0,'Exact point values belong in the interactive tooltip, not on every date');
   assert.ok(!await evaluate(`document.querySelector('.astra-chart-note').innerText.includes('$')`),'Do not repeat the headline total in the chart footer');
   await capture(name+'-dashboard');
+  await checkQuietDashboardPanels(evaluate,name);
   await checkDashboardFocusAlignment({evaluate,send,capture,name,mobile});
   await evaluate(`document.querySelector('.astra-chart-svg').focus()`);await key('End',35);await wait(`Boolean(document.querySelector('.astra-chart-tooltip'))`);await contained();await capture(name+'-tooltip');await key('Escape',27);
   await evaluate(`document.querySelector('.astra-chart-svg').blur();window.scrollTo({top:0,behavior:'instant'})`);
