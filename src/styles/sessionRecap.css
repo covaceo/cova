@@ -1,0 +1,57 @@
+/* Scoped photo composer. The export itself is rendered once, identically to its preview. */
+.recap-dialog { --recap-ink: #edf0f5; color-scheme: dark; color: var(--recap-ink); background: #0b1017; border: 1px solid rgb(237 240 245 / 12%); border-radius: 24px; padding: 24px; width: min(1040px, calc(100vw - 40px)); max-width: none; max-height: calc(100dvh - 40px); margin: auto; overflow: auto; font-family: 'Inter Tight Variable', sans-serif; box-shadow: 0 24px 100px #0009; }
+.recap-dialog::backdrop { background: rgb(0 3 8 / 78%); backdrop-filter: blur(8px); }
+.recap-dialog *, .recap-dialog *::before, .recap-dialog *::after { box-sizing: border-box; }
+.recap-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 22px; }
+.recap-heading h2 { margin: 0; font-size: 25px; font-weight: 500; line-height: 1.25; letter-spacing: -.025em; }
+.recap-dialog button { font-family: inherit; font-size: 14px; font-weight: 450; line-height: 1.2; color: var(--recap-ink); border-radius: 999px; border: 1px solid transparent; min-height: 42px; cursor: pointer; transition: background-color .16s ease, border-color .16s ease; }
+.recap-heading > button { display: grid; place-items: center; width: 42px; min-width: 42px; padding: 0; background: rgb(237 240 245 / 6%); }
+.recap-dialog button svg { width: 17px; height: 17px; flex: 0 0 auto; }
+.recap-dialog button:disabled { cursor: default; }
+.recap-dialog :is(button,select,input,summary):focus-visible { outline: 2px solid #8aabff; outline-offset: 3px; }
+.recap-body { display: grid; grid-template-columns: minmax(0,1fr) 340px; gap: 32px; align-items: start; }
+.recap-stage { min-width: 0; display: grid; place-items: center; overflow: hidden; border-radius: 14px; background: #05080c; height: min(750px, calc(100dvh - 158px)); }
+.recap-stage img { display: block; width: auto; height: auto; max-width: 100%; max-height: min(750px, calc(100dvh - 158px)); object-fit: contain; }
+.recap-wait { padding: 40px 24px; font-size: 15px; line-height: 1.5; text-align: center; color: #b8c2d0; }
+.recap-controls { display: grid; gap: 23px; min-width: 0; }
+.recap-controls fieldset { border: 0; min-width: 0; padding: 0; margin: 0; }
+.recap-controls legend, .recap-field { font-size: 14px; font-weight: 500; color: #d3dbe6; }
+.recap-controls legend { padding: 0; margin-bottom: 10px; }
+.recap-field { display: grid; gap: 10px; }
+.recap-field select { appearance: auto; min-width: 0; width: 100%; min-height: 46px; padding: 10px 14px; border: 1px solid rgb(237 240 245 / 12%); border-radius: 14px; background: #151c26; color: var(--recap-ink); font: 400 14px/1.3 'Inter Tight Variable', sans-serif; }
+.recap-formats { display: flex; padding: 4px; gap: 4px; background: rgb(237 240 245 / 4%); border-radius: 999px; }
+.recap-formats button { flex: 1; background: transparent; color: #aeb8c7; }
+.recap-formats button[aria-pressed=true] { background: rgb(237 240 245 / 10%); color: #f4f6fa; }
+.recap-backgrounds { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 8px; }
+.recap-backgrounds button { display: grid; gap: 8px; padding: 0 0 5px; background: transparent; font-size: 12px; line-height: 1.35; border-radius: 12px; color: #b8c2d0; }
+.recap-swatch { display: block; width: 100%; height: 82px; overflow: hidden; border-radius: 12px; background: #121923; border: 2px solid transparent; }
+.recap-swatch img { width: 100%; height: 100%; object-fit: cover; }
+.recap-backgrounds [aria-pressed=true] .recap-swatch { border-color: #d2def3; }
+.recap-backgrounds [aria-pressed=true] { color: #f3f5f9; }
+.recap-dialog .recap-upload { display: flex; align-items: center; justify-content: center; gap: 9px; width: 100%; margin-top: 12px; background: rgb(237 240 245 / 6%); }
+.recap-file { display: none; }
+.recap-identity { display: flex; align-items: center; gap: 10px; color: #c3cddb; font-size: 14px; min-height: 32px; }
+.recap-identity input { width: 17px; height: 17px; accent-color: #7095ef; }
+.recap-export { display: grid; gap: 10px; }
+.recap-export button { display: flex; align-items: center; justify-content: center; gap: 9px; padding: 12px; background: rgb(237 240 245 / 8%); }
+.recap-export [data-recap-download] { background: #315dca; color: #fff; }
+.recap-export button:disabled { opacity: .45; }
+.recap-dialog button:hover:not(:disabled) { border-color: rgb(237 240 245 / 25%); }
+.recap-output-note { margin: -12px 0 0; text-align: center; color: #a5b1c2; font-size: 12px; }
+.recap-notice, .recap-error { margin: -8px 0 0; color: #c0ccde; font-size: 14px; line-height: 1.4; }
+.recap-error { color: #ffb7b7; }
+.recap-details { color: #aab6c7; font-size: 13px; line-height: 1.6; }
+.recap-details summary { cursor: pointer; min-height: 32px; }
+.recap-details p { margin: 10px 0; }
+@media(max-width: 720px) {
+  .recap-dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); border-radius: 19px; padding: 18px; }
+  .recap-heading { padding-bottom: 16px; }
+  .recap-heading h2 { font-size: 22px; }
+  .recap-body { grid-template-columns: minmax(0,1fr); gap: 22px; }
+  .recap-stage { height: min(54dvh,420px); }
+  .recap-stage img { max-height: min(54dvh,420px); }
+  .recap-controls { gap: 20px; }
+  .recap-field select { font-size: 16px; }
+  .recap-backgrounds button { font-size: 13px; }
+}
+@media(prefers-reduced-motion: reduce) { .recap-dialog button { transition: none; } }

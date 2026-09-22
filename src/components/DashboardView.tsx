@@ -11,6 +11,7 @@ import { RithmicAttribution } from "./RithmicAttribution";
 import { AstraEquityCurve } from "./AstraEquityCurve";
 import { DashboardTradeDialog } from "./DashboardTradeDialog";
 import { TradeHistoryDialog } from "./TradeHistoryDialog";
+import { SessionRecapAction } from "./SessionRecapComposer";
 import { brokerCashSummary, type CashSummary } from '../lib/brokerCash';
 import { signedMoney } from "../lib/dashboardPresentation";
 export { signedMoney } from "../lib/dashboardPresentation";
@@ -70,6 +71,7 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, o
       <div className="astra-header-title"><h1>Risk Desk</h1></div>
       <div className="astra-header-controls">
         {accountControl}
+        {hasTradeHistory && <SessionRecapAction trades={analysis.trades} />}
         {hasTradeHistory && <span className="astra-date-range"><CalendarDays aria-hidden="true" />{dateRangeLabel(scopedAnalysis.trades)}</span>}
         <button className="astra-button astra-import-action" onClick={manageSource} type="button"><FileUp aria-hidden="true" />{hasRithmicSource ? "Update trades" : "Import trades"}</button>
       </div>
