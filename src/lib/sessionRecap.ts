@@ -1,4 +1,5 @@
 import { verifyBrokerCash } from './brokerCash';
+import { buildHotStreaks, type HotStreak } from './recapHotStreak';
 import { recapCashFees, type RecapFees } from './sessionRecapFees';
 import { groupJournalEntries, type Trade, type JournalEntryGroup } from './risk';
 
@@ -6,7 +7,7 @@ export type RecapKind = 'daily' | 'new-york' | 'london' | 'asia';
 export type RecapBackground = 'new-york' | 'london' | 'asia' | 'plain' | 'custom';
 export type SessionRecap = {
   id: string; kind: RecapKind; date: string; title: string; dateLabel: string; windowLabel: string;
-  fees: RecapFees | null; totalCents: string; count: number; wins: number; winRate: string; countLabel: string;
+  hotStreak: HotStreak | null; fees: RecapFees | null; totalCents: string; count: number; wins: number; winRate: string; countLabel: string;
   markets: string; basis: string; sample: boolean; theme: RecapBackground; details: string;
 };
 const titles: Record<RecapKind, string> = { daily: 'Daily recap', 'new-york': 'New York session', london: 'London session', asia: 'Asia session' };
@@ -109,17 +110,22 @@ export function buildSessionRecaps(trades: readonly Trade[], cashEvidence?: unkn
       : kind === 'london' ? { start: instant(date, 8, 0, 'Europe/London'), end: instant(date, 9, 30, 'America/New_York') }
       : { start: instant(date, 9, 0, 'Asia/Tokyo'), end: instant(date, 8, 0, 'Europe/London') };
     return {
-      fees: gross ? recapCashFees(cash, rows, window) : null,
+      hotStreak: null, fees: gross ? recapCashFees(cash, rows, window) : null,
       id, kind, date, title: titles[kind], dateLabel: new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`)),
       windowLabel: kind === 'daily' ? timed ? 'UTC close date' : 'Reported date' : kind === 'new-york' ? '09:30–16:00 New York' : kind === 'london' ? '08:00 London–09:30 New York' : '09:00 Tokyo–08:00 London',
       totalCents: amounts.reduce((sum, value) => sum + value, 0n).toString(), count: selected.length, wins,
       winRate, countLabel: grouped ? 'Trade entries' : 'Reported trades',
       markets: [...new Set(rows.map(r => r.market))].join(' · '), basis: gross ? 'Gross P&L · before fees' : 'Reported P&L · fees unconfirmed',
       sample: rows.every(r => r.id.startsWith('demo-')), theme,
-      details: 'Known same-opening-fill partial exits are combined, not certified flat-to-flat positions. Unmatched rows remain separate. Breakeven entries are included in the win-rate denominator. Whole groups belong to their final observed exit date. Regional recaps require every entry and exit timestamp within the same dated review window. Daily recaps can span regions. Review windows follow local daylight-saving time and are not exchange calendars. The Tradovate headline uses reconciled trade cash plus signed posted fees, excluding funding, through the latest sync. It does not wait for the session or UTC day to end. The complete synced report-window fingerprint must match, and selected-window trade postings must match the recap at supported timestamp, cents and market-root granularity. Win rate uses grouped gross trade outcomes, not invented per-trade net allocation. Fees can relate to carried or open positions. The source gross ledger stays unchanged. Snapshot time and fee breakdown are available here, not printed on the card; later postings or adjustments can change the result. Missing or mismatched Tradovate fee evidence blocks sharing instead of silently substituting gross or zero fees. Backgrounds are illustrative, not a record of market conditions.',
+      details: 'Known same-opening-fill partial exits are combined, not certified flat-to-flat positions. Unmatched rows remain separate. Breakeven entries are included in the win-rate denominator. Whole groups belong to their final observed exit date. Regional recaps require every entry and exit timestamp within the same dated review window. Daily recaps can span regions. Review windows follow local daylight-saving time and are not exchange calendars. The Tradovate headline uses reconciled trade cash plus signed posted fees, excluding funding, through the latest sync. It does not wait for the session or UTC day to end. The complete synced report-window fingerprint must match, and selected-window trade postings must match the recap at supported timestamp, cents and market-root granularity. Win rate uses grouped gross trade outcomes, not invented per-trade net allocation. Fees can relate to carried or open positions. The source gross ledger stays unchanged. Snapshot time and fee breakdown are available here, not printed on the card; later postings or adjustments can change the result. Missing or mismatched Tradovate fee evidence blocks sharing instead of silently substituting gross or zero fees. Hot streak counts consecutive net-positive UTC trading days for this account through the selected date, using the whole day even on regional cards. Red or breakeven days reset it; verified idle days and deposits do not count. Missing fee evidence or unexplained cash-only activity stops the count rather than bridging a gap. A plus means at least that many consecutive green days are verified, with earlier coverage uncertain. Today remains a snapshot, not a declaration that trading has ended; later trades or fee postings can change the streak. Backgrounds are illustrative, not a record of market conditions.',
     };
   }).sort((a, b) => b.date.localeCompare(a.date) || (a.kind === 'daily' ? -1 : b.kind === 'daily' ? 1 : a.kind.localeCompare(b.kind)));
-  return { error: '', options };
+  const streaks = buildHotStreaks(options, cash);
+  return { error: '', options: options.map(recap => ({ ...recap, hotStreak: streaks.get(recap.date) ?? null })) };
+}
+export function recapHotStreakLine(recap: SessionRecap): string {
+  const streak = recap.hotStreak;
+  return streak && streak.days > 0 ? `${streak.days}${streak.atLeast ? '+' : ''} DAY HOT STREAK` : '';
 }
 /** No gross fallback masquerading as an after-fee Tradovate result. */
 export function recapHeadlineCents(recap: SessionRecap): string | null {

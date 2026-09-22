@@ -2,7 +2,7 @@ import { Download, ImagePlus, Share2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Trade } from '../lib/risk';
 import { readBrokerCashEvidence } from '../lib/brokerCash';
-import { buildSessionRecaps, recapExportError, recapFeeLine, recapHeadlineCents, recapMoney, type RecapBackground } from '../lib/sessionRecap';
+import { buildSessionRecaps, recapExportError, recapFeeLine, recapHeadlineCents, recapHotStreakLine, recapMoney, type RecapBackground } from '../lib/sessionRecap';
 import { prepareRecapPhoto, recapBackgrounds, recapFormats, renderSessionRecap, type RecapFormat } from '../lib/sessionRecapImage';
 import { useRecapProfile } from './UserProfile';
 
@@ -45,7 +45,7 @@ function SessionRecapComposer({ trades, profile, onClose }: { trades: readonly T
   const currentKey = useRef(renderKey); currentKey.current = renderKey;
   const ready = !feeIssue && !identityPending && !uploading && rendered?.key === renderKey && rendered.url === activeUrl.current ? rendered : null;
   const identity = showIdentity ? username : null;
-  const previewAlt = recap ? `${identity ? `@${identity}. ` : ''}${recap.title}, ${recap.dateLabel}. ${recapHeadlineCents(recap) !== null ? recapMoney(recapHeadlineCents(recap)!) : 'Result pending fees'}${recap.fees ? ' after fees' : recap.sample ? '' : ', ' + recap.basis}. ${recap.count} ${recap.countLabel}, ${recap.winRate} win rate.${recap.sample ? ' Sample data.' : ''}` : '';
+  const previewAlt = recap ? `${identity ? `@${identity}. ` : ''}${recap.title}, ${recap.dateLabel}. ${recapHeadlineCents(recap) !== null ? recapMoney(recapHeadlineCents(recap)!) : 'Result pending fees'}${recap.fees ? ' after fees' : recap.sample ? '' : ', ' + recap.basis}. ${recap.count} ${recap.countLabel}, ${recap.winRate} win rate.${recapHotStreakLine(recap) ? ' ' + recapHotStreakLine(recap) + '.' : ''}${recap.sample ? ' Sample data.' : ''}` : '';
   const invalidate = () => { currentKey.current = ''; setRendered(null); setError(''); setNotice(''); };
   useEffect(() => {
     alive.current = true; const element = dialog.current!;
