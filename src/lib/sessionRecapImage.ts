@@ -1,4 +1,4 @@
-import { recapMoney, type SessionRecap, type RecapBackground } from './sessionRecap';
+import { recapFeeLine, recapMoney, type SessionRecap, type RecapBackground } from './sessionRecap';
 export type RecapFormat = 'story' | 'feed' | 'square';
 export const recapFormats = [{ id: 'story' as const, label: 'Story', width: 1080, height: 1920 }, { id: 'feed' as const, label: 'Feed', width: 1080, height: 1350 }, { id: 'square' as const, label: 'Square', width: 1080, height: 1080 }];
 export const recapBackgrounds = [{ id: 'new-york' as const, label: 'New York', src: '/recaps/new-york.webp' }, { id: 'london' as const, label: 'London', src: '/recaps/london.webp' }, { id: 'asia' as const, label: 'Asia', src: '/recaps/asia.webp' }, { id: 'plain' as const, label: 'Plain', src: '' }];
@@ -59,14 +59,17 @@ export async function renderSessionRecap(input: RecapRenderInput, signal?: Abort
   do { ctx.font = `600 ${size}px "Inter Tight Variable", sans-serif`; if (ctx.measureText(amount).width <= w - pad * 2) break; size -= 2; } while (size > 42);
   text(amount, pad - 5, layout.amount, size, BigInt(recap.totalCents) < 0n ? '#ffb7b7' : '#f4f5f6', 600);
   text(recap.basis, pad, layout.basis, 36, '#bac3ce');
+  const feeLine = recapFeeLine(recap); let feeSize = 32;
+  do { ctx.font = `400 ${feeSize}px "Inter Tight Variable", sans-serif`; if (ctx.measureText(feeLine).width <= w - pad * 2) break; feeSize--; } while (feeSize > 22);
+  text(feeLine, pad, layout.basis + 43, feeSize, '#bac3ce');
   const left = 278, right = 788;
   text(String(recap.count), left, layout.stat, 72, '#f4f5f6', 500, 360, 'center');
   text(recap.winRate, right, layout.stat, 72, '#f4f5f6', 500, 360, 'center');
   text(recap.countLabel, left, layout.label, 32, '#bac3ce', 400, 380, 'center');
-  text('Entry win rate', right, layout.label, 32, '#bac3ce', 400, 380, 'center');
+  text(recap.basis.startsWith('Gross') ? 'Gross entry win rate' : 'Entry win rate', right, layout.label, 32, '#bac3ce', 400, 380, 'center');
   ctx.strokeStyle = '#34404d'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(w / 2, layout.stat - 56); ctx.lineTo(w / 2, layout.label + 2); ctx.stroke();
   text('Cova', pad, layout.footer, 45, '#f4f5f6', 500); text('covadesk.com', w - pad, layout.footer, 27, '#bac3ce', 400, 250, 'right');
-  text(recap.sample ? 'Sample data · Not a live account' : recap.windowLabel, w / 2, layout.sample, 24, '#a5b1bf', 400, 850, 'center');
+  text(recap.sample ? 'Sample data · Not a live account' : `${recap.windowLabel}${recap.fees ? ` · Cash snapshot ${recap.fees.asOf.slice(0, 10)}` : ''}`, w / 2, layout.sample, 24, '#a5b1bf', 400, 850, 'center');
   if (signal?.aborted) throw new Error('Render cancelled');
   return new Promise<Blob>((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('The image could not be saved. Try again.')), 'image/png'));
 }

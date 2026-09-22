@@ -62,9 +62,9 @@ export function useProfileUsername() {
   return loading || error ? null : profile?.username ?? null;
 }
 export function useRecapProfile() {
-  const { identity, profile, loading, error } = useContext(ProfileContext);
+  const { identity, profile, loading, error, retry } = useContext(ProfileContext);
   const current = !loading && !error && profile?.user_id === identity ? profile : null;
-  return { owner: identity ?? 'preview', username: current?.username ?? null, avatar: current?.avatar_data && !validateAvatarData(current.avatar_data) ? current.avatar_data : null };
+  return { loading, error, retry, owner: identity ?? 'preview', username: current?.username ?? null, avatar: current?.avatar_data && !validateAvatarData(current.avatar_data) ? current.avatar_data : null };
 }
 function Avatar({ data, large = false }: { data: string | null; large?: boolean }) {
   return <span className={`cova-profile-avatar ${large ? "cova-profile-avatar-large" : ""}`} aria-hidden="true">{data && !validateAvatarData(data) ? <img src={data} alt="" /> : <UserRound />}</span>;
