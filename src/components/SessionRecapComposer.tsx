@@ -2,7 +2,7 @@ import { Download, ImagePlus, Share2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Trade } from '../lib/risk';
 import { readBrokerCashEvidence } from '../lib/brokerCash';
-import { buildSessionRecaps, recapFeeLine, recapMoney, type RecapBackground } from '../lib/sessionRecap';
+import { buildSessionRecaps, recapExportError, recapFeeLine, recapHeadlineCents, recapMoney, type RecapBackground } from '../lib/sessionRecap';
 import { prepareRecapPhoto, recapBackgrounds, recapFormats, renderSessionRecap, type RecapFormat } from '../lib/sessionRecapImage';
 import { useRecapProfile } from './UserProfile';
 
@@ -27,6 +27,7 @@ function SessionRecapComposer({ trades, profile, onClose }: { trades: readonly T
   const data = useMemo(() => buildSessionRecaps(trades, readBrokerCashEvidence(trades, profile.owner)), [trades, profile.owner, cashRevision]);
   const [selection, setSelection] = useState(data.options[0]?.id ?? '');
   const recap = data.options.find(r => r.id === selection);
+  const feeIssue = recap ? recapExportError(recap) : '';
   const [format, setFormat] = useState<RecapFormat>('story');
   const [background, setBackground] = useState<RecapBackground>(recap?.theme ?? 'new-york');
   const [photo, setPhoto] = useState('');
@@ -42,9 +43,9 @@ function SessionRecapComposer({ trades, profile, onClose }: { trades: readonly T
   const identityPending = showIdentity && (profile.loading || Boolean(profile.error));
   const renderKey = JSON.stringify([recap, format, background, photo, showIdentity && username, showIdentity && avatar, uploading, identityPending]);
   const currentKey = useRef(renderKey); currentKey.current = renderKey;
-  const ready = !identityPending && !uploading && rendered?.key === renderKey && rendered.url === activeUrl.current ? rendered : null;
+  const ready = !feeIssue && !identityPending && !uploading && rendered?.key === renderKey && rendered.url === activeUrl.current ? rendered : null;
   const identity = showIdentity ? username : null;
-  const previewAlt = recap ? `${identity ? `@${identity}. ` : ''}${recap.title}, ${recap.dateLabel}. ${recapMoney(recap.totalCents)}, ${recap.basis}. ${recapFeeLine(recap)}. ${recap.count} ${recap.countLabel}, ${recap.winRate} entry win rate. ${recap.sample ? 'Sample data.' : recap.windowLabel}` : '';
+  const previewAlt = recap ? `${identity ? `@${identity}. ` : ''}${recap.title}, ${recap.dateLabel}. ${recapHeadlineCents(recap) !== null ? recapMoney(recapHeadlineCents(recap)!) : 'Result pending fees'}${recap.fees ? ' after fees' : recap.sample ? '' : ', ' + recap.basis}. ${recap.count} ${recap.countLabel}, ${recap.winRate} win rate.${recap.sample ? ' Sample data.' : ''}` : '';
   const invalidate = () => { currentKey.current = ''; setRendered(null); setError(''); setNotice(''); };
   useEffect(() => {
     alive.current = true; const element = dialog.current!;
@@ -54,13 +55,13 @@ function SessionRecapComposer({ trades, profile, onClose }: { trades: readonly T
   }, []);
   useEffect(() => {
     const controller = new AbortController(); let url = '';
-    if (!recap || uploading || identityPending) return () => controller.abort();
+    if (!recap || feeIssue || uploading || identityPending) return () => controller.abort();
     void renderSessionRecap({ recap, format, background, customPhoto: photo, username: identity, avatar: showIdentity ? avatar : null }, controller.signal).then(blob => {
       if (controller.signal.aborted || currentKey.current !== renderKey) return;
       url = URL.createObjectURL(blob); activeUrl.current = url;
       const name = `cova-${recap.kind}-${recap.date}-${format}${recap.sample ? '-sample' : ''}.png`;
       setRendered({ key: renderKey, url, file: new File([blob], name, { type: 'image/png' }) });
-    }).catch(() => { if (!controller.signal.aborted && currentKey.current === renderKey) setError('The saved photo or background could not be loaded. Hide identity or choose another image.'); });
+    }).catch(() => { if (!controller.signal.aborted && currentKey.current === renderKey) setError('The saved photo, background or Cova logo could not be loaded. Try again, hide identity or choose another image.'); });
     return () => { controller.abort(); if (url) URL.revokeObjectURL(url); if (activeUrl.current === url) activeUrl.current = ''; };
   }, [renderKey]); // The key includes every pixel input; changing any input hides the old artifact synchronously.
   function chooseBackground(value: RecapBackground) { uploadSequence.current++; setUploading(false); invalidate(); setBackground(value); }
@@ -91,8 +92,8 @@ function SessionRecapComposer({ trades, profile, onClose }: { trades: readonly T
   }
   return <dialog ref={dialog} className="recap-dialog" aria-labelledby="recap-title" onCancel={event => { event.preventDefault(); close(); }} onClick={event => { if (event.target === event.currentTarget) { const r = event.currentTarget.getBoundingClientRect(); if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) close(); } }}>
     <header className="recap-heading"><div><h2 id="recap-title">Share your session</h2></div><button type="button" aria-label="Close recap" onClick={close}><X aria-hidden="true" /></button></header>
-    <div className="recap-body"><div className="recap-stage" data-format={format} aria-busy={!ready && Boolean(recap)}>
-      {ready ? <img data-recap-preview src={ready.url} alt={previewAlt} width="1080" height={recapFormats.find(f => f.id === format)!.height} /> : <div className="recap-wait" role="status">{data.error || (!recap ? 'Choose a session from your current history.' : identityPending ? profile.loading ? 'Loading saved profile…' : 'Saved profile unavailable. Retry or hide identity.' : error || 'Preparing your recap…')}</div>}
+    <div className="recap-body"><div className="recap-stage" data-format={format} aria-busy={!ready && !feeIssue && Boolean(recap)}>
+      {ready ? <img data-recap-preview src={ready.url} alt={previewAlt} width="1080" height={recapFormats.find(f => f.id === format)!.height} /> : <div className="recap-wait" role="status">{data.error || (!recap ? 'Choose a session from your current history.' : feeIssue || (identityPending ? profile.loading ? 'Loading saved profile…' : 'Saved profile unavailable. Retry or hide identity.' : error || 'Preparing your recap…'))}</div>}
     </div><div className="recap-controls">
       <label className="recap-field" htmlFor="recap-session">Session<select id="recap-session" value={recap ? selection : ''} onChange={event => { setSelection(event.target.value); chooseBackground(data.options.find(r => r.id === event.target.value)?.theme ?? 'new-york'); }} disabled={!data.options.length}><option value="" disabled>Choose a session</option>{data.options.map(r => <option key={r.id} value={r.id}>{r.dateLabel} · {r.title}</option>)}</select></label>
       <fieldset><legend>Format</legend><div className="recap-formats">{recapFormats.map(f => <button key={f.id} type="button" aria-pressed={format === f.id} onClick={() => { invalidate(); setFormat(f.id); }} disabled={format === f.id}>{f.label}</button>)}</div></fieldset>
@@ -105,7 +106,7 @@ function SessionRecapComposer({ trades, profile, onClose }: { trades: readonly T
       <div className="recap-export"><button data-recap-download type="button" onClick={download} disabled={!ready || sharing}><Download aria-hidden="true" />Download image</button>{canShare && <button type="button" onClick={() => void share()} disabled={sharing}><Share2 aria-hidden="true" />{sharing ? 'Sharing…' : 'Share image'}</button>}</div>
       <p className="recap-output-note">{recapFormats.find(f => f.id === format)!.width} × {recapFormats.find(f => f.id === format)!.height} PNG · {format === 'story' ? '9:16' : format === 'feed' ? '4:5' : '1:1'}</p>
       {notice && <p role="status" className="recap-notice">{notice}</p>}{error && <p role="alert" className="recap-error">{error}</p>}
-      {recap && <details className="recap-details"><summary>What’s included</summary><p>{recap.windowLabel}. {recap.details}</p>{recap.fees && <p>Cash snapshot: {recap.fees.asOf}.</p>}<p>Your photo stays in this browser and is not uploaded. Sharing opens your device’s supported destinations; it does not post automatically.</p></details>}
+      {recap && <details className="recap-details"><summary>What’s included</summary><p>{recap.windowLabel}. {recap.details}</p>{recap.fees && <p>{recapFeeLine(recap)}. Cash snapshot: {recap.fees.asOf}.</p>}<p>Your photo stays in this browser and is not uploaded. Sharing opens your device’s supported destinations; it does not post automatically.</p></details>}
     </div></div>
   </dialog>;
 }

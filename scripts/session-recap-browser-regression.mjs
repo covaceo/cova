@@ -14,7 +14,7 @@ const rows=[row(10,11,250),row(10,12,-50),row(20,21,-80),row(30,31,160),row(40,4
 const avatar=owner=>{const c=document.createElement('canvas');c.width=c.height=64;const x=c.getContext('2d');x.fillStyle=owner==='owner-a'?'#497bad':'#bb4d4d';x.fillRect(0,0,64,64);return c.toDataURL('image/jpeg',1)};
 const repo=async()=>({load:async owner=>{if(location.search.includes('delayed'))await new Promise((resolve,reject)=>{window.__releaseProfile=resolve;window.__rejectProfile=()=>reject(Error('Profile unavailable'))});return {user_id:owner,username:owner==='owner-a'?'recap_qa':'other_qa',avatar_data:avatar(owner),username_changed_at:'2026-09-18T00:00:00.000Z'}},save:async()=>{throw Error('No writes')}});
 localStorage.setItem('cova-active-storage-identity-v1','owner-a');
-window.__writeFees=fee=>{let balance=100000;const entries=[{at:'2026-09-18T14:00:00.000Z',deltaCents:fee,category:'fee',type:'Commission'},...rows.map(t=>({at:t.source.closedAt,deltaCents:Math.round(t.pnl*100),category:'trade',type:'Trade Paired'}))].map((e,i)=>({...e,id:String(i+1),balanceCents:balance+=e.deltaCents,currency:'USD',contract:'MNQZ6'}));const cash={status:'reconciled',version:1,accountId:'7',currency:'USD',window:{startDate:'2026-09-17',endDate:'2026-09-20'},asOf:'2026-09-20T12:00:00.000Z',basis:'cash_movements_no_trade_allocation',entries,grossCents:64000,feeCents:fee,netCents:64000+fee,nonTradingCents:0,openingBalanceCents:100000,closingBalanceCents:balance};saveBrokerCash('owner-a','7',cash,rows)};window.__writeFees(-1234);
+window.__writeFees=(fee,owner='owner-a')=>{let balance=100000;const entries=[{at:'2026-09-18T14:00:00.000Z',deltaCents:fee,category:'fee',type:'Commission'},...rows.map(t=>({at:t.source.closedAt,deltaCents:Math.round(t.pnl*100),category:'trade',type:'Trade Paired'}))].map((e,i)=>({...e,id:String(i+1),balanceCents:balance+=e.deltaCents,currency:'USD',contract:'MNQZ6'}));const cash={status:'reconciled',version:1,accountId:'7',currency:'USD',window:{startDate:'2026-09-17',endDate:'2026-09-20'},asOf:'2026-09-18T14:15:00.000Z',basis:'cash_movements_no_trade_allocation',entries,grossCents:64000,feeCents:fee,netCents:64000+fee,nonTradingCents:0,openingBalanceCents:100000,closingBalanceCents:balance};saveBrokerCash(owner,'7',cash,rows)};window.__writeFees(-1234);
 function Fixture(){const[owner,setOwner]=useState('owner-a');const[trades,setTrades]=useState(rows);window.__owner=setOwner;window.__trades=setTrades;window.__rows=rows;return <UserProfileProvider userId={owner} repository={repo}><div className="oa-dashboard-app"><Dashboard key={owner} analysis={analyze(trades,[])} rules={[]} go={()=>{}} journalReview={false}/></div></UserProfileProvider>};createRoot(document.getElementById('root')).render(<Fixture/>);`;
 let server,chrome,ws,fixtureDir,compiledRoute;const errors=[],receipts=[];const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 try{
@@ -46,8 +46,9 @@ try{
  await evaluate(`window.__releaseProfile()`);await ready();assert.match(await evaluate(`document.querySelector('[data-recap-preview]').alt`),/@recap_qa/);
  const avatarPixel=async(y)=>evaluate(`(()=>{const img=document.querySelector('[data-recap-preview]'),c=document.createElement('canvas');c.width=img.naturalWidth;c.height=img.naturalHeight;const x=c.getContext('2d');x.drawImage(img,0,0);return [...x.getImageData(104,${y},1,1).data].slice(0,3)})()`);
  const assertAvatar=async(y,rgb=[73,123,173])=>{const actual=await avatarPixel(y);assert(actual.every((n,i)=>Math.abs(n-rgb[i])<=3),'Saved owner avatar pixels '+JSON.stringify(actual));};
- await assertAvatar(150);
- assert.match(await evaluate(`document.querySelector('[data-recap-preview]').alt`),/Posted fees −\$12\.34.*Net cash \+\$627\.66/);
+ const assertLogo=async footer=>assert((await avatarPixel(footer-22)).every(n=>n>245),'Actual Cova SVG mark is present in exported pixels');
+ await assertAvatar(150);await assertLogo(1688);
+ assert.match(await evaluate(`document.querySelector('[data-recap-preview]').alt`),/\+\$627\.66 after fees/);
  // A failed profile stays blocked until retry resolves the same owner.
  await send('Page.navigate',{url:`http://127.0.0.1:${port}${pagePath}?delayed=1`});await wait(`Boolean(window.__rejectProfile)`);await click('button','Share recap');await evaluate(`window.__rejectProfile()`);
  await wait(`[...document.querySelectorAll('dialog button')].some(b=>b.textContent==='Retry saved profile')`);assert.equal(await evaluate(`document.querySelector('[data-recap-download]').disabled`),true);
@@ -55,27 +56,39 @@ try{
  for(const[name,width,height,mobile]of[['desktop',1440,960,false],['laptop',1280,720,false],['phone',390,844,true],['short-phone',360,640,true]]){
   await send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile});await send('Page.navigate',{url:`http://127.0.0.1:${port}${pagePath}`});await wait(`Boolean(document.querySelector('.astra-dashboard')&&document.fonts.status==='loaded')`);
   assert.deepEqual(await evaluate('[innerWidth,document.documentElement.clientWidth,Math.round(visualViewport.width)]'),[width,width,width]);
-  await click('button','Share recap');await ready();assert.match(await evaluate(`document.querySelector('[data-recap-preview]').alt`),/\+\$640\.00/);await capture(name+'-story');await assertAvatar(150);
-  await click('dialog button','Feed');await ready();assert.equal(await evaluate(`document.querySelector('[data-recap-preview]').naturalHeight`),1350);await capture(name+'-feed');await assertAvatar(76);
-  await click('dialog button','Square');await ready();assert.equal(await evaluate(`document.querySelector('[data-recap-preview]').naturalHeight`),1080);await capture(name+'-square');await assertAvatar(68);
+  await click('button','Share recap');await ready();assert.match(await evaluate(`document.querySelector('[data-recap-preview]').alt`),/\+\$627\.66 after fees/);await capture(name+'-story');await assertAvatar(150);await assertLogo(1688);
+  await click('dialog button','Feed');await ready();assert.equal(await evaluate(`document.querySelector('[data-recap-preview]').naturalHeight`),1350);await capture(name+'-feed');await assertAvatar(76);await assertLogo(1244);
+  await click('dialog button','Square');await ready();assert.equal(await evaluate(`document.querySelector('[data-recap-preview]').naturalHeight`),1080);await capture(name+'-square');await assertAvatar(68);await assertLogo(980);
   await key('Escape',27);await wait(`!document.querySelector('dialog[open]')`);assert.equal(await evaluate(`document.activeElement.textContent.trim()`),'Share recap');
   receipts.push({name,width,height,mobile,overflow:false});
  }
  await send('Emulation.setDeviceMetricsOverride',{width:1440,height:960,deviceScaleFactor:1,mobile:false});await click('button','Share recap');await ready();
  for(const[format,h]of[['Story',1920],['Feed',1350],['Square',1080]]){await click('dialog button',format);await ready();await click('[data-recap-download]');const filename=`cova-daily-2026-09-18-${format.toLowerCase()}.png`;let bytes;for(let i=0;i<100;i++){try{bytes=await readFile(join(downloads,filename));break;}catch{}await sleep(50);}assert(bytes,filename);assert.equal(bytes.readUInt32BE(16),1080);assert.equal(bytes.readUInt32BE(20),h);}
+ // Lost cash cannot expose the prior export or silently substitute gross.
+ await evaluate(`localStorage.removeItem('cova-broker-cash-v1:7:owner-a');window.dispatchEvent(new Event('cova-broker-cash-updated'))`);
+ await wait(`!document.querySelector('[data-recap-preview]')&&document.querySelector('[data-recap-download]').disabled`);
+ assert.match(await evaluate(`document.querySelector('.recap-wait').textContent`),/Sync.*fees/);
+ await evaluate(`window.__writeFees(0)`);await ready();assert.match(await evaluate(`document.querySelector('[data-recap-preview]').alt`),/\+\$640\.00 after fees/);
  // Cash-only refreshes must update the artifact without mutating a single trade.
- await evaluate(`window.__writeFees(-2234)`);await wait(`document.querySelector('[data-recap-preview]')?.alt.includes('Net cash +$'+((64000-2234)/100).toFixed(2))`);await ready();
- await evaluate(`window.__writeFees(-1234)`);await wait(`document.querySelector('[data-recap-preview]')?.alt.includes('Net cash +$'+((64000-1234)/100).toFixed(2))`);await ready();
+ await evaluate(`window.__writeFees(-2234)`);await wait(`document.querySelector('[data-recap-preview]')?.alt.includes('+$'+((64000-2234)/100).toFixed(2))`);await ready();
+ await evaluate(`window.__writeFees(-1234)`);await wait(`document.querySelector('[data-recap-preview]')?.alt.includes('+$'+((64000-1234)/100).toFixed(2))`);await ready();
  await click('dialog button','London');await ready();await capture('london-square');await click('dialog button','Asia');await ready();await capture('asia-square');await click('dialog button','Plain');await ready();await capture('plain-square');
  await click('#recap-show-identity');await ready();assert.doesNotMatch(await evaluate(`document.querySelector('[data-recap-preview]').alt`),/@recap_qa/);
  assert.deepEqual(await avatarPixel(68),[8,13,18],'Hidden identity removes avatar pixels too');
  // Inspect actual rendered text, not only accessible descriptions.
- await evaluate(`window.__drawn=[];window.__fillText=CanvasRenderingContext2D.prototype.fillText;CanvasRenderingContext2D.prototype.fillText=function(text,...args){window.__drawn.push(String(text));return window.__fillText.call(this,text,...args)}`);
+ await evaluate(`window.__drawn=[];window.__inks=[];window.__fillText=CanvasRenderingContext2D.prototype.fillText;CanvasRenderingContext2D.prototype.fillText=function(text,...args){window.__drawn.push(String(text));window.__inks.push({text:String(text),color:this.fillStyle});return window.__fillText.call(this,text,...args)}`);
  const exportPreview=async name=>{const data=await evaluate(`(()=>{const img=document.querySelector('[data-recap-preview]');const c=document.createElement('canvas');c.width=img.naturalWidth;c.height=img.naturalHeight;c.getContext('2d').drawImage(img,0,0);return c.toDataURL('image/png').split(',')[1];})()`);const bytes=Buffer.from(data,'base64');assert.equal(bytes.readUInt32BE(16),1080);await writeFile(join(output,name+'.png'),bytes);};
  for(const bg of ['New York','London','Asia','Plain'])for(const format of ['Story','Feed','Square']){await click('dialog button',bg);await click('dialog button',format);await ready();await exportPreview(`anonymous-${bg.toLowerCase().replace(' ','-')}-${format.toLowerCase()}`);}
  assert.equal((await evaluate('window.__drawn')).some(t=>t.includes('recap_qa')),false,'Identity absent from actual Canvas text');
- assert((await evaluate('window.__drawn')).includes('Posted fees −$12.34 · Net cash +$627.66'),'Exact fees appear in exported Canvas text, not only alt text');
- assert((await evaluate('window.__drawn')).includes('Gross entry win rate'));
+ const drawn=await evaluate('window.__drawn');
+ assert(drawn.includes('+$627.66'),'Headline is exact after-fee cents in Canvas text, not just alt text');
+ assert(drawn.includes('Win rate'));assert(drawn.includes('Trade entries'));
+ assert(!drawn.some(t=>/Gross|Fees unavailable|Net cash|Posted fees|Cash snapshot|UTC close date|09:30|16:00/.test(t)),'Removed copy and footer clock are absent from actual PNG rendering');
+ // Net, not gross, controls the money sign and loss color in actual Canvas output.
+ await evaluate(`window.__writeFees(-65000)`);await wait(`document.querySelector('[data-recap-preview]')?.alt.includes('−$10.00 after fees')`);await ready();
+ assert((await evaluate('window.__inks')).some(t=>t.text==='−$10.00'&&t.color==='#ffb7b7'));await exportPreview('fee-driven-loss');
+ await evaluate(`window.__writeFees(-64000)`);await wait(`document.querySelector('[data-recap-preview]')?.alt.includes('. $0.00 after fees')`);await ready();
+ await evaluate(`window.__writeFees(-1234)`);await wait(`document.querySelector('[data-recap-preview]')?.alt.includes('+$627.66 after fees')`);await ready();
  // Local upload uses real decoding/re-encoding, with no remote upload.
  const uploadPhoto=async(type='image/png')=>evaluate(`new Promise(resolve=>{const c=document.createElement('canvas');c.width=640;c.height=480;const x=c.getContext('2d');x.fillStyle='#6285a5';x.fillRect(0,0,640,480);c.toBlob(blob=>{const d=new DataTransfer();d.items.add(new File([blob],'private-original.png',{type:${JSON.stringify(type)}}));const input=document.querySelector('input[type=file]');input.files=d.files;input.dispatchEvent(new Event('change',{bubbles:true}));resolve(true);},'image/png');})`);
  await uploadPhoto('image/svg+xml');await wait(`document.querySelector('[role=alert]')?.textContent.includes('under 8 MB')`);
@@ -85,7 +98,11 @@ try{
  await evaluate(`Object.defineProperty(navigator,'canShare',{configurable:true,value:d=>d.files?.[0]?.type==='image/png'});Object.defineProperty(navigator,'share',{configurable:true,value:async d=>{window.__shareReceipt={name:d.files[0].name,size:d.files[0].size,type:d.files[0].type,active:navigator.userActivation.isActive};if(window.__shareFailure)throw new DOMException('unavailable','NotAllowedError');}})`);
  await click('dialog button','Feed');await ready();await click('dialog button','Share image');const shared=await evaluate('window.__shareReceipt');assert.equal(shared.type,'image/png');assert(shared.size>10000);assert.equal(shared.active,true);assert.doesNotMatch(shared.name,/recap_qa|private-original|owner/);
  await evaluate('window.__shareFailure=true');await click('dialog button','Share image');await wait(`document.querySelector('[role=alert]')?.textContent.includes('Download the image instead')`);await evaluate('window.__shareFailure=false');
- await evaluate(`window.__owner('owner-b')`);await wait(`!document.querySelector('dialog[open]')`);await click('button','Share recap');await ready();assert.match(await evaluate(`document.querySelector('[data-recap-preview]').alt`),/@other_qa/);await assertAvatar(150,[187,77,77]);assert.match(await evaluate(`document.querySelector('[data-recap-preview]').alt`),/Fees unavailable/);
+ await evaluate(`window.__owner('owner-b')`);await wait(`!document.querySelector('dialog[open]')`);await click('button','Share recap');
+ await wait(`document.querySelector('[data-recap-download]')?.disabled&&!document.querySelector('[data-recap-preview]')`);
+ assert.match(await evaluate(`document.querySelector('.recap-wait').textContent`),/Sync.*fees/,'Owner B cannot inherit owner A cash');
+ await evaluate(`localStorage.setItem('cova-active-storage-identity-v1','owner-b');window.__writeFees(-4321,'owner-b')`);await ready();
+ assert.match(await evaluate(`document.querySelector('[data-recap-preview]').alt`),/@other_qa/);await assertAvatar(150,[187,77,77]);
  await evaluate(`window.__trades(window.__rows.map(r=>({...r,pnl:0.001})))`);await wait(`!document.querySelector('[data-recap-preview]')&&document.querySelector('[data-recap-download]').disabled`);
  await evaluate(`window.__fontLoad=document.fonts.load.bind(document.fonts);document.fonts.load=(...args)=>new Promise(resolve=>window.__releaseFont=()=>window.__fontLoad(...args).then(resolve));window.__trades(window.__rows)`);await wait(`Boolean(window.__releaseFont)`);assert.equal(await evaluate(`Boolean(document.querySelector('[data-recap-preview]'))`),false,'Restoring a model must not revive its revoked export');assert.equal(await evaluate(`document.querySelector('[data-recap-download]').disabled`),true);await evaluate(`window.__releaseFont();document.fonts.load=window.__fontLoad`);await ready();
  await evaluate(`window.__trades(window.__rows.map(r=>({...r,source:{...r.source,accountId:'8'}})))`);await wait(`!document.querySelector('dialog[open]')`);

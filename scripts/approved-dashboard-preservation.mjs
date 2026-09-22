@@ -6,7 +6,7 @@ import ts from 'typescript';
 const baseline = {
   "files": {
     "src/lib/risk.ts": "78991b6b2f932c3d91ddf7d5cb29fc6953a1732cda2be8cbc953d55b6b400ef9",
-    "src/lib/brokerCash.ts": "aed4ca860b7d59dd75f430d83998d6fba0ab78701c12f24ee80fce465ff7a29b",
+    "src/lib/brokerCash.ts": "c594ec3b82be49a6b1e68629792ad6e8cfbd5bde168b4c50bf6fe5659b8b9fa6",
     "src/lib/journalAccuracy.ts": "c688e6ef2228dfa272da1a075c7c2c0f740984f83df81de575490760261d827b",
     "src/lib/storageScope.ts": "3cd9c57c38bb10e9f7b61776f00422ab9590bdebd1d0e458eba5a33cc676e183",
     "src/lib/accountNames.ts": "e056578556c6ac10faeee8ed5a47b08a2b91b9327be0dd3216906db0cdc30501",
@@ -32,7 +32,8 @@ for (const [name, hash] of Object.entries(baseline.functions)) {
   const behavior=node.body.statements.filter(s=>!ts.isReturnStatement(s) && !(name === "Dashboard" && s.getText(file) === "const [historyOpen, setHistoryOpen] = useState(false);")).map(s=>s.getText(file)).join('\n');
   assert.equal(sha(behavior),hash,`${name}: filtering, financial cells, evidence selection, persistence and handlers are unchanged`);
 }
-// Authorized recap readers/notifications do not alter existing cash arithmetic.
+// Authorized recap-only coverage/as-of readers are tested in session-recap-fees-regression.
+// Keep the original ledger validation and dashboard accounting bodies exact below.
 const cashAst=ts.createSourceFile('brokerCash.ts',read('src/lib/brokerCash.ts'),ts.ScriptTarget.Latest,true);
 for (const [name,hash] of Object.entries({"checked": "a1098cced8a9a85c31ca0714dfcbaeee11682983227caa5c696f0b469739465d", "validateTrades": "a2e974aff5a93f48c93ed73105f04e24f2342b73cc38f4917e71c8a71182bde2", "brokerCashSummary": "7886c88ca3bd88926ef967d3fb9a509a9e93113bc87ebf70916184f497cc67c5"})) {
  const node=cashAst.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text===name);assert.equal(sha(node.body.getText(cashAst)),hash,`${name}: original accounting body preserved`);

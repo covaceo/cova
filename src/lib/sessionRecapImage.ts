@@ -1,4 +1,4 @@
-import { recapFeeLine, recapMoney, type SessionRecap, type RecapBackground } from './sessionRecap';
+import { recapExportError, recapHeadlineCents, recapMoney, type SessionRecap, type RecapBackground } from './sessionRecap';
 export type RecapFormat = 'story' | 'feed' | 'square';
 export const recapFormats = [{ id: 'story' as const, label: 'Story', width: 1080, height: 1920 }, { id: 'feed' as const, label: 'Feed', width: 1080, height: 1350 }, { id: 'square' as const, label: 'Square', width: 1080, height: 1080 }];
 export const recapBackgrounds = [{ id: 'new-york' as const, label: 'New York', src: '/recaps/new-york.webp' }, { id: 'london' as const, label: 'London', src: '/recaps/london.webp' }, { id: 'asia' as const, label: 'Asia', src: '/recaps/asia.webp' }, { id: 'plain' as const, label: 'Plain', src: '' }];
@@ -20,9 +20,11 @@ function cover(ctx: CanvasRenderingContext2D, img: CanvasImageSource & { width: 
 /** Each format has an authored composition; only the underlying photograph is cropped. */
 export async function renderSessionRecap(input: RecapRenderInput, signal?: AbortSignal) {
   const { recap, format, background, username, avatar } = input;
+  const issue = recapExportError(recap); if (issue) throw new Error(issue);
+  const headline = recapHeadlineCents(recap)!;
   const preset = recapFormats.find(f => f.id === format)!;
   const source = background === 'custom' ? input.customPhoto : recapBackgrounds.find(b => b.id === background)?.src;
-  const [photo, face] = await Promise.all([source ? image(source, signal) : null, username && avatar ? image(avatar, signal) : null]);
+  const [photo, face, logo] = await Promise.all([source ? image(source, signal) : null, username && avatar ? image(avatar, signal) : null, image('/cova-logo-minimal-white.svg', signal)]);
   await document.fonts.load('500 40px "Inter Tight Variable"');
   if (signal?.aborted) throw new Error('Render cancelled');
   const canvas = document.createElement('canvas'); canvas.width = preset.width; canvas.height = preset.height;
@@ -55,21 +57,19 @@ export async function renderSessionRecap(input: RecapRenderInput, signal?: Abort
   }
   text(recap.dateLabel, w - pad, layout.head, 30, '#f0f2f5', 400, 320, 'right');
   text(recap.title, pad, layout.title, 38, '#bac3ce'); text(recap.markets, pad, layout.market, 36);
-  const amount = recapMoney(recap.totalCents); let size = layout.font;
+  const amount = recapMoney(headline); let size = layout.font;
   do { ctx.font = `600 ${size}px "Inter Tight Variable", sans-serif`; if (ctx.measureText(amount).width <= w - pad * 2) break; size -= 2; } while (size > 42);
-  text(amount, pad - 5, layout.amount, size, BigInt(recap.totalCents) < 0n ? '#ffb7b7' : '#f4f5f6', 600);
-  text(recap.basis, pad, layout.basis, 36, '#bac3ce');
-  const feeLine = recapFeeLine(recap); let feeSize = 32;
-  do { ctx.font = `400 ${feeSize}px "Inter Tight Variable", sans-serif`; if (ctx.measureText(feeLine).width <= w - pad * 2) break; feeSize--; } while (feeSize > 22);
-  text(feeLine, pad, layout.basis + 43, feeSize, '#bac3ce');
+  text(amount, pad - 5, layout.amount, size, BigInt(headline) < 0n ? '#ffb7b7' : '#f4f5f6', 600);
+  if (!recap.fees && !recap.sample) text(recap.basis, pad, layout.basis, 36, '#bac3ce');
   const left = 278, right = 788;
   text(String(recap.count), left, layout.stat, 72, '#f4f5f6', 500, 360, 'center');
   text(recap.winRate, right, layout.stat, 72, '#f4f5f6', 500, 360, 'center');
   text(recap.countLabel, left, layout.label, 32, '#bac3ce', 400, 380, 'center');
-  text(recap.basis.startsWith('Gross') ? 'Gross entry win rate' : 'Entry win rate', right, layout.label, 32, '#bac3ce', 400, 380, 'center');
+  text('Win rate', right, layout.label, 32, '#bac3ce', 400, 380, 'center');
   ctx.strokeStyle = '#34404d'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(w / 2, layout.stat - 56); ctx.lineTo(w / 2, layout.label + 2); ctx.stroke();
-  text('Cova', pad, layout.footer, 45, '#f4f5f6', 500); text('covadesk.com', w - pad, layout.footer, 27, '#bac3ce', 400, 250, 'right');
-  text(recap.sample ? 'Sample data · Not a live account' : `${recap.windowLabel}${recap.fees ? ` · Cash snapshot ${recap.fees.asOf.slice(0, 10)}` : ''}`, w / 2, layout.sample, 24, '#a5b1bf', 400, 850, 'center');
+  ctx.drawImage(logo, pad - 7, layout.footer - 57, 70, 70);
+  text('Cova', pad + 76, layout.footer, 45, '#f4f5f6', 500); text('covadesk.com', w - pad, layout.footer, 27, '#bac3ce', 400, 250, 'right');
+  if (recap.sample) text('Sample data · Not a live account', w / 2, layout.sample, 24, '#a5b1bf', 400, 850, 'center');
   if (signal?.aborted) throw new Error('Render cancelled');
   return new Promise<Blob>((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('The image could not be saved. Try again.')), 'image/png'));
 }

@@ -116,10 +116,17 @@ export function buildSessionRecaps(trades: readonly Trade[], cashEvidence?: unkn
       winRate, countLabel: grouped ? 'Trade entries' : 'Reported trades',
       markets: [...new Set(rows.map(r => r.market))].join(' · '), basis: gross ? 'Gross P&L · before fees' : 'Reported P&L · fees unconfirmed',
       sample: rows.every(r => r.id.startsWith('demo-')), theme,
-      details: 'Known same-opening-fill partial exits are combined, not certified flat-to-flat positions. Unmatched rows remain separate. Breakeven entries are included in the win-rate denominator. Whole groups belong to their final observed exit date. Regional recaps require every entry and exit timestamp within the same dated review window. Daily recaps can span regions. Review windows follow local daylight-saving time and are not exchange calendars. Tradovate headline and entry win rate remain gross. When reconciled account cash evidence covers this entire window and trade postings match the selected records at their supported timestamp, cents and market-root granularity, posted fees and net cash are shown separately. Net cash is trade postings plus signed fee postings, excluding funding. Fees can relate to carried or open positions and are not allocated to recap trades. The cash snapshot timestamp is disclosed; later postings or adjustments can change the result. Missing or mismatched evidence means fees unavailable, not zero. Backgrounds are illustrative, not a record of market conditions.',
+      details: 'Known same-opening-fill partial exits are combined, not certified flat-to-flat positions. Unmatched rows remain separate. Breakeven entries are included in the win-rate denominator. Whole groups belong to their final observed exit date. Regional recaps require every entry and exit timestamp within the same dated review window. Daily recaps can span regions. Review windows follow local daylight-saving time and are not exchange calendars. The Tradovate headline uses reconciled trade cash plus signed posted fees, excluding funding, through the latest sync. It does not wait for the session or UTC day to end. The complete synced report-window fingerprint must match, and selected-window trade postings must match the recap at supported timestamp, cents and market-root granularity. Win rate uses grouped gross trade outcomes, not invented per-trade net allocation. Fees can relate to carried or open positions. The source gross ledger stays unchanged. Snapshot time and fee breakdown are available here, not printed on the card; later postings or adjustments can change the result. Missing or mismatched Tradovate fee evidence blocks sharing instead of silently substituting gross or zero fees. Backgrounds are illustrative, not a record of market conditions.',
     };
   }).sort((a, b) => b.date.localeCompare(a.date) || (a.kind === 'daily' ? -1 : b.kind === 'daily' ? 1 : a.kind.localeCompare(b.kind)));
   return { error: '', options };
+}
+/** No gross fallback masquerading as an after-fee Tradovate result. */
+export function recapHeadlineCents(recap: SessionRecap): string | null {
+  return recap.fees?.netCashCents ?? (recap.sample || !recap.basis.startsWith('Gross') ? recap.totalCents : null);
+}
+export function recapExportError(recap: SessionRecap): string {
+  return recapHeadlineCents(recap) === null ? 'Sync this account’s Tradovate history to reconcile fees before sharing.' : '';
 }
 export function recapFeeLine(recap: SessionRecap) {
   return recap.fees ? `${BigInt(recap.fees.signedCents) > 0n ? 'Fee credits' : 'Posted fees'} ${recapMoney(recap.fees.signedCents)} · Net cash ${recapMoney(recap.fees.netCashCents)}` : 'Fees unavailable · net cash not shown';

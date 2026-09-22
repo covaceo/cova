@@ -29,7 +29,7 @@ test('recap cash reader binds both active owner and the exact saved full-history
 test('unavailable evidence is not represented as zero fees; a covered zero-fee ledger is',()=>{
  const trades=[row(10,11,10)];assert.equal(recaps(trades).options[0].fees,null);
  const cash=cashFor(trades,[]);assert.equal(recaps(trades,cash).options[0].fees.signedCents,'0');
- for(const bad of [null,{}, {...cash,accountId:'8'},{...cash,currency:'EUR'},{...cash,grossCents:1},{...cash,netCents:1},{...cash,asOf:'2026-09-18T14:15:00.000Z'},{...cash,window:{startDate:'2026-09-17',endDate:'2026-09-18'}}])assert.equal(recaps(trades,bad).options[0].fees,null);
+ for(const bad of [null,{}, {...cash,accountId:'8'},{...cash,currency:'EUR'},{...cash,grossCents:1},{...cash,netCents:1},{...cash,asOf:'2026-09-18T14:05:00.000Z'},{...cash,window:{startDate:'2026-09-17',endDate:'2026-09-18'}}])assert.equal(recaps(trades,bad).options[0].fees,null);
 });
 test('equal aggregate totals do not establish timestamp, market or multiplicity correspondence',()=>{
  const trades=[row(10,11,10)];
@@ -54,6 +54,35 @@ test('the same DST-aware local window applies to both trade membership and fee p
  const at=date+'T'+start+':00.000Z',trades=[row(10,11,10,at,at)];const cash=cashFor(trades,[{at,deltaCents:-55,category:'fee',type:'Commission'}]);cash.window={startDate:'2026-03-01',endDate:'2026-03-15'};cash.asOf='2026-03-15T00:00:00.000Z';assert.equal(recaps(trades,cash).options.find(r=>r.kind==='new-york').fees.signedCents,'-55');
  }
 });
+test('today can use a reconciled sync before session close or UTC midnight',()=>{
+ const trades=[row(10,11,10),row(20,21,-5)],cash=cashFor(trades);cash.asOf='2026-09-18T14:15:00.000Z';
+ for(const recap of recaps(trades,cash).options){assert.equal(recap.fees?.netCashCents,'400');assert.equal(recap.fees?.asOf,cash.asOf);}
+ cash.asOf='2026-09-18T14:10:00.000Z';assert.equal(recaps(trades,cash).options[0].fees?.netCashCents,'400','snapshot includes postings at its exact timestamp');
+ cash.asOf='2026-09-18T14:09:59.999Z';assert.equal(recaps(trades,cash).options[0].fees,null,'a future trade cannot be backed by an earlier sync');
+});
+test('history outside the synced report window does not disable covered daily fees',()=>{
+ const trades=[row(10,11,10)],old=row(30,31,90,'2026-08-01T14:00:00.000Z','2026-08-01T14:10:00.000Z'),cash=cashFor(trades),all=[...trades,old];
+ assert.equal(recaps(all,cash).options.find(r=>r.id==='daily:2026-09-18').fees?.netCashCents,'900');
+ assert.equal(recaps(all,cash).options.find(r=>r.id==='daily:2026-08-01').fees,null);
+ const store=new Map();global.localStorage={getItem:k=>store.get(k)??null,setItem:(k,v)=>store.set(k,v),removeItem:k=>store.delete(k)};
+ try{const {saveBrokerCash,readBrokerCashEvidence}=load('src/lib/brokerCash.ts');store.set('cova-active-storage-identity-v1','owner-a');saveBrokerCash('owner-a','7',cash,trades);
+ assert.deepEqual(readBrokerCashEvidence(all,'owner-a'),cash);
+ assert.equal(readBrokerCashEvidence([{...trades[0],pnl:20},old],'owner-a'),null);
+ assert.equal(readBrokerCashEvidence([trades[0],row(50,51,0),old],'owner-a'),null,'extra in-window row invalidates fingerprint');
+ assert.equal(readBrokerCashEvidence([trades[0],{...old,source:{...old.source,accountId:'8'}}],'owner-a'),null);
+ assert.equal(readBrokerCashEvidence(all,'owner-b'),null);
+ }finally{delete global.localStorage;}
+});
+test('net headline never silently falls back to gross when Tradovate cash is missing',()=>{
+ const m=load('src/lib/sessionRecap.ts'),trades=[row(10,11,10)],r=recaps(trades,cashFor(trades)).options[0];
+ assert.equal(m.recapHeadlineCents(r),'900');assert.equal(m.recapExportError(r),'');assert.equal(r.totalCents,'1000');
+ const missing={...r,fees:null};assert.equal(m.recapHeadlineCents(missing),null);assert.match(m.recapExportError(missing),/Sync.*fees/i);
+ assert.equal(m.recapHeadlineCents({...missing,sample:true}),'1000');
+ assert.equal(m.recapHeadlineCents({...missing,basis:'Reported P&L · fees unconfirmed'}),'1000');
+ const loss=recaps(trades,cashFor(trades,[{at:trades[0].source.openedAt,deltaCents:-1200,category:'fee',type:'Commission'}])).options[0];
+ assert.equal(m.recapHeadlineCents(loss),'-200','fee-driven losses use the net sign, not gross');
+});
+
 test('sample and unsupported provider history never acquire a broker net-cash claim',()=>{
  const trades=[row(10,11,10)],cash=cashFor(trades);
  assert.equal(recaps(trades.map(t=>({...t,id:'demo-1'})),cash).options[0].fees,null);
