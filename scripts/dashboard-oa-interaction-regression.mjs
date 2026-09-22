@@ -582,10 +582,11 @@ async function sourceLifecycle() {
         sourceText: document.querySelector('.astra-source-label').textContent.trim(),
         account: document.querySelector('.astra-rail-account small').textContent.trim(),
         attribution: document.querySelectorAll('.dashboard-attribution-row [data-rithmic-attribution]').length,
-        syncActions: [...document.querySelectorAll('.astra-header-controls button, .dashboard-summary-actions button')].map(node => node.textContent.trim()),
+        syncActions: [...document.querySelectorAll('.astra-header-controls .astra-import-action, .dashboard-summary-actions button')].map(node => node.textContent.trim()),
+        recapActions: document.querySelectorAll('.recap-open').length,
         empty: document.querySelectorAll('[data-dashboard-empty="true"]').length,
       }))()`);
-      assert.deepEqual(state, { source: `Review source: ${scenario.source}`, sourceText: `${scenario.source} / ${scenario.count} trades`, account: scenario.account, attribution: scenario.attribution, syncActions: ['Update trades', 'Update trades'], empty: scenario.count ? 0 : 1 }, scenario.name);
+      assert.deepEqual(state, { source: `Review source: ${scenario.source}`, sourceText: `${scenario.source} / ${scenario.count} trades`, account: scenario.account, attribution: scenario.attribution, syncActions: ['Update trades', 'Update trades'], recapActions: scenario.trades.length ? 1 : 0, empty: scenario.count ? 0 : 1 }, scenario.name);
       // Selection is a lifecycle handoff only. Never enter credentials or start a broker sync.
       await clickSelector('.dashboard-summary-actions button', 'Update trades');
       await waitFor("location.hash === '#import'");

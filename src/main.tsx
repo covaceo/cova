@@ -28,6 +28,7 @@ import "@fontsource/jetbrains-mono/latin-500.css";
 import "@fontsource/jetbrains-mono/latin-600.css";
 import App from "./App";
 import "./index.css";
+import "./styles/sessionRecap.css";
 import "./styles/riskDeskVisualSystem.css";
 import "./styles/workspaceRouteRefinement.css";
 import "./styles/operatorDossierRevamp.css";

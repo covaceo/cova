@@ -52,8 +52,8 @@ const protectedFiles = {
   "src/App.tsx": "b8bef0dd5beeaf4644c1930b407ab89c6aa584f2e3a4531d70e04b0fb8d7c5c4",
   "src/components/AstraEquityCurve.tsx": "080bdba310e0b45aac25cef67702f29ab6e49c674a74559d45af15ff3dbc4433",
   "src/components/DashboardTradeDialog.tsx": "302d1c3851169baadf76180225e607254f09e340b447384f52e2322ac3d8752a",
-  // Owner-approved legacy source CTA wording and averages; original financial logic remains locked by approved-dashboard-preservation.
-  "src/components/DashboardView.tsx": "045eca344119d7654e271f0088b4c8d14276cffbdf4fb579b1fe4f9b4f174280",
+  // Owner-approved separate session recap action plus legacy source CTA wording and averages; original financial logic remains locked by approved-dashboard-preservation.
+  "src/components/DashboardView.tsx": "e6205e8af4caa4bd74f03fb2eb262c6b2d87b4826790b67542fa7ce4ee414f1e",
   // Owner-approved Passport book icon, duplicate rail copy removal and Settings-to-Accounts entry; shell handlers remain intact.
   "src/components/WorkspaceShell.tsx": "b5e4b9f0418607abcca8822298aae898d18c8f71ad9365914deefa21736a9e83",
   "src/index.css": "ea8b38ada867619addaced06a8a3a1c494c1de9ef6c30beb5cbe7435890729db",
