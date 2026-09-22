@@ -1,10 +1,12 @@
+import { verifyBrokerCash } from './brokerCash';
+import { recapCashFees, type RecapFees } from './sessionRecapFees';
 import { groupJournalEntries, type Trade, type JournalEntryGroup } from './risk';
 
 export type RecapKind = 'daily' | 'new-york' | 'london' | 'asia';
 export type RecapBackground = 'new-york' | 'london' | 'asia' | 'plain' | 'custom';
 export type SessionRecap = {
   id: string; kind: RecapKind; date: string; title: string; dateLabel: string; windowLabel: string;
-  totalCents: string; count: number; wins: number; winRate: string; countLabel: string;
+  fees: RecapFees | null; totalCents: string; count: number; wins: number; winRate: string; countLabel: string;
   markets: string; basis: string; sample: boolean; theme: RecapBackground; details: string;
 };
 const titles: Record<RecapKind, string> = { daily: 'Daily recap', 'new-york': 'New York session', london: 'London session', asia: 'Asia session' };
@@ -54,7 +56,7 @@ function timing(group: JournalEntryGroup) {
   const first = regions[0];
   return { day: latest.slice(0, 10), region: first && regions.every(r => r?.kind === first.kind && r.date === first.date) ? first : null, timed: true };
 }
-export function buildSessionRecaps(trades: readonly Trade[]): { error: string; options: SessionRecap[] } {
+export function buildSessionRecaps(trades: readonly Trade[], cashEvidence?: unknown): { error: string; options: SessionRecap[] } {
   if (!trades.length) return { error: 'Import trades to create a session recap.', options: [] };
   const unavailable = (error: string) => ({ error, options: [] as SessionRecap[] });
   const sample = trades.every(t => t.id.startsWith('demo-'));
@@ -77,6 +79,7 @@ export function buildSessionRecaps(trades: readonly Trade[]): { error: string; o
       }
     }
   } catch { return unavailable('Check the dates and exact amounts in this history before sharing.'); }
+  const cash = sample ? null : verifyBrokerCash(cashEvidence, trades);
   const groups = groupJournalEntries(trades);
   const timings = new Map(groups.map(group => [group, timing(group)]));
   const buckets = new Map<string, { kind: RecapKind; date: string; groups: JournalEntryGroup[] }>();
@@ -101,17 +104,25 @@ export function buildSessionRecaps(trades: readonly Trade[]): { error: string; o
     const timed = selected.every(g => timings.get(g)!.timed);
     const regional = selected.map(g => timings.get(g)!.region?.kind);
     const theme = kind !== 'daily' ? kind : regional.every(k => k === 'london') ? 'london' : regional.every(k => k === 'asia') ? 'asia' : 'new-york';
+    const window = kind === 'daily' ? { start: Date.parse(date), end: Date.parse(date) + 86400000 }
+      : kind === 'new-york' ? { start: instant(date, 9, 30, 'America/New_York'), end: instant(date, 16, 0, 'America/New_York') }
+      : kind === 'london' ? { start: instant(date, 8, 0, 'Europe/London'), end: instant(date, 9, 30, 'America/New_York') }
+      : { start: instant(date, 9, 0, 'Asia/Tokyo'), end: instant(date, 8, 0, 'Europe/London') };
     return {
+      fees: gross ? recapCashFees(cash, rows, window) : null,
       id, kind, date, title: titles[kind], dateLabel: new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`)),
       windowLabel: kind === 'daily' ? timed ? 'UTC close date' : 'Reported date' : kind === 'new-york' ? '09:30–16:00 New York' : kind === 'london' ? '08:00 London–09:30 New York' : '09:00 Tokyo–08:00 London',
       totalCents: amounts.reduce((sum, value) => sum + value, 0n).toString(), count: selected.length, wins,
       winRate, countLabel: grouped ? 'Trade entries' : 'Reported trades',
       markets: [...new Set(rows.map(r => r.market))].join(' · '), basis: gross ? 'Gross P&L · before fees' : 'Reported P&L · fees unconfirmed',
       sample: rows.every(r => r.id.startsWith('demo-')), theme,
-      details: 'Known same-opening-fill partial exits are combined, not certified flat-to-flat positions. Unmatched rows remain separate. Breakeven entries are included in the win-rate denominator. Whole groups belong to their final observed exit date. Regional recaps require every entry and exit timestamp within the same dated review window. Daily recaps can span regions. Review windows follow local daylight-saving time and are not exchange calendars. Fees are not allocated from account cash reports; these results can differ from the net Risk Desk total. Backgrounds are illustrative, not a record of market conditions.',
+      details: 'Known same-opening-fill partial exits are combined, not certified flat-to-flat positions. Unmatched rows remain separate. Breakeven entries are included in the win-rate denominator. Whole groups belong to their final observed exit date. Regional recaps require every entry and exit timestamp within the same dated review window. Daily recaps can span regions. Review windows follow local daylight-saving time and are not exchange calendars. Tradovate headline and entry win rate remain gross. When reconciled account cash evidence covers this entire window and trade postings match the selected records at their supported timestamp, cents and market-root granularity, posted fees and net cash are shown separately. Net cash is trade postings plus signed fee postings, excluding funding. Fees can relate to carried or open positions and are not allocated to recap trades. The cash snapshot timestamp is disclosed; later postings or adjustments can change the result. Missing or mismatched evidence means fees unavailable, not zero. Backgrounds are illustrative, not a record of market conditions.',
     };
   }).sort((a, b) => b.date.localeCompare(a.date) || (a.kind === 'daily' ? -1 : b.kind === 'daily' ? 1 : a.kind.localeCompare(b.kind)));
   return { error: '', options };
+}
+export function recapFeeLine(recap: SessionRecap) {
+  return recap.fees ? `${BigInt(recap.fees.signedCents) > 0n ? 'Fee credits' : 'Posted fees'} ${recapMoney(recap.fees.signedCents)} · Net cash ${recapMoney(recap.fees.netCashCents)}` : 'Fees unavailable · net cash not shown';
 }
 export function recapMoney(amount: string) {
   const value = BigInt(amount), abs = value < 0n ? -value : value;

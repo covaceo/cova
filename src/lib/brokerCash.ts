@@ -1,11 +1,11 @@
 import type { Trade } from './risk';
-type Entry = { id: string; at: string; deltaCents: number; balanceCents: number; category: 'fee' | 'trade' | 'funding'; type: string; currency: 'USD' };
-type Cash = { status: 'reconciled'; version: 1; accountId: string; currency: 'USD'; window: { startDate: string; endDate: string }; asOf: string; basis: string; grossCents: number; feeCents: number; netCents: number; nonTradingCents: number; openingBalanceCents: number | null; closingBalanceCents: number | null; entries: Entry[] };
+type Entry = { contract?: string; id: string; at: string; deltaCents: number; balanceCents: number; category: 'fee' | 'trade' | 'funding'; type: string; currency: 'USD' };
+export type Cash = { status: 'reconciled'; version: 1; accountId: string; currency: 'USD'; window: { startDate: string; endDate: string }; asOf: string; basis: string; grossCents: number; feeCents: number; netCents: number; nonTradingCents: number; openingBalanceCents: number | null; closingBalanceCents: number | null; entries: Entry[] };
 export type CashSummary = { status: 'unavailable'; reason: string } | { status: 'available'; netCents: number; feeCents: number; grossCents: number; asOf: string; startDate: string; endDate: string; points: { label: string; value: number }[] };
 const active = () => localStorage.getItem('cova-active-storage-identity-v1') || '';
 const key = (owner: string, account: string) => `cova-broker-cash-v1:${account}:${owner}`;
 const normalized = (owner: string) => encodeURIComponent(owner.trim().toLowerCase());
-const fingerprint = (trades: Trade[]) => JSON.stringify(trades.map(t => [t.id,t.date.slice(0,10),t.pnl,t.source?.provider==='Tradovate'?t.source.openedAt:null,t.source?.provider==='Tradovate'?t.source.closedAt:null]).sort((a,b)=>String(a[0]).localeCompare(String(b[0]))));
+const fingerprint = (trades: readonly Trade[]) => JSON.stringify(trades.map(t => [t.id,t.date.slice(0,10),t.pnl,t.source?.provider==='Tradovate'?t.source.openedAt:null,t.source?.provider==='Tradovate'?t.source.closedAt:null]).sort((a,b)=>String(a[0]).localeCompare(String(b[0]))));
 function checked(value: unknown, account: string): Cash {
   const c=value as Cash;
   if(!c || c.status!=='reconciled' || c.version!==1 || c.accountId!==account || c.currency!=='USD' || c.basis!=='cash_movements_no_trade_allocation' || !Array.isArray(c.entries) || c.entries.length>5000) throw Error('Cash evidence unavailable');
@@ -23,15 +23,35 @@ function checked(value: unknown, account: string): Cash {
   if(![gross,fees,funding,gross+fees].every(Number.isSafeInteger) || gross!==c.grossCents || fees!==c.feeCents || funding!==c.nonTradingCents || gross+fees!==c.netCents || c.openingBalanceCents!==(c.entries.length?c.entries[0].balanceCents-c.entries[0].deltaCents:null) || c.closingBalanceCents!==(previous?.balanceCents??null))throw Error('Cash total mismatch');
   return c;
 }
-function validateTrades(cash:Cash,trades:Trade[]) {
+function validateTrades(cash:Cash,trades:readonly Trade[]) {
   let gross=0;
   for(const t of trades){if(t.source?.provider!=='Tradovate' || t.source.accountId!==cash.accountId || t.source.pnlBasis!=='gross_before_fees' || t.date.slice(0,10)<cash.window.startDate || t.date.slice(0,10)>=cash.window.endDate || !Number.isFinite(t.pnl) || Math.abs(t.pnl*100-Math.round(t.pnl*100))>1e-6)throw Error('Trade coverage mismatch');gross+=Math.round(t.pnl*100);}
   if(!Number.isSafeInteger(gross) || gross!==cash.grossCents)throw Error('Trade gross mismatch');
+}
+/** Validate the whole account ledger before a narrower cash-window disclosure. */
+export function verifyBrokerCash(value: unknown, trades: readonly Trade[]): Cash | null {
+  try {
+    if (!trades.length || trades[0].source?.provider !== 'Tradovate') return null;
+    const cash = checked(value, trades[0].source.accountId);
+    validateTrades(cash, trades);
+    return cash;
+  } catch { return null; }
+}
+/** Never read another active identity's cached cash, even during an owner transition. */
+export function readBrokerCashEvidence(trades: readonly Trade[], owner: string): Cash | null {
+  try {
+    if (!owner || active() !== normalized(owner) || trades[0]?.source?.provider !== 'Tradovate') return null;
+    const raw = localStorage.getItem(key(normalized(owner), trades[0].source.accountId));
+    if (!raw || raw.length > 2097152) return null;
+    const saved = JSON.parse(raw);
+    return saved.fingerprint === fingerprint(trades) ? verifyBrokerCash(saved.cash, trades) : null;
+  } catch { return null; }
 }
 export function saveBrokerCash(owner: string, account: string, value: unknown, trades: Trade[]) {
   const scope=normalized(owner); if(!scope || active()!==scope || !/^[1-9]\d{0,15}$/.test(account)) return;
   try { const cash=checked(value,account);validateTrades(cash,trades);localStorage.setItem(key(scope,account),JSON.stringify({cash,fingerprint:fingerprint(trades)})); }
   catch { try { localStorage.removeItem(key(scope,account)); } catch { /* No net claim without readable, validated evidence. */ } }
+  if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') window.dispatchEvent(new Event('cova-broker-cash-updated'));
 }
 export function brokerCashSummary(trades: Trade[], range: 'all'|'today'|'week'): CashSummary {
   const unavailable: CashSummary={status:'unavailable',reason:'Load history to reconcile broker fees. Individual trade statistics remain gross.'};
