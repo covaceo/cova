@@ -28,12 +28,19 @@ function validateTrades(cash:Cash,trades:readonly Trade[]) {
   for(const t of trades){if(t.source?.provider!=='Tradovate' || t.source.accountId!==cash.accountId || t.source.pnlBasis!=='gross_before_fees' || t.date.slice(0,10)<cash.window.startDate || t.date.slice(0,10)>=cash.window.endDate || !Number.isFinite(t.pnl) || Math.abs(t.pnl*100-Math.round(t.pnl*100))>1e-6)throw Error('Trade coverage mismatch');gross+=Math.round(t.pnl*100);}
   if(!Number.isSafeInteger(gross) || gross!==cash.grossCents)throw Error('Trade gross mismatch');
 }
-/** Validate the whole account ledger before a narrower cash-window disclosure. */
+function cashWindowTrades(cash: Cash, trades: readonly Trade[]) {
+  if (trades.some(t => t.source?.provider !== 'Tradovate' || t.source.accountId !== cash.accountId)) throw Error('Account coverage mismatch');
+  return trades.filter(t => t.date.slice(0, 10) >= cash.window.startDate && t.date.slice(0, 10) < cash.window.endDate);
+}
+/** Validate the complete reported cash window, not unrelated history outside it. */
 export function verifyBrokerCash(value: unknown, trades: readonly Trade[]): Cash | null {
   try {
     if (!trades.length || trades[0].source?.provider !== 'Tradovate') return null;
     const cash = checked(value, trades[0].source.accountId);
-    validateTrades(cash, trades);
+    if (cash.entries.some(entry => entry.at > cash.asOf)) return null;
+    const covered = cashWindowTrades(cash, trades);
+    if (!covered.length) return null;
+    validateTrades(cash, covered);
     return cash;
   } catch { return null; }
 }
@@ -44,7 +51,8 @@ export function readBrokerCashEvidence(trades: readonly Trade[], owner: string):
     const raw = localStorage.getItem(key(normalized(owner), trades[0].source.accountId));
     if (!raw || raw.length > 2097152) return null;
     const saved = JSON.parse(raw);
-    return saved.fingerprint === fingerprint(trades) ? verifyBrokerCash(saved.cash, trades) : null;
+    const cash = verifyBrokerCash(saved.cash, trades);
+    return cash && saved.fingerprint === fingerprint(cashWindowTrades(cash, trades)) ? cash : null;
   } catch { return null; }
 }
 export function saveBrokerCash(owner: string, account: string, value: unknown, trades: Trade[]) {

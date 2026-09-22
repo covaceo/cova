@@ -3,8 +3,12 @@ import type { Trade } from './risk';
 export type RecapFees = { signedCents: string; netCashCents: string; asOf: string };
 /** Account-window cash, never per-trade fee allocation. Caller validates the full ledger. */
 export function recapCashFees(cash: Cash | null, rows: readonly Trade[], window: { start: number; end: number }): RecapFees | null {
-  if (!cash || !rows.length || window.start < Date.parse(cash.window.startDate) || window.end > Date.parse(cash.window.endDate) || window.end > Date.parse(cash.asOf)) return null;
-  const inside = (at: string | undefined) => Boolean(at && Date.parse(at) >= window.start && Date.parse(at) < window.end);
+  if (!cash || !rows.length || window.start < Date.parse(cash.window.startDate) || window.end > Date.parse(cash.window.endDate)) return null;
+  // A trader can finish before the clock window closes. Use only reconciled
+  // postings through the sync, inclusive of its exact timestamp, never future rows.
+  const end = Math.min(window.end, Date.parse(cash.asOf) + 1);
+  if (end <= window.start) return null;
+  const inside = (at: string | undefined) => Boolean(at && Date.parse(at) >= window.start && Date.parse(at) < end);
   if (rows.some(row => row.source?.provider !== 'Tradovate' || !inside(row.source.openedAt) || !inside(row.source.closedAt))) return null;
   const entries = cash.entries.filter(entry => inside(entry.at));
   // Performance reports retain the market root, not expiry or cash transaction IDs.
