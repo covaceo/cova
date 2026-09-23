@@ -24,7 +24,23 @@ export function buildEquityGeometry(input: EquityPoint[], measuredWidth = 680) {
     x: left + index / Math.max(1, values.length - 1) * (width - left - right),
     y: y(point.value),
   }));
-  const line = points.map((point, index) => `${index ? "L" : "M"}${point.x.toFixed(3)},${point.y.toFixed(3)}`).join(" ");
+  // Shape-preserving cubic interpolation. Flat tangents at reversals prevent
+  // invented peaks; harmonic-mean slopes keep each interval within its endpoints.
+  let line = `M${points[0].x},${points[0].y}`;
+  if (points.length === 2) line += ` L${points[1].x},${points[1].y}`;
+  else if (points.length > 2) {
+    const slopes = points.slice(1).map((point, i) => (point.y - points[i].y) / (point.x - points[i].x));
+    const tangents = points.map((_, i) => {
+      if (i === 0) return slopes[0];
+      if (i === points.length - 1) return slopes[i - 1];
+      const before = slopes[i - 1], after = slopes[i];
+      return before === 0 || after === 0 || Math.sign(before) !== Math.sign(after) ? 0 : 2 / (1 / before + 1 / after);
+    });
+    for (let i = 1; i < points.length; i++) {
+      const a = points[i - 1], b = points[i], handle = (b.x - a.x) / 3;
+      line += ` C${a.x + handle},${a.y + tangents[i - 1] * handle} ${b.x - handle},${b.y - tangents[i] * handle} ${b.x},${b.y}`;
+    }
+  }
   const area = `${line} L${points[points.length - 1].x},${y(0)} L${left},${y(0)} Z`;
   const ticks = [max, (max + min) / 2, min].map(value => ({ value, y: y(value) }));
   return { width, height, left, right, top, bottom, min, max, points, line, area, ticks, zeroY: y(0) };

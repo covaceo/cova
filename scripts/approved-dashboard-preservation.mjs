@@ -10,7 +10,7 @@ const baseline = {
     "src/lib/journalAccuracy.ts": "c688e6ef2228dfa272da1a075c7c2c0f740984f83df81de575490760261d827b",
     "src/lib/storageScope.ts": "3cd9c57c38bb10e9f7b61776f00422ab9590bdebd1d0e458eba5a33cc676e183",
     "src/lib/accountNames.ts": "e056578556c6ac10faeee8ed5a47b08a2b91b9327be0dd3216906db0cdc30501",
-    "src/lib/dashboardPresentation.ts": "b97eafd5bda2d9130f807d61c1d8268dffc8c52e5a845376102488da397e454d",
+    "src/lib/dashboardPresentation.ts": "7923ce5a87c1eea620fe2956345d03820791ec4d5700ec07f84eb9779b36a4ef",
     "src/lib/dashboardReviewState.ts": "9e1693082021edf780c6c78dc659e9170a627817a81120e1d9997b7f68cd789f",
     "src/components/DashboardTradeDialog.tsx": "302d1c3851169baadf76180225e607254f09e340b447384f52e2322ac3d8752a",
     "src/components/TradeAccountSelect.tsx": "a2bb1e76714dbf41633c145b5d61d6f5468d2b11166097bbdf9633d9d8cc8678",

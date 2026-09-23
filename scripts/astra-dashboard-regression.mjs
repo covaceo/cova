@@ -177,6 +177,6 @@ test('Astra equity preserves every closed-trade value, including losses and the 
   assert.equal(chart.points.at(-1).x,chart.width-chart.right);
   assert.ok(chart.min<=-200 && chart.max>=1640);
   assert.ok(chart.points.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)&&p.y>=chart.top&&p.y<=chart.height-chart.bottom));
-  assert.equal((chart.line.match(/L/g)||[]).length,input.length-1,'No point decimation or fabricated smoothing');
+  assert.equal((chart.line.match(/C/g)||[]).length,input.length-1,'One bounded curved interval per real observation; no point decimation');
   assert.ok(!/NaN|Infinity/.test(chart.line+chart.area));
 });

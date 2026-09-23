@@ -87,7 +87,7 @@
 .astra-chart-svg { display:block; width:100%; height:auto; min-height:225px; max-height:295px; overflow:visible; }
 .astra-chart-svg text { fill:#96a3bc; font:500 9px var(--astra-mono); text-transform:uppercase; }
 .astra-chart-grid { stroke:#2b3545; stroke-width:.65; }.astra-chart-vertical { stroke:#222b3a; stroke-dasharray:2 5; }.astra-chart-zero { stroke:#59647a; stroke-dasharray:4 4; stroke-width:.6; }
-.oa-dashboard-app .astra-dashboard .astra-curve { stroke:#4f7dff!important; stroke-width:2; fill:none; filter:none; }
+.oa-dashboard-app .astra-dashboard .astra-curve { stroke:var(--astra-equity-accent,#4f7dff)!important; stroke-width:2; fill:none; filter:none; }
 .astra-crosshair { stroke:#a4bcec; stroke-width:.7; stroke-dasharray:3 4; }
 .astra-chart-tooltip { position:absolute; z-index:2; transform:translateX(-50%); display:flex; flex-direction:column; gap:5px; width:175px; max-width:80%; padding:11px 13px; border:1px solid #405273; border-radius:5px; background:#151d2c; color:#e0eaff; pointer-events:none; box-shadow:0 8px 24px #0006; }
 .astra-chart-tooltip span,.astra-chart-tooltip small { color:#acbad2; font:9px/1.5 var(--astra-mono); }.astra-chart-tooltip strong { font:500 22px var(--astra-display); }
