@@ -167,7 +167,7 @@ function DashboardStats({ analysis, cash, tradovateOnly, detailsOnly = false }: 
     { id: "drawdown", label: "Max drawdown", value: signedMoney(-analysis.maxDrawdown), detail: "Closed-trade peak to trough", negative: analysis.maxDrawdown > 0 },
   ];
   return detailsOnly ? <dl className="astra-metric-explanations">{cells.map(cell => <div data-metric={cell.id} key={cell.id}><dt>{cell.label}</dt><dd className="astra-stat-detail">{cell.detail}</dd></div>)}</dl> : <div className="astra-stat-strip">
-    <div className="astra-stat-basis">{tradovateOnly ? "Before fees" : ""}</div>
+
     {cells.map(cell => <div className="astra-stat-cell" data-astra-stat={cell.id} key={cell.id}>
       <div className="astra-stat-label">{cell.label}{cell.id === 'pnl' && net && <span className="astra-net-basis">Fees included</span>}</div>
       <div className={`astra-stat-value ${cell.negative ? "astra-negative" : ""}`}>{cell.value}</div>

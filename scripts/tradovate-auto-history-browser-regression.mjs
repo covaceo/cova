@@ -135,7 +135,7 @@ assert.equal(await evaluate(`document.querySelector('[data-account-switcher]').g
 assert.equal(await evaluate(`Boolean(document.querySelector('.astra-reference-header [data-account-switcher]'))`),true,'Same account control lives in approved header');
 assert.equal(await evaluate(`document.querySelectorAll('[aria-label="Trade account"]').length`),1,'One authoritative account selector');
 assert.equal(await evaluate(`parseFloat(getComputedStyle(document.querySelector('[data-astra-stat="pnl"] .astra-stat-value')).fontSize)>parseFloat(getComputedStyle(document.querySelector('[data-astra-stat="win-rate"] .astra-stat-value')).fontSize)`),true,'Reference gives profit primary hierarchy');
-assert.equal(await evaluate(`Boolean(document.querySelector('.astra-stat-basis'))`),true,'Gross trade stats are visibly separated from net');
+assert.equal(await evaluate(`Boolean(document.querySelector('.astra-stat-basis'))`),false,'No extra before-fees label beneath wins/losses');
 await evaluate(`document.querySelector('.astra-data-details summary').click()`);
 assert.match(await evaluate(`document.querySelector('[data-cash-coverage]').innerText`),/Funding excluded/);
 await evaluate(`document.querySelector('.astra-data-details summary').click()`);

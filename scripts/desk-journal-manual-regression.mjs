@@ -16,6 +16,15 @@ test('Risk Desk offers a compact usable journal, Add trade and only wins/losses 
  assert.match(html, /class="astra-trade-actions"><button[^>]*astra-add-trade[^>]*>Add trade<\/button><button[^>]*astra-import-action/, 'Add trade directly precedes Import in one nonwrapping action group');
 });
 
+test('Tradovate wins and losses omit the standalone before-fees label',()=>{
+ const source={provider:'Tradovate',accountId:'71',openedAt:'2026-09-18T12:00:00.000Z',closedAt:'2026-09-18T12:05:00.000Z',timeZone:'UTC',pnlBasis:'gross_before_fees'};
+ const trades=[100,-50].map((pnl,i)=>({...sampleTrades[0],id:`tradovate-71:${10+i}:${20+i}`,date:'2026-09-18',pnl,source}));
+ const html=renderToStaticMarkup(React.createElement(Dashboard,{analysis:analyze(trades,defaultRules),rules:defaultRules,go:()=>{}}));
+ assert.match(html,/1 win · 1 loss/);
+ assert.doesNotMatch(html,/astra-stat-basis/);
+ assert.match(html,/Individual trade statistics remain gross/, 'Existing review details retain accounting basis');
+});
+
 test('attached trade detail reopens one complete saved entry including its partial exits',()=>{
  const {TradeHistoryDialog}=load('src/components/TradeHistoryDialog.tsx');
  const source={provider:'Tradovate',accountId:'71',openedAt:'2026-09-18T12:00:00Z',closedAt:'2026-09-18T12:05:00Z',timeZone:'UTC',pnlBasis:'gross_before_fees'};
