@@ -12,7 +12,7 @@ function dateLabel(value: string) {
 
 export function AstraEquityCurve({ points, basis = "trades", accountPnlCents = null }: { points: Point[]; basis?: "trades" | "daily-net"; accountPnlCents?: number | null }) {
   const dailyNet = basis === "daily-net";
-  const result = Number.isSafeInteger(accountPnlCents) ? accountPnlCents : null;
+  const result = Number.isSafeInteger(accountPnlCents) ? Math.round((points[points.length - 1]?.value ?? 0) * 100) : null;
   const tone = result === null || result === 0 ? "neutral" : result < 0 ? "loss" : "profit";
 
   const svgRef = useRef<SVGSVGElement>(null);
@@ -33,10 +33,9 @@ export function AstraEquityCurve({ points, basis = "trades", accountPnlCents = n
   useEffect(() => { setSelected(null); setPinned(false); }, [points]);
   const active = selected === null ? null : chart.points[Math.min(selected, chart.points.length - 1)];
   const last = chart.points[chart.points.length - 1];
-  // Visible ranges are rebased, but historical account state must not be.
-  // The caller supplies the full-history ending result on this exact plot basis.
-  const offsetCents = result === null ? null : result - Math.round(last.value * 100);
-  const historicalCents = (value: number) => offsetCents === null ? null : offsetCents + Math.round(value * 100);
+  // Color and axis share the selected range's displayed $0 P&L baseline.
+  // Account evidence gates availability only; older profits cannot recolor this range.
+  const historicalCents = (value: number) => result === null ? null : Math.round(value * 100);
   const pointAccent = (value: number) => {
     const cents = historicalCents(value);
     return cents === null || cents === 0 ? "#4f7dff" : cents < 0 ? "#e57c89" : "#52c79a";
@@ -44,7 +43,7 @@ export function AstraEquityCurve({ points, basis = "trades", accountPnlCents = n
   const hasLoss = chart.points.some(point => (historicalCents(point.value) ?? 0) < 0);
   const hasProfit = chart.points.some(point => (historicalCents(point.value) ?? 0) > 0);
   const historyTone = hasLoss && hasProfit ? "split" : hasLoss ? "loss" : hasProfit ? "profit" : "neutral";
-  const boundary = Math.max(0, Math.min(1, (chart.max + (offsetCents ?? 0) / 100) / (chart.max - chart.min)));
+  const boundary = Math.max(0, Math.min(1, chart.max / (chart.max - chart.min)));
   const historicalAccent = historyTone === "loss" ? "#e57c89" : historyTone === "profit" ? "#52c79a" : "#4f7dff";
   const linePaint = historyTone === "split" ? `url(#${gradient}-line)` : historicalAccent;
   const selectedDelta = active ? (Math.round(active.value * 100) - Math.round((chart.points[(selected ?? 0) - 1]?.value ?? 0) * 100)) / 100 : 0;
@@ -68,7 +67,7 @@ export function AstraEquityCurve({ points, basis = "trades", accountPnlCents = n
   }
   return <div className="astra-chart-main" data-equity-tone={tone} data-equity-history={historyTone} style={{ "--astra-equity-accent": linePaint } as CSSProperties} data-chart-selected={selected ?? ""} data-chart-pinned={pinned}>
     <svg ref={svgRef} className="astra-chart-svg" style={{ touchAction: "pan-y" }} viewBox={`0 0 ${chart.width} ${chart.height}`} role="img" tabIndex={0}
-      aria-label={`${dailyNet ? "Daily cumulative net P&L" : "Cumulative reported P&L equity curve"}, ending ${money(last.value)}. Curve interpolated between recorded results. ${result === null ? "Account color unavailable." : "Red below the loaded account starting baseline at that point; green above. Dots mark recorded results."} Arrow keys explore ${dailyNet ? "days" : "trades"}, Enter pins a point, Escape clears.`}
+      aria-label={`${dailyNet ? "Daily cumulative net P&L" : "Cumulative reported P&L equity curve"}, ending ${money(last.value)}. Curve interpolated between recorded results. ${result === null ? "Account color unavailable." : "Red below the displayed zero P&L baseline for the selected range; green above. Dots mark recorded results."} Arrow keys explore ${dailyNet ? "days" : "trades"}, Enter pins a point, Escape clears.`}
       onKeyDown={onKeyDown} onPointerMove={event => { if (!pinned) setSelected(pointIndex(event)); }} onPointerLeave={() => { if (!pinned) setSelected(null); }}
       onClick={event => { const index = pointIndex(event); setSelected(index); setPinned(selected === index ? !pinned : true); }}>
       <defs>

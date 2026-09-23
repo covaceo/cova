@@ -7,14 +7,17 @@ const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const read = (...parts) => readFileSync(join(root, ...parts), "utf8");
 const dashboardCss = read("src", "styles", "dashboardOaDark.css");
 const dashboardView = read("src", "components", "DashboardView.tsx");
+const review = read("src", "components", "OaDisciplineReview.tsx");
+const reviewCss = read("src", "styles", "deskJournal.css");
+const miniJournal = read("src", "components", "MiniJournal.tsx");
 const dashboardCards = read("src", "components", "DashboardCards.tsx");
 const dashboardBriefs = read("src", "components", "DashboardBriefs.tsx");
 const workspaceShell = read("src", "components", "WorkspaceShell.tsx");
 const main = read("src", "main.tsx");
 // The approved equity-only green exception is explained in prose, not a new dashboard palette token.
-const equityColorExplanation = 'Curve color shows the account at each recorded point: red below its loaded-history starting baseline, green above. Date filters retain earlier P&amp;L. Colors use the plotted gross/reported or reconciled daily-net basis, not drawdown from a previous peak.';
+const equityColorExplanation = 'Curve color follows the selected range: red below the displayed $0 P&amp;L line, green above. Colors use the plotted gross/reported or reconciled daily-net basis, not earlier account profits or drawdown from a previous peak.';
 assert.ok(dashboardView.includes(equityColorExplanation), 'Historical chart color semantics remain explicit in Data details');
-const liveDashboardSource = [dashboardView.replace(equityColorExplanation, ''), dashboardCards, dashboardBriefs, workspaceShell].join("\n");
+const liveDashboardSource = [dashboardView.replace(equityColorExplanation, ''), dashboardCards, dashboardBriefs, workspaceShell, review, miniJournal].join("\n");
 
 function parseCssColor(input) {
   const value = input.trim().toLowerCase();
@@ -115,8 +118,8 @@ assert.doesNotMatch(liveDashboardSource, /(?:emerald|green|copper|mint)|#18c887|
 
 assert.match(dashboardCss, /\.dashboard-equity-path\s*\{[^}]*stroke:\s*var\(--oa-primary\)/s, "The dashboard equity line must use cobalt primary");
 assert.match(dashboardCss, /\.dashboard-summary-cell strong\.positive\s*\{[^}]*color:\s*var\(--oa-positive\)/s, "Positive summary states must use the non-green cobalt treatment");
-assert.match(dashboardCss, /\.dashboard-review-status-ready\s*\{[^}]*color:\s*var\(--oa-positive\)/s, "Ready review state must use the non-green cobalt treatment");
-assert.match(dashboardCss, /\.dashboard-summary-actions \.dashboard-summary-primary\s*\{[^}]*background:[^;]*var\(--oa-primary\)/s, "The primary dashboard action must use cobalt");
+assert.ok(review.includes("factor.impact === 'positive' ? 'astra-positive'"), "Positive review evidence retains the non-chart cobalt semantic class");
+assert.match(reviewCss, /background:color-mix\(in srgb,var\(--review-ink,#e0e8f5\) 7%,transparent\)/, "Approved OA review actions use quiet ink-derived surfaces rather than a second filled primary CTA");
 assert.match(dashboardCss, /color-scheme:\s*dark/, "Dashboard must remain dark-only");
 assert.doesNotMatch(dashboardCss, /prefers-color-scheme|color-scheme:\s*light/i, "Dashboard must not add a light or automatic OS theme branch");
 assert.match(main, /cobaltMarket\.css[\s\S]*dashboardOaDark\.css/, "The dashboard-only OA layer must remain last after the product-wide Cobalt Market layer");

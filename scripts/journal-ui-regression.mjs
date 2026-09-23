@@ -12,7 +12,7 @@ test('history and note detail disclose row evidence and preserve cent-precise so
   assert.match(html, /matched fill row/);
   const source = readFileSync('src/components/TradeHistoryDialog.tsx','utf8');
   assert.match(source, /<JournalHeadlineStats journal=\{journal\}/);
-  assert.match(source, /journalSummary\(trades\)/);
+  assert.match(source, /journalSummary\(groups\.flatMap\(group => group\.rows\)\)/);
   assert.match(source, /JournalEntryRow/);
   assert.match(readFileSync('src/components/JournalEntryRow.tsx','utf8'), /rowMoneyText\(row, value\)/);
   const { rowMoneyText } = load('src/lib/journalAccuracy.ts');
@@ -117,7 +117,7 @@ test('ordinary dashboard remains available while the owner tests the accuracy re
   const { analyze, defaultRules } = load('src/lib/risk.ts');
   const html = renderToStaticMarkup(React.createElement(Dashboard,{analysis:analyze([tradeFixture()],defaultRules),rules:defaultRules,go:()=>{}}));
   assert.match(html,/Max drawdown/);
-  assert.match(html,/Next review/);
+  assert.match(html,/Review details/);
   assert.doesNotMatch(html,/data-journal-accuracy/);
 });
 
@@ -132,7 +132,9 @@ test('actual dashboard uses unavailable completed metrics and nonnumeric discipl
   assert.match(html, /insufficient evidence/i);
   assert.match(html, /2 (raw|matched) rows/);
   assert.match(html, /Fees unknown/);
-  assert.match(html, /Synthetic note/);
+  assert.match(html, /aria-label="Journal note"/);
+  const { DashboardTradeDialog } = load("src/components/DashboardTradeDialog.tsx");
+  assert.match(renderToStaticMarkup(React.createElement(DashboardTradeDialog,{trade:trades[0],onClose:()=>{},journalReview:true})),/Trade journal note/,"Existing per-trade notes retain their own detail editor; mounted values are browser-tested");
   assert.doesNotMatch(html, /Max drawdown|Cova Score|Strong risk discipline|Risk needs attention|closed trades|completed trade<|Size increased after/i);
   assert.equal((html.match(/data-recent-trade=/g)||[]).length,2);
 });

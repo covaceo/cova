@@ -10,6 +10,7 @@ export type Trade = {
   risk: number;
   setup: string;
   notes: string;
+  manual?: { accountKey: string; currency: "USD"; pnlBasis: "gross_before_fees" };
   source?:
     | {
         provider: "Rithmic";

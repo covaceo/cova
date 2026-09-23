@@ -8,6 +8,7 @@ export function recentHistoryWindow(now = new Date()) {
   return { startDate: new Date(end - 30 * 86400000).toISOString().slice(0, 10), endDate: new Date(end).toISOString().slice(0, 10) };
 }
 export function tradeAccountKey(trade: Trade) {
+  if (trade.manual && !trade.source) return trade.manual.accountKey;
   return trade.source?.provider === "Rithmic" ? `Rithmic:${trade.source.accountKey}:${trade.source.accountId}` : trade.source ? `Tradovate:${trade.source.accountId}` : "local";
 }
 export function filterTradeAccount(trades: Trade[], selected: string) {

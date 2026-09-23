@@ -10,6 +10,8 @@ const read = (...parts) => readFileSync(join(root, ...parts), "utf8");
 const workspace = read("src", "components", "WorkspaceShell.tsx");
 const navbar = read("src", "components", "Navbar.tsx");
 const dashboard = read("src", "components", "DashboardView.tsx");
+const review = read("src", "components", "OaDisciplineReview.tsx");
+const reviewCss = read("src", "styles", "deskJournal.css");
 const dashboardCards = read("src", "components", "DashboardCards.tsx");
 const dashboardReviewState = read("src", "lib", "dashboardReviewState.ts");
 const app = read("src", "App.tsx");
@@ -53,8 +55,9 @@ assert.match(dashboard, /<h1[^>]*>Risk Desk<\/h1>/, "dashboard must use Raf’s 
 assert.match(dashboard, /dashboard-range-controls/, "dashboard must expose visible review-range controls");
 assert.match(dashboard, /astra-stat-strip/, "dashboard must lead with the approved four-cell financial strip");
 assert.match(dashboard, /astra-desk-grid/, "dashboard must use the approved Astra chart and discipline composition");
-assert.match(dashboard, /dashboard-review-row/, "dashboard must place the next-session review in a full-width lower row");
-assert.match(dashboard, /getDashboardSummaryAction\(analysis\)/, "dashboard summary action must be derived from the selected review state");
+assert.match(dashboard, /<OaDisciplineReview/);
+assert.match(review, /oa-next-review/, "Next review evidence stays available in the consolidated review dialog");
+assert.match(review, /getDashboardSummaryAction\(analysis\)/, "dashboard summary action must be derived from the selected review state");
 assert.match(dashboardReviewState, /if \(!analysis\.trades\.length\) return \{ label: "Add trade history", target: "import" \};/, "an empty review must offer trade-history import rather than claim warnings exist");
 assert.match(dashboardReviewState, /if \(analysis\.breaches\.length\) return \{ label: "Review warnings", target: "rules" \};/, "configured rule breaches must remain routed to Limits");
 assert.match(dashboardReviewState, /if \(getActionableReviewCount\(analysis\)\) return \{ label: "Review warnings", target: "coach" \};/, "behavior warnings and caution states must route to Insights");
@@ -116,7 +119,7 @@ assert.match(visualSystem, /\.workspace-sidebar\s*\{[^}]*border-radius:\s*0;/s, 
 assert.match(visualSystem, /\.workspace-sidebar-group-label/, "workspace rail group labels must have an explicit restrained style");
 assert.match(visualSystem, /\.dashboard-summary-strip/, "dashboard summary strip must have a dedicated continuous-grid style");
 assert.match(visualSystem, /\.dashboard-instrument-grid/, "dashboard instrument grid must have a dedicated layout contract");
-assert.match(visualSystem, /\.dashboard-review-row/, "dashboard review row must have a dedicated full-width style");
+assert.match(reviewCss, /\.oa-review-dialog/, "Consolidated review has a dedicated scroll-safe OA surface");
 const activeStateCss = dashboardPreviewCss.slice(
   dashboardPreviewCss.indexOf(".operator-workspace .workspace-sidebar-link-active {"),
   dashboardPreviewCss.indexOf(".operator-workspace .workspace-sidebar-empty"),

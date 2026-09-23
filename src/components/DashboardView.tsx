@@ -1,17 +1,20 @@
-import { ArrowRight, ArrowUpRight, BookOpen, CalendarDays, ChevronDown, Database, FileText, FileUp, TriangleAlert } from "lucide-react";
+import { ArrowUpRight, ChevronDown, FileText, FileUp } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { analyze, type RiskRule, type Trade } from "../lib/risk";
-import { getActionableReviewCount, getDashboardSummaryAction } from "../lib/dashboardReviewState";
+
 import { journalSummary, moneyText, rowMoneyText, journalReviewEnabled } from "../lib/journalAccuracy";
 import { JournalHeadlineStats, JournalDisciplineReview } from "./JournalAccuracyPanels";
 import { TradeAverageStats } from "./TradeAverageStats";
 import { getTradeSourceLabel } from "../lib/tradeSourceLabel";
-import { FlagStack } from "./DashboardCards";
+
 import { RithmicAttribution } from "./RithmicAttribution";
 import { AstraEquityCurve } from "./AstraEquityCurve";
 import { accountEquityPnlCents } from "../lib/equityCurveState";
 import { DashboardTradeDialog } from "./DashboardTradeDialog";
 import { TradeHistoryDialog } from "./TradeHistoryDialog";
+import { OaDisciplineReview } from "./OaDisciplineReview";
+import { MiniJournal, type JournalActions } from "./MiniJournal";
+import { ManualTradeDialog, type AddManualTrade } from "./ManualTradeDialog";
 import { SessionRecapAction } from "./SessionRecapComposer";
 import { brokerCashSummary, type CashSummary } from '../lib/brokerCash';
 import { signedMoney } from "../lib/dashboardPresentation";
@@ -28,7 +31,12 @@ const rangeOptions: { id: TimeRange; label: string }[] = [
   { id: "all", label: "All trades" },
 ];
 
-export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, onSaveTradeNote, journalReview = journalReviewEnabled(), accountControl }: {
+export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, onSaveTradeNote, journalReview = journalReviewEnabled(), accountControl, journalActions, onAddManualTrade, onDeleteManualTrade, manualAccounts = ["local"], selectedAccount = "local" }: {
+  journalActions?: JournalActions;
+  onAddManualTrade?: AddManualTrade;
+  onDeleteManualTrade?: (id: string) => boolean;
+  manualAccounts?: string[];
+  selectedAccount?: string;
   journalReview?: boolean;
   accountControl?: ReactNode;
   analysis: Analysis; rules: RiskRule[]; go: (section: Section) => void; rithmicSyncAvailable?: boolean;
@@ -37,6 +45,8 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, o
   const [range, setRange] = useState<TimeRange>(() => readDashboardRange());
   const [selectedTradeId, setSelectedTradeId] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [attachedTradeId, setAttachedTradeId] = useState<string | null>(null);
+  const [manualOpen, setManualOpen] = useState(false);
   const noteSaveRef = useRef(onSaveTradeNote);
   function openTrade(id: string) {
     noteSaveRef.current = onSaveTradeNote;
@@ -53,7 +63,7 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, o
   const sourceLabel = getTradeSourceLabel(scopedAnalysis.trades);
   const hasTradeHistory = analysis.trades.length > 0;
   const recentTrades = scopedAnalysis.trades.slice(-4).reverse();
-  const journalTrade = [...scopedAnalysis.trades].reverse().find(trade => typeof trade.notes === "string" && trade.notes.trim());
+
   const selectedTrade = analysis.trades.find(trade => trade.id === selectedTradeId) ?? null;
 
   function manageSource() {
@@ -72,9 +82,13 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, o
       <div className="astra-header-title"><h1>Risk Desk</h1></div>
       <div className="astra-header-controls">
         {accountControl}
+
         {hasTradeHistory && <SessionRecapAction trades={analysis.trades} />}
-        {hasTradeHistory && <span className="astra-date-range"><CalendarDays aria-hidden="true" />{dateRangeLabel(scopedAnalysis.trades)}</span>}
-        <button className="astra-button astra-import-action" onClick={manageSource} type="button"><FileUp aria-hidden="true" />{hasRithmicSource ? "Update trades" : "Import trades"}</button>
+
+        <div className="astra-trade-actions">
+          {onAddManualTrade && <button className="astra-button astra-add-trade" type="button" onClick={() => setManualOpen(true)}>Add trade</button>}
+          <button className="astra-button astra-import-action" onClick={manageSource} type="button"><FileUp aria-hidden="true" />{hasRithmicSource ? "Update trades" : "Import trades"}</button>
+        </div>
       </div>
       <div className="astra-header-meta">
 
@@ -85,7 +99,8 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, o
             {tradovateOnly && <p data-cash-coverage>{netCash ? `Broker cash movements · ${netCash.startDate} to ${netCash.endDate} exclusive, UTC · Synced ${new Date(netCash.asOf).toLocaleString()}. Funding excluded. Fees are not allocated to individual trades; win rate, trade statistics and discipline remain before fees.` : cash.status === 'unavailable' ? cash.reason : 'Account review uses gross trade results.'}</p>}
             {hasTradeHistory && !journalReview && <DashboardStats analysis={scopedAnalysis} cash={cash} tradovateOnly={tradovateOnly} detailsOnly />}
             {hasTradeHistory && !journalReview && <TradeAverageStats trades={analysis.trades} selectedTrades={scopedTrades} detailsOnly />}
-            {hasTradeHistory && <p>Curve color shows the account at each recorded point: red below its loaded-history starting baseline, green above. Date filters retain earlier P&amp;L. Colors use the plotted gross/reported or reconciled daily-net basis, not drawdown from a previous peak.</p>}
+            {analysis.trades.some(trade=>trade.manual) && <p>Manual entries are self-reported gross USD results, not broker-verified records. Combined results do not include reconciled account fees. Remove a manual copy if that trade imports later.</p>}
+            {hasTradeHistory && <p>Curve color follows the selected range: red below the displayed $0 P&amp;L line, green above. Colors use the plotted gross/reported or reconciled daily-net basis, not earlier account profits or drawdown from a previous peak.</p>}
             {hasTradeHistory && <p>{netCash ? "Daily cumulative · USD · UTC" : "Cumulative gross / reported P&L from the selected trade history."}</p>}
           </div>
         </details>
@@ -104,6 +119,7 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, o
 
       {hasRithmicSource && <div className="dashboard-attribution-row"><RithmicAttribution compact /></div>}
       <div className="astra-desk-grid">
+        <div className="astra-desk-column astra-desk-main">
         <section className="astra-panel astra-chart-panel" aria-labelledby="astra-equity-title">
           <div className="astra-panel-heading">
             <div><h2 id="astra-equity-title">{netCash ? "Net P&L curve" : "Equity curve"}</h2></div>
@@ -114,36 +130,35 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, o
           {journalReview && journal.money.status !== 'available' ? <p className="astra-mini-note">{journal.money.reason}</p> : <AstraEquityCurve accountPnlCents={accountEquityPnlCents(analysis.trades, netCash ? (range === "all" ? cash : brokerCashSummary(analysis.trades, "all")) : { status: "unavailable", reason: "Reported trade basis" })} basis={netCash ? "daily-net" : "trades"} points={netCash ? netCash.points : journalReview && journal.money.status === 'available' ? journal.money.equityPoints : scopedAnalysis.equityPoints} />}
           <div className="astra-chart-note"><span>{netCash ? "Daily · USD" : tradovateOnly ? "Gross P&L" : "Reported P&L"}</span><span data-dashboard-trade-count={journalReview ? scopedTrades.length : scopedAnalysis.tradeCount}>{journalReview ? scopedTrades.length : scopedAnalysis.tradeCount} {journalReview ? `matched rows · ${journal.money.status === 'available' ? moneyText(journal.money.totalCents) : 'Unavailable'}` : 'trades'}</span></div>
         </section>
-        {journalReview ? <JournalDisciplineReview journal={journal} rules={rules} onRules={() => go('rules')} /> : <DisciplineReview analysis={scopedAnalysis} go={go} />}
-      </div>
-      <div className="astra-desk-bottom">
         <section className="astra-panel astra-recent-trades" aria-labelledby="astra-recent-title">
-          <div className="astra-panel-heading"><div><h2 id="astra-recent-title"><FileText aria-hidden="true" />Recent trades</h2></div><button className="astra-text-link" onClick={() => setHistoryOpen(true)} type="button">View all <ArrowUpRight aria-hidden="true" /></button></div>
+          <div className="astra-panel-heading"><div><h2 id="astra-recent-title"><FileText aria-hidden="true" />Recent trades</h2></div><button className="astra-text-link" onClick={() => { setAttachedTradeId(null); setHistoryOpen(true); }} type="button">View all <ArrowUpRight aria-hidden="true" /></button></div>
           <div className="astra-table-scroll"><table className="astra-trade-table"><thead><tr><th scope="col">Market</th><th scope="col">Side</th><th scope="col">Reported P&amp;L</th></tr></thead><tbody>
             {recentTrades.map(trade => <tr data-recent-trade={trade.id} key={trade.id}>
-              <td><button type="button" className="astra-trade-link" onClick={() => openTrade(trade.id)} aria-label={`Review ${trade.market} trade from ${trade.date}`}><span className="astra-symbol" aria-hidden="true">{trade.market.slice(0, 2)}</span><span>{trade.market}</span></button></td>
+              <td><button type="button" className="astra-trade-link" onClick={() => openTrade(trade.id)} aria-label={`Review ${trade.market} trade from ${trade.date}`}><span className="astra-symbol" aria-hidden="true">{trade.market.slice(0, 2)}</span><span>{trade.market}{trade.manual && <small className="astra-manual-tag">Manual</small>}</span></button></td>
               <td>{trade.side}</td><td className={trade.pnl < 0 ? "astra-negative" : "astra-positive"}>{journalReview ? rowMoneyText(trade, trade.pnl) : signedMoney(trade.pnl, true)}</td>
             </tr>)}
           </tbody></table></div>
         </section>
-        <section className="astra-panel astra-journal" aria-labelledby="astra-journal-title">
-          <div className="astra-panel-heading"><h2 id="astra-journal-title"><BookOpen aria-hidden="true" />Journal</h2></div>
-          <div className="astra-mini-note">
-            {journalTrade ? <><div className="astra-note-date">{shortDate(journalTrade.date)} / {journalTrade.market} trade note</div><h3>{journalTrade.setup || "Your latest note."}</h3><p className="astra-note-excerpt">“{journalTrade.notes}”</p><button className="astra-text-link" onClick={() => openTrade(journalTrade.id)} type="button">Open trade note <ArrowRight aria-hidden="true" /></button></> : <><FileText className="astra-journal-empty-icon" aria-hidden="true" /><p>No notes yet.</p>{recentTrades[0] && <button className="astra-text-link" onClick={() => openTrade(recentTrades[0].id)} type="button">Add a trade note <ArrowRight aria-hidden="true" /></button>}</>}
-          </div>
-        </section>
+        </div>
+        <div className="astra-desk-column astra-desk-side">
+        {journalReview ? <JournalDisciplineReview journal={journal} rules={rules} onRules={() => go('rules')} /> : <DisciplineReview analysis={scopedAnalysis} go={go} />}
+        <MiniJournal initialDate={scopedAnalysis.trades[scopedAnalysis.trades.length - 1]?.date || new Date().toLocaleDateString("en-CA")} actions={journalActions} trades={analysis.trades} onOpenTrade={id => { setAttachedTradeId(id); setHistoryOpen(true); }} />
+        </div>
       </div>
-      {!journalReview && <details className="astra-review-details"><summary><span>Next review</span><ChevronDown aria-hidden="true" /></summary><DashboardReviewRow analysis={scopedAnalysis} go={go} /></details>}
+
     </>}
-    <footer className="astra-dashboard-footer"><span>Retrospective review only. No live brokerage execution.</span><div className="dashboard-summary-actions"><button className="astra-text-link" onClick={manageSource} type="button">{hasRithmicSource ? "Update trades" : "Manage source"}<ArrowUpRight aria-hidden="true" /></button></div></footer>
-    {historyOpen && <TradeHistoryDialog trades={analysis.trades} journalReview={journalReview} onClose={() => setHistoryOpen(false)} />}
-    <DashboardTradeDialog journalReview={journalReview} trade={selectedTrade} onClose={() => setSelectedTradeId(null)} onSave={noteSaveRef.current} />
+    <footer className="astra-dashboard-footer"><span>Retrospective review only. No live brokerage execution.</span></footer>
+    {manualOpen && onAddManualTrade && <ManualTradeDialog accounts={manualAccounts} selected={selectedAccount} onSave={onAddManualTrade} onClose={() => setManualOpen(false)} />}
+    {!hasTradeHistory && <MiniJournal initialDate={new Date().toLocaleDateString("en-CA")} actions={journalActions} trades={analysis.trades} onOpenTrade={id => { setAttachedTradeId(id); setHistoryOpen(true); }} />}
+    {historyOpen && <TradeHistoryDialog attachedTradeId={attachedTradeId} trades={analysis.trades} journalReview={journalReview} onClose={() => setHistoryOpen(false)} />}
+    <DashboardTradeDialog journalReview={journalReview} trade={selectedTrade} onClose={() => setSelectedTradeId(null)} onSave={noteSaveRef.current} onDelete={onDeleteManualTrade} />
   </section>;
 }
 
 function DashboardStats({ analysis, cash, tradovateOnly, detailsOnly = false }: { analysis: Analysis; cash: CashSummary; tradovateOnly: boolean; detailsOnly?: boolean }) {
   const net = cash.status === 'available' ? cash : null;
   const wins = analysis.winningTradeCount;
+  const losses = analysis.entryGroups.filter(group => group.pnl < 0).length;
   const entries = analysis.entryGroups.some(group => group.entryIdentified);
   const cells = [
     { id: "pnl", label: net ? "Net cash P&L" : tradovateOnly ? "Gross P&L · fees unavailable" : "Reported P&L", value: signedMoney(net ? net.netCents / 100 : analysis.totalPnl), detail: net ? `${signedMoney(net.grossCents / 100)} gross · ${signedMoney(net.feeCents / 100)} fees` : `${analysis.tradeCount} ${entries ? 'trade entries · partial exits combined' : 'closed trades'}`, negative: (net ? net.netCents : analysis.totalPnl) < 0 },
@@ -156,32 +171,14 @@ function DashboardStats({ analysis, cash, tradovateOnly, detailsOnly = false }: 
     {cells.map(cell => <div className="astra-stat-cell" data-astra-stat={cell.id} key={cell.id}>
       <div className="astra-stat-label">{cell.label}{cell.id === 'pnl' && net && <span className="astra-net-basis">Fees included</span>}</div>
       <div className={`astra-stat-value ${cell.negative ? "astra-negative" : ""}`}>{cell.value}</div>
+      {cell.id === "win-rate" && <div className="astra-win-loss" data-win-loss>{wins} {wins === 1 ? "win" : "wins"} · {losses} {losses === 1 ? "loss" : "losses"}</div>}
 
     </div>)}
   </div>;
 }
 
 function DisciplineReview({ analysis, go }: { analysis: Analysis; go: (section: Section) => void }) {
-  const action = getDashboardSummaryAction(analysis);
-  const warningCount = getActionableReviewCount(analysis);
-  const flag = analysis.behaviorFlags.find(item => item.severity === "critical" || item.severity === "warning") ?? analysis.behaviorFlags[0];
-  return <section className="astra-panel astra-discipline" aria-labelledby="astra-discipline-title">
-    <div className="astra-panel-heading"><div><h2 id="astra-discipline-title"><FileText aria-hidden="true" />Discipline review</h2></div></div>
-    <div className="astra-score-row"><div className="astra-score-ring" aria-label={`Cova Score ${analysis.score} out of 100`}>
-      <svg viewBox="0 0 100 100" fill="none" aria-hidden="true"><circle cx="50" cy="50" r="43" stroke="#2c364b" strokeWidth="3" /><circle cx="50" cy="50" r="43" stroke="#8eafff" strokeWidth="3" pathLength="100" strokeDasharray={`${analysis.score} 100`} strokeLinecap="round" transform="rotate(-90 50 50)" /><circle cx="50" cy="50" r="36" stroke="#354159" strokeWidth=".5" strokeDasharray="1 4" /></svg>
-      <div><strong>{analysis.score}</strong><small>/100</small></div>
-    </div><div><strong>{analysis.score >= 80 ? "Strong risk discipline" : analysis.score >= 60 ? "Room to tighten." : "Risk needs attention."}</strong><p>{analysis.evidenceQuality.label}</p></div></div>
-
-    <button className="astra-warning-link dashboard-summary-primary" onClick={() => go(action.target)} type="button"><TriangleAlert aria-hidden="true" /><span><strong>{flag?.label || action.label}</strong><small>{action.label} <ArrowUpRight aria-hidden="true" /></small></span></button>
-    <details className="astra-evidence-details"><summary><span>Details</span><ChevronDown aria-hidden="true" /></summary><p>{warningCount} {warningCount === 1 ? "warning" : "warnings"}</p><p>{flag?.summary || analysis.evidenceQuality.summary}</p><p>{analysis.tradeCount} {analysis.entryGroups.some(group => group.entryIdentified) ? 'entries' : 'trades'} checked · {analysis.evidenceQuality.summary}</p><p>Evidence-based review. Not a trading permission.</p><div className="astra-factor-list">{analysis.scoreFactors.slice(0, 3).map(factor => <div key={factor.label}><span>{factor.label}</span><strong className={factor.impact === "negative" ? "astra-negative" : factor.impact === "positive" ? "astra-positive" : ""}>{factor.impact}</strong></div>)}</div><FlagStack analysis={analysis} onReviewRisk={() => go("rules")} /></details>
-  </section>;
-}
-
-function DashboardReviewRow({ analysis, go }: { analysis: Analysis; go: (section: Section) => void }) {
-  const brief = analysis.nextSessionBrief;
-  const watchItem = brief.watchlist[0] || "No active historical warning in this review.";
-  const status = brief.status === "ready" ? "Within limits" : brief.status === "locked" ? "Limit crossed" : "Needs review";
-  return <section className="dashboard-review-row"><header><div><h2>Next review</h2><p>One concise handoff from this trade history.</p></div><button onClick={() => go("coach")} type="button">Open insights <ArrowUpRight aria-hidden="true" /></button></header><div className="dashboard-review-grid"><div><span>Focus</span><strong>{brief.headline}</strong></div><div><span>Evidence</span><strong>{watchItem}</strong></div><div><span>Review boundary</span><strong>Retrospective analysis only</strong></div><div><span>Status</span><strong className={`dashboard-review-status dashboard-review-status-${brief.status}`}>{status}</strong></div></div><p className="dashboard-review-disclosure"><Database aria-hidden="true" />No live orders, broker controls, or future-result prediction.</p></section>;
+  return <OaDisciplineReview analysis={analysis} go={go} />;
 }
 
 
@@ -189,10 +186,7 @@ function shortDate(date: string) {
   const parsed = new Date(`${date}T12:00:00Z`);
   return Number.isNaN(parsed.getTime()) ? date : parsed.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric", timeZone: "UTC" });
 }
-function dateRangeLabel(trades: Trade[]) {
-  if (!trades.length) return "No trades in range";
-  return trades[0].date === trades[trades.length - 1].date ? shortDate(trades[0].date) : `${shortDate(trades[0].date)} – ${shortDate(trades[trades.length - 1].date)}`;
-}
+
 function filterTradesByRange(trades: Trade[], range: TimeRange) {
   if (range === "all" || trades.length <= 1) return trades;
   const sorted = [...trades].sort((a, b) => a.date.localeCompare(b.date));

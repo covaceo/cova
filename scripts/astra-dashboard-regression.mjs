@@ -44,7 +44,7 @@ test('Astra styles load after the legacy dashboard cascade', () => {
   const imports = [...main.matchAll(/import \"([^\"]+\.css)\"/g)].map(match=>match[1]);
   const astra = imports.indexOf('./styles/astraDashboard.css');
   assert.ok(astra > imports.indexOf('./styles/dashboardOaDark.css'), 'Astra follows the legacy dashboard cascade');
-  assert.deepEqual(imports.slice(astra + 1), ['./styles/approvedDashboard.css', './styles/approvedWorkspace.css', './styles/userProfile.css', './styles/tradeHistory.css', './styles/homeStory.css', './styles/publicPassportExample.css', './styles/siteInteractionPolish.css'], 'Only scoped public/card/interaction styles follow Astra');
+  assert.deepEqual(imports.slice(astra + 1), ['./styles/approvedDashboard.css', './styles/approvedWorkspace.css', './styles/userProfile.css', './styles/tradeHistory.css', './styles/homeStory.css', './styles/publicPassportExample.css', './styles/siteInteractionPolish.css', './styles/deskJournal.css'], 'Only scoped public/card/interaction styles follow Astra');
 });
 
 test('Financial labels preserve cents without a half-formatted dollar amount', () => {
@@ -75,13 +75,13 @@ test('Approved dashboard composition uses real analytics, recent trades, and an 
   const { analyze, sampleTrades, defaultRules } = loadSource('src/lib/risk.ts');
   const { Dashboard } = loadSource('src/components/DashboardView.tsx');
   const analysis = analyze(sampleTrades, defaultRules);
-  const html = renderToStaticMarkup(React.createElement(Dashboard, {analysis,rules:defaultRules,go:()=>{}}));
+  const html = renderToStaticMarkup(React.createElement(Dashboard, {analysis,rules:defaultRules,go:()=>{},journalActions:{read:()=>"Stored daily review",save:()=>true}}));
   assert.ok(html.includes('<h1>Risk Desk</h1>'), 'Owner-approved reference replaces the older promotional heading');
-  for (const label of ['Reported P&amp;L','Win rate','Profit factor','Max drawdown','Discipline review','Recent trades','Journal']) assert.ok(html.includes(label),label);
+  for (const label of ['Reported P&amp;L','Win rate','Profit factor','Max drawdown','Cova score','Recent trades','Journal']) assert.ok(html.includes(label),label);
   assert.equal((html.match(/data-astra-stat=/g)||[]).length,6,'Four headline metrics plus average winner and average loser');
   assert.equal((html.match(/data-recent-trade=/g)||[]).length,4,'Latest four actual ledger records');
   assert.ok(html.includes(String(analysis.score)), 'Score must come from risk.analyze');
-  assert.ok(html.includes(sampleTrades.at(-1).notes), 'Journal copy comes from the ledger, not the design study');
+  assert.ok(html.includes('Stored daily review'), 'Daily journal renders its real saved note, not a copied trade note');
   assert.ok(!html.includes('Patience was')&&!html.includes('A solid baseline.'),'Do not ship invented editorial claims');
 });
 
@@ -94,10 +94,12 @@ test('Approved visual header receives the unchanged account control and keeps re
   assert.ok(html.includes('data-dashboard-visual="reference"'));
   assert.ok(html.includes('aria-label="Trade account"'));
   assert.equal((html.match(/data-recent-trade=/g)||[]).length,4);
-  assert.ok(html.includes('Open trade note'));
+  assert.ok(html.includes('aria-label="Journal note"'));
+  assert.ok(html.includes('astra-trade-link'),'Per-trade notes remain reachable from actual trade rows');
   assert.ok(html.includes('Import trades'));
   assert.ok(html.includes('Dashboard review range'));
-  assert.ok(html.includes('<summary><span>Details</span>'),'Review disclosure is a short label, not another status line');
+  assert.ok(html.includes('Review details'),'One explicit review action replaces duplicate dropdowns');
+  assert.ok(!html.includes('astra-evidence-details')&&!html.includes('astra-review-details'));
   assert.ok(!html.includes('Trade rows are available in history.'));
   assert.equal(JSON.stringify(analysis),before,'Presentation must not mutate the analysis');
 });
@@ -130,7 +132,8 @@ test('An account without trades stays blank and older rows without notes remain 
   assert.ok(empty.includes('data-dashboard-empty="true"'));
   assert.ok(!empty.includes('data-astra-stat=')&&!empty.includes('astra-score-ring'));
   const html = renderToStaticMarkup(React.createElement(Dashboard,{analysis:analyze([{...sampleTrades[0],notes:undefined}],defaultRules),rules:defaultRules,go:()=>{}}));
-  assert.ok(html.includes('No notes yet.'));
+  assert.ok(html.includes('What worked? What will you change next time?'));
+  assert.ok(html.includes('Attach trade'));
 });
 
 test('The equity viewport follows its actual container so phone labels stay legible', async () => {

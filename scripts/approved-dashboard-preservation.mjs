@@ -1,26 +1,28 @@
-// Owner requested presentation only. Keep the prior accounting and interaction logic exact.
+// Owner-approved compact daily journal, manual entries and win/loss counts.
+// Manual provenance and owner/account guards have executable unit + compiled browser coverage.
+// Broker cash math, sync, rules and all unrelated behaviors remain exact.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 const baseline = {
   "files": {
-    "src/lib/risk.ts": "78991b6b2f932c3d91ddf7d5cb29fc6953a1732cda2be8cbc953d55b6b400ef9",
+    "src/lib/risk.ts": "56dc6981baa1a5bbacb10acc487cca6881443388087ebca124363966517fc2b7",
     "src/lib/brokerCash.ts": "c594ec3b82be49a6b1e68629792ad6e8cfbd5bde168b4c50bf6fe5659b8b9fa6",
-    "src/lib/journalAccuracy.ts": "c688e6ef2228dfa272da1a075c7c2c0f740984f83df81de575490760261d827b",
+    "src/lib/journalAccuracy.ts": "7a05f8373f469f1944bf9577c51a30237cbfb8bf2ceb7484f085b4988cd179d6",
     "src/lib/storageScope.ts": "3cd9c57c38bb10e9f7b61776f00422ab9590bdebd1d0e458eba5a33cc676e183",
     "src/lib/accountNames.ts": "e056578556c6ac10faeee8ed5a47b08a2b91b9327be0dd3216906db0cdc30501",
     "src/lib/dashboardPresentation.ts": "7923ce5a87c1eea620fe2956345d03820791ec4d5700ec07f84eb9779b36a4ef",
     "src/lib/dashboardReviewState.ts": "9e1693082021edf780c6c78dc659e9170a627817a81120e1d9997b7f68cd789f",
-    "src/components/DashboardTradeDialog.tsx": "302d1c3851169baadf76180225e607254f09e340b447384f52e2322ac3d8752a",
+    "src/components/DashboardTradeDialog.tsx": "5425bcaaabce7c99ee925b577d3c2324c4c41cd9bcb9b1c849871a712c7ec730",
     "src/components/TradeAccountSelect.tsx": "a2bb1e76714dbf41633c145b5d61d6f5468d2b11166097bbdf9633d9d8cc8678",
     "api/tradovate/sync.js": "10bf3fad88e4f267abf064aa789856a028328a1e14f7e520f1757c705c4116b4",
     "api/_lib/tradovate-cash.js": "6493e133366096b6c775bac2e5d5d62aeab4f099d25887abfaa3aae86c7535ff"
   },
   "functions": {
-    "Dashboard": "87819324e89670e5460172567d22823ddab376ec3c98b9377425c5cb2ba5c447",
-    "DashboardStats": "16502055eb66daa8d4899ef5a32208bb895b504336217e1b95d4c9d666dec401",
-    "DisciplineReview": "6ebd9a4cf58a991c70f8bf84ce0b12a696fffdaafbcd0d6b319171995f8ff8d5"
+    "Dashboard": "b5b67f459925338259632d29aabef163b351f090666d9b5aa25b19a11aa2c986",
+    "DashboardStats": "5de31d7b60adc1f2d8f999d1a216e8dd4c608fd0f7b9a871eeb3c7f2620e5795",
+    "DisciplineReview": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
   }
 };
 const read = file => readFileSync(file,'utf8');

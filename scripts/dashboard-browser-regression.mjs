@@ -257,6 +257,7 @@ async function pricingColorState(width, height) {
 }
 
 async function press(key, code = key) {
+  if(key==='Escape'){const e={key,code,windowsVirtualKeyCode:27,nativeVirtualKeyCode:27};await cdp.send('Input.dispatchKeyEvent',{...e,type:'rawKeyDown'});await cdp.send('Input.dispatchKeyEvent',{...e,type:'keyUp'});await sleep(80);return;}
   if (key === "Enter") {
     const event = { key, code, windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 };
     await cdp.send("Input.dispatchKeyEvent", { ...event, type: "rawKeyDown" });
@@ -271,17 +272,19 @@ async function press(key, code = key) {
 
 async function auditMicrocopy() {
   // Exercise both native disclosures before checking their informative copy.
-  for (const selector of ['.astra-data-details', '.astra-review-details']) {
+  for (const selector of ['.astra-data-details']) {
     assert.equal(await evaluate(`document.querySelector(${JSON.stringify(selector)}).open`), false);
     await evaluate(`document.querySelector(${JSON.stringify(selector+' > summary')}).scrollIntoView({block:'center',behavior:'instant'}); document.querySelector(${JSON.stringify(selector+' > summary')}).focus(); true`);
     await press("Enter");
     await waitFor(`document.querySelector(${JSON.stringify(selector)}).open`);
   }
+  await evaluate("document.querySelector('.oa-review-details-button').focus()");await press("Enter");
+  await waitFor("Boolean(document.querySelector('[data-discipline-details]:modal'))");await sleep(350);
   const checks = await evaluate(`(() => {
-    const parse = color => { const parts = color.match(/[\\d.]+/g)?.map(Number); if (!parts || parts.length < 3) throw new Error('Unparseable CSS color: ' + color); return [...parts.slice(0, 3), parts[3] ?? 1]; };
+    const parse = color => { const m=color.match(/rgba?\\(([^)]+)\\)|color\\(srgb\\s+([^)]+)\\)/);if(!m)throw new Error('Unparseable CSS color: '+color);const p=(m[1]||m[2]).split(/[\\s,\\/]+/).filter(Boolean).map(Number);return [...p.slice(0,3).map(v=>v*(m[2]?255:1)),p[3]??1]; };
     const composite = (fg, bg) => fg.slice(0, 3).map((value, i) => value * fg[3] + bg[i] * (1 - fg[3]));
     const luminance = color => color.slice(0, 3).map(value => { const n = value / 255; return n <= .04045 ? n / 12.92 : ((n + .055) / 1.055) ** 2.4; }).reduce((sum, channel, i) => sum + channel * [.2126, .7152, .0722][i], 0);
-    return ['.cova-profile-trigger > span:nth-child(2)', '.astra-dashboard-footer > span', '.dashboard-range-controls button:not(.dashboard-range-active)', '.astra-stat-label', '.astra-stat-detail', '.astra-panel-heading h2', '.astra-source-label', '.astra-review-details > summary span', '.dashboard-review-disclosure'].flatMap(selector => {
+    return ['.cova-profile-trigger > span:nth-child(2)', '.astra-dashboard-footer > span', '.dashboard-range-controls button:not(.dashboard-range-active)', '.astra-stat-label', '.astra-stat-detail', '.astra-panel-heading h2', '.astra-source-label', '.oa-review-details-button', '.dashboard-review-disclosure'].flatMap(selector => {
       const nodes = [...document.querySelectorAll(selector)];
       if (!nodes.length) throw new Error('Required microcopy missing: ' + selector);
       return nodes.map(node => {
@@ -296,7 +299,8 @@ async function auditMicrocopy() {
     });
   })()`);
   for (const check of checks) assert.ok(check.ratio >= 4.5, `${check.selector} composited contrast ${check.ratio.toFixed(2)} must meet WCAG AA`);
-  for (const selector of ['.astra-data-details', '.astra-review-details']) {
+  await press("Escape");await waitFor("!document.querySelector('[data-discipline-details]')");
+  for (const selector of ['.astra-data-details']) {
     await evaluate(`document.querySelector(${JSON.stringify(selector+' > summary')}).focus(); true`);
     await press("Enter");
     await waitFor(`!document.querySelector(${JSON.stringify(selector)}).open`);
@@ -354,7 +358,7 @@ async function desktopVisualState() {
     action: document.querySelector('.dashboard-empty-action')?.textContent.trim(),
     heading: document.querySelector('#dashboard-empty-title')?.textContent.trim(),
     riskStatus: document.querySelector('.workspace-risk-status strong')?.textContent.trim(),
-    statPanels: document.querySelectorAll('.astra-stat-strip, .astra-desk-grid, .astra-desk-bottom, .astra-review-details, .astra-score-ring, .dashboard-review-row').length,
+    statPanels: document.querySelectorAll('.astra-stat-strip, .astra-desk-grid, .astra-desk-bottom, .oa-discipline-score').length,
   }))()`);
   assert.deepEqual(emptyReview, {
     action: "Import trade history",
@@ -492,7 +496,7 @@ async function mobileEmptyState() {
       visibleRiskStatuses: [...document.querySelectorAll('.header-risk-button, .workspace-risk-status')]
         .filter((node) => { const style = getComputedStyle(node); const box = node.getBoundingClientRect(); return style.display !== 'none' && style.visibility !== 'hidden' && box.width > 0 && box.height > 0; })
         .map((node) => node.querySelector('strong')?.textContent.trim()),
-      statPanels: document.querySelectorAll('.astra-stat-strip, .astra-desk-grid, .astra-desk-bottom, .astra-review-details, .astra-score-ring, .dashboard-review-row').length,
+      statPanels: document.querySelectorAll('.astra-stat-strip, .astra-desk-grid, .astra-desk-bottom, .oa-discipline-score').length,
     };
   })()`);
   assert.ok(layout.actionHeight >= 42, "Empty-account import action must retain its usable target height");
@@ -518,12 +522,12 @@ async function numericZeroStates() {
       const trade = { ...base, id: 'qa-zero-state', date: '2026-08-20', pnl, risk: 1, notes: '' };
       await evaluate(`document.documentElement.dataset.numericZeroDocument = 'previous'; localStorage.setItem(${JSON.stringify(snapshot.key)}, ${JSON.stringify(JSON.stringify({ trades: [trade], rules: [] }))}); localStorage.setItem('cova-dashboard-range-v1','all'); true`);
       await cdp.send('Page.navigate', { url: `${origin}/?numericZero=${width}-${Date.now()}#dashboard` });
-      await waitFor("document.documentElement.dataset.numericZeroDocument !== 'previous' && document.readyState === 'complete' && document.querySelector('[data-astra-dashboard=\"integrated\"]') && document.querySelector('.astra-score-ring')");
+      await waitFor("document.documentElement.dataset.numericZeroDocument !== 'previous' && document.readyState === 'complete' && document.querySelector('[data-astra-dashboard=\"integrated\"]') && document.querySelector('.oa-discipline-score')");
       const state = await evaluate(`(() => ({
         count: Number(document.querySelector('[data-dashboard-trade-count]').dataset.dashboardTradeCount),
         metrics: [...document.querySelectorAll('.astra-stat-cell')].map(node => ({id:node.dataset.astraStat,value:node.querySelector('.astra-stat-value').textContent.trim()})),
-        score: document.querySelector('.astra-score-ring strong').textContent.trim(),
-        scoreLabel: document.querySelector('.astra-score-ring').getAttribute('aria-label'),
+        score: document.querySelector('.oa-discipline-score strong').textContent.trim(),
+        scoreLabel: document.querySelector('.oa-discipline-score').getAttribute('aria-label'),
         railScore: document.querySelector('.workspace-risk-status strong').textContent.trim(),
         railLabel: document.querySelector('.workspace-risk-status').getAttribute('aria-label'),
         empty: document.querySelectorAll('[data-dashboard-empty="true"]').length,

@@ -315,16 +315,6 @@ body::after {
   border-color: rgba(79, 125, 255, 0.34) !important;
 }
 
-.dashboard-summary-actions .dashboard-summary-primary {
-  border-color: rgba(79, 125, 255, 0.58) !important;
-  color: var(--cova-cobalt-bright) !important;
-}
-
-.dashboard-review-status-caution,
-.dashboard-review-status-locked {
-  color: var(--cova-warn) !important;
-}
-
 .operator-workspace .workspace-sidebar-watermark,
 .dashboard-review-disclosure svg {
   color: var(--cova-silver) !important;
