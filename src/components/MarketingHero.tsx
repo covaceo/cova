@@ -148,11 +148,7 @@ export function Hero({ go, openAuth, isSignedIn }: HeroProps) {
           animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
           transition={{ duration: 0.82, ease: [0.16, 1, 0.3, 1] }}
         >
-          <p className="market-hero-eyebrow font-body text-xs font-medium uppercase tracking-[0.28em] text-[#6f96ff] md:text-sm">
-            Review what keeps happening
-          </p>
-
-          <h1 className="market-hero-title mt-5 text-[4.35rem] font-semibold leading-[0.92] text-white md:text-[4.95rem] lg:text-[5.45rem]">
+          <h1 className="market-hero-title mt-0 text-[4.35rem] font-semibold leading-[0.92] text-white md:text-[4.95rem] lg:text-[5.45rem]">
             See the <span className="market-hero-signal">patterns</span><br />
             <span className="market-hero-editorial">behind your risk.</span>
           </h1>

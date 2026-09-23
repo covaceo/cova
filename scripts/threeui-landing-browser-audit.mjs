@@ -167,10 +167,11 @@ async function measureHero(width, expectedState) {
     const signal = document.querySelector('.market-hero-signal');
     const signalStyle = getComputedStyle(signal);
     const editorialStyle = getComputedStyle(document.querySelector('.market-hero-editorial'));
-    const eyebrowStyle = getComputedStyle(document.querySelector('.market-hero-eyebrow'));
+    const proofStyle = getComputedStyle(document.querySelector('.market-hero-proof'));
     const sublineStyle = getComputedStyle(document.querySelector('.market-hero-subline'));
     return {
       introPresent: Boolean(document.querySelector('.cova-site-intro')),
+      eyebrowPresent: Boolean(document.querySelector('.market-hero-eyebrow')),
       hero: hero?.toJSON(),
       title: title?.toJSON(),
       headline: document.querySelector('.market-hero-title')?.textContent.replace(/\\s+/g, ' ').trim(),
@@ -187,7 +188,7 @@ async function measureHero(width, expectedState) {
       darkGlassOrbSize: darkGlassOrb?.getBoundingClientRect().width,
       darkGlassHit: darkGlassRect ? darkGlass.contains(document.elementFromPoint(darkGlassRect.left + darkGlassRect.width / 2, darkGlassRect.top + darkGlassRect.height / 2)) : null,
       darkGlassAuraAnimation: darkGlass ? getComputedStyle(darkGlass.querySelector('.dark-glass-secondary__aura')).animationName : null,
-      fonts: { title: titleStyle.fontFamily, editorial: editorialStyle.fontFamily, eyebrow: eyebrowStyle.fontFamily, subline: sublineStyle.fontFamily },
+      fonts: { title: titleStyle.fontFamily, editorial: editorialStyle.fontFamily, proof: proofStyle.fontFamily, subline: sublineStyle.fontFamily },
       titleLetterSpacing: titleStyle.letterSpacing,
       signalLetterSpacing: signalStyle.letterSpacing,
       signalRect: signal.getBoundingClientRect().toJSON(),
@@ -196,6 +197,7 @@ async function measureHero(width, expectedState) {
     };
   })()`);
   assert.equal(metrics.introPresent, false, "Rejected intro must not render");
+  assert.equal(metrics.eyebrowPresent, false, "Approved left hero has no decorative overline");
   assert.equal(metrics.ribbonState, expectedState);
   assert.equal(metrics.webgl, true);
   assert.equal(metrics.liquidState, "ready");
@@ -207,7 +209,7 @@ async function measureHero(width, expectedState) {
   assert.equal(metrics.darkGlassAuraAnimation, expectedState === "static" ? "none" : "cova-dark-glass-orbit");
   assert.match(metrics.fonts.title, /Bricolage Grotesque Variable/);
   assert.match(metrics.fonts.editorial, /Instrument Serif/);
-  assert.match(metrics.fonts.eyebrow, /DM Mono/);
+  assert.match(metrics.fonts.proof, /DM Mono/);
   assert.match(metrics.fonts.subline, /Inter Tight Variable/);
   const titleTracking = Number.parseFloat(metrics.titleLetterSpacing);
   const signalTracking = Number.parseFloat(metrics.signalLetterSpacing);

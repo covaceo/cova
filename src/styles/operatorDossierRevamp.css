@@ -300,14 +300,6 @@ html.cova-platform-windows .header-scroll-veil {
   max-width: 38rem !important;
 }
 
-.market-hero-eyebrow {
-  color: var(--cova-copper) !important;
-  font-family: "JetBrains Mono", monospace !important;
-  font-size: 0.68rem !important;
-  letter-spacing: 0.24em !important;
-  text-shadow: none !important;
-}
-
 .market-hero-title {
   color: var(--cova-paper) !important;
   font-family: "Space Grotesk", "Inter", sans-serif !important;
