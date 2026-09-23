@@ -29,7 +29,7 @@
 .oa-dashboard-app .mini-journal-footer { margin:10px 20px 16px; }
 @media(min-width:851px) {
  .astra-dashboard[data-dashboard-visual] .astra-stats-panel .astra-stat-cell { grid-row:1/4; }
- .astra-dashboard[data-dashboard-visual] .astra-stats-panel .astra-stat-basis { grid-row:4; }
+
 }
 
 /* Dark OA review surfaces: one polar ink, recessed content, quiet pill actions. */

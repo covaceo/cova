@@ -52,8 +52,8 @@ const protectedFiles = {
   "src/App.tsx": "331cd1990a5a5cd61b9999f97956823a49419b29945af7e50aacb2b1097ce0f7",
   "src/components/AstraEquityCurve.tsx": "41af4ca602a699399b73f2594a21cde26f5ac54f4022bf32bf34f52a5acbc27b",
   "src/components/DashboardTradeDialog.tsx": "5425bcaaabce7c99ee925b577d3c2324c4c41cd9bcb9b1c849871a712c7ec730",
-  // Owner-approved separate session recap action plus legacy source CTA wording and averages; original financial logic remains locked by approved-dashboard-preservation.
-  "src/components/DashboardView.tsx": "f0432fecd3fe94ba2f4f766b69a5c0afa2242620f2a19ac7d8654d30f69b5107",
+  // Owner-approved recap action, source CTA/averages and standalone fee-label removal; financial logic remains locked by approved-dashboard-preservation.
+  "src/components/DashboardView.tsx": "be5be86f9ad551e6cb365393a3c94fea79ed62cb27327527220c05a8cac60ac4",
   // Owner-approved Passport book icon, duplicate rail copy removal and Settings-to-Accounts entry; shell handlers remain intact.
   "src/components/WorkspaceShell.tsx": "f39db56cb370c47547894bdaba6384dc523d3f9e55fc2d6f5eba0eaa9452a9b4",
   // Owner-approved left hero overline removal only; all dashboard CSS remains unchanged.
