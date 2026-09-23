@@ -1,7 +1,8 @@
 import { verifyBrokerCash } from './brokerCash';
 import { buildHotStreaks, type HotStreak } from './recapHotStreak';
 import { recapCashFees, type RecapFees } from './sessionRecapFees';
-import { groupJournalEntries, type Trade, type JournalEntryGroup } from './risk';
+import { groupRecapEntries } from './recapEntryGroups';
+import type { Trade, JournalEntryGroup } from './risk';
 
 export type RecapKind = 'daily' | 'new-york' | 'london' | 'asia';
 export type RecapBackground = 'new-york' | 'london' | 'asia' | 'plain' | 'custom';
@@ -81,7 +82,7 @@ export function buildSessionRecaps(trades: readonly Trade[], cashEvidence?: unkn
     }
   } catch { return unavailable('Check the dates and exact amounts in this history before sharing.'); }
   const cash = sample ? null : verifyBrokerCash(cashEvidence, trades);
-  const groups = groupJournalEntries(trades);
+  const groups = groupRecapEntries(trades);
   const timings = new Map(groups.map(group => [group, timing(group)]));
   const buckets = new Map<string, { kind: RecapKind; date: string; groups: JournalEntryGroup[] }>();
   for (const group of groups) {
@@ -117,7 +118,7 @@ export function buildSessionRecaps(trades: readonly Trade[], cashEvidence?: unkn
       winRate, countLabel: grouped ? 'Trade entries' : 'Reported trades',
       markets: [...new Set(rows.map(r => r.market))].join(' · '), basis: gross ? 'Gross P&L · before fees' : 'Reported P&L · fees unconfirmed',
       sample: rows.every(r => r.id.startsWith('demo-')), theme,
-      details: 'Known same-opening-fill partial exits are combined, not certified flat-to-flat positions. Unmatched rows remain separate. Breakeven entries are included in the win-rate denominator. Whole groups belong to their final observed exit date. Regional recaps require every entry and exit timestamp within the same dated review window. Daily recaps can span regions. Review windows follow local daylight-saving time and are not exchange calendars. The Tradovate headline uses reconciled trade cash plus signed posted fees, excluding funding, through the latest sync. It does not wait for the session or UTC day to end. The complete synced report-window fingerprint must match, and selected-window trade postings must match the recap at supported timestamp, cents and market-root granularity. Win rate uses grouped gross trade outcomes, not invented per-trade net allocation. Fees can relate to carried or open positions. The source gross ledger stays unchanged. Snapshot time and fee breakdown are available here, not printed on the card; later postings or adjustments can change the result. Missing or mismatched Tradovate fee evidence blocks sharing instead of silently substituting gross or zero fees. Hot streak counts consecutive net-positive UTC trading days for this account through the selected date, using the whole day even on regional cards. Red or breakeven days reset it; verified idle days and deposits do not count. Missing fee evidence or unexplained cash-only activity stops the count rather than bridging a gap. A plus means at least that many consecutive green days are verified, with earlier coverage uncertain. Today remains a snapshot, not a declaration that trading has ended; later trades or fee postings can change the streak. Backgrounds are illustrative, not a record of market conditions.',
+      details: 'Broker-linked opening and closing fills are combined so linked split fills, scale-ins and trims count once. Separate re-entries remain separate. This is not certified flat-to-flat coverage: rows without shared broker fill evidence remain separate, never grouped by time or price alone. Breakeven entries are included in the win-rate denominator. Whole groups belong to their final observed exit date. Regional recaps require every entry and exit timestamp within the same dated review window. Daily recaps can span regions. Review windows follow local daylight-saving time and are not exchange calendars. The Tradovate headline uses reconciled trade cash plus signed posted fees, excluding funding, through the latest sync. It does not wait for the session or UTC day to end. The complete synced report-window fingerprint must match, and selected-window trade postings must match the recap at supported timestamp, cents and market-root granularity. Win rate uses grouped gross trade outcomes, not invented per-trade net allocation. Fees can relate to carried or open positions. The source gross ledger stays unchanged. Snapshot time and fee breakdown are available here, not printed on the card; later postings or adjustments can change the result. Missing or mismatched Tradovate fee evidence blocks sharing instead of silently substituting gross or zero fees. Hot streak counts consecutive net-positive UTC trading days for this account through the selected date, using the whole day even on regional cards. Red or breakeven days reset it; verified idle days and deposits do not count. Missing fee evidence or unexplained cash-only activity stops the count rather than bridging a gap. A plus means at least that many consecutive green days are verified, with earlier coverage uncertain. Today remains a snapshot, not a declaration that trading has ended; later trades or fee postings can change the streak. Backgrounds are illustrative, not a record of market conditions.',
     };
   }).sort((a, b) => b.date.localeCompare(a.date) || (a.kind === 'daily' ? -1 : b.kind === 'daily' ? 1 : a.kind.localeCompare(b.kind)));
   const streaks = buildHotStreaks(options, cash);

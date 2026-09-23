@@ -54,6 +54,18 @@ test('missing, sample, foreign and unsupported cash never receive a streak claim
  const sample=rows.map(t=>({...t,id:'demo-1'}));assert.equal(at(sample,cash,'2026-09-15').hotStreak,null);
  const foreign=[...rows,{...row('2026-09-16',10,2),source:{...rows[0].source,accountId:'8'}}];assert.deepEqual(model().buildSessionRecaps(foreign,cash).options,[]);
 });
+test('switching accounts on the same date keeps net, entries, win rate and streak isolated',()=>{
+ const a=[row('2026-09-14',-10,1),row('2026-09-15',20,2),row('2026-09-16',30,3)];
+ const b=[row('2026-09-14',-10,1),row('2026-09-15',-10,2),row('2026-09-16',10,3),row('2026-09-16',-5,4)].map(t=>({...t,id:t.id.replace('tradovate-7:','tradovate-8:'),source:{...t.source,accountId:'8'}}));
+ const ac=cashFor(a,[fee('2026-09-16',-100)]),bc={...cashFor(b,[fee('2026-09-16',-200)]),accountId:'8'};
+ const {buildSessionRecaps,recapHeadlineCents}=model();
+ const latest=(trades,cash)=>buildSessionRecaps(trades,cash).options.find(r=>r.id==='daily:2026-09-16');
+ for(const [trades,cash,expected] of [[a,ac,['2900',1,'100%',2]],[b,bc,['300',2,'50%',1]],[a,ac,['2900',1,'100%',2]]]){
+  const r=latest(trades,cash);assert.deepEqual([recapHeadlineCents(r),r.count,r.winRate,r.hotStreak.days],expected);
+ }
+ assert.equal(recapHeadlineCents(latest(a,bc)),null,'Foreign account cash cannot supply a headline');
+ assert.equal(recapHeadlineCents(latest(b,ac)),null,'Neither direction may inherit another account cash');
+});
 test('same-day streak is a mutable synced result, not a claim the trader stopped trading',()=>{
  const rows=[row('2026-09-14',-10,1),row('2026-09-15',10,2)],cash=cashFor(rows);cash.asOf='2026-09-15T14:15:00.000Z';
  assert.deepEqual(at(rows,cash,'2026-09-15').hotStreak,{days:1,atLeast:false});
