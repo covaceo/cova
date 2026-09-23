@@ -43,7 +43,7 @@ try{
    await key(k,c);await wait(`document.querySelector('.astra-chart-main').dataset.chartSelected==='${index}'`);await contained();
    const text=await evaluate(`document.querySelector('.astra-chart-tooltip').innerText`);assert.ok(!text.includes('Trade '));assert.ok(text.includes('Cumulative net'));
    const delta=Math.round(points[index].value*100)-Math.round((points[index-1]?.value||0)*100);
-   assert.ok(text.includes('Day net '+(delta<0?'−':delta>0?'+':'')+'$'+(Math.abs(delta)/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})),text);
+   assert.equal(await evaluate(`document.querySelector('.astra-chart-tooltip strong').textContent`),(delta<0?'−':delta>0?'+':'')+'$'+(Math.abs(delta)/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}));assert.ok(text.includes('Day net'),text);assert.equal(await evaluate(`document.querySelectorAll('.astra-observation').length`),points.length);
   }
   await key('End',35);await capture(name+'-tooltip');await key('Escape',27);await wait(`!document.querySelector('.astra-chart-tooltip')`);
   const box=await evaluate(`(()=>{const r=document.querySelector('.astra-chart-svg').getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height};})()`);

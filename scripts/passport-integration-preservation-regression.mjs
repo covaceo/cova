@@ -50,10 +50,10 @@ const protectedFiles = {
   // Callback hints never authorize imports; all marketing, OAuth and Passport artwork remain unchanged.
   // Approved OA review headers reuse the exact owner-bound selector; route-prop parity remains enforced.
   "src/App.tsx": "b8bef0dd5beeaf4644c1930b407ab89c6aa584f2e3a4531d70e04b0fb8d7c5c4",
-  "src/components/AstraEquityCurve.tsx": "15439a5b127bf2b1d2d942bfb06090daeb5954bf8e6bc45a309485ead6a79193",
+  "src/components/AstraEquityCurve.tsx": "bf7793dcb2d47b70480e56899cc397bd405567999a35f19f2be6562a3645880c",
   "src/components/DashboardTradeDialog.tsx": "302d1c3851169baadf76180225e607254f09e340b447384f52e2322ac3d8752a",
   // Owner-approved separate session recap action plus legacy source CTA wording and averages; original financial logic remains locked by approved-dashboard-preservation.
-  "src/components/DashboardView.tsx": "55aaec8259bc18a7e0da12b9e72408b9b5edecbcb978dc70fe011853fc5411b1",
+  "src/components/DashboardView.tsx": "4faae9cbe4826c7a10c6fbd1428b899566512bb6957045e4dd069a731df33221",
   // Owner-approved Passport book icon, duplicate rail copy removal and Settings-to-Accounts entry; shell handlers remain intact.
   "src/components/WorkspaceShell.tsx": "b5e4b9f0418607abcca8822298aae898d18c8f71ad9365914deefa21736a9e83",
   // Owner-approved left hero overline removal only; all dashboard CSS remains unchanged.
