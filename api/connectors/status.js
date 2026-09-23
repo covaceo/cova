@@ -2,8 +2,8 @@ import { requireAuthenticatedUser, sendApiError } from "../_lib/auth.js";
 import { clearCookie, parseCookies, serializeCookie } from "../_lib/cookies.js";
 import { tradovateEnvironmentReady } from "../_lib/tradovate-capability.js";
 import {
-  getTradovateConnection,
-  getTradovateConnectionForUser,
+  connectionExpiryIsInvalid,
+  getTradovateLinkForUser,
   listBrokerConnectionsForUser,
 } from "../_lib/supabase.js";
 
@@ -15,10 +15,7 @@ function requestedProvider(req) {
 async function sendTradovateStatus(req, res, userId) {
   const connectionId = parseCookies(req).cova_tradovate_connection || "";
   const available = tradovateEnvironmentReady();
-  let connection = connectionId ? await getTradovateConnection(connectionId, userId) : null;
-  if (!connection) {
-    connection = await getTradovateConnectionForUser(userId);
-  }
+  const connection = await getTradovateLinkForUser(userId);
 
   if (!connection) {
     if (connectionId) {
@@ -27,6 +24,7 @@ async function sendTradovateStatus(req, res, userId) {
     return res.status(200).json({
       available,
       connected: false,
+      linked: false,
       provider: "Tradovate",
       status: available ? "not-connected" : "unavailable",
     });
@@ -36,12 +34,14 @@ async function sendTradovateStatus(req, res, userId) {
     res.setHeader("Set-Cookie", serializeCookie("cova_tradovate_connection", connection.id, { maxAge: 60 * 60 * 24 * 30 }));
   }
 
+  const reconnectRequired = connection.status !== "connected" || connectionExpiryIsInvalid(connection, "tradovate");
   return res.status(200).json({
     available,
-    connected: true,
+    connected: !reconnectRequired,
+    linked: true,
     connectionId: connection.id,
     provider: "Tradovate",
-    status: available ? (connection.status || "connected") : "configuration-unavailable",
+    status: reconnectRequired ? "reconnect-required" : available ? "connected" : "configuration-unavailable",
     expiresAt: connection.expires_at,
   });
 }
@@ -69,7 +69,8 @@ export default async function handler(req, res) {
       providers: rows.map((row) => ({
         expiresAt: typeof row.expires_at === "string" ? row.expires_at : null,
         provider: String(row.provider || "unknown"),
-        status: String(row.status || "connected"),
+        status: row.provider === "tradovate" && (row.status === "expired" || (row.status === "connected" && connectionExpiryIsInvalid(row, "tradovate")))
+          ? "reconnect-required" : String(row.status || "connected"),
       })),
     });
   } catch (error) {

@@ -31,7 +31,7 @@ Cova connector code contains no order-placement, order-modification, order-cance
 - AES-256-GCM encryption for persisted provider tokens.
 - Provider credentials and service-role secrets remain server-side.
 - Browser receives an opaque Secure, HttpOnly, SameSite connector cookie, not a provider token.
-- Disconnect, sign-out, account deletion, and token-expiry cleanup remove active Cova connector records.
+- Disconnect, sign-out, and account deletion remove Cova connector records. Expiry blocks credential use while retaining the owner link for explicit reconnection; it does not erase imported trading history.
 - Cova does not sell personal information or use advertising trackers for behavioral advertising.
 - Imported journal data is primarily stored in first-party, member-scoped browser storage.
 - Risk Passport output is a local PNG, not independent verification or a Cova-hosted credential.

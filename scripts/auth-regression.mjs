@@ -344,7 +344,7 @@ test("restricted connector discovery is owner-scoped and never returns credentia
     const response = responseHarness();
     await handler({ method: "GET", headers: { authorization: "Bearer owner-token" } }, response);
     assert.equal(response.statusCode, 200);
-    assert.deepEqual(response.body, { providers: [{ expiresAt: null, provider: "tradovate", status: "connected" }] });
+    assert.deepEqual(response.body, { providers: [{ expiresAt: null, provider: "tradovate", status: "reconnect-required" }] });
     assert.match(calls[1], /user_id=eq\.owner-1/);
     assert.match(calls[1], /select=provider%2Cstatus%2Cexpires_at/);
     assert.doesNotMatch(JSON.stringify(response.body), /access_token|must-not-return/i);
@@ -382,7 +382,8 @@ test("provider status routes share one authenticated function within the Hobby d
     if (requestUrl.includes("/rest/v1/broker_connections")) {
       assert.match(requestUrl, /user_id=eq\.owner-1/);
       assert.match(requestUrl, /provider=eq\.tradovate/);
-      assert.match(requestUrl, /id=eq\.connection-1/);
+      assert.equal(new URL(requestUrl).searchParams.get("id"), null, "The authenticated owner, not a cookie, selects the retained link");
+      assert.equal(new URL(requestUrl).searchParams.get("select"), "id,status,expires_at");
       return new Response(JSON.stringify([{ id: "connection-1", status: "connected", expires_at: "2099-08-08T00:00:00.000Z" }]), { status: 200 });
     }
     throw new Error(`unexpected consolidated status call ${requestUrl}`);
@@ -402,6 +403,7 @@ test("provider status routes share one authenticated function within the Hobby d
     assert.deepEqual(response.body, {
       available: true,
       connected: true,
+      linked: true,
       connectionId: "connection-1",
       provider: "Tradovate",
       status: "connected",
@@ -433,7 +435,7 @@ test("Tradovate status recovers the authenticated owner's durable connection whe
       const query = new URL(requestUrl);
       assert.equal(query.searchParams.get("user_id"), "eq.owner-1");
       assert.equal(query.searchParams.get("provider"), "eq.tradovate");
-      assert.equal(query.searchParams.get("status"), "eq.connected");
+      assert.equal(query.searchParams.get("status"), "in.(connected,expired)");
       assert.equal(query.searchParams.get("limit"), "1");
       assert.equal(query.searchParams.get("id"), null);
       return new Response(JSON.stringify([{
@@ -458,6 +460,7 @@ test("Tradovate status recovers the authenticated owner's durable connection whe
     assert.deepEqual(response.body, {
       available: true,
       connected: true,
+      linked: true,
       connectionId: "durable-connection-1",
       provider: "Tradovate",
       status: "connected",
@@ -510,6 +513,7 @@ test("Tradovate status keeps a retained owner connection revocable while provide
     assert.deepEqual(response.body, {
       available: false,
       connected: true,
+      linked: true,
       connectionId: "retained-connection-1",
       provider: "Tradovate",
       status: "configuration-unavailable",

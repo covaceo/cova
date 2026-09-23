@@ -6,7 +6,7 @@ import { RithmicLoginDialog } from "./RithmicLoginDialog";
 
 type ImportMode = "append" | "replace" | "merge";
 type ImportEntitlements = { canUseDirectSync: boolean; maxStoredTrades: number; maxTradesPerImport: number; plan: "free" | "pro" };
-type BrokerStatus = { provider: string; status: string; connected: boolean; mode?: "linked" | "ephemeral"; connectionId?: string; message: string; updatedAt: string };
+type BrokerStatus = { provider: string; status: string; connected: boolean; linked?: boolean; mode?: "linked" | "ephemeral"; connectionId?: string; message: string; updatedAt: string };
 
 export function CsvUploadPanel({ dragActive, entitlements, fileName, importCsv, mode, parsed, readFile, reset, setDragActive, setMode, status, text }: {
   dragActive: boolean; entitlements: ImportEntitlements; fileName: string;
@@ -61,6 +61,8 @@ export function BrokerConnectPanel({ brokerBusy, brokerNotice, brokerStatus, can
   syncTradovate: () => void; upgradeToPro: () => void;
 }) {
   const connected = brokerStatus?.provider === "Tradovate" && brokerStatus.connected;
+  const linked = brokerStatus?.provider === "Tradovate" && (brokerStatus.linked || connected);
+  const reconnectRequired = linked && !connected && brokerStatus?.status === "reconnect-required";
   const ready = tradovateStatusChecked && tradovateAvailable;
   function useCsv() {
     document.querySelector("[data-csv-import]")?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -74,15 +76,15 @@ export function BrokerConnectPanel({ brokerBusy, brokerNotice, brokerStatus, can
   return <section className="accounts-connections" aria-label="Trading platforms">
     <div className="accounts-platforms">
       <article className="accounts-panel accounts-platform" data-platform="tradovate" data-broker-lifecycle>
-        <div className="accounts-section-heading"><h3>Tradovate / NinjaTrader</h3><span className="accounts-connection-status">{!tradovateStatusChecked ? "Checking…" : !tradovateAvailable ? "Sync unavailable" : connected ? "Connected" : "Not connected"}</span></div>
-        <p>Read-only trade history. No orders placed.</p>
+        <div className="accounts-section-heading"><h3>Tradovate / NinjaTrader</h3><span className="accounts-connection-status">{!tradovateStatusChecked ? "Checking…" : !tradovateAvailable ? "Sync unavailable" : reconnectRequired ? "Reconnect to sync" : connected ? "Connected" : "Not connected"}</span></div>
+        <p>{reconnectRequired ? "Your saved trades and journal stay in Cova. Reconnect to import new trades." : "Read-only trade history. No orders placed."}</p>
         <div className="accounts-actions">
-          {ready && entitlements.canUseDirectSync && !connected && <button className="accounts-button accounts-button-primary" type="button" disabled={brokerBusy || syncBusy || rithmicBusy} onClick={connect}>Connect Tradovate <ArrowUpRight aria-hidden="true" /></button>}
+          {ready && entitlements.canUseDirectSync && !connected && <button className="accounts-button accounts-button-primary" type="button" disabled={brokerBusy || syncBusy || rithmicBusy} onClick={connect}>{reconnectRequired ? "Reconnect Tradovate" : "Connect Tradovate"} <ArrowUpRight aria-hidden="true" /></button>}
           {ready && entitlements.canUseDirectSync && connected && <button className="accounts-button accounts-button-primary" type="button" disabled={syncBusy || brokerBusy || rithmicBusy} onClick={syncTradovate}>{syncBusy ? "Syncing…" : "Sync trades"}</button>}
           {!entitlements.canUseDirectSync && <button className="accounts-button" type="button" onClick={upgradeToPro}>Connect with Pro</button>}
           {tradovateStatusChecked && !tradovateAvailable && <button className="accounts-button" type="button" onClick={useCsv} data-tradovate-unavailable>Use CSV</button>}
           <button className="accounts-text-button" type="button" disabled={brokerBusy || syncBusy || rithmicBusy} onClick={checkTradovateStatus}>{brokerBusy ? "Checking…" : "Refresh status"}</button>
-          {connected && <button className="accounts-text-button" type="button" disabled={brokerBusy || syncBusy || rithmicBusy} onClick={disconnectBroker}>Disconnect</button>}
+          {linked && <button className="accounts-text-button" type="button" disabled={brokerBusy || syncBusy || rithmicBusy} onClick={disconnectBroker}>Disconnect</button>}
         </div>
       </article>
       <article className="accounts-panel accounts-platform" data-platform="rithmic">

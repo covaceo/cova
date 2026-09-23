@@ -16,7 +16,8 @@ const baseline = {
     "src/lib/dashboardReviewState.ts": "9e1693082021edf780c6c78dc659e9170a627817a81120e1d9997b7f68cd789f",
     "src/components/DashboardTradeDialog.tsx": "5425bcaaabce7c99ee925b577d3c2324c4c41cd9bcb9b1c849871a712c7ec730",
     "src/components/TradeAccountSelect.tsx": "a2bb1e76714dbf41633c145b5d61d6f5468d2b11166097bbdf9633d9d8cc8678",
-    "api/tradovate/sync.js": "10bf3fad88e4f267abf064aa789856a028328a1e14f7e520f1757c705c4116b4",
+    // Reconnect work changes only the expiry comment in this handler; sync behavior stays exact.
+    "api/tradovate/sync.js": "c7452c268a2c4f579c2de7b384c591d98c1e54d49f52139dcca6d5594e2a371f",
     "api/_lib/tradovate-cash.js": "6493e133366096b6c775bac2e5d5d62aeab4f099d25887abfaa3aae86c7535ff"
   },
   "functions": {

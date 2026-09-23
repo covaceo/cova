@@ -90,7 +90,7 @@ The browser never receives the provider access token or the Supabase service-rol
 | Disconnect | Deletes the authenticated member's selected encrypted connector record and clears its cookie |
 | Sign out | Deletes all connector records for that authenticated member, clears both connector cookies, clears member-scoped local data, then signs out |
 | Account deletion | Deletes all connector records, deletes the Supabase Auth user, clears connector/OAuth cookies, and sends `Clear-Site-Data` for cache, cookies, and storage |
-| Token expiry | Rejects and deletes the expired connector row during lookup |
+| Token expiry | Rejects expired credentials; retains the owner link for reconnect/disconnect. Encrypted credentials remain stored until replacement, disconnect, sign-out, or account deletion; no automatic renewal is enabled. |
 | Provider revocation | Member must also revoke at the provider where no programmatic revocation endpoint is available |
 
 Authentication, security, abuse, backup, and infrastructure records may remain only when required for security, legal obligations, or provider-controlled backup/log lifecycles. Cova has not published a fixed log-retention duration that has not yet been operationally verified.

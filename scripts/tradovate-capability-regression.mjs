@@ -42,7 +42,7 @@ test("the environment template names every Tradovate capability dependency", () 
 test("Tradovate status fails closed without hiding a retained owner connection", () => {
   assert.match(statusSource, /import \{ tradovateEnvironmentReady \} from "\.\.\/_lib\/tradovate-capability\.js"/);
   assert.match(statusSource, /const available = tradovateEnvironmentReady\(\)/);
-  assert.match(statusSource, /available,[\s\S]*connected: true[\s\S]*configuration-unavailable/);
+  assert.match(statusSource, /available,[\s\S]*connected: !reconnectRequired[\s\S]*configuration-unavailable/);
   assert.match(statusSource, /available,[\s\S]*connected: false[\s\S]*unavailable/);
 });
 
@@ -60,7 +60,7 @@ test("Trade History discovers Tradovate capability before offering direct connec
   assert.match(importDeskSource, /data\?\.connected === true[\s\S]*writeBrokerStatus\(nextStatus\)/);
   assert.match(importPanelsSource, /const ready = tradovateStatusChecked && tradovateAvailable/);
   assert.match(importPanelsSource, /ready && entitlements.canUseDirectSync && connected/);
-  assert.match(importPanelsSource, /connected && <button[\s\S]*?Disconnect/);
+  assert.match(importPanelsSource, /linked && <button[\s\S]*?Disconnect/);
   assert.match(importPanelsSource, /if \(!ready \|\| !entitlements.canUseDirectSync/);
 });
 
@@ -92,7 +92,7 @@ test("actual status handler supplies the owner-bound connection revision require
       assert.equal(res.body.available,true);
       assert.equal(res.body.connectionId,currentId,"Connected status must expose the owned revision so auto import can start");
       assert.equal(res.headers.get("cache-control"),"private, no-store");
-      assert.deepEqual(Object.keys(res.body).sort(),["available","connected","connectionId","expiresAt","provider","status"].sort());
+      assert.deepEqual(Object.keys(res.body).sort(),["available","connected","linked","connectionId","expiresAt","provider","status"].sort());
       assert.ok(!JSON.stringify(res.body).includes("synthetic-never-return"));
     }
     currentId="synthetic-reconnected";
