@@ -52,11 +52,12 @@ export async function checkDashboardFocusAlignment({ evaluate, send, capture, na
     report.alignment=await evaluate(`(() => {
       const strip=document.querySelector('.astra-stat-strip').getBoundingClientRect();
       const baseline=e=>{const p=document.createElement('span');p.style.cssText='display:inline-block;width:0;height:0;vertical-align:baseline';e.append(p);const y=p.getBoundingClientRect().top;p.remove();return y;};
-      const cells=[...document.querySelectorAll('.astra-stat-cell')].map(e=>{const l=e.querySelector('.astra-stat-label'),v=e.querySelector('.astra-stat-value');return{id:e.dataset.astraStat,labelY:l.getBoundingClientRect().top,valueBaseline:baseline(v),top:l.getBoundingClientRect().top,bottom:v.getBoundingClientRect().bottom};});
+      const cells=[...document.querySelectorAll('.astra-stat-cell')].map(e=>{const l=e.querySelector('.astra-stat-label'),v=e.querySelector('.astra-stat-value'),support=e.querySelector('[data-win-loss]');return{id:e.dataset.astraStat,labelY:l.getBoundingClientRect().top,valueBaseline:baseline(v),top:l.getBoundingClientRect().top,valueBottom:v.getBoundingClientRect().bottom,supportTop:support?.getBoundingClientRect().top??null,bottom:Math.max(v.getBoundingClientRect().bottom,support?.getBoundingClientRect().bottom??0)};});
       const basis=document.querySelector('.astra-stat-basis'),r=basis.getBoundingClientRect();
       return {cells,top:strip.top,bottom:strip.bottom,basisText:basis.textContent,basisTop:r.top,basisBottom:r.bottom};
     })()`);
     const a=report.alignment;
+    if(a.cells.some(c=>c.supportTop!==null&&c.supportTop<c.valueBottom+2))issues.push('Win/loss support overlaps its value');
     if(Math.max(...a.cells.map(c=>c.labelY))-Math.min(...a.cells.map(c=>c.labelY))>1)issues.push('Metric labels are not aligned');
     if(Math.max(...a.cells.map(c=>c.valueBaseline))-Math.min(...a.cells.map(c=>c.valueBaseline))>1)issues.push('Metric number baselines are not aligned');
     if(a.basisText && a.basisTop<Math.max(...a.cells.map(c=>c.bottom)))issues.push('Fee qualifier pushes metrics down instead of sitting below the values');

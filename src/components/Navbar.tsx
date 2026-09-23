@@ -81,7 +81,7 @@ export function Navbar({ section, go, openAuth, mobileOpen, setMobileOpen, authS
       />
       <div className="header-layout-row mx-auto flex w-full max-w-[1400px] items-center justify-between md:justify-center">
         <div className={`header-orbit marketing-header hidden items-center md:flex ${usesWorkspaceChrome ? "product-header" : ""} ${authSession && !usesWorkspaceChrome ? "marketing-header-signed-in" : ""}`}>
-          <button className="brand-lockup group flex min-w-0 shrink-0 items-center" onClick={() => go(authSession ? "dashboard" : "overview")} type="button" aria-label="Go to Cova home">
+          <button className="brand-lockup group flex min-w-0 shrink-0 items-center" onClick={() => go("overview")} type="button" aria-label="Go to Cova home">
             <img
               src="/media/wordmark-options/cova-wordmark-option-3-sleek-cropped.png"
               alt="Cova"
@@ -167,7 +167,7 @@ export function Navbar({ section, go, openAuth, mobileOpen, setMobileOpen, authS
           </div>
         </div>
 
-        <button className="header-mobile-brand brand-lockup flex min-w-0 shrink-0 items-center md:hidden" onClick={() => go(authSession ? "dashboard" : "overview")} type="button" aria-label="Go to Cova home">
+        <button className="header-mobile-brand brand-lockup flex min-w-0 shrink-0 items-center md:hidden" onClick={() => go("overview")} type="button" aria-label="Go to Cova home">
           <img src="/cova-logo-minimal-white.svg" alt="Cova" className="header-brand-mark h-10 w-10 object-contain opacity-95" />
         </button>
 

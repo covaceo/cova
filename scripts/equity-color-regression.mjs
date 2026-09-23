@@ -4,12 +4,12 @@ import React from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
 import load from './helpers/load-ts.cjs';
 const {AstraEquityCurve}=load('src/components/AstraEquityCurve.tsx');
-test('account below starting P&L baseline uses a red line and gradient even in a profitable selected range',()=>{
+test('positive selected range uses green regardless of earlier account losses',()=>{
  const points=[{label:'Start',value:0},{label:'2026-09-18',value:125}];
  const html=renderToStaticMarkup(React.createElement(AstraEquityCurve,{points,accountPnlCents:-1}));
- assert.equal(html.match(/data-equity-tone="([^"]+)"/)?.[1],"loss");
- assert.match(html,/stop-color="#e57c89"/);
- assert.match(html,/stroke="#e57c89"/);
+ assert.equal(html.match(/data-equity-tone="([^"]+)"/)?.[1],"profit");
+ assert.match(html,/stop-color="#52c79a"/);
+ assert.match(html,/stroke="#52c79a"/);
 });
 
 const {Dashboard}=load('src/components/DashboardView.tsx');
@@ -17,17 +17,17 @@ const {analyze,sampleTrades,defaultRules}=load('src/lib/risk.ts');
 function tradesFor(values){return values.map((pnl,i)=>({...sampleTrades[0],id:`fixture-${i}`,date:i?'2026-09-18':'2026-09-01',pnl,market:'MNQ',source:{provider:'Tradovate',accountId:'71',pnlBasis:'gross_before_fees',timeZone:'UTC'}}));}
 function storage(range='all'){const map=new Map([['cova-dashboard-range-v1',range],['cova-active-storage-identity-v1','owner-a']]);globalThis.localStorage={getItem:k=>map.get(k)||null,setItem:(k,v)=>map.set(k,v),removeItem:k=>map.delete(k)};return map;}
 function dashboard(trades){return renderToStaticMarkup(React.createElement(Dashboard,{analysis:analyze(trades,defaultRules),rules:defaultRules,go:()=>{}}));}
-test('a positive latest session cannot turn an underwater account green',()=>{
+test('positive latest session is green on its own displayed baseline',()=>{
  storage('today');const trades=tradesFor([-1000,200]);const before=JSON.stringify(trades);const html=dashboard(trades);
- assert.equal(html.match(/data-equity-tone="([^"]+)"/)?.[1],"loss");assert.match(html,/ending \$200\.00/);assert.equal(JSON.stringify(trades),before);
+ assert.equal(html.match(/data-equity-tone="([^"]+)"/)?.[1],"profit");assert.match(html,/ending \$200\.00/);assert.equal(JSON.stringify(trades),before);
 });
 
-test('a losing latest session stays green while full account P&L remains above baseline',()=>{
- for(const range of ['today','week','all']){storage(range);const html=dashboard(tradesFor([1000,-200]));assert.equal(html.match(/data-equity-tone="([^"]+)"/)?.[1],'profit');assert.match(html,/stop-color="#52c79a"/);}
+test('selected-range ending tone follows the plotted result, not prior gains',()=>{
+ for(const range of ['today','week','all']){storage(range);const html=dashboard(tradesFor([1000,-200]));assert.equal(html.match(/data-equity-tone="([^"]+)"/)?.[1],range==='all'?'profit':'loss');assert.match(html,/stop-color="#e57c89"/);}
 });
 test('breakeven, unavailable and invalid cents remain neutral; one cent changes state',()=>{
  for(const [accountPnlCents,tone] of [[0,'neutral'],[null,'neutral'],[NaN,'neutral'],[Infinity,'neutral'],[.1,'neutral'],[1,'profit'],[-1,'loss']]){
-  const html=renderToStaticMarkup(React.createElement(AstraEquityCurve,{points:[{label:'Start',value:0}],accountPnlCents}));assert.equal(html.match(/data-equity-tone="([^"]+)"/)?.[1],tone);
+  const html=renderToStaticMarkup(React.createElement(AstraEquityCurve,{points:[{label:'2026-09-18',value:Number.isSafeInteger(accountPnlCents)?accountPnlCents/100:0}],accountPnlCents}));assert.equal(html.match(/data-equity-tone="([^"]+)"/)?.[1],tone);
  }
  storage();assert.equal(dashboard(tradesFor([.1,-.1])).match(/data-equity-tone="([^"]+)"/)?.[1],'neutral');
 });

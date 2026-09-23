@@ -13,12 +13,12 @@ test('recovered account retains red historical observations and a split line/fil
  assert.match(html,/data-equity-line-gradient/);
 });
 
-test('filtered windows keep the account baseline, not the range zero or last slope',()=>{
+test('filtered windows use their displayed zero, regardless of earlier account results',()=>{
  for(const [values,total,history,colors] of [
-  [[0,200],-80000,'loss',['#e57c89','#e57c89']],
-  [[0,-200],80000,'profit',['#52c79a','#52c79a']],
-  [[0,200],10000,'split',['#e57c89','#52c79a']],
-  [[0,-200],-10000,'split',['#52c79a','#e57c89']],
+  [[0,200],-80000,'profit',['#4f7dff','#52c79a']],
+  [[0,-200],80000,'loss',['#4f7dff','#e57c89']],
+  [[0,200],10000,'profit',['#4f7dff','#52c79a']],
+  [[0,-200],-10000,'loss',['#4f7dff','#e57c89']],
   [[0,-100,0],0,'loss',['#4f7dff','#e57c89','#4f7dff']],
   [[0,100,-100],null,'neutral',['#4f7dff','#4f7dff','#4f7dff']],
  ]){

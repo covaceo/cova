@@ -42,7 +42,8 @@ test('all workspace destinations share the approved rail without wrapping or cha
     const html=renderToStaticMarkup(React.createElement(WorkspaceShell,{...props,section}));
     assert.match(html,/workspace-shell operator-workspace oa-dashboard-shell/,section);
     assert.match(html,/astra-rail-account/,section);
-    assert.match(html,/Back to website/,section);
+    assert.doesNotMatch(html,/Back to website|Quickstart/,section);
+    assert.match(html,/aria-label="Go to Cova home"/,section);
     assert.match(html,/aria-label="Profile menu"/,section);
     assert.match(html,/Settings/,section); // Delete account is reached through Settings, verified in profile browser QA.
     assert.match(html,/aria-label="Sign out"/,section);

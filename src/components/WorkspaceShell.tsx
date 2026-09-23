@@ -1,4 +1,4 @@
-import { Activity, ArrowUpRight, BarChart3, BookOpen, ChevronRight, FileUp, Gauge, Home, LayoutGrid, Search, BookUser } from "lucide-react";
+import { Activity, ArrowUpRight, BarChart3, ChevronRight, FileUp, Gauge, LayoutGrid, Search, BookUser } from "lucide-react";
 import { ProfileMenu } from "./UserProfile";
 import { motion, useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -73,7 +73,7 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
     <div className="workspace-shell operator-workspace oa-dashboard-shell" data-workspace-section={section} data-focus-source={focusSource} onPointerDownCapture={() => setFocusSource("pointer")}>
       <aside className="workspace-sidebar" aria-label="Cova workspace navigation">
         <div className="workspace-sidebar-brand">
-          <button className="workspace-brand-button" onClick={() => go("dashboard")} type="button" aria-label="Go to Cova risk desk">
+          <button className="workspace-brand-button" onClick={() => go("overview")} type="button" aria-label="Go to Cova home">
             <img src="/media/wordmark-options/cova-wordmark-option-3-sleek-cropped.png" alt="Cova" />
           </button>
         </div>
@@ -126,7 +126,7 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
           {filteredGroups.length === 0 && <p className="workspace-sidebar-empty">No matching workspace route.</p>}
         </nav>
 
-        <div className="astra-rail-utilities"><button type="button" title="Quick start" onClick={() => go("resources")}><BookOpen aria-hidden="true" />Quick start</button><button type="button" title="Back to website" onClick={() => go("overview")}><Home aria-hidden="true" />Back to website</button></div>
+
         <div className="workspace-risk-status" aria-label={`Cova risk score ${riskScoreLabel === "--" ? "not available" : riskScoreLabel}`}>
           <span className="workspace-risk-status-copy"><Activity aria-hidden="true" className="h-4 w-4" />Risk status</span>
           <strong>{riskScoreLabel}</strong>

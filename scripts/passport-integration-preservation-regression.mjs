@@ -49,19 +49,19 @@ const protectedFiles = {
   // Auto-history adds principal+selection guarded merge, scoped account review and saved-history props.
   // Callback hints never authorize imports; all marketing, OAuth and Passport artwork remain unchanged.
   // Approved OA review headers reuse the exact owner-bound selector; route-prop parity remains enforced.
-  "src/App.tsx": "b8bef0dd5beeaf4644c1930b407ab89c6aa584f2e3a4531d70e04b0fb8d7c5c4",
-  "src/components/AstraEquityCurve.tsx": "bf7793dcb2d47b70480e56899cc397bd405567999a35f19f2be6562a3645880c",
-  "src/components/DashboardTradeDialog.tsx": "302d1c3851169baadf76180225e607254f09e340b447384f52e2322ac3d8752a",
+  "src/App.tsx": "331cd1990a5a5cd61b9999f97956823a49419b29945af7e50aacb2b1097ce0f7",
+  "src/components/AstraEquityCurve.tsx": "41af4ca602a699399b73f2594a21cde26f5ac54f4022bf32bf34f52a5acbc27b",
+  "src/components/DashboardTradeDialog.tsx": "5425bcaaabce7c99ee925b577d3c2324c4c41cd9bcb9b1c849871a712c7ec730",
   // Owner-approved separate session recap action plus legacy source CTA wording and averages; original financial logic remains locked by approved-dashboard-preservation.
-  "src/components/DashboardView.tsx": "4faae9cbe4826c7a10c6fbd1428b899566512bb6957045e4dd069a731df33221",
+  "src/components/DashboardView.tsx": "f0432fecd3fe94ba2f4f766b69a5c0afa2242620f2a19ac7d8654d30f69b5107",
   // Owner-approved Passport book icon, duplicate rail copy removal and Settings-to-Accounts entry; shell handlers remain intact.
-  "src/components/WorkspaceShell.tsx": "b5e4b9f0418607abcca8822298aae898d18c8f71ad9365914deefa21736a9e83",
+  "src/components/WorkspaceShell.tsx": "f39db56cb370c47547894bdaba6384dc523d3f9e55fc2d6f5eba0eaa9452a9b4",
   // Owner-approved left hero overline removal only; all dashboard CSS remains unchanged.
   "src/index.css": "e124ef2202d6a2eb61be19faa302b94132d1d4e0ba788774cc33749019ae55e4",
   // Retain UTC ordering while preserving legacy same-day input order and member annotations.
-    "src/lib/risk.ts": "78991b6b2f932c3d91ddf7d5cb29fc6953a1732cda2be8cbc953d55b6b400ef9",
+    "src/lib/risk.ts": "56dc6981baa1a5bbacb10acc487cca6881443388087ebca124363966517fc2b7",
   "src/lib/storageScope.ts": "3cd9c57c38bb10e9f7b61776f00422ab9590bdebd1d0e458eba5a33cc676e183",
-  "src/styles/astraDashboard.css": "95f2dfbc738d9cb0e5797588cf240c0b1c66fc0dad3c49d5ae1b2f0a659499ae",
+  "src/styles/astraDashboard.css": "43ad6ebafdf5d6e8d49213daf01ffb9f142d7f02ef9a63e1c9cba9c947447350",
   "supabase/migrations/20260807010000_auth_policy_acceptances.sql": "0cf48fb5788748c426e686bf1a0c67975da1faf812a73f63a3e444e86b99cec4",
   "supabase/migrations/20260807020000_unique_broker_provider_connections.sql": "5a9b4956fb5b1a6ddf99767b633160ff0826771b6fc1db526b0acf3250594ac3",
   "supabase/migrations/20260807030000_retire_projectx_connector.sql": "e783e6bb4c0647af87ae57168e237a566182be4923cd1622717765abef45ab0c",

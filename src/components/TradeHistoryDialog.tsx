@@ -6,12 +6,12 @@ import { JournalHeadlineStats } from "./JournalAccuracyPanels";
 import { JournalEntryRow } from "./JournalEntryRow";
 
 /** Read-only view of the same owner/account-scoped ledger. Never writes or merges rows. */
-export function TradeHistoryDialog({ trades, journalReview, onClose }: {
-  trades: Trade[]; journalReview: boolean; onClose: () => void;
+export function TradeHistoryDialog({ trades, journalReview, onClose, attachedTradeId }: {
+  trades: Trade[]; journalReview: boolean; onClose: () => void; attachedTradeId?: string | null;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const groups = useMemo(() => groupJournalEntries(trades), [trades]);
-  const journal = useMemo(() => journalSummary(trades), [trades]);
+  const groups = useMemo(() => { const all = groupJournalEntries(trades); return attachedTradeId ? all.filter(group => group.rows.some(row => row.id === attachedTradeId)) : all; }, [trades, attachedTradeId]);
+  const journal = useMemo(() => journalSummary(groups.flatMap(group => group.rows)), [groups]);
   const [page, setPage] = useState(0);
   const pageCount = Math.max(1, Math.ceil(groups.length / 50));
   const currentPage = Math.min(page, pageCount - 1);
@@ -40,12 +40,12 @@ export function TradeHistoryDialog({ trades, journalReview, onClose }: {
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
     }}>
     <header className="astra-history-header">
-      <div><h2 id="trade-history-title">Trade history</h2><p>{groups.length} trade entries · All dates</p></div>
+      <div><h2 id="trade-history-title">{attachedTradeId ? "Attached trade" : "Trade history"}</h2><p>{groups.length} {groups.length === 1 ? "trade entry" : "trade entries"}{attachedTradeId ? " · Saved record" : " · All dates"}</p></div>
       <button className="astra-dialog-close" type="button" onClick={onClose} aria-label="Close trade history"><X aria-hidden="true" /></button>
     </header>
     <section aria-label="Saved trade history" className="astra-history-body">
       <div className="astra-history-meta"><span>Gross / reported P&amp;L</span><details><summary>Data details</summary>
-        <p>{groups.length} trade entries from {trades.length} saved rows. Partial exits with the same broker entry ID appear together. Tradovate times are UTC and P&amp;L is gross before fees. Older saved history stays here after an empty or failed sync.</p>
+        <p>{groups.length} trade entries from {groups.reduce((count, group) => count + group.rows.length, 0)} saved rows. Partial exits with the same broker entry ID appear together. Tradovate times are UTC and P&amp;L is gross before fees. Older saved history stays here after an empty or failed sync.</p>
       </details></div>
       {journalReview && <JournalHeadlineStats journal={journal} />}
       <div className="astra-history-scroll" tabIndex={0} role="region" aria-label="Trade history table, scroll for more columns">
@@ -53,7 +53,7 @@ export function TradeHistoryDialog({ trades, journalReview, onClose }: {
           <tbody>{[...groups].reverse().slice(currentPage * 50, (currentPage + 1) * 50).map(group => <JournalEntryRow key={group.id} group={group} journalReview={journalReview} />)}</tbody>
         </table>
       </div>
-      {!trades.length && <p>No saved trades for this selection.</p>}
+      {!groups.length && <p>{attachedTradeId ? "Attached trade is no longer available." : "No saved trades for this selection."}</p>}
       {groups.length > 50 && <nav className="astra-history-pagination" aria-label="Trade history pages">
         <button className="astra-button" type="button" disabled={currentPage === 0} onClick={() => setPage(value => Math.max(0, value - 1))}>Previous</button>
         <span aria-live="polite">Page {currentPage + 1} / {pageCount}</span>

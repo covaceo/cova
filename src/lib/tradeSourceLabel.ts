@@ -5,9 +5,11 @@ export function getTradeSourceLabel(trades: Trade[]) {
   const hasSampleTrades = trades.some((trade) => trade.id.startsWith("demo-"));
   const hasRithmicTrades = trades.some((trade) => trade.source?.provider === "Rithmic");
   const hasTradovateTrades = trades.some((trade) => trade.source?.provider === "Tradovate");
-  const hasImportedTrades = trades.some((trade) => !trade.source?.provider && !trade.id.startsWith("demo-"));
+  const hasManualTrades = trades.some(trade => Boolean(trade.manual) && !trade.source);
+  const hasImportedTrades = trades.some((trade) => !trade.manual && !trade.source?.provider && !trade.id.startsWith("demo-"));
   const sourceLabels = [
     hasSampleTrades ? "Sample" : null,
+    hasManualTrades ? "Manual" : null,
     hasRithmicTrades ? "Rithmic" : null,
     hasTradovateTrades ? "Tradovate" : null,
     hasImportedTrades ? "CSV" : null,
@@ -16,6 +18,7 @@ export function getTradeSourceLabel(trades: Trade[]) {
 
   const singleSourceLabels: Record<string, string> = {
     Sample: "Sample review",
+    Manual: "Manual trade review",
     Rithmic: "Rithmic history",
     Tradovate: "Tradovate history",
     CSV: "Imported CSV review",

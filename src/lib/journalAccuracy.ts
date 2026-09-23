@@ -6,6 +6,7 @@ export function journalReviewEnabled() {
 }
 const USD_FUTURES = new Set(['NQ','MNQ','ES','MES','YM','MYM','RTY','M2K','CL','MCL','GC','MGC','SI','SIL','HG','ZB','ZN','ZF','ZT']);
 function isUsd(row: Trade) {
+  if (row.manual && !row.source) return row.manual.currency === "USD";
   return row.source?.provider === 'Rithmic' ? row.source.currency === 'USD'
     : row.source?.provider === 'Tradovate' && row.source.pnlBasis === 'gross_before_fees' && USD_FUTURES.has(row.market);
 }

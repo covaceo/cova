@@ -398,8 +398,7 @@
   border-right: 1px solid var(--desk-line);
 }
 
-.dashboard-summary-cell span,
-.dashboard-review-grid span {
+.dashboard-summary-cell span {
   display: block;
   color: var(--desk-faint);
   font: 600 9px/1.2 var(--font-dashboard-ui);
@@ -426,41 +425,6 @@
   color: var(--desk-danger);
 }
 
-.dashboard-summary-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 12px;
-}
-
-.dashboard-summary-actions button,
-.dashboard-review-row > header button {
-  display: inline-flex;
-  min-height: 38px;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  padding: 9px 12px;
-  border: 1px solid var(--desk-line);
-  border-radius: 6px;
-  color: var(--desk-muted);
-  font: 560 11px/1.2 var(--font-dashboard-ui);
-  white-space: nowrap;
-}
-
-.dashboard-summary-actions button:hover,
-.dashboard-review-row > header button:hover {
-  border-color: var(--desk-line-strong);
-  color: var(--desk-paper);
-  background: rgba(238, 232, 222, 0.035);
-}
-
-.dashboard-summary-actions .dashboard-summary-primary {
-  border-color: rgba(204, 132, 88, 0.58);
-  color: #f0ab7c;
-}
-
 .dashboard-attribution-row {
   margin-top: 12px;
 }
@@ -474,8 +438,7 @@
 }
 
 .operator-workspace .dashboard-equity-instrument,
-.operator-workspace .dashboard-evidence-column > *,
-.operator-workspace .dashboard-review-row {
+.operator-workspace .dashboard-evidence-column > * {
   border: 1px solid var(--desk-line-strong) !important;
   border-radius: 8px !important;
   color: var(--desk-paper);
@@ -499,15 +462,13 @@
   gap: 20px;
 }
 
-.dashboard-instrument-header h2,
-.dashboard-review-row > header h2 {
+.dashboard-instrument-header h2 {
   color: var(--desk-paper);
   font: 600 18px/1.1 var(--font-dashboard-ui);
   letter-spacing: -0.025em;
 }
 
-.dashboard-instrument-header p,
-.dashboard-review-row > header p {
+.dashboard-instrument-header p {
   margin-top: 6px;
   color: var(--desk-faint);
   font: 440 11px/1.45 var(--font-dashboard-ui);
@@ -579,51 +540,6 @@
 
 .operator-workspace .risk-watch-panel .space-y-3 > div {
   border-color: rgba(236, 229, 216, 0.1) !important;
-}
-
-.dashboard-review-row {
-  margin-top: 12px;
-  overflow: hidden;
-}
-
-.dashboard-review-row > header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--desk-line);
-}
-
-.dashboard-review-grid {
-  display: grid;
-  grid-template-columns: 1.1fr 1.45fr 1fr 0.7fr;
-}
-
-.dashboard-review-grid > div {
-  min-width: 0;
-  padding: 14px 18px;
-  border-right: 1px solid var(--desk-line);
-}
-
-.dashboard-review-grid > div:last-child {
-  border-right: 0;
-}
-
-.dashboard-review-grid strong {
-  display: block;
-  margin-top: 7px;
-  color: rgba(238, 232, 222, 0.82);
-  font: 540 12px/1.4 var(--font-dashboard-ui);
-}
-
-.dashboard-review-status-ready {
-  color: var(--desk-mint) !important;
-}
-
-.dashboard-review-status-caution,
-.dashboard-review-status-locked {
-  color: #f0a876 !important;
 }
 
 .dashboard-review-disclosure {
@@ -729,12 +645,6 @@
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
-  .dashboard-summary-actions {
-    grid-column: 1 / -1;
-    justify-content: flex-start;
-    border-top: 1px solid var(--desk-line);
-  }
-
   .dashboard-instrument-grid {
     grid-template-columns: minmax(0, 1.35fr) minmax(270px, 0.65fr);
   }
@@ -784,26 +694,8 @@
     border-top: 1px solid var(--desk-line);
   }
 
-  .dashboard-summary-actions {
-    grid-column: 1 / -1;
-    justify-content: flex-start;
-    border-top: 1px solid var(--desk-line);
-  }
-
   .dashboard-instrument-grid {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .dashboard-review-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .dashboard-review-grid > div:nth-child(even) {
-    border-right: 0;
-  }
-
-  .dashboard-review-grid > div:nth-child(n + 3) {
-    border-top: 1px solid var(--desk-line);
   }
 }
 
@@ -824,31 +716,17 @@
     padding-inline: 9px;
   }
 
-  .dashboard-summary-strip,
-  .dashboard-review-grid {
+  .dashboard-summary-strip {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .dashboard-summary-cell,
-  .dashboard-review-grid > div {
+  .dashboard-summary-cell {
     border-right: 0;
     border-top: 1px solid var(--desk-line);
   }
 
-  .dashboard-summary-cell:first-child,
-  .dashboard-review-grid > div:first-child {
+  .dashboard-summary-cell:first-child {
     border-top: 0;
-  }
-
-  .dashboard-summary-actions,
-  .dashboard-review-row > header {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .dashboard-summary-actions button,
-  .dashboard-review-row > header button {
-    width: 100%;
   }
 
   .operator-workspace .dashboard-equity-instrument svg {

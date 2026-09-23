@@ -1,0 +1,100 @@
+/* Compact journal and clearly self-reported manual trade capture. */
+.astra-dashboard[data-dashboard-visual] .astra-trade-actions { display:flex; flex:none; align-items:center; gap:8px; }
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .mini-journal { align-self:start; min-height:0; }
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .mini-journal .astra-panel-heading { gap:12px; margin-bottom:12px; }
+.mini-journal input[type=date] { max-width:145px; min-width:0; background:transparent; border:0; color:#aebdd1; font:12px Inter,Arial,sans-serif; color-scheme:dark; }
+.oa-dashboard-app .mini-journal textarea { display:block; width:100%; resize:vertical; min-height:86px; max-height:220px; padding:11px 12px; border:1px solid #2a3544; border-radius:5px; background:#0a101a; color:#e0e8f5; font:13px/1.55 Inter,Arial,sans-serif; }
+.mini-journal textarea::placeholder { color:#96a8bd; }
+.mini-journal-footer { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:10px; }
+.mini-journal-footer span { color:#a4b1c5; font:11px/1.5 Inter,Arial,sans-serif; }
+.mini-journal-footer .astra-button { padding:7px 11px; font-size:12px; min-height:34px; }
+.mini-journal-footer button:disabled { opacity:.5; cursor:default; }
+.astra-dashboard[data-dashboard-visual] .astra-win-loss { margin-top:5px; color:#aebdd1; font:12px/1.5 Inter,Arial,sans-serif; }
+.astra-dashboard[data-dashboard-visual] .astra-add-trade { min-height:40px; white-space:nowrap; padding:0 12px; font:12px Inter,Arial,sans-serif; }
+.astra-manual-tag { display:block; color:#a6b8cd; font:10px/1.4 Inter,Arial,sans-serif; }
+.astra-trade-dialog.manual-trade-dialog { width:min(520px,calc(100vw - 28px)); max-height:calc(100dvh - 32px); overflow:auto; padding:22px; color-scheme:dark; }
+.manual-trade-dialog h2 { margin-right:35px; }
+.manual-trade-dialog form { display:grid; gap:14px; margin-top:18px; }
+.manual-trade-dialog label { display:flex; flex-direction:column; gap:6px; min-width:0; color:#bdcada; font:12px/1.4 Inter,Arial,sans-serif; }
+.manual-trade-dialog input,.manual-trade-dialog select,.manual-trade-dialog textarea { width:100%; min-width:0; border:1px solid #334155; border-radius:5px; background:#0b121c; color:#e4ecf7; padding:10px; min-height:40px; font:13px Inter,Arial,sans-serif; }
+.manual-trade-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+.manual-trade-dialog summary { font:12px/1.5 Inter,Arial,sans-serif; cursor:pointer; color:#a8c4fa; }
+.manual-trade-dialog details[open] label { margin-top:12px; }
+.manual-trade-dialog .manual-trade-disclosure { color:#a5b6ca; font:11px/1.5 Inter,Arial,sans-serif; margin:0; }
+.manual-trade-dialog [role=alert] { color:#f1a4ac; font:12px/1.5 Inter,Arial,sans-serif; }
+.astra-delete-manual { display:block; margin-top:16px; color:#e9a0aa; }
+@media(max-width:600px) { .astra-trade-dialog.manual-trade-dialog { padding:18px; } .manual-trade-fields { gap:12px; } .mini-journal-footer span { max-width:65%; } }
+
+.oa-dashboard-app .mini-journal > textarea { width:calc(100% - 40px); margin-inline:20px; }
+.oa-dashboard-app .mini-journal-footer { margin:10px 20px 16px; }
+@media(min-width:851px) {
+ .astra-dashboard[data-dashboard-visual] .astra-stats-panel .astra-stat-cell { grid-row:1/4; }
+ .astra-dashboard[data-dashboard-visual] .astra-stats-panel .astra-stat-basis { grid-row:4; }
+}
+
+/* Dark OA review surfaces: one polar ink, recessed content, quiet pill actions. */
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] { --review-ink:#e0e8f5; --review-muted:color-mix(in srgb,var(--review-ink) 74%,transparent); }
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .oa-discipline { display:flex; flex-direction:column; align-self:start; min-height:0; gap:12px; padding:18px; border-radius:20px; background:color-mix(in srgb,var(--review-ink) 3%,transparent); font-family:'Inter Tight Variable',Inter,sans-serif; }
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .oa-discipline > .astra-panel-heading { padding:0; margin:0; gap:10px; flex-wrap:wrap; }
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .oa-discipline h2 { font:500 16px/1.25 'Inter Tight Variable',Inter,sans-serif; letter-spacing:-.025em; }
+.oa-discipline-state { padding:5px 9px; border-radius:999px; font:12px/1.25 'Inter Tight Variable',Inter,sans-serif; color:var(--review-muted); background:color-mix(in srgb,var(--review-ink) 4%,transparent); }
+.oa-discipline-state.has-warning { color:#eaa0ab; }
+.oa-discipline-reading { display:flex; align-items:center; gap:18px; }
+.oa-discipline-score { display:flex; align-items:baseline; gap:5px; flex-shrink:0; font-variant-numeric:tabular-nums; }
+.oa-dashboard-app .oa-discipline-score strong { font:500 44px/1 'Inter Tight Variable',Inter,sans-serif; letter-spacing:-.055em; color:var(--review-ink); }
+.oa-discipline-score small { color:var(--review-muted); font-size:14px; }
+.oa-discipline-reading p { color:var(--review-muted); font:13px/1.45 'Inter Tight Variable',Inter,sans-serif; margin:4px 0 0; }
+.oa-discipline-focus { padding:12px; border-radius:14px; background:color-mix(in srgb,var(--review-ink) 4%,transparent); }
+.oa-discipline-focus h3 { margin:0 0 6px; color:var(--review-ink); font:500 16px/1.3 'Inter Tight Variable',Inter,sans-serif; }
+.oa-discipline-focus p { color:var(--review-muted); font:14px/1.5 'Inter Tight Variable',Inter,sans-serif; margin:0; }
+.oa-discipline-actions { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-top:0; }
+.oa-review-pill,.oa-review-details-button,.journal-attach-button { display:inline-flex; align-items:center; justify-content:center; gap:7px; border:0; border-radius:999px; padding:10px 14px; min-height:40px; font:500 13px/1.3 'Inter Tight Variable',Inter,sans-serif; color:var(--review-ink,#e0e8f5); background:color-mix(in srgb,var(--review-ink,#e0e8f5) 7%,transparent); cursor:pointer; transition:background .16s ease-out; }
+.oa-review-pill small { font:inherit; }
+.oa-review-pill svg,.journal-attach-button svg { width:15px; height:15px; flex-shrink:0; }
+.oa-review-details-button { background:transparent; padding-inline:0; color:#a8c4fa; }
+.oa-review-pill:hover,.journal-attach-button:hover { background:color-mix(in srgb,var(--review-ink,#e0e8f5) 12%,transparent); }
+.oa-review-pill:focus-visible,.oa-review-details-button:focus-visible,.journal-attach-button:focus-visible,.journal-attached button:focus-visible,.journal-trade-picker button:focus-visible { outline:2px solid #79a3ff; outline-offset:3px; }
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-desk-grid { gap:16px; margin-bottom:16px; align-items:start; }
+.astra-desk-column { display:flex; flex-direction:column; gap:16px; min-width:0; }
+.astra-desk-column > .astra-panel { width:100%; min-width:0; }
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .mini-journal { border-radius:20px; }
+.oa-dashboard-app .mini-journal textarea { background:color-mix(in srgb,var(--review-ink) 3%,transparent); border-color:color-mix(in srgb,var(--review-ink) 12%,transparent); border-radius:12px; }
+.oa-dashboard-app .mini-journal-footer .astra-button { border-radius:999px; padding-inline:14px; font-weight:500; }
+.journal-attachment-area { margin:10px 20px 0; }
+.journal-attach-button { background:transparent; color:#adc6f5; padding:7px 0; font-weight:400; }
+.journal-attach-button:disabled { color:var(--review-muted); cursor:default; }
+.journal-attached { display:flex; align-items:center; gap:5px; border-radius:12px; background:color-mix(in srgb,var(--review-ink) 5%,transparent); padding:6px; margin-bottom:3px; }
+.journal-attached button { background:transparent; border:0; color:var(--review-ink); display:flex; align-items:center; gap:9px; padding:8px; border-radius:8px; min-width:0; font:13px/1.4 'Inter Tight Variable',Inter,sans-serif; }
+.journal-attached button:first-child { flex:1; text-align:left; }
+.journal-attached button:first-child > span:first-of-type { flex:1; min-width:0; overflow-wrap:anywhere; }
+.journal-attached button svg { width:15px; height:15px; flex-shrink:0; }
+.journal-attached button small,.journal-trade-options small { display:block; color:var(--review-muted); font-size:11px; }
+.journal-trade-picker { padding:10px; border-radius:14px; border:1px solid color-mix(in srgb,var(--review-ink) 12%,transparent); background:#101722; margin-top:4px; }
+.journal-trade-picker > label { display:flex; align-items:center; gap:8px; color:var(--review-muted); }
+.journal-trade-picker label svg { width:15px; }
+.journal-trade-picker input { background:transparent; color:var(--review-ink); border:0; font:13px/1.4 Inter,sans-serif; width:100%; min-width:0; padding:8px 2px; }
+.journal-trade-picker input:focus-visible { outline:2px solid #79a3ff; outline-offset:1px; }
+.journal-trade-picker p { color:var(--review-muted); font-size:12px; }
+.journal-trade-options { max-height:240px; overflow:auto; overscroll-behavior:contain; margin-top:6px; }
+.journal-trade-options > button { width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 8px; color:var(--review-ink); text-align:left; border:0; background:transparent; border-radius:9px; font:13px/1.4 'Inter Tight Variable',Inter,sans-serif; }
+.journal-trade-options > button:hover { background:color-mix(in srgb,var(--review-ink) 5%,transparent); }
+.astra-trade-dialog.oa-review-dialog { --review-ink:#e0e8f5; width:min(560px,calc(100vw - 28px)); max-height:calc(100dvh - 40px); overflow:auto; padding:22px; border-radius:24px; border-color:color-mix(in srgb,var(--review-ink) 12%,transparent); background:#101722; color:var(--review-ink); font-family:'Inter Tight Variable',Inter,sans-serif; }
+.oa-review-dialog > header { display:flex; align-items:center; justify-content:space-between; gap:14px; position:sticky; top:-22px; padding-block:8px; background:#101722; z-index:1; }
+.oa-review-dialog > header h2 { margin:0; font:500 20px/1.3 'Inter Tight Variable',Inter,sans-serif; }
+.oa-review-dialog > header button { display:grid; place-items:center; border:0; border-radius:999px; width:36px; height:36px; background:color-mix(in srgb,var(--review-ink) 6%,transparent); }
+.oa-review-dialog > header svg { width:18px; height:18px; }
+.oa-review-dialog p { color:#b3c0d2; font:14px/1.6 'Inter Tight Variable',Inter,sans-serif; }
+.oa-review-dialog .astra-factor-list { padding:12px 0; }
+.oa-review-dialog .astra-factor-list div { border:0; display:flex; justify-content:space-between; gap:14px; padding:7px 0; font-size:13px; }
+.oa-review-dialog strong { font-weight:500; }
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .oa-review-dialog .risk-watch-panel { margin:12px 0; background:transparent; border:0!important; border-color:transparent!important; box-shadow:none; }
+.oa-review-dialog .oa-card-header { padding:8px 0; }
+.oa-review-dialog .oa-card-header h2 { font-size:17px; font-weight:500; }
+.oa-review-dialog .oa-card-inset { margin:0; background:color-mix(in srgb,var(--review-ink) 4%,transparent); }
+.oa-review-dialog .oa-next-review { margin-top:18px; padding:16px; background:color-mix(in srgb,var(--review-ink) 4%,transparent); border-radius:14px; }
+.oa-next-review h3 { margin:0; font-size:17px; font-weight:500; }
+.oa-next-review > span { display:block; margin-bottom:12px; color:#b3c0d2; font-size:12px; }
+.oa-review-dialog .dashboard-review-disclosure { display:block; padding:0; margin:18px 0 0; font-size:12px; }
+@supports(corner-shape:squircle) { .oa-discipline,.mini-journal,.oa-discipline-focus,.oa-review-dialog { corner-shape:squircle; } }
+@media(max-width:850px) { .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .oa-discipline { gap:12px; padding:16px; } .oa-discipline-actions { justify-content:space-between; } }
+@media(prefers-reduced-motion:reduce) { .oa-review-pill,.journal-attach-button { transition:none; } }

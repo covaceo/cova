@@ -41,7 +41,7 @@ function token(name) {
 }
 function routeTree(section, signedIn) {
   const values = {
-    React, section, isSignedIn: signedIn,
+    React, Set, section, isSignedIn: signedIn,
     isProtectedSection: (value) => privateRoutes.includes(value),
     authSession: signedIn ? { userId: 'account-a', email: 'a@example.test', plan: 'free' } : null,
     brokerStatus: { provider: 'Rithmic', status: 'imported' },
@@ -97,7 +97,7 @@ test('marketing retains the original wait-mode RouteFrames', () => {
 
 test('route props preserve behavior with owner-approved history account isolation and reset', () => {
   const expected = {
-    Dashboard: 'key={`${authSession?.userId || authSession?.email}:${tradeAccount}`} analysis={analysis} rules={rules} go={go} onSaveTradeNote={saveTradeNote} rithmicSyncAvailable={brokerStatus?.provider === "Rithmic" && brokerStatus.status === "imported"}',
+    Dashboard: 'key={`${authSession?.userId || authSession?.email}:${tradeAccount}`} analysis={analysis} rules={rules} go={go} onSaveTradeNote={saveTradeNote} journalActions={journalActions} onAddManualTrade={addManualTrade} onDeleteManualTrade={deleteManualTrade} manualAccounts={[...new Set([...tradeAccounts,"local"])]} selectedAccount={tradeAccount} rithmicSyncAvailable={brokerStatus?.provider === "Rithmic" && brokerStatus.status === "imported"}',
     ImportDesk: 'key={authSession?.userId || authSession?.email} entitlements={entitlements} importCsv={importCsv} prepareImportCsv={prepareImportCsv} openFirmOAuth={openFirmOAuth} status={status} reset={() => { const demoTrades = entitlements.plan === "free" ? sampleTrades.slice(0, entitlements.maxStoredTrades) : sampleTrades; tradesRef.current = demoTrades; setTrades(demoTrades); selectTradeAccount("local"); setRules(defaultRules); clearBrokerStatus(); window.dispatchEvent(new CustomEvent("cova:broker-status")); setStatus("Demo trades restored."); announce("Demo trades restored.", "success"); }} upgradeToPro={upgradeToPro}',
     OAuthConnectPage: 'firmId={oauthFirmId} onApprove={completeFirmOAuth} onCancel={cancelFirmOAuth}',
     RulesEngine: 'analysis={analysis} entitlements={entitlements} rules={rules} setRules={setRules} go={go} upgradeToPro={upgradeToPro}',

@@ -201,9 +201,9 @@ async function openDashboard(width, height, mobile = false) {
 }
 
 async function press(key, code = key, modifiers = 0) {
-  if (key === "Backspace") {
-    await cdp.send("Input.dispatchKeyEvent", { type: "rawKeyDown", key, code, modifiers, windowsVirtualKeyCode: 8, nativeVirtualKeyCode: 8 });
-    await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", key, code, modifiers, windowsVirtualKeyCode: 8, nativeVirtualKeyCode: 8 });
+  if (key === "Backspace" || key === "Escape") {
+    await cdp.send("Input.dispatchKeyEvent", { type: "rawKeyDown", key, code, modifiers, windowsVirtualKeyCode: key === "Escape" ? 27 : 8, nativeVirtualKeyCode: key === "Escape" ? 27 : 8 });
+    await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", key, code, modifiers, windowsVirtualKeyCode: key === "Escape" ? 27 : 8, nativeVirtualKeyCode: key === "Escape" ? 27 : 8 });
     await sleep(100);
     return;
   }
@@ -261,10 +261,11 @@ async function auditDarkDashboard(label) {
   const audit = await evaluate(`(() => {
     const shell = document.querySelector('.workspace-shell');
     const parse = (value) => {
-      const match = value.match(/rgba?\\(([^)]+)\\)/);
+      const match = value.match(/rgba?\\(([^)]+)\\)|color\\(srgb\\s+([^)]+)\\)/);
       if (!match) return null;
-      const parts = match[1].split(/[\\s,\\/]+/).filter(Boolean).map(Number);
-      return { r: parts[0], g: parts[1], b: parts[2], a: Number.isFinite(parts[3]) ? parts[3] : 1 };
+      const parts = (match[1]||match[2]).split(/[\\s,\\/]+/).filter(Boolean).map(Number);
+      const scale = match[2] ? 255 : 1;
+      return { r:parts[0]*scale,g:parts[1]*scale,b:parts[2]*scale,a:Number.isFinite(parts[3])?parts[3]:1 };
     };
     const visible = (node) => {
       const style = getComputedStyle(node);
@@ -305,12 +306,16 @@ async function auditDarkDashboard(label) {
       const className = String(node.className?.baseVal || node.className || '');
       return /(?:emerald|green|copper|mint)/i.test(className) ? [{ tag: node.tagName, className }] : [];
     }).slice(0, 10);
-    const light = [...shell.querySelectorAll('*')].filter(visible).flatMap((node) => {
-      const color = parse(getComputedStyle(node).backgroundColor);
-      if (!color || color.a < 0.05 || Math.min(color.r, color.g, color.b) < 190) return [];
-      return [{ tag: node.tagName, className: node.className?.baseVal || node.className || '', background: getComputedStyle(node).backgroundColor }];
-    }).slice(0, 10);
     const composite = (fg, bg) => ({ r: fg.r * fg.a + bg.r * (1 - fg.a), g: fg.g * fg.a + bg.g * (1 - fg.a), b: fg.b * fg.a + bg.b * (1 - fg.a), a: 1 });
+    const effectiveBackground = node => {
+      const layers=[];for(let parent=node;parent;parent=parent.parentElement){const layer=parse(getComputedStyle(parent).backgroundColor);if(layer)layers.push(layer);if(layer?.a===1)break;}
+      return layers.reverse().reduce((bg,layer)=>composite(layer,bg),{r:255,g:255,b:255,a:1});
+    };
+    const light = [...shell.querySelectorAll('*')].filter(visible).flatMap(node => {
+      const color=effectiveBackground(node);
+      if(Math.min(color.r,color.g,color.b)<190)return [];
+      return [{tag:node.tagName,className:node.className?.baseVal||node.className||'',background:color}];
+    }).slice(0,10);
     const luminance = (color) => {
       const channel = (value) => { const n = value / 255; return n <= 0.04045 ? n / 12.92 : ((n + 0.055) / 1.055) ** 2.4; };
       return 0.2126 * channel(color.r) + 0.7152 * channel(color.g) + 0.0722 * channel(color.b);
@@ -319,14 +324,13 @@ async function auditDarkDashboard(label) {
     const contrastSelectors = [
       '.astra-data-details summary', '.dashboard-range-controls button:not(.dashboard-range-active)',
       ...(document.querySelector('.astra-data-details')?.open ? ['.astra-source-label', '.astra-stat-detail', '.astra-metric-explanations dt', ...(document.querySelector('.astra-data-content p') ? ['.astra-data-content p'] : [])] : []), '.astra-stat-label', '.astra-panel-heading h2',
-      '.astra-chart-note > span', '.astra-score-ring small', '.astra-score-row p',
-      '.astra-warning-link strong', '.astra-warning-link small', '.astra-evidence-details summary span',
-      '.astra-note-date', '.astra-mini-note > p', '.astra-trade-table th', '.astra-review-details > summary span',
+      '.astra-chart-note > span', '.oa-discipline-score small', '.oa-discipline-reading p',
+      '.oa-discipline-focus h3', '.oa-discipline-focus p', '.oa-review-details-button',
+      '.mini-journal-footer > span', '.astra-win-loss', '.astra-trade-table th', '.oa-discipline-state',
       '.astra-dashboard-footer > span',
       ...(innerWidth >= 851 ? ['.workspace-sidebar-group-label', '.cova-profile-trigger > span:nth-child(2)', '.astra-rail-account small'] : []),
       // Owner removed the duplicate rail disclaimer; the actual dashboard footer remains required above.
-      ...(document.querySelector('.astra-evidence-details')?.open ? ['.astra-evidence-details > p', '.astra-factor-list span', '.oa-card-header > span', '.oa-watch-row'] : []),
-      ...(document.querySelector('.astra-review-details')?.open ? ['.dashboard-review-grid span', '.dashboard-review-disclosure'] : []),
+      ...(document.querySelector('[data-discipline-details]:modal') ? ['.oa-review-evidence', '.astra-factor-list span', '.oa-next-review p', '.dashboard-review-disclosure'] : []),
     ];
     const contrastChecks = contrastSelectors.flatMap((selector) => {
       const nodes = [...document.querySelectorAll(selector)].filter(visible);
@@ -346,10 +350,10 @@ async function auditDarkDashboard(label) {
       });
     });
     const brokenImages = [...document.images].filter((image) => image.complete && image.naturalWidth === 0).map((image) => image.src);
-    const local = ['.workspace-sidebar', '.astra-stat-strip', '.astra-chart-panel', '.astra-discipline', '.astra-recent-trades', '.astra-journal', '.astra-evidence-details', '.astra-review-details', '.risk-watch-panel', '.dashboard-review-row'].flatMap((selector) => {
+    const local = ['.workspace-sidebar', '.astra-stat-strip', '.astra-chart-panel', '.astra-discipline', '.astra-recent-trades', '.astra-journal', '.risk-watch-panel', '.oa-review-dialog', '.oa-next-review', '.journal-trade-picker'].flatMap((selector) => {
       const node = document.querySelector(selector);
       if (!node || !visible(node)) return [];
-      return [{ selector, deltaX: node.scrollWidth - node.clientWidth, deltaY: node.scrollHeight - node.clientHeight }];
+      return [{ selector, deltaX: node.scrollWidth - node.clientWidth, deltaY: node.scrollHeight - node.clientHeight, intentionalScroll:node.matches('.oa-review-dialog') && ['auto','scroll'].includes(getComputedStyle(node).overflowY) }];
     });
     return {
       viewport: { innerWidth, innerHeight, visualWidth: visualViewport?.width, clientWidth: document.documentElement.clientWidth },
@@ -364,9 +368,9 @@ async function auditDarkDashboard(label) {
       bodyBackground: getComputedStyle(document.body).backgroundColor,
       shellBackground: getComputedStyle(document.querySelector('.dashboard-workspace')).backgroundColor,
       chartStroke: getComputedStyle(document.querySelector('.astra-chart-svg .astra-curve')).stroke,
-      primaryBackground: getComputedStyle(document.querySelector('.dashboard-summary-primary')).backgroundColor,
+      primaryBackground: parse(getComputedStyle(document.querySelector('.dashboard-summary-primary')).backgroundColor),
       primaryColor: getComputedStyle(document.querySelector('.dashboard-summary-primary')).color,
-      positiveColors: [...document.querySelectorAll('.astra-positive, .oa-tone-positive, .dashboard-review-status-ready')].map((node) => getComputedStyle(node).color),
+      positiveColors: [...document.querySelectorAll('.astra-positive, .oa-tone-positive')].map((node) => getComputedStyle(node).color),
     };
   })()`);
   assert.equal(audit.marker, "integrated", `${label} must render the candidate-specific Astra dashboard marker`);
@@ -379,13 +383,13 @@ async function auditDarkDashboard(label) {
   assert.equal(audit.bodyBackground, "rgb(8, 9, 12)");
   assert.equal(audit.shellBackground, "rgb(9, 15, 21)", "Owner-selected matte Risk Desk surface");
   assert.equal(audit.chartStroke, "rgb(79, 125, 255)");
-  assert.equal(audit.primaryBackground, "rgba(0, 0, 0, 0)", "Astra warning action is an integrated review row, not the retired filled summary CTA");
-  assert.equal(audit.primaryColor, "rgb(224, 232, 247)");
+  assert.ok(Math.abs(audit.primaryBackground.a - .07)<.001 && Math.abs(audit.primaryBackground.r-224)<.01 && Math.abs(audit.primaryBackground.g-232)<.01 && Math.abs(audit.primaryBackground.b-245)<.01, "OA action uses the approved 7% polar ink surface");
+  assert.equal(audit.primaryColor, "rgb(224, 232, 245)");
   assert.ok(audit.positiveColors.length > 0, `${label} must expose at least one positive/healthy state`);
   assert.ok(audit.positiveColors.every((color) => color === "rgb(111, 150, 255)"), `${label} positive/healthy states must use cobalt instead of green: ${audit.positiveColors.join(", ")}`);
   for (const item of audit.local) {
     assert.equal(item.deltaX, 0, `${label} ${item.selector} must not overflow horizontally`);
-    assert.ok(item.deltaY <= 1, `${label} ${item.selector} must not clip vertically`);
+    assert.ok(item.deltaY <= 1 || item.intentionalScroll, `${label} ${item.selector} must not clip vertically outside its explicit scroll owner`);
   }
   return audit;
 }
@@ -401,15 +405,18 @@ async function openDetails(selector) {
 }
 
 async function detailsContract(label) {
-  for (const selector of [".astra-data-details", ".astra-evidence-details", ".astra-review-details"]) {
+  for (const selector of [".astra-data-details"]) {
     assert.equal(await evaluate(`document.querySelector(${JSON.stringify(selector)})?.open`), false, `${label} ${selector} must begin collapsed`);
     await evaluate(`document.querySelector(${JSON.stringify(`${selector} > summary`)}).scrollIntoView({block:'center',behavior:'instant'}); document.querySelector(${JSON.stringify(`${selector} > summary`)}).focus(); true`);
     await press("Enter");
     await waitFor(`document.querySelector(${JSON.stringify(selector)}).open`);
     assert.equal(await evaluate("document.activeElement.matches('summary:focus-visible')"), true, "Native summary must retain visible keyboard focus after opening");
   }
-  await auditDarkDashboard(`${label} expanded evidence and Next review`);
-  for (const selector of [".astra-data-details", ".astra-evidence-details", ".astra-review-details"]) {
+  await evaluate("document.querySelector('.oa-review-details-button').focus()");
+  await press("Enter");await waitFor("Boolean(document.querySelector('[data-discipline-details]:modal'))");await sleep(350);
+  await auditDarkDashboard(`${label} consolidated review evidence`);
+  await press("Escape");await waitFor("!document.querySelector('[data-discipline-details]')");
+  for (const selector of [".astra-data-details"]) {
     await clickSelector(`${selector} > summary`);
     await waitFor(`!document.querySelector(${JSON.stringify(selector)}).open`);
   }
@@ -466,15 +473,17 @@ async function reviewRanges() {
 async function desktopInteractions() {
   await openDashboard(1440, 1000, false);
 
+  await clickSelector('.oa-review-details-button');await waitFor("Boolean(document.querySelector('[data-discipline-details]:modal'))");
   const evidenceActions = await evaluate("document.querySelectorAll('button[data-dashboard-action=\"review-risk-evidence\"]').length");
   assert.ok(evidenceActions > 0, "Risk evidence rows must be functional Limits buttons");
+  await press("Escape");await waitFor("!document.querySelector('[data-discipline-details]')");
   await auditDarkDashboard("desktop");
 
   const inventory = await evaluate(`(() => [...document.querySelectorAll('button, input')].filter((node) => {
     const style = getComputedStyle(node); const rect = node.getBoundingClientRect();
     return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
   }).map((node) => node.tagName === 'INPUT' ? node.getAttribute('aria-label') : node.matches('.astra-rail-account') ? node.querySelector('strong').textContent.trim() : node.textContent.trim()))()`);
-  for (const expected of ["Search workspace", "Risk Desk", "Accounts", "Limits", "Insights", "Passport", "Latest session", "Last 7 days", "All trades", "Manage source", "Set username"]) {
+  for (const expected of ["Search workspace", "Risk Desk", "Accounts", "Limits", "Insights", "Passport", "Latest session", "Last 7 days", "All trades", "Import trades", "Add trade", "Review details", "Attach trade", "Save note", "Journal date", "Set username"]) {
     assert.ok(inventory.includes(expected) || inventory.some((item) => item.startsWith(expected)), `Desktop control inventory must include ${expected}`);
   }
 
@@ -513,9 +522,10 @@ async function desktopInteractions() {
   }
 
   await clickSelector(".workspace-brand-button");
-  assert.equal(await evaluate("location.hash"), "#dashboard");
+  await waitFor("location.hash === '#overview'");
+  await goBack("#dashboard");
 
-  await clickSelector(".dashboard-summary-actions button", "Manage source");
+  await clickSelector(".astra-import-action");
   await waitFor("location.hash === '#import'");
   await goBack("#dashboard");
 
@@ -526,13 +536,15 @@ async function desktopInteractions() {
   await waitFor(`location.hash === ${JSON.stringify(primaryTarget)}`);
   await goBack("#dashboard");
 
-  await openDetails(".astra-evidence-details");
+  await clickSelector(".oa-review-details-button");
+  await waitFor("Boolean(document.querySelector('[data-discipline-details]:modal'))");
   await clickSelector("button[data-dashboard-action=\"review-risk-evidence\"]");
   await waitFor("location.hash === '#rules'");
   await goBack("#dashboard");
 
-  await openDetails(".astra-review-details");
-  await clickSelector(".dashboard-review-row > header button", "Open insights");
+  await clickSelector(".oa-review-details-button");
+  await waitFor("Boolean(document.querySelector('[data-discipline-details]:modal'))");
+  await clickSelector(".oa-next-review button", "Open insights");
   await waitFor("location.hash === '#coach'");
   await goBack("#dashboard");
 
@@ -582,13 +594,13 @@ async function sourceLifecycle() {
         sourceText: document.querySelector('.astra-source-label').textContent.trim(),
         account: document.querySelector('.astra-rail-account small').textContent.trim(),
         attribution: document.querySelectorAll('.dashboard-attribution-row [data-rithmic-attribution]').length,
-        syncActions: [...document.querySelectorAll('.astra-header-controls .astra-import-action, .dashboard-summary-actions button')].map(node => node.textContent.trim()),
+        syncActions: [...document.querySelectorAll('.astra-header-controls .astra-import-action')].map(node => node.textContent.trim()),
         recapActions: document.querySelectorAll('.recap-open').length,
         empty: document.querySelectorAll('[data-dashboard-empty="true"]').length,
       }))()`);
-      assert.deepEqual(state, { source: `Review source: ${scenario.source}`, sourceText: `${scenario.source} / ${scenario.count} trades`, account: scenario.account, attribution: scenario.attribution, syncActions: ['Update trades', 'Update trades'], recapActions: scenario.trades.length ? 1 : 0, empty: scenario.count ? 0 : 1 }, scenario.name);
+      assert.deepEqual(state, { source: `Review source: ${scenario.source}`, sourceText: `${scenario.source} / ${scenario.count} trades`, account: scenario.account, attribution: scenario.attribution, syncActions: ['Update trades'], recapActions: scenario.trades.length ? 1 : 0, empty: scenario.count ? 0 : 1 }, scenario.name);
       // Selection is a lifecycle handoff only. Never enter credentials or start a broker sync.
-      await clickSelector('.dashboard-summary-actions button', 'Update trades');
+      await clickSelector('.astra-import-action', 'Update trades');
       await waitFor("location.hash === '#import'");
       await waitFor("document.querySelector('[data-csv-import]') && document.querySelector('[data-platform=\"rithmic\"]')");
       assert.equal(await evaluate("document.querySelectorAll('[data-platform]').length"), 2, `${scenario.name} must land on the simplified Accounts screen`);
