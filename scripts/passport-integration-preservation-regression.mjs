@@ -50,10 +50,10 @@ const protectedFiles = {
   // Callback hints never authorize imports; all marketing, OAuth and Passport artwork remain unchanged.
   // Approved OA review headers reuse the exact owner-bound selector; route-prop parity remains enforced.
   "src/App.tsx": "b8bef0dd5beeaf4644c1930b407ab89c6aa584f2e3a4531d70e04b0fb8d7c5c4",
-  "src/components/AstraEquityCurve.tsx": "080bdba310e0b45aac25cef67702f29ab6e49c674a74559d45af15ff3dbc4433",
+  "src/components/AstraEquityCurve.tsx": "15439a5b127bf2b1d2d942bfb06090daeb5954bf8e6bc45a309485ead6a79193",
   "src/components/DashboardTradeDialog.tsx": "302d1c3851169baadf76180225e607254f09e340b447384f52e2322ac3d8752a",
   // Owner-approved separate session recap action plus legacy source CTA wording and averages; original financial logic remains locked by approved-dashboard-preservation.
-  "src/components/DashboardView.tsx": "e6205e8af4caa4bd74f03fb2eb262c6b2d87b4826790b67542fa7ce4ee414f1e",
+  "src/components/DashboardView.tsx": "55aaec8259bc18a7e0da12b9e72408b9b5edecbcb978dc70fe011853fc5411b1",
   // Owner-approved Passport book icon, duplicate rail copy removal and Settings-to-Accounts entry; shell handlers remain intact.
   "src/components/WorkspaceShell.tsx": "b5e4b9f0418607abcca8822298aae898d18c8f71ad9365914deefa21736a9e83",
   // Owner-approved left hero overline removal only; all dashboard CSS remains unchanged.
@@ -61,7 +61,7 @@ const protectedFiles = {
   // Retain UTC ordering while preserving legacy same-day input order and member annotations.
     "src/lib/risk.ts": "78991b6b2f932c3d91ddf7d5cb29fc6953a1732cda2be8cbc953d55b6b400ef9",
   "src/lib/storageScope.ts": "3cd9c57c38bb10e9f7b61776f00422ab9590bdebd1d0e458eba5a33cc676e183",
-  "src/styles/astraDashboard.css": "3291c68685e2118bbcfa68296fa78ea43decb7129db1403c3a6d782a52f43ae8",
+  "src/styles/astraDashboard.css": "95f2dfbc738d9cb0e5797588cf240c0b1c66fc0dad3c49d5ae1b2f0a659499ae",
   "supabase/migrations/20260807010000_auth_policy_acceptances.sql": "0cf48fb5788748c426e686bf1a0c67975da1faf812a73f63a3e444e86b99cec4",
   "supabase/migrations/20260807020000_unique_broker_provider_connections.sql": "5a9b4956fb5b1a6ddf99767b633160ff0826771b6fc1db526b0acf3250594ac3",
   "supabase/migrations/20260807030000_retire_projectx_connector.sql": "e783e6bb4c0647af87ae57168e237a566182be4923cd1622717765abef45ab0c",

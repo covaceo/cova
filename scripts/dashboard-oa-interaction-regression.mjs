@@ -453,7 +453,7 @@ async function reviewRanges() {
       { id: "profit-factor", label: "Profit factor", value: loss ? (profit / loss).toFixed(2) : profit ? "∞" : "0.00" },
       { id: "drawdown", label: "Max drawdown", value: money(-drawdown) },
     ], `${label} must expose exactly four data-derived financial metrics`);
-    assert.equal((result.curve.match(/L/g) || []).length, trades.length, "The curve must retain each real closed-trade point plus the zero origin");
+    assert.equal((result.curve.match(/[LC]/g) || []).length, trades.length, "The curve must retain each real closed-trade point plus the zero origin, using shape-preserving cubic intervals");
     assert.doesNotMatch(result.curve, /NaN|Infinity/, "Equity geometry must stay finite");
     assert.deepEqual(result.recent, trades.slice(-4).reverse().map(trade => trade.id));
     assert.equal(await evaluate("localStorage.getItem('cova-dashboard-range-v1')"), range);

@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState, type PointerEvent, type MouseEvent, type KeyboardEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type PointerEvent, type MouseEvent, type KeyboardEvent, type CSSProperties } from "react";
 import { buildEquityGeometry, signedMoney } from "../lib/dashboardPresentation";
 
 type Point = { label: string; value: number };
@@ -10,8 +10,11 @@ function dateLabel(value: string) {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString("en-US", { month: "short", day: "2-digit", timeZone: "UTC" });
 }
 
-export function AstraEquityCurve({ points, basis = "trades" }: { points: Point[]; basis?: "trades" | "daily-net" }) {
+export function AstraEquityCurve({ points, basis = "trades", accountPnlCents = null }: { points: Point[]; basis?: "trades" | "daily-net"; accountPnlCents?: number | null }) {
   const dailyNet = basis === "daily-net";
+  const result = Number.isSafeInteger(accountPnlCents) ? accountPnlCents : null;
+  const tone = result === null || result === 0 ? "neutral" : result < 0 ? "loss" : "profit";
+  const accent = tone === "loss" ? "#e57c89" : tone === "profit" ? "#52c79a" : "#4f7dff";
   const svgRef = useRef<SVGSVGElement>(null);
   const [width, setWidth] = useState(680);
   const chart = useMemo(() => buildEquityGeometry(points, width), [points, width]);
@@ -48,19 +51,19 @@ export function AstraEquityCurve({ points, basis = "trades" }: { points: Point[]
     setPinned(true);
     setSelected(event.key === "Home" ? 0 : event.key === "End" ? chart.points.length - 1 : Math.max(0, Math.min(chart.points.length - 1, (selected ?? 0) + (event.key === "ArrowRight" ? 1 : -1))));
   }
-  return <div className="astra-chart-main" data-chart-selected={selected ?? ""} data-chart-pinned={pinned}>
+  return <div className="astra-chart-main" data-equity-tone={tone} style={{ "--astra-equity-accent": accent } as CSSProperties} data-chart-selected={selected ?? ""} data-chart-pinned={pinned}>
     <svg ref={svgRef} className="astra-chart-svg" style={{ touchAction: "pan-y" }} viewBox={`0 0 ${chart.width} ${chart.height}`} role="img" tabIndex={0}
-      aria-label={`${dailyNet ? "Daily cumulative net P&L" : "Cumulative reported P&L equity curve"}, ending ${money(last.value)}. Arrow keys explore ${dailyNet ? "days" : "trades"}, Enter pins a point, Escape clears.`}
+      aria-label={`${dailyNet ? "Daily cumulative net P&L" : "Cumulative reported P&L equity curve"}, ending ${money(last.value)}. Curve interpolated between recorded results. ${result === null ? "Account color unavailable." : `Loaded account P&L ${result < 0 ? "below" : result > 0 ? "above" : "at"} its starting baseline.`} Arrow keys explore ${dailyNet ? "days" : "trades"}, Enter pins a point, Escape clears.`}
       onKeyDown={onKeyDown} onPointerMove={event => { if (!pinned) setSelected(pointIndex(event)); }} onPointerLeave={() => { if (!pinned) setSelected(null); }}
       onClick={event => { const index = pointIndex(event); setSelected(index); setPinned(selected === index ? !pinned : true); }}>
-      <defs><linearGradient id={gradient} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#4f7dff" stopOpacity=".21" /><stop offset="100%" stopColor="#4f7dff" stopOpacity="0" /></linearGradient></defs>
+      <defs><linearGradient id={gradient} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={accent} stopOpacity=".21" /><stop offset="100%" stopColor={accent} stopOpacity="0" /></linearGradient></defs>
       {chart.ticks.map((tick, index) => <g key={index}><line x1={chart.left} x2={chart.width - chart.right} y1={tick.y} y2={tick.y} className="astra-chart-grid" /><text x={chart.width - chart.right + 12} y={tick.y + 3}>{tickMoney(tick.value)}</text></g>)}
       {[0, .25, .5, .75, 1].map(fraction => <line key={fraction} x1={chart.left + fraction * (chart.width - chart.left - chart.right)} x2={chart.left + fraction * (chart.width - chart.left - chart.right)} y1={chart.top} y2={chart.height - chart.bottom} className="astra-chart-vertical" />)}
       {chart.min < 0 && <line x1={chart.left} x2={chart.width - chart.right} y1={chart.zeroY} y2={chart.zeroY} className="astra-chart-zero" />}
       <path d={chart.area} fill={`url(#${gradient})`} />
-      <path className="dashboard-equity-path astra-curve" d={chart.line} fill="none" stroke="#4f7dff" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-      {dailyNet && chart.points.length <= 40 && chart.points.map((point, index) => <circle className="astra-observation" key={index} cx={point.x} cy={point.y} r="3" fill="#d5e3ff" stroke="#4f7dff" strokeWidth="1.5" />)}
-      <circle cx={last.x} cy={last.y} r="4" fill="#b2c8ff" stroke="#263b63" strokeWidth="5" />
+      <path className="dashboard-equity-path astra-curve" d={chart.line} fill="none" stroke={accent} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+      {dailyNet && chart.points.length <= 40 && chart.points.map((point, index) => <circle className="astra-observation" key={index} cx={point.x} cy={point.y} r="3" fill={accent} stroke={accent} strokeWidth="1.5" />)}
+      <circle cx={last.x} cy={last.y} r="4" fill={accent} stroke={accent} strokeOpacity=".25" strokeWidth="5" />
       {dateIndices.map((index, position) => <text key={index} x={position === 0 ? chart.left : position === dateIndices.length - 1 ? chart.width - chart.right : chart.points[index].x} y={chart.height - 3} textAnchor={position === 0 ? "start" : position === dateIndices.length - 1 ? "end" : "middle"}>{dateLabel(chart.points[index].label)}</text>)}
 
       {active && <g aria-hidden="true"><line x1={active.x} x2={active.x} y1={chart.top} y2={chart.height - chart.bottom} className="astra-crosshair" /><circle cx={active.x} cy={active.y} r="4" fill="#e8eeff" /></g>}
