@@ -66,12 +66,14 @@ try{
   // Linked scale-ins plus trims must produce one entry in the real exported Canvas.
  await evaluate(`window.__entryInk=[];window.__entryOriginal=CanvasRenderingContext2D.prototype.fillText;CanvasRenderingContext2D.prototype.fillText=function(text,...args){window.__entryInk.push({text:String(text),x:args[0]});return window.__entryOriginal.call(this,text,...args)};
  const make=(buy,sell,entry,exit,qty,open,close)=>({...window.__rows[0],id:'tradovate-7:'+buy+':'+sell,side:'Short',entry,exit,contracts:qty,pnl:(entry-exit)*qty*2,source:{...window.__rows[0].source,openedAt:'2026-09-18T'+open+'.000Z',closedAt:'2026-09-18T'+close+'.000Z'}});
- window.__linked=[make(101,201,20020,20000,1,'14:01:00','14:10:00'),make(101,202,20010,20000,3,'14:00:00','14:10:00'),make(102,201,20020,19995,2,'14:01:00','14:11:00'),...window.__rows.filter(t=>t.date<'2026-09-18')];window.__writeFees(-1234,'owner-a',window.__linked);window.__trades(window.__linked);`);
+ window.__linked=[make(101,201,20020,20000,1,'14:01:00','14:10:00'),make(101,202,20010,20000,3,'14:00:00','14:10:00'),make(102,201,20020,19995,2,'14:01:00','14:11:00'),...window.__rows.filter(t=>t.date==='2026-09-17')];window.__writeFees(-1234,'owner-a',window.__linked);window.__trades(window.__linked);`);
  await wait(`document.querySelector('[data-recap-preview]')?.alt.includes('1 Trade entries')`);await ready();
  for(const format of ['Story','Feed','Square']) {
   await evaluate('window.__entryInk=[]');await click('dialog button',format);await ready();
   assert.match(await evaluate(`document.querySelector('[data-recap-preview]').alt`),/1 Trade entries, 100% win rate/);
   assert((await evaluate('window.__entryInk')).some(t=>t.x===308&&t.text==='1'),'Export pixels use one real linked entry');
+  assert((await evaluate('window.__entryInk')).some(t=>t.text==='2 DAY HOT STREAK'),'Limited history uses the verified count without a plus in actual Canvas text');
+  assert(!(await evaluate('window.__entryInk')).some(t=>t.text.includes('+ DAY HOT STREAK')),'No lower-bound suffix printed on the card');
   assert((await evaluate('window.__entryInk')).some(t=>t.text==='+'+'$'+((20000-1234)/100).toFixed(2)),'All trim P&L and fees preserved');
   await capture(name+'-linked-'+format.toLowerCase());
  }
