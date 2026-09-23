@@ -34,9 +34,9 @@ test('historical recaps stop on their selected date, not the newest day',()=>{
  const rows=[row('2026-09-14',-10,1),row('2026-09-15',10,2),row('2026-09-16',10,3),row('2026-09-17',-10,4)],cash=cashFor(rows);
  assert.deepEqual(at(rows,cash,'2026-09-16').hotStreak,{days:2,atLeast:false});assert.equal(at(rows,cash,'2026-09-17').hotStreak.days,0);
 });
-test('limited earlier coverage shows a lower bound, never an invented exact start',()=>{
+test('limited coverage retains uncertainty internally but displays the verified synced-day count',()=>{
  const rows=[row('2026-09-15',10,1),row('2026-09-16',10,2)],cash=cashFor(rows),r=at(rows,cash,'2026-09-16');
- assert.deepEqual(r.hotStreak,{days:2,atLeast:true});assert.equal(model().recapHotStreakLine(r),'2+ DAY HOT STREAK');
+ assert.deepEqual(r.hotStreak,{days:2,atLeast:true});assert.equal(model().recapHotStreakLine(r),'2 DAY HOT STREAK');assert.match(r.details,/verified synced days/);
 });
 test('unreconciled earlier days are barriers, not skipped losing days',()=>{
  const rows=[row('2026-09-14',-10,1),row('2026-09-15',10,2),row('2026-09-16',10,3)],cash=cashFor(rows);
