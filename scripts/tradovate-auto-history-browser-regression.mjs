@@ -93,6 +93,28 @@ await wait('document.querySelector(".astra-source-label")?.textContent.includes(
 assert.match(await evaluate(`document.querySelector('[data-astra-stat="pnl"]').innerText`),/Net cash P&L[\s\S]*\+\$10\.79/);
 await wait(`!document.body.innerText.includes('History sync:')`);
 await wait(`!document.querySelector('.auth-overlay')`);
+// Exercise the real App account selector and Canvas renderer with different net results.
+const ledgerBeforeRecaps=await evaluate('localStorage.getItem("cova-react-risk-os-v2:history-owner")');
+const recapResults=[];
+for(const [account,amount] of [['71','+$10.79'],['72','+$9.58'],['71','+$10.79']]) {
+  await select('Trade account','Tradovate:'+account);
+  await evaluate(`[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Share recap').click()`);
+  await wait(`Boolean(document.querySelector('dialog[open]'))`);
+  // Profile backend is intentionally unavailable in this integration fixture.
+  await evaluate(`document.querySelector('#recap-show-identity').click()`);
+  await wait(`document.querySelector('[data-recap-preview]')?.complete && !document.querySelector('[data-recap-download]')?.disabled`);
+  const result=await evaluate(`({account:document.querySelector('[aria-label="Trade account"]').value,alt:document.querySelector('[data-recap-preview]').alt,src:document.querySelector('[data-recap-preview]').src})`);
+  assert(result.alt.includes(amount+' after fees'),JSON.stringify(result));
+  recapResults.push(result);
+  await screenshot((mobile?'mobile':'desktop')+'-recap-'+account);
+  // Switching even while a composer is open must discard the old export.
+  await select('Trade account','Tradovate:'+(account==='71'?'72':'71'));
+  await wait(`!document.querySelector('dialog[open]')`);
+}
+assert.equal(new Set(recapResults.map(r=>r.src)).size,3,'Each account opening creates a fresh artifact');
+await select('Trade account','Tradovate:71');
+assert.deepEqual(JSON.parse(await evaluate('localStorage.getItem("cova-react-risk-os-v2:history-owner")')).trades,JSON.parse(ledgerBeforeRecaps).trades,'Recaps never mutate trading history');
+receipts.push({mobile,recapAccounts:recapResults.map(({account,alt})=>({account,alt})),recapSwitchClearsExport:true});
 await evaluate(`document.querySelector('.astra-chart-svg').focus()`);
 await send('Input.dispatchKeyEvent',{type:'keyDown',key:'End',code:'End',windowsVirtualKeyCode:35});
 await send('Input.dispatchKeyEvent',{type:'keyUp',key:'End',code:'End',windowsVirtualKeyCode:35});
