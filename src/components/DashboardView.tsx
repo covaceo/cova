@@ -85,7 +85,7 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, o
             {tradovateOnly && <p data-cash-coverage>{netCash ? `Broker cash movements · ${netCash.startDate} to ${netCash.endDate} exclusive, UTC · Synced ${new Date(netCash.asOf).toLocaleString()}. Funding excluded. Fees are not allocated to individual trades; win rate, trade statistics and discipline remain before fees.` : cash.status === 'unavailable' ? cash.reason : 'Account review uses gross trade results.'}</p>}
             {hasTradeHistory && !journalReview && <DashboardStats analysis={scopedAnalysis} cash={cash} tradovateOnly={tradovateOnly} detailsOnly />}
             {hasTradeHistory && !journalReview && <TradeAverageStats trades={analysis.trades} selectedTrades={scopedTrades} detailsOnly />}
-            {hasTradeHistory && <p>Curve color uses all loaded account P&amp;L, net of reconciled fees where available, not the selected range or the previous peak.</p>}
+            {hasTradeHistory && <p>Curve color shows the account at each recorded point: red below its loaded-history starting baseline, green above. Date filters retain earlier P&amp;L. Colors use the plotted gross/reported or reconciled daily-net basis, not drawdown from a previous peak.</p>}
             {hasTradeHistory && <p>{netCash ? "Daily cumulative · USD · UTC" : "Cumulative gross / reported P&L from the selected trade history."}</p>}
           </div>
         </details>
@@ -111,7 +111,7 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, o
               {rangeOptions.map(option => <button aria-pressed={range === option.id} className={range === option.id ? "dashboard-range-active" : ""} key={option.id} onClick={() => setRange(option.id)} type="button">{option.label}</button>)}
             </div>
           </div>
-          {journalReview && journal.money.status !== 'available' ? <p className="astra-mini-note">{journal.money.reason}</p> : <AstraEquityCurve accountPnlCents={accountEquityPnlCents(analysis.trades, range === "all" ? cash : brokerCashSummary(analysis.trades, "all"))} basis={netCash ? "daily-net" : "trades"} points={netCash ? netCash.points : journalReview && journal.money.status === 'available' ? journal.money.equityPoints : scopedAnalysis.equityPoints} />}
+          {journalReview && journal.money.status !== 'available' ? <p className="astra-mini-note">{journal.money.reason}</p> : <AstraEquityCurve accountPnlCents={accountEquityPnlCents(analysis.trades, netCash ? (range === "all" ? cash : brokerCashSummary(analysis.trades, "all")) : { status: "unavailable", reason: "Reported trade basis" })} basis={netCash ? "daily-net" : "trades"} points={netCash ? netCash.points : journalReview && journal.money.status === 'available' ? journal.money.equityPoints : scopedAnalysis.equityPoints} />}
           <div className="astra-chart-note"><span>{netCash ? "Daily · USD" : tradovateOnly ? "Gross P&L" : "Reported P&L"}</span><span data-dashboard-trade-count={journalReview ? scopedTrades.length : scopedAnalysis.tradeCount}>{journalReview ? scopedTrades.length : scopedAnalysis.tradeCount} {journalReview ? `matched rows · ${journal.money.status === 'available' ? moneyText(journal.money.totalCents) : 'Unavailable'}` : 'trades'}</span></div>
         </section>
         {journalReview ? <JournalDisciplineReview journal={journal} rules={rules} onRules={() => go('rules')} /> : <DisciplineReview analysis={scopedAnalysis} go={go} />}

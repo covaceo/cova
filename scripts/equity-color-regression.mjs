@@ -38,6 +38,7 @@ test('net broker fees can turn gross profit red and funding never turns it green
   {id:'2',at:'2026-09-01T09:00:00.000Z',deltaCents:-1100,balanceCents:998900,category:'fee',type:'Commission',currency:'USD'},
   {id:'3',at:'2026-09-01T10:00:00.000Z',deltaCents:1000,balanceCents:999900,category:'trade',type:'Trade Paired',currency:'USD'}]};
  saveBrokerCash('owner-a','71',cash,trades);const html=dashboard(trades);assert.match(html,/Net P&amp;L curve/);assert.equal(html.match(/data-equity-tone="([^"]+)"/)?.[1],'loss');
+ const grossHtml=renderToStaticMarkup(React.createElement(Dashboard,{analysis:analyze(trades,defaultRules),rules:defaultRules,go:()=>{},journalReview:true}));assert.equal(grossHtml.match(/data-equity-tone="([^"]+)"/)?.[1],'profit','Gross/reported plot must not subtract cash fees from historical baseline');
 });
 test('mixed accounts never receive a combined profit color',()=>{
  storage();const trades=tradesFor([100,200]);trades[1].source.accountId='72';assert.equal(dashboard(trades).match(/data-equity-tone="([^"]+)"/)?.[1],'neutral');

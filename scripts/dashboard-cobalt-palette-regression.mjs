@@ -11,7 +11,10 @@ const dashboardCards = read("src", "components", "DashboardCards.tsx");
 const dashboardBriefs = read("src", "components", "DashboardBriefs.tsx");
 const workspaceShell = read("src", "components", "WorkspaceShell.tsx");
 const main = read("src", "main.tsx");
-const liveDashboardSource = [dashboardView, dashboardCards, dashboardBriefs, workspaceShell].join("\n");
+// The approved equity-only green exception is explained in prose, not a new dashboard palette token.
+const equityColorExplanation = 'Curve color shows the account at each recorded point: red below its loaded-history starting baseline, green above. Date filters retain earlier P&amp;L. Colors use the plotted gross/reported or reconciled daily-net basis, not drawdown from a previous peak.';
+assert.ok(dashboardView.includes(equityColorExplanation), 'Historical chart color semantics remain explicit in Data details');
+const liveDashboardSource = [dashboardView.replace(equityColorExplanation, ''), dashboardCards, dashboardBriefs, workspaceShell].join("\n");
 
 function parseCssColor(input) {
   const value = input.trim().toLowerCase();
