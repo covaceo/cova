@@ -51,6 +51,11 @@ assert.doesNotMatch(css, /\.cova-site-intro/, "The rejected intro must leave no 
 assert.match(hero, /import \{ CovaRibbonField \} from "\.\/CovaRibbonField";/);
 assert.match(hero, /import \{ CovaLiquidMetalSignupButton \} from "\.\/CovaLiquidMetalSignupButton";/);
 assert.match(hero, /market-hero-threeui/);
+assert.doesNotMatch(hero, /market-hero-eyebrow|Review what keeps happening|HeroProofPreview/, "Ship only approved left cleanup, never the rejected right preview.");
+assert.match(hero, /market-hero-title mt-0/);
+assert.match(hero, /<HeroMobileDossier \/>/);
+assert.match(hero, /<MarketingDashboardProof revealStats=\{isSignedIn\} \/>/);
+for (const style of [css, indexCss, await read('src/styles/operatorDossierRevamp.css'), await read('src/styles/cobaltMarket.css')]) assert.doesNotMatch(style, /market-hero-eyebrow/, 'Retired left overline leaves no dead CSS');
 assert.match(hero, /<CovaRibbonField/);
 assert.equal((hero.match(/<CovaLiquidMetalSignupButton/g) ?? []).length, 2, "The hero must render Liquid Metal for signed-out and signed-in primary states only.");
 assert.match(hero, /<CovaLiquidMetalSignupButton[\s\S]*text="Open dashboard"[\s\S]*onClick=\{\(\) => go\("dashboard"\)\}/, "Signed-in Liquid Metal must open the real dashboard.");

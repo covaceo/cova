@@ -53,7 +53,6 @@
   font-family: var(--font-cova-ui) !important;
 }
 
-.market-hero-threeui .market-hero-eyebrow,
 .market-hero-threeui .market-hero-proof,
 .market-hero-threeui .mobile-hero-dossier-head,
 .market-hero-threeui .mobile-hero-alert-code {
@@ -76,8 +75,7 @@
 }
 
 .market-hero-threeui .market-hero-title span,
-.market-hero-threeui .market-hero-subline span,
-.market-hero-threeui .market-hero-eyebrow {
+.market-hero-threeui .market-hero-subline span {
   color: #6f96ff;
   text-shadow:
     0 0 22px rgba(79, 125, 255, 0.36),

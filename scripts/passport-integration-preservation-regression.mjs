@@ -56,7 +56,8 @@ const protectedFiles = {
   "src/components/DashboardView.tsx": "e6205e8af4caa4bd74f03fb2eb262c6b2d87b4826790b67542fa7ce4ee414f1e",
   // Owner-approved Passport book icon, duplicate rail copy removal and Settings-to-Accounts entry; shell handlers remain intact.
   "src/components/WorkspaceShell.tsx": "b5e4b9f0418607abcca8822298aae898d18c8f71ad9365914deefa21736a9e83",
-  "src/index.css": "ea8b38ada867619addaced06a8a3a1c494c1de9ef6c30beb5cbe7435890729db",
+  // Owner-approved left hero overline removal only; all dashboard CSS remains unchanged.
+  "src/index.css": "e124ef2202d6a2eb61be19faa302b94132d1d4e0ba788774cc33749019ae55e4",
   // Retain UTC ordering while preserving legacy same-day input order and member annotations.
     "src/lib/risk.ts": "78991b6b2f932c3d91ddf7d5cb29fc6953a1732cda2be8cbc953d55b6b400ef9",
   "src/lib/storageScope.ts": "3cd9c57c38bb10e9f7b61776f00422ab9590bdebd1d0e458eba5a33cc676e183",
