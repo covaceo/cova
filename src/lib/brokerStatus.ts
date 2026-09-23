@@ -4,8 +4,10 @@ export const BROKER_STATUS_KEY = "cova-tradovate-status-v1";
 
 export type BrokerStatus = {
   provider: string;
-  status: "connected" | "imported" | "token-received-needs-storage" | "needs-storage" | "missing-env" | "token-error" | "state-mismatch" | "error" | "not-connected" | "api-unavailable";
+  status: "connected" | "imported" | "token-received-needs-storage" | "needs-storage" | "missing-env" | "token-error" | "state-mismatch" | "error" | "not-connected" | "api-unavailable" | "reconnect-required";
   connected: boolean;
+  linked?: boolean;
+  expiresAt?: string | null;
   mode?: "linked" | "ephemeral";
   connectionId?: string;
   message: string;
@@ -24,6 +26,8 @@ export function readBrokerStatus(): BrokerStatus | null {
         provider: parsed.provider,
         status: parsed.status ?? "not-connected",
         connected: Boolean(parsed.connected),
+        linked: parsed.linked === true || parsed.connected === true,
+        expiresAt: typeof parsed.expiresAt === "string" ? parsed.expiresAt : null,
         mode: parsed.mode === "ephemeral" ? "ephemeral" : "linked",
         connectionId: parsed.connectionId,
         message: parsed.message,

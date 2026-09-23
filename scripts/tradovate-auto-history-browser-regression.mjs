@@ -22,21 +22,22 @@ ${item.account.name},2,${date} 00:00:10,${day},12.00,${final}, Trade Paired,USD,
 `,item.account,window,item.trades);}
 const token=`${Buffer.from(JSON.stringify({alg:'none'})).toString('base64url')}.${Buffer.from(JSON.stringify({sub:'history-owner',session_id:'history-session',exp:Math.floor(Date.now()/1000)+3600,amr:[{method:'password'}]})).toString('base64url')}.synthetic`;
 for(const key of Object.keys(process.env))if(key.startsWith('VITE_'))delete process.env[key];
-Object.assign(process.env,{VITE_SUPABASE_URL:'https://synthetic.supabase.test',VITE_SUPABASE_ANON_KEY:'synthetic-anon',VITE_ENABLE_DEMO_PREVIEW:'false'});
+Object.assign(process.env,{VITE_SUPABASE_URL:'https://synthetic.supabase.test',VITE_SUPABASE_ANON_KEY:'synthetic-anon',VITE_ENABLE_DEMO_PREVIEW:'false',VITE_TRADOVATE_CONNECT_URL:'https://synthetic.cova.test/api/tradovate/connect'});
 const styles=[...(await readFile('src/main.tsx','utf8')).matchAll(/import "([^"]+)";/g)].map(m=>m[1]).filter(n=>n.startsWith('@fontsource')||n.endsWith('.css')).map(n=>`import '${n.startsWith('./')?'/src/'+n.slice(2):n}';`).join('\n');
 const entry=`import React from 'react';import {createRoot} from 'react-dom/client';${styles}
 const user={id:'history-owner',email:'history@example.test',aud:'authenticated',role:'authenticated',email_confirmed_at:new Date().toISOString(),app_metadata:{plan:'pro',provider:'email'},user_metadata:{},identities:[],created_at:new Date().toISOString()};
 if(!sessionStorage.getItem('fixture-initialized')){localStorage.setItem('cova-supabase-auth-v1',JSON.stringify({access_token:${JSON.stringify(token)},refresh_token:'synthetic-refresh',expires_at:${Math.floor(Date.now()/1000)+3600},expires_in:3600,token_type:'bearer',user}));localStorage.setItem('cova-auth-session-v1',JSON.stringify({userId:user.id,email:user.email,source:'supabase',providerSessionId:'history-session',plan:'pro',mode:'login',signedInAt:new Date().toISOString()}));sessionStorage.setItem('fixture-initialized','1');}
 const {defaultRules}=await import('/src/lib/risk.ts');
 if(!localStorage.getItem('cova-react-risk-os-v2:history-owner'))localStorage.setItem('cova-react-risk-os-v2:history-owner',JSON.stringify({trades:[{id:'older-synthetic',date:'2025-01-01',market:'NQ',side:'Long',contracts:1,entry:100,exit:101,pnl:20,risk:75,setup:'User setup',notes:'Preserve older note'}],rules:defaultRules}));
-window.__historyCalls=[];window.__fixtureDelay=false;window.__fixtureError=false;window.__fixtureConnected=!location.search.includes('disconnected=1');window.__fixtureUser=user;
+window.__historyCalls=[];window.__fixtureDelay=false;window.__fixtureError=false;window.__fixtureConnected=!location.search.includes('disconnected=1');window.__fixtureUser=user;window.__fixtureExpired=location.search.includes('expired=1');window.__fixtureRevision=location.search.includes('reconnected=1')?'synthetic-reconnected':'synthetic-connection';
 const nativeFetch=window.fetch.bind(window);const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json'}});
 window.fetch=async(input,init={})=>{const url=new URL(typeof input==='string'?input:input.url||input.href,location.href);
 if(url.hostname==='synthetic.supabase.test'){if(url.pathname.endsWith('/user'))return json(user);if(url.pathname.endsWith('/logout'))return json({});throw new Error('Unexpected auth fixture path');}
 if(url.pathname==='/api/auth/consent')return json({accepted:true,privacyVersion:'fixture',termsVersion:'fixture'});
 if(url.pathname==='/api/auth/logout')return json({signedOut:true});
 if(url.pathname==='/api/rithmic/status')return json({available:false});
-if(url.pathname==='/api/tradovate/status')return json({available:true,connected:window.__fixtureConnected,connectionId:window.__fixtureConnected?'synthetic-connection':undefined,provider:'Tradovate'});
+if(url.pathname==='/api/tradovate/status'){const result=json({available:true,linked:window.__fixtureConnected,connected:window.__fixtureConnected&&!window.__fixtureExpired,connectionId:window.__fixtureConnected?window.__fixtureRevision:undefined,expiresAt:window.__fixtureExpired?'2000-01-01T00:00:00.000Z':window.__fixtureExpiry||'2099-01-01T00:00:00.000Z',status:window.__fixtureConnected?(window.__fixtureExpired?'reconnect-required':'connected'):'not-connected',provider:'Tradovate'});if(window.__delayStatus)await new Promise(resolve=>window.__releaseStatus=resolve);return result;}
+if(url.pathname==='/api/tradovate/connect'){if(init.method!=='POST')throw new Error('Reconnect must use authenticated POST');if(window.__connectDenied)return json({error:'Synthetic authorization canceled'},400);return json({authorizationUrl:location.origin+'/__history.html?reconnected=1&broker=tradovate&brokerStatus=connected#import'});}
 if(url.pathname==='/api/tradovate/sync'){
  window.__historyCalls.push(url.search);if(window.__fixtureDelay)await new Promise(resolve=>window.__releaseHistory=resolve);
  if(window.__fixtureError)return json({error:'Synthetic report failure'},502);
@@ -51,7 +52,7 @@ if(url.pathname==='/api/tradovate/sync'){
  }
  return json(data);
 }
-if(url.pathname==='/api/connectors/disconnect')return json({provider:'Tradovate'});
+if(url.pathname==='/api/connectors/disconnect'){window.__fixtureConnected=false;return json({provider:'Tradovate'});}
 if(url.origin===location.origin)return nativeFetch(input,init);throw new Error('External request forbidden in history fixture');};
 const {default:App}=await import('/src/App.tsx');createRoot(document.getElementById('root')).render(<React.StrictMode><App/></React.StrictMode>);`;
 let server,chrome,ws;const failures=[];const receipts=[];
@@ -71,6 +72,7 @@ const load=async()=>{await evaluate('[...document.querySelectorAll("button")].fi
 const imported=async()=>{await evaluate('location.hash="import"');await wait(`Boolean(document.querySelector('[aria-label="History account"]'))`);await sleep(100);};
 const screenshot=async(name)=>{await wait("document.fonts.status==='loaded'");await sleep(350);await writeFile(join(output,name+'.png'),Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));};
 await send('Runtime.enable');await send('Page.enable');
+if(!process.argv.includes('--reconnect-only')) {
 for(const mobile of [false,true]){
 if(mobile) {await evaluate('localStorage.clear();sessionStorage.clear()');await send('Page.navigate',{url:'about:blank'});await wait(`location.href==='about:blank'`);}
 await send('Emulation.setDeviceMetricsOverride',{width:mobile?390:1440,height:mobile?844:900,deviceScaleFactor:mobile?3:1,mobile});await send('Emulation.setTouchEmulationEnabled',{enabled:mobile,maxTouchPoints:mobile?5:1});
@@ -230,5 +232,54 @@ assert.equal(await evaluate('localStorage.getItem("cova-react-risk-os-v2:history
 assert.equal(await evaluate('JSON.parse(localStorage.getItem("cova-react-risk-os-v2:history-owner-b")).trades.length'),0);
 assert.equal(await evaluate('document.querySelectorAll("[data-history-trade]").length'),0);
 receipts.push({identityRace:true,oldOwnerUnchanged:true,newOwnerTrades:0});
+}
+// The expired link remains usable for reconnect/disconnect, never for history requests.
+for (const mobile of [false, true]) {
+  await evaluate("if(location.protocol==='http:'){localStorage.clear();sessionStorage.clear()}");
+  await send('Page.navigate', {url:'about:blank'}); await wait(`location.href==='about:blank'`);
+  await send('Emulation.setDeviceMetricsOverride',{width:mobile?390:1440,height:mobile?844:900,deviceScaleFactor:1,mobile});
+  await send('Page.navigate',{url:`http://127.0.0.1:${port}/__history.html?broker=tradovate&brokerStatus=connected#import`});
+  await wait(`location.hash==='#dashboard' && Boolean(document.querySelector('.astra-source-label'))`);
+  assert.equal(await evaluate(`(async()=>{const {saveDailyJournal,readDailyJournalEntry}=await import('/src/lib/dailyJournal.ts');if(!saveDailyJournal('history-owner','Tradovate:71','${day}','Preserve journal on expiry','tradovate-71:101:102'))return false;const entry=readDailyJournalEntry('history-owner','Tradovate:71','${day}');return entry.note==='Preserve journal on expiry' && entry.tradeId==='tradovate-71:101:102';})()`),true);
+  const snapshot = await evaluate(`JSON.stringify(Object.fromEntries(Object.entries(localStorage).filter(([k])=>k.startsWith('cova-react-risk-os-v2:')||k.startsWith('cova-daily-journal-v1:'))))`);
+  await evaluate(`location.hash='import'`);
+  await wait(`Boolean(document.querySelector('[aria-label="History account"]'))`);
+  const callsBeforeExpiry=await evaluate('window.__historyCalls.length');
+  await evaluate(`window.__fixtureExpiry=new Date(Date.now()+1200).toISOString();[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Refresh status').click()`);
+  await wait(`document.querySelector('[data-platform="tradovate"]')?.textContent.includes('Reconnect to sync')`);
+  assert.equal(await evaluate('window.__historyCalls.length'),callsBeforeExpiry,'Expiry must not poll or auto-reauthorize');
+  await evaluate('window.__fixtureExpired=true');
+  assert.equal(await evaluate(`Boolean([...document.querySelectorAll('[data-platform="tradovate"] button')].find(b=>b.textContent.trim()==='Reconnect Tradovate'))`),true);
+  assert.equal(await evaluate(`Boolean([...document.querySelectorAll('[data-platform="tradovate"] button')].find(b=>b.textContent.trim()==='Disconnect'))`),true);
+  assert.equal(await evaluate(`Boolean(document.querySelector('[aria-label="History account"]'))`),false,'Expired credential cannot load history');
+  await evaluate(`document.querySelector('[data-platform="tradovate"]').scrollIntoView({block:'center',behavior:'instant'})`);
+  assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth'),true);
+  await screenshot(mobile?'mobile-reconnect':'desktop-reconnect');
+  // A real document reload must recover the server link even with no browser status cache.
+  await evaluate(`for(const key of Object.keys(localStorage))if(key.startsWith('cova-tradovate-status-v1'))localStorage.removeItem(key)`);
+  const beforeReload=await evaluate('performance.timeOrigin');
+  await send('Page.navigate',{url:`http://127.0.0.1:${port}/__history.html?expired=1#import`});
+  await wait(`performance.timeOrigin!==${beforeReload} && document.querySelector('[data-platform="tradovate"]')?.textContent.includes('Reconnect to sync')`);
+  assert.equal(await evaluate('window.__historyCalls.length'),0,'Expired reload must not trigger history');
+  assert.equal(await evaluate(`JSON.stringify(Object.fromEntries(Object.entries(localStorage).filter(([k])=>k.startsWith('cova-react-risk-os-v2:')||k.startsWith('cova-daily-journal-v1:'))))`),snapshot);
+  await evaluate(`window.__connectDenied=true;[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Reconnect Tradovate').click()`);
+  await wait(`document.body.innerText.includes('Synthetic authorization canceled')`);
+  assert.equal(await evaluate(`document.querySelector('[data-platform="tradovate"]').textContent.includes('Reconnect to sync')`),true);
+  await evaluate(`window.__connectDenied=false;[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Reconnect Tradovate').click()`);
+  await wait(`window.__fixtureRevision==='synthetic-reconnected' && location.hash==='#dashboard' && Boolean(document.querySelector('.astra-source-label'))`);
+  assert.equal(await evaluate(`JSON.stringify(Object.fromEntries(Object.entries(localStorage).filter(([k])=>k.startsWith('cova-react-risk-os-v2:')||k.startsWith('cova-daily-journal-v1:'))))`),snapshot,'Reconnect preserves trades, notes and attachment without duplicates');
+  await evaluate(`window.__fixtureExpired=true;location.hash='import'`);
+  await wait(`document.querySelector('[data-platform="tradovate"]')?.textContent.includes('Reconnect to sync')`);
+  await evaluate(`[...document.querySelectorAll('[data-platform="tradovate"] button')].find(b=>b.textContent.trim()==='Disconnect').click()`);
+  await wait(`document.querySelector('[data-platform="tradovate"]')?.textContent.includes('Not connected')`);
+  assert.equal(await evaluate(`JSON.stringify(Object.fromEntries(Object.entries(localStorage).filter(([k])=>k.startsWith('cova-react-risk-os-v2:')||k.startsWith('cova-daily-journal-v1:'))))`),snapshot,'Disconnect does not erase trading data');
+  await evaluate(`window.__fixtureConnected=true;window.__delayStatus=true;[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Refresh status').click()`);
+  await wait(`typeof window.__releaseStatus==='function'`);
+  await evaluate(`[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Sign out').click()`);
+  await wait(`!document.querySelector('.workspace-sidebar')`);
+  await evaluate('window.__releaseStatus()'); await sleep(150);
+  assert.equal(await evaluate(`Object.keys(localStorage).filter(k=>k.startsWith('cova-tradovate-status-v1')).length`),0,'Late status after signout must not recreate a retained link in another scope');
+  receipts.push({mobile,expiredLink:true,reloadRetained:true,reconnect:true,noDuplicates:true,disconnectRetainsHistory:true,lateStatusRejected:true});
+}
 assert.deepEqual(failures,[]);await writeFile(join(output,'browser.json'),JSON.stringify({status:'passed',receipts,failures},null,2));console.log(JSON.stringify({status:'passed',receipts,output}));
 } catch(error){await writeFile(join(output,'browser.json'),JSON.stringify({status:'failed',error:String(error),receipts,failures},null,2));throw error;} finally {if(ws)ws.close();if(chrome?.pid)try{execFileSync('taskkill.exe',['/PID',String(chrome.pid),'/T','/F'],{stdio:'ignore'});}catch{}await server?.close();await rm(profile,{recursive:true,force:true,maxRetries:5,retryDelay:300});}

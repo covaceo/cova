@@ -102,7 +102,7 @@ export async function saveTradovateConnection({ connectionId, tokenData, userId 
   });
 }
 
-function connectionExpiryIsInvalid(connection, provider) {
+export function connectionExpiryIsInvalid(connection, provider) {
   if (!connection) return false;
   if (!connection.expires_at) return provider === "tradovate";
   const expiry = Date.parse(String(connection.expires_at));
@@ -129,7 +129,7 @@ export async function getBrokerConnection({ connectionId, provider, userId, prun
   const rows = await response.json();
   const connection = rows?.[0] || null;
   if (connectionExpiryIsInvalid(connection, provider)) {
-    if (pruneExpired) await deleteBrokerConnection({ connectionId, provider, userId });
+    if (pruneExpired && provider !== "tradovate") await deleteBrokerConnection({ connectionId, provider, userId });
     return null;
   }
   return connection;
@@ -158,10 +158,27 @@ export async function getBrokerConnectionForUser({ provider, userId }) {
   const rows = await response.json();
   const connection = rows?.[0] || null;
   if (connectionExpiryIsInvalid(connection, provider)) {
-    await deleteBrokerConnection({ connectionId: connection.id, provider, userId });
+    if (provider !== "tradovate") await deleteBrokerConnection({ connectionId: connection.id, provider, userId });
     return null;
   }
   return connection;
+}
+
+// Status discovery reads metadata only. An expired grant remains linked, but cannot sync.
+export async function getTradovateLinkForUser(userId) {
+  if (!userId) return null;
+  const { supabaseUrl, serviceRoleKey } = getSupabaseConfig();
+  const endpoint = new URL(`${supabaseUrl}/rest/v1/broker_connections`);
+  endpoint.searchParams.set("user_id", `eq.${userId}`);
+  endpoint.searchParams.set("provider", "eq.tradovate");
+  endpoint.searchParams.set("status", "in.(connected,expired)");
+  endpoint.searchParams.set("select", "id,status,expires_at");
+  endpoint.searchParams.set("order", "created_at.desc");
+  endpoint.searchParams.set("limit", "1");
+  const response = await fetch(endpoint, { headers: supabaseServiceHeaders(serviceRoleKey) });
+  await requireSuccess(response, "Secure storage rejected the owner link lookup");
+  const rows = await response.json();
+  return rows?.[0] || null;
 }
 
 export async function getTradovateConnectionForUser(userId) {

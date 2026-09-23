@@ -79,7 +79,7 @@ try {
   };
   assert.equal(await getTradovateConnection("legacy-null", "pro-user"), null, "A legacy Tradovate row without expiry must fail closed.");
   assert.equal(await getTradovateConnectionForUser("pro-user"), null, "A Tradovate row with malformed expiry must fail closed.");
-  assert.equal(invalidExpiryDeletes.length, 2, "Invalid Tradovate expiry rows must be deleted through both lookup paths.");
+  assert.equal(invalidExpiryDeletes.length, 0, "Invalid Tradovate credentials fail closed without erasing the retained owner link.");
 
   assert.throws(
     () => serializeTradovateSyncPayload({ provider: "Tradovate", csv: "x".repeat(2 * 1024 * 1024), trades: [] }),

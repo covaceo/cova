@@ -47,6 +47,8 @@ function readImportProviderHint(): PropFirmId {
 type TradovateStatusResponse = {
   available?: boolean;
   connected?: boolean;
+  linked?: boolean;
+  expiresAt?: string | null;
   connectionId?: string;
   message?: string;
   provider?: string;
@@ -56,13 +58,17 @@ type TradovateStatusResponse = {
 function brokerStatusFromTradovate(data: TradovateStatusResponse): BrokerStatus {
   const connected = data.connected === true;
   const available = data.available === true;
+  const linked = data.linked === true || connected;
+  const reconnectRequired = linked && !connected && data.status === "reconnect-required";
   return {
     provider: "Tradovate",
-    status: available ? (connected ? "connected" : "not-connected") : "api-unavailable",
+    status: reconnectRequired ? "reconnect-required" : available ? (connected ? "connected" : "not-connected") : "api-unavailable",
     connected,
+    linked,
+    expiresAt: data.expiresAt,
     mode: "linked",
     connectionId: data.connectionId,
-    message: data.message || (connected
+    message: data.message || (reconnectRequired ? "Reconnect Tradovate to sync. Your saved trades and journal stay in Cova." : connected
       ? available
         ? "Tradovate connection found."
         : "Tradovate connection retained. Direct sync is unavailable here, but you can disconnect it below or use CSV."
@@ -177,12 +183,12 @@ export function ImportDesk({ entitlements, importCsv, prepareImportCsv, openFirm
         const data = value as TradovateStatusResponse;
         if (cancelled || !prepared?.isCurrent()) return;
         setTradovateCapability({ available: data?.available === true, checked: true });
-        if (data?.connected === true) {
+        if (data?.connected === true || data?.linked === true) {
           const nextStatus = brokerStatusFromTradovate(data);
-          verifiedConnection.current = data.connectionId || "";
+          verifiedConnection.current = data.connected === true ? data.connectionId || "" : "";
           writeBrokerStatus(nextStatus);
           setBrokerStatus(nextStatus);
-          if (data.available === true && data.connectionId && entitlements.canUseDirectSync) void syncTradovate(data.connectionId, true);
+          if (data.connected === true && data.available === true && data.connectionId && entitlements.canUseDirectSync) void syncTradovate(data.connectionId, true);
         } else if (data?.connected === false && readBrokerStatus()?.provider === "Tradovate") {
           clearBrokerStatus();
           setBrokerStatus(null);
@@ -193,6 +199,30 @@ export function ImportDesk({ entitlements, importCsv, prepareImportCsv, openFirm
       });
     return () => { cancelled = true; controller.abort(); };
   }, []);
+
+  useEffect(() => {
+    if (brokerStatus?.provider !== "Tradovate" || !brokerStatus.connected || !brokerStatus.expiresAt) return;
+    const expiry = Date.parse(brokerStatus.expiresAt);
+    if (!Number.isFinite(expiry)) return;
+    const prepared = prepareImportCsv();
+    const expire = () => {
+      if (Date.now() < expiry || !prepared?.isCurrent()) return;
+      const latest = readBrokerStatus();
+      if (!latest?.connected || latest.connectionId !== brokerStatus.connectionId || latest.expiresAt !== brokerStatus.expiresAt) return;
+      historyGuard.current.cancel();
+      verifiedConnection.current = "";
+      setSyncBusy(false);
+      const next: BrokerStatus = { ...latest, connected: false, linked: true, status: "reconnect-required", message: "Reconnect Tradovate to sync. Your saved trades and journal stay in Cova.", updatedAt: new Date().toISOString() };
+      writeBrokerStatus(next);
+      setBrokerStatus(next);
+      setBrokerNotice("");
+    };
+    // This only updates the UI. The server independently rejects expired credentials.
+    const timer = window.setTimeout(expire, Math.min(Math.max(0, expiry - Date.now()), 2_147_483_647));
+    window.addEventListener("focus", expire);
+    document.addEventListener("visibilitychange", expire);
+    return () => { window.clearTimeout(timer); window.removeEventListener("focus", expire); document.removeEventListener("visibilitychange", expire); };
+  }, [brokerStatus, prepareImportCsv]);
 
   async function readFile(file?: File) {
     if (!file) {
@@ -222,7 +252,8 @@ export function ImportDesk({ entitlements, importCsv, prepareImportCsv, openFirm
       requireCurrent();
       if (current.connected !== true || current.available !== true || typeof current.connectionId !== "string" || !current.connectionId) {
         verifiedConnection.current = "";
-        if (current.connected === false) { clearBrokerStatus(); setBrokerStatus(null); }
+        if (current.linked === true) { const next = brokerStatusFromTradovate(current); writeBrokerStatus(next); setBrokerStatus(next); }
+        else if (current.connected === false) { clearBrokerStatus(); setBrokerStatus(null); }
         throw new Error("Tradovate history is unavailable. Check the connection or reconnect.");
       }
       if (connectionHint && connectionHint !== current.connectionId) throw new Error("Tradovate connection changed. Retry with the current connection.");
@@ -395,7 +426,7 @@ export function ImportDesk({ entitlements, importCsv, prepareImportCsv, openFirm
   async function disconnectBroker() {
     historyGuard.current.cancel();
     verifiedConnection.current = "";
-    if (!brokerStatus?.connected) {
+    if (!brokerStatus?.connected && !brokerStatus?.linked) {
       return;
     }
     const provider = brokerStatus?.provider === "Tradovate" ? "tradovate" : "all";
@@ -422,6 +453,8 @@ export function ImportDesk({ entitlements, importCsv, prepareImportCsv, openFirm
   }
 
   async function checkTradovateStatus() {
+    const prepared = prepareImportCsv();
+    if (!prepared) return;
     setBrokerBusy(true);
     setBrokerNotice("");
     try {
@@ -431,12 +464,13 @@ export function ImportDesk({ entitlements, importCsv, prepareImportCsv, openFirm
         throw new Error("Broker status is not reachable from this preview.");
       }
       const data = await response.json() as TradovateStatusResponse;
+      if (!prepared.isCurrent()) return;
       if (!response.ok) {
         throw new Error(data.message || "Tradovate status check failed.");
       }
       setTradovateCapability({ available: data.available === true, checked: true });
       const nextStatus = brokerStatusFromTradovate(data);
-      if (data.connected === true) {
+      if (data.connected === true || data.linked === true) {
         writeBrokerStatus(nextStatus);
         setBrokerStatus(nextStatus);
       } else {
@@ -445,9 +479,10 @@ export function ImportDesk({ entitlements, importCsv, prepareImportCsv, openFirm
       }
       setBrokerNotice(nextStatus.message);
     } catch (error) {
+      if (!prepared.isCurrent()) return;
       setTradovateCapability({ available: false, checked: true });
       const retainedStatus = readBrokerStatus();
-      if (retainedStatus?.provider === "Tradovate" && retainedStatus.connected) {
+      if (retainedStatus?.provider === "Tradovate" && (retainedStatus.connected || retainedStatus.linked)) {
         setBrokerStatus(retainedStatus);
         setBrokerNotice(`${error instanceof Error ? error.message : "Tradovate status check is unavailable."} The saved connection remains available to disconnect below; use CSV while sync is unavailable.`);
       } else {

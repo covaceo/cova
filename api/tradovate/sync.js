@@ -86,7 +86,7 @@ export default async function handler(req, res) {
       let accessToken;
       let connectionExpiresAt;
       try {
-        // Reporting diagnostics reject expired rows without the normal lookup's pruning write.
+        // Expired Tradovate credentials are rejected without erasing the retained owner link.
         const connection = Object.hasOwn(req.query || {}, "history") || ["history", "history-discovery", "history-report", "fee-discovery", "fee-report"].includes(req.query?.diagnostic)
           ? await getBrokerConnection({ connectionId, provider: "tradovate", userId: user.id, pruneExpired: false })
           : await getTradovateConnection(connectionId, user.id);
