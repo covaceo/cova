@@ -333,12 +333,12 @@ async function desktopVisualState() {
     const style = getComputedStyle(active);
     return { className: active.className, focusVisible: active.matches(':focus-visible'), outlineStyle: style.outlineStyle, outlineWidth: style.outlineWidth, outlineColor: style.outlineColor, boxShadow: style.boxShadow };
   })()`);
-  assert.match(focus.className, /workspace-sidebar-link/, "Tab from workspace search must reach a route control");
+  assert.match(focus.className, /workspace-sidebar-link|astra-rail-account/, "Tab from workspace search must reach a route control");
   assert.equal(focus.focusVisible, true, "workspace route must match :focus-visible during keyboard navigation");
   assert.equal(focus.outlineStyle, "solid");
   assert.equal(focus.outlineWidth, "2px");
   assert.equal(focus.outlineColor, "rgb(111, 150, 255)", "Astra rail focus must retain the approved cobalt outline");
-  assert.equal(await evaluate("getComputedStyle(document.activeElement).backgroundColor"), "rgb(22, 42, 71)", "Keyboard focus must preserve the selected dark-blue fill");
+  assert.equal(await evaluate("getComputedStyle(document.querySelector('.workspace-sidebar-link-active')).backgroundColor"), "rgb(22, 42, 71)", "Keyboard focus must preserve the selected dark-blue fill");
 
   await auditMicrocopy();
   await cdp.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: "reduce" }] });

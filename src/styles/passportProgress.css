@@ -1,0 +1,52 @@
+.session-progression{padding:30px;border-radius:22px;background:radial-gradient(ellipse at 12% 0%,#376fd329,transparent 65%),#111b2a;box-shadow:inset 0 1px #dce8fa12;overflow:hidden}
+.session-progression .level-heading{display:flex;align-items:center;gap:17px}
+.level-emblem{width:70px;height:76px;display:grid;place-items:center;flex-shrink:0;background:linear-gradient(155deg,#82a6fc,#345daa 55%,#182e55);clip-path:polygon(50% 0,94% 23%,94% 75%,50% 100%,6% 75%,6% 23%);position:relative}
+.level-emblem:before{content:'';position:absolute;inset:3px;background:linear-gradient(140deg,#1e3d70,#10213b);clip-path:inherit}
+.level-emblem span{position:relative;font-size:35px;font-weight:450;color:#e8f0ff;font-variant-numeric:tabular-nums}
+.level-label{font-size:12px;color:#92a7c7;margin-bottom:3px}
+.session-progression h2{font-size:29px;letter-spacing:-.6px;font-weight:450}
+.xp-count{margin-left:auto;white-space:nowrap;font-variant-numeric:tabular-nums}
+.xp-count strong{font-size:18px;font-weight:450;color:#d4e3ff}
+.xp-count>span{font-size:12px;color:#879dbb}
+.level-meter{height:9px;background:#091221;border-radius:20px;margin-top:25px;overflow:hidden;box-shadow:inset 0 1px #0003}
+.level-meter>span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#4779e7,#85a9ff);box-shadow:0 0 15px #6696ff50;transition:width .65s cubic-bezier(.2,.7,.2,1)}
+.level-foot{display:flex;justify-content:space-between;margin-top:10px;font-size:11px;color:#839abc}
+.session-reward{margin-top:29px;background:#0c1420;border-radius:16px;padding:23px}
+.reward-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.reward-date{font-size:11px;color:#8398b6;margin-bottom:4px}
+.reward-top h3{font-size:18px;font-weight:450;letter-spacing:-.2px}
+.reward-points{font-size:14px;color:#a9c5ff;background:#436dc71c;padding:7px 11px;border-radius:100px;white-space:nowrap}
+.reward-points.is-earned{background:#426aca2d;color:#c0d4ff}
+.reward-checks{list-style:none;padding:0;margin:23px 0;display:grid;gap:12px;font-size:13px;color:#8495af}
+.reward-checks li{display:flex;align-items:center;gap:9px}
+.reward-checks li[data-passed=true]{color:#bdcbdf}
+.check-mark{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;background:#afc9fc0c;font-size:12px;color:#7d9fdc}
+.review-session-button{width:100%}
+.session-note label{font-size:12px;display:block;margin-bottom:9px;color:#aebed4}
+.session-note textarea{width:100%;resize:vertical;min-height:88px;border:1px solid #c1d6ff21;border-radius:12px;background:#09121e;color:#e0e8f5;padding:12px;font:inherit;font-size:13px}
+.session-note textarea:focus-visible{outline:2px solid #749eec;outline-offset:2px}
+.review-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+.progress-error{font-size:12px;color:#ffb8be;margin-top:12px}
+.level-up .level-emblem{animation:level-earned .7s ease-out}
+
+@keyframes earned{0%{box-shadow:inset 0 1px #dce8fa12,0 0 0 #82aaff00}
+45%{box-shadow:inset 0 1px #dce8fa30,0 0 34px #7298ef30}
+100%{box-shadow:inset 0 1px #dce8fa12,0 0 0 #82aaff00}
+}
+
+@media(max-width:600px){.session-progression{padding:22px;border-radius:17px}
+.level-heading{gap:13px}
+.level-emblem{width:52px;height:58px}
+.level-heading h2{font-size:29px}
+.xp-count strong{font-size:24px}
+.reward-top h3{font-size:18px}
+.reward-points{font-size:14px;min-width:66px;padding:8px 11px}
+.reward-checks li{font-size:12px}
+.reward-top{gap:10px}
+.level-foot{font-size:11px}
+.level-foot>span:last-child{max-width:125px;text-align:right}
+}
+
+@media(prefers-reduced-motion:reduce){.level-meter>span{transition:none}
+.level-up{animation:none}
+}

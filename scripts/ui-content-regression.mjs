@@ -285,7 +285,8 @@ assert.match(dashboard, /astra-desk-grid/, "Risk Desk should use the approved As
 assert.match(read("src", "styles", "astraDashboard.css"), /@media\(max-width:620px\)[\s\S]*?\.astra-stat-strip\s*\{[\s\S]*?grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/, "Risk Desk financial strip should reflow to two columns on phone.");
 
 assert.match(importPanels, /data-csv-import/, "Universal CSV remains available without a Pro entitlement.");
-assert.match(importPanels, /Tradovate \/ NinjaTrader/, "The shared connection must not label NinjaTrader CSV-only.");
+assert.match(importPanels, /<BrokerBrand provider="tradovate"/);
+assert.match(read("src", "components", "BrokerBrand.tsx"), /Tradovate \/ NinjaTrader/, "The shared connection must not label NinjaTrader CSV-only.");
 assert.match(app, /if \(!entitlements\.canUseDirectSync\)/, "App-level OAuth entry must enforce the direct-sync entitlement.");
 assert.match(workspaceShell, /<SiteFooter go=\{go\} \/>/, "Keep the original legal footer after removing the duplicate rail copy.");
 assert.match(app, /const hasSampleTrades = visibleTrades\.some\(\(trade\) => trade\.id\.startsWith\("demo-"\)\)/, "Any demo row in the selected account keeps a mixed Passport visibly sample-derived.");

@@ -59,9 +59,9 @@ test("Trade History discovers Tradovate capability before offering direct connec
   assert.match(importDeskSource, /const verified = validateTradovateHistory\(data, historyAccount\)[\s\S]*verified\.window\.startDate !== historyWindow\.startDate[\s\S]*preparedImport\.commitHistory\(verified\.csv/);
   assert.match(importDeskSource, /data\?\.connected === true[\s\S]*writeBrokerStatus\(nextStatus\)/);
   assert.match(importPanelsSource, /const ready = tradovateStatusChecked && tradovateAvailable/);
-  assert.match(importPanelsSource, /ready && entitlements.canUseDirectSync && connected/);
-  assert.match(importPanelsSource, /linked && <button[\s\S]*?Disconnect/);
-  assert.match(importPanelsSource, /if \(!ready \|\| !entitlements.canUseDirectSync/);
+  assert.match(importPanelsSource, /ready\s*&&\s*entitlements.canUseDirectSync\s*&&\s*connected/);
+  assert.match(importPanelsSource, /linked\s*&&\s*<button[\s\S]*?Disconnect/);
+  assert.match(importPanelsSource, /if\s*\(\s*!ready\s*\|\|\s*!entitlements.canUseDirectSync/);
 });
 
 test("actual status handler supplies the owner-bound connection revision required by auto history", async () => {

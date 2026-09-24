@@ -98,11 +98,11 @@ test('marketing retains the original wait-mode RouteFrames', () => {
 test('route props preserve behavior with owner-approved history account isolation and reset', () => {
   const expected = {
     Dashboard: 'key={`${authSession?.userId || authSession?.email}:${tradeAccount}`} analysis={analysis} rules={rules} go={go} onSaveTradeNote={saveTradeNote} journalActions={journalActions} onAddManualTrade={addManualTrade} onDeleteManualTrade={deleteManualTrade} manualAccounts={[...new Set([...tradeAccounts,"local"])]} selectedAccount={tradeAccount} rithmicSyncAvailable={brokerStatus?.provider === "Rithmic" && brokerStatus.status === "imported"}',
-    ImportDesk: 'key={authSession?.userId || authSession?.email} entitlements={entitlements} importCsv={importCsv} prepareImportCsv={prepareImportCsv} openFirmOAuth={openFirmOAuth} status={status} reset={() => { const demoTrades = entitlements.plan === "free" ? sampleTrades.slice(0, entitlements.maxStoredTrades) : sampleTrades; tradesRef.current = demoTrades; setTrades(demoTrades); selectTradeAccount("local"); setRules(defaultRules); clearBrokerStatus(); window.dispatchEvent(new CustomEvent("cova:broker-status")); setStatus("Demo trades restored."); announce("Demo trades restored.", "success"); }} upgradeToPro={upgradeToPro}',
+    ImportDesk: 'key={authSession?.userId || authSession?.email} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} entitlements={entitlements} importCsv={importCsv} prepareImportCsv={prepareImportCsv} openFirmOAuth={openFirmOAuth} status={status} reset={() => { const demoTrades = entitlements.plan === "free" ? sampleTrades.slice(0, entitlements.maxStoredTrades) : sampleTrades; tradesRef.current = demoTrades; setTrades(demoTrades); selectTradeAccount("local"); setRules(defaultRules); clearBrokerStatus(); window.dispatchEvent(new CustomEvent("cova:broker-status")); setStatus("Demo trades restored."); announce("Demo trades restored.", "success"); }} upgradeToPro={upgradeToPro}',
     OAuthConnectPage: 'firmId={oauthFirmId} onApprove={completeFirmOAuth} onCancel={cancelFirmOAuth}',
     RulesEngine: 'analysis={analysis} entitlements={entitlements} rules={rules} setRules={setRules} go={go} upgradeToPro={upgradeToPro}',
     Coach: 'analysis={analysis} entitlements={entitlements} go={go} upgradeToPro={upgradeToPro}',
-    Passport: 'analysis={analysis} entitlements={entitlements} isSampleReview={isSampleReview} go={go} upgradeToPro={upgradeToPro}',
+    Passport: 'key={`${authSession?.userId || authSession?.email}:${tradeAccount}`} analysis={analysis} entitlements={entitlements} isSampleReview={isSampleReview} go={go} upgradeToPro={upgradeToPro} ownerId={authSession?.userId} trades={visibleTrades} rules={rules} journal={tradeAccount!=="all"?journalActions:undefined} accountControl={<div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts.length?tradeAccounts:["local"]} value={tradeAccount} onChange={selectTradeAccount}/></div>}',
     WorkspaceShell: 'brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={visibleRiskScore} section={section} signOut={signOut}',
     AuthGate: 'devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={openAuth} onDevPreview={signInAsDevPreview}',
   };
@@ -132,6 +132,7 @@ function loadMotionComponent(file, reducedMotion, captures) {
     return React.createElement(tag, dom, children);
   } });
   new Function('module', 'exports', 'require', output)(module, module.exports, (name) => {
+    if (name === './WorkspaceNavIcon') return loadMotionComponent('src/components/WorkspaceNavIcon.tsx', reducedMotion, captures);
     if (name === 'motion/react') return { motion, useReducedMotion: () => reducedMotion };
     if (name === '../lib/appRoutes') return { isWorkspaceNavActive: (section, id) => section === id || (section === 'oauth' && id === 'import') };
     // This test isolates shell motion; the real shared footer is exercised by vendor SSR/browser regressions.

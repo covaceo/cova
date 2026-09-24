@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import {createRequire} from 'node:module';
+import {existsSync} from 'node:fs';
+const load=createRequire(import.meta.url)('./helpers/load-ts.cjs');
+assert.ok(existsSync('src/lib/passportProgress.ts'),'Progress must be calculated from real imported evidence');
+const {evaluatePassportProgress,progressLevel}=load('src/lib/passportProgress.ts');
+const limits={maxDailyLoss:300,maxTradeLoss:150,maxContracts:2,maxLossStreak:3};
+const evidence={day:'2026-09-18',account:'Tradovate:1',firstEntry:'2026-09-18T13:30:00.000Z',netCents:7500,asOf:'2026-09-18T15:00:00.000Z',entries:[{pnlCents:10000,contracts:1,openedAt:'2026-09-18T13:30:00.000Z',closedAt:'2026-09-18T13:40:00.000Z'},{pnlCents:-2500,contracts:1,openedAt:'2026-09-18T14:30:00.000Z',closedAt:'2026-09-18T14:40:00.000Z'}]};
+const plan={id:1,created_at:'2026-09-18T12:00:00.000Z',limits};
+test('disciplined red/green points are bounded, with no dollar/volume scaling',()=>{assert.equal(evaluatePassportProgress(evidence,plan).xp,60);assert.equal(evaluatePassportProgress({...evidence,netCents:-1},plan).xp,15);assert.equal(evaluatePassportProgress({...evidence,netCents:0},plan).xp,15);assert.equal(evaluatePassportProgress({...evidence,netCents:10000000},plan).xp,60);assert.deepEqual(progressLevel(120),{level:2,within:20,target:100})});
+test('missing fees and post-session or missing plans cannot earn XP',()=>{assert.equal(evaluatePassportProgress({...evidence,netCents:null},plan).xp,0);assert.equal(evaluatePassportProgress(evidence,null).xp,0);assert.equal(evaluatePassportProgress(evidence,{...plan,created_at:'2026-09-18T14:00:00.000Z'}).xp,0)});
+test('a green day with a size breach cannot earn points',()=>assert.equal(evaluatePassportProgress({...evidence,entries:[{...evidence.entries[0],contracts:3}]},plan).xp,0));

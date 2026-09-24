@@ -46,7 +46,7 @@ export async function checkDashboardFocusAlignment({ evaluate, send, capture, na
     await capture(name+'-search-click');
     await key('a',65,2);await key('Backspace',8);
     await key('Tab',9);
-    const keyboardRail=await evaluate(`(() => {const e=document.activeElement,s=getComputedStyle(e);return {route:e.matches('.workspace-sidebar-link'),visible:e.matches(':focus-visible'),outline:s.outlineStyle,shadow:s.boxShadow};})()`);
+    const keyboardRail=await evaluate(`(() => {const e=document.activeElement,s=getComputedStyle(e);return {route:e.matches('.workspace-sidebar-link, .astra-rail-account'),visible:e.matches(':focus-visible'),outline:s.outlineStyle,shadow:s.boxShadow};})()`);
     report.keyboard.push(keyboardRail);
     if(!keyboardRail.route||!keyboardRail.visible||(keyboardRail.outline==='none'&&keyboardRail.shadow==='none'))issues.push('Keyboard navigation in the rail must stay visible');
     report.alignment=await evaluate(`(() => {

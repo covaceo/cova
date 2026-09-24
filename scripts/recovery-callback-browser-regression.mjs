@@ -319,6 +319,7 @@ try {
         if (url.origin === location.origin && url.pathname === '/api/auth/consent') {
           return new Response(JSON.stringify({ accepted: true, privacyVersion: 'synthetic', termsVersion: 'synthetic' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
         }
+        if (url.origin === location.origin && url.pathname === '/api/passport' && actualMethod === 'POST') { const body=JSON.parse(init.body); if(body.action!=='plan') throw Error('Unexpected Passport action in auth fixture'); return new Response(JSON.stringify({plan:{id:1,created_at:new Date().toISOString(),limits:body.limits}}),{status:200,headers:{'Content-Type':'application/json'}}); }
         return nativeFetch(input, init);
       };
     })();`,
@@ -407,6 +408,7 @@ try {
     await waitFor("document.querySelector('[role=\"dialog\"] h2')?.textContent?.trim() === 'Sign in to Cova'", 15_000);
   }
   if (ordinaryReload) {
+    const normalizeOrdinary = state => { const planRequests=state.requests.filter(r=>r.path==="/api/passport"); assert.ok(planRequests.length<=1 && planRequests.every(r=>r.method==="POST" && r.host==="cova.localhost")); return {...state,requests:state.requests.filter(r=>r.path!=="/api/passport")}; };
     const ordinaryState = {
       appMounted: true,
       dialogLabel: null,
@@ -425,7 +427,7 @@ try {
         { host: "synthetic.supabase.test", path: "/rest/v1/user_profiles", method: "GET" },
       ],
     };
-    assert.deepEqual(await readState(), ordinaryState, "A matching validated Cova/Supabase session must survive ordinary reload validation.");
+    assert.deepEqual(normalizeOrdinary(await readState()), ordinaryState, "A matching validated Cova/Supabase session must survive ordinary reload validation.");
     const freshAccountStats = await evaluate(`(() => {
       const tradeLedgers = Object.keys(localStorage).flatMap((key) => {
         try {
@@ -452,7 +454,7 @@ try {
       tradeLedgers: [0],
     }, "A fresh account must show an import-first state with no derived account statistics.");
     await sleep(750);
-    assert.deepEqual(await readState(), ordinaryState, "Ordinary validated reload must remain stable after auth events settle.");
+    assert.deepEqual(normalizeOrdinary(await readState()), ordinaryState, "Ordinary validated reload must remain stable after auth events settle.");
   } else {
     assert.deepEqual(await readState(), expectedState);
     await sleep(750);

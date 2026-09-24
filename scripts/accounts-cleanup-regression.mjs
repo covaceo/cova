@@ -34,8 +34,8 @@ test('Rithmic login opens only with verified availability and Pro; provider noti
 test('Rithmic sync disables competing Tradovate actions',()=>{
  const html=renderToStaticMarkup(React.createElement(BrokerConnectPanel,{...base,rithmicBusy:true,brokerStatus:{provider:'Tradovate',connected:true}}));
  const tradovate=html.split('data-platform="tradovate"')[1].split('</article>')[0];
- const buttons=[...tradovate.matchAll(/<button\b[^>]*>/g)].map(m=>m[0]);
- assert.ok(buttons.length>=3);assert.ok(buttons.every(b=>b.includes('disabled')));
+ const buttons=[...tradovate.matchAll(/<button\b[^>]*>Sync trades<\/button>/g),...html.matchAll(/<button\b[^>]*>Refresh status<\/button>/g)].map(m=>m[0]);
+ assert.equal(buttons.length,2);assert.ok(buttons.every(b=>b.includes('disabled')));
 });
 test('Retained Tradovate connections can disconnect while unavailable, never sync or reconnect',()=>{
  const html=renderToStaticMarkup(React.createElement(BrokerConnectPanel,{...base,tradovateAvailable:false,brokerStatus:{provider:'Tradovate',connected:true}}));

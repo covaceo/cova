@@ -174,6 +174,7 @@ if(!mobile){
  const before=await evaluate('localStorage.getItem("cova-react-risk-os-v2:history-owner")');
  await evaluate('window.__fixtureDelay=true;window.__fixtureCorrection=true;[...document.querySelectorAll("button")].find(b=>b.textContent.trim()==="Load history").click()');
  await wait('typeof window.__releaseHistory==="function"');
+ await evaluate('location.hash="dashboard"');await wait("Boolean(document.querySelector('[aria-label=\"Trade account\"]'))");
  await evaluate(`{const s=document.querySelector('[aria-label="Trade account"]');s.value='Tradovate:72';s.dispatchEvent(new Event('change',{bubbles:true}));}`);
  await wait(`document.querySelector('[aria-label="Trade account"]').value==='Tradovate:72'`);
  await evaluate('window.__releaseHistory();window.__fixtureDelay=false');await sleep(300);
@@ -272,7 +273,7 @@ for (const mobile of [false, true]) {
   assert.equal(await evaluate('window.__historyCalls.length'),callsBeforeExpiry,'Expiry must not poll or auto-reauthorize');
   await evaluate('window.__fixtureExpired=true');
   assert.equal(await evaluate(`Boolean([...document.querySelectorAll('[data-platform="tradovate"] button')].find(b=>b.textContent.trim()==='Reconnect Tradovate'))`),true);
-  assert.equal(await evaluate(`Boolean([...document.querySelectorAll('[data-platform="tradovate"] button')].find(b=>b.textContent.trim()==='Disconnect'))`),true);
+  assert.equal(await evaluate(`Boolean([...document.querySelectorAll('[aria-labelledby="connection-manage-title"] button')].find(b=>b.textContent.trim()==='Disconnect'))`),true);
   assert.equal(await evaluate(`Boolean(document.querySelector('[aria-label="History account"]'))`),false,'Expired credential cannot load history');
   await evaluate(`document.querySelector('[data-platform="tradovate"]').scrollIntoView({block:'center',behavior:'instant'})`);
   assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth'),true);
@@ -292,7 +293,10 @@ for (const mobile of [false, true]) {
   assert.equal(await evaluate(`JSON.stringify(Object.fromEntries(Object.entries(localStorage).filter(([k])=>k.startsWith('cova-react-risk-os-v2:')||k.startsWith('cova-daily-journal-v1:'))))`),snapshot,'Reconnect preserves trades, notes and attachment without duplicates');
   await evaluate(`window.__fixtureExpired=true;location.hash='import'`);
   await wait(`document.querySelector('[data-platform="tradovate"]')?.textContent.includes('Reconnect to sync')`);
-  await evaluate(`[...document.querySelectorAll('[data-platform="tradovate"] button')].find(b=>b.textContent.trim()==='Disconnect').click()`);
+  await evaluate(`[...document.querySelectorAll('[data-platform="tradovate"] button')].find(b=>b.textContent.trim()==='Manage').click()`);
+  await evaluate(`[...document.querySelectorAll('dialog[open] button')].find(b=>b.textContent.trim()==='Disconnect').click()`);
+  await wait(`document.querySelector('dialog[open]')?.innerText.includes('Confirm disconnect')`);
+  await evaluate(`[...document.querySelectorAll('dialog[open] button')].find(b=>b.textContent.trim()==='Confirm disconnect').click()`);
   await wait(`document.querySelector('[data-platform="tradovate"]')?.textContent.includes('Not connected')`);
   assert.equal(await evaluate(`JSON.stringify(Object.fromEntries(Object.entries(localStorage).filter(([k])=>k.startsWith('cova-react-risk-os-v2:')||k.startsWith('cova-daily-journal-v1:'))))`),snapshot,'Disconnect does not erase trading data');
   await evaluate(`window.__fixtureConnected=true;window.__delayStatus=true;[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Refresh status').click()`);

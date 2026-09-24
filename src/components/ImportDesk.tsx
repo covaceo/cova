@@ -1,6 +1,6 @@
 import { saveBrokerCash } from '../lib/brokerCash';
 import { useEffect, useMemo, useRef, useState } from "react";
-import { rememberAccountNames } from "../lib/accountNames";
+import { rememberAccountNames, readAccountNames, accountDisplayName } from "../lib/accountNames";
 import { parseCsvDetailed, type Trade, type TradeMergeResult } from "../lib/risk";
 import { type PropFirmId } from "../lib/propFirms";
 import { clearBrokerStatus, readBrokerStatus, writeBrokerStatus, type BrokerStatus } from "../lib/brokerStatus";
@@ -79,8 +79,11 @@ function brokerStatusFromTradovate(data: TradovateStatusResponse): BrokerStatus 
   };
 }
 
-export function ImportDesk({ entitlements, importCsv, prepareImportCsv, openFirmOAuth, status, reset, upgradeToPro }: { entitlements: ImportEntitlements; importCsv: ImportCommit; prepareImportCsv: PrepareImportCsv; openFirmOAuth: (firm: PropFirmId) => void; status: string; reset: () => void; upgradeToPro: () => void }) {
+export function ImportDesk({ entitlements, importCsv, prepareImportCsv, openFirmOAuth, status, reset, upgradeToPro, owner="", accounts=[] }: { owner?: string; accounts?: string[]; entitlements: ImportEntitlements; importCsv: ImportCommit; prepareImportCsv: PrepareImportCsv; openFirmOAuth: (firm: PropFirmId) => void; status: string; reset: () => void; upgradeToPro: () => void }) {
 
+  const csvDialog=useRef<HTMLDialogElement>(null);
+  const displayNames=readAccountNames(owner);
+  const accountLabels={tradovate:accounts.filter(k=>k.startsWith("Tradovate:")).map(k=>accountDisplayName(k,displayNames)),rithmic:accounts.filter(k=>k.startsWith("Rithmic:")).map(k=>accountDisplayName(k,displayNames))};
   const [text, setText] = useState("");
   const [mode, setMode] = useState<ImportMode>("append");
   const [dragActive, setDragActive] = useState(false);
@@ -510,6 +513,8 @@ export function ImportDesk({ entitlements, importCsv, prepareImportCsv, openFirm
     >
       <div className="accounts-page">
         <BrokerConnectPanel
+          accountLabels={accountLabels}
+          onOpenCsv={()=>csvDialog.current?.showModal()}
           brokerBusy={brokerBusy}
           brokerNotice={brokerNotice}
           canRedirectToTradovate={canRedirectToTradovate}
@@ -534,7 +539,7 @@ export function ImportDesk({ entitlements, importCsv, prepareImportCsv, openFirm
         />
 
         {tradovateCapability.available && brokerStatus?.provider === "Tradovate" && brokerStatus.connected && (
-          <section className="accounts-panel accounts-history" aria-label="Tradovate recent history">
+          <details className="accounts-help accounts-history-disclosure"><summary>History settings</summary><section className="accounts-panel accounts-history" aria-label="Tradovate recent history">
             <h3>Trade history</h3>
             <details className="accounts-help"><summary>History details</summary><p>Starts with the last 30 days. Choose up to 90 days per load. Dates use UTC; the end date is not included. P&amp;L is before fees. Up to 4 accounts load at once. Select an account to retry missing history.</p></details>
             <div className="mt-4 flex flex-wrap items-end gap-3">
@@ -544,11 +549,12 @@ export function ImportDesk({ entitlements, importCsv, prepareImportCsv, openFirm
               <button className="rounded-lg bg-[#4f7dff] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" disabled={syncBusy || !entitlements.canUseDirectSync} onClick={() => void syncTradovate()}>{syncBusy ? "Loading history…" : "Load history"}</button>
             </div>
 
-          </section>
+          </section></details>
         )}
 
 
 
+        <dialog ref={csvDialog} className="utility-dialog accounts-csv-dialog" aria-labelledby="csv-dialog-title"><div className="utility-dialog-heading"><h3 id="csv-dialog-title">Import CSV</h3><button aria-label="Close CSV import" type="button" onClick={()=>csvDialog.current?.close()}>×</button></div>
         <div className="accounts-csv-grid">
           <div className="accounts-csv-main">
             <CsvUploadPanel
@@ -582,6 +588,7 @@ export function ImportDesk({ entitlements, importCsv, prepareImportCsv, openFirm
             </details>
           </div>
         </div>
+        </dialog>
       </div>
     </SectionShell>
   );

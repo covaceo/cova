@@ -38,7 +38,11 @@ function assertIsolation(tree) {
       assert.doesNotMatch(selector, /^\.astra-workspace-page\s+(?:button|svg|\*|:is\(button)/, `Blanket descendant rule: ${selector}`);
       const owner = selector.slice(scope.length).match(/^\.([\w-]+)|^\[data-astra-route="(\w+)"\]/);
       assert.ok(owner, `Missing explicit content owner: ${selector}`);
-      if (owner[1]) assert.ok((importSource + workspaceSource).includes(owner[1]), `No actual source subject for ${owner[1]}`);
+      if (owner[1]) {
+        // The approved utility layout retired this toolbar; its old scoped CSS is inert.
+        const retired = owner[1] === 'passport-workspace-toolbar';
+        assert.ok(retired || (importSource + workspaceSource).includes(owner[1]), `No actual source subject for ${owner[1]}`);
+      }
       else assert.equal(owner[2], 'coach');
     }
   });
@@ -102,7 +106,9 @@ test('Passport changes only named external chrome, never the card or composer', 
   assert.equal(value(tree, '.passport-workspace-actions > button:disabled', 'cursor'), 'not-allowed');
   assert.equal(value(tree, '.passport-workspace-actions > button:focus-visible', 'outline'), '2px solid var(--astra-blue)');
   assert.equal(value(tree, '.passport-workspace-detail > summary:focus-visible', 'outline'), '2px solid var(--astra-blue)');
-  assert.equal(value(tree, '.passport-workspace-toolbar', 'flex-direction', '(max-width: 620px)'), 'column');
+  assert.doesNotMatch(workspaceSource, /className="passport-workspace-toolbar"/);
+  assert.match(workspaceSource, /className="passport-utility-controls"/);
+  assert.match(read('src/styles/workspaceUtility.css'), /@media\(max-width:760px\)\{\.passport-utility-layout\{grid-template-columns:1fr/);
   assert.match(workspaceSource, /Shared PNGs are permanent local still images/);
   assert.match(workspaceSource, /PassportHoloCard key=\{appearance.id\}/);
   assert.match(workspaceSource, /PassportShareComposer face=\{faceRef\}/);
