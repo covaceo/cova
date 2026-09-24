@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 // Approved utility release adds owner-bound Passport progression and account controls; existing broker/auth/accounting code remains frozen.
 // Owner-authorized cent formatting and opt-in account accuracy review have executable journal regressions.
 // Authorized profile UI adds an owner-scoped context and replaces rail identity/actions; no accounting/auth changes.
-// Lockfile adds only the PGlite dev dependency for executable PostgreSQL uniqueness/RLS tests.
+// Lockfile includes PGlite test support and approved local GIF decode/encode dependencies; existing packages are unchanged.
 const protectedFiles = {
   "api/_lib/auth.js": "446e3e5afa5afe711f0c340143707917959ca5f9a8a4c390e7e462c06292b16a",
   "api/_lib/cookies.js": "8dd442d3e4480190c3470526ac75e410464b04df51a182dbce14fac85c2a7314",
@@ -30,7 +30,7 @@ const protectedFiles = {
   "api/tradovate/connect.js": "0e32e6d9d728c0a1ee42a6b8c6edd44ee159d6c89ad7c064cd1c1502475e267d",
   // Owner-approved recent-history mode reuses owner lookup, limiter and deadline; legacy sync remains.
   "api/tradovate/sync.js": "c7452c268a2c4f579c2de7b384c591d98c1e54d49f52139dcca6d5594e2a371f",
-  "package-lock.json": "a2d899f6c11dbc9b82887ace8b252d015983fcc1d878d6f699ff3ff1e2df8613",
+  "package-lock.json": "b88343ea59e23d3208a205286777bbe1888d8b9d88d0a9636d3d9ce57d2443d8",
   "public/.well-known/security.txt": "c944f837cb8c32091a4aba3afdea372afa7ffbd058ab24b5d6fbfc285e3490d9",
   "public/cova-logo-minimal-black.svg": "539ead98bec67d21afe240ea2ff60aba7e3f9e988b4d1742e0de953f01a6f6dd",
   "public/cova-logo-minimal-white.svg": "3cab047eb026b8c3160fdab46218c0aa82978681ec9d60ec2e0116317178cbab",
