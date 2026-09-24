@@ -40,6 +40,13 @@ test('net broker fees can turn gross profit red and funding never turns it green
  saveBrokerCash('owner-a','71',cash,trades);const html=dashboard(trades);assert.match(html,/Net P&amp;L curve/);assert.equal(html.match(/data-equity-tone="([^"]+)"/)?.[1],'loss');
  const grossHtml=renderToStaticMarkup(React.createElement(Dashboard,{analysis:analyze(trades,defaultRules),rules:defaultRules,go:()=>{},journalReview:true}));assert.equal(grossHtml.match(/data-equity-tone="([^"]+)"/)?.[1],'profit','Gross/reported plot must not subtract cash fees from historical baseline');
 });
+test('gross P&L heading omits unsolicited fee-unavailability wording',()=>{
+ storage();const html=dashboard(tradesFor([100,200]));
+ assert.match(html,/<div class="astra-stat-label">Gross P&amp;L<\/div>/);
+ assert.doesNotMatch(html,/Gross P&amp;L · fees unavailable/);
+ assert.match(html,/Cumulative gross \/ reported P&amp;L/);
+});
+
 test('All accounts colors known-USD reported results on the displayed zero baseline',()=>{
  storage();const trades=tradesFor([-100,200]);trades[1].source.accountId='72';const before=JSON.stringify(trades);const html=dashboard(trades);
  assert.equal(html.match(/data-equity-tone="([^"]+)"/)?.[1],'profit');

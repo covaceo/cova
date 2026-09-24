@@ -22,7 +22,8 @@ const baseline = {
   },
   "functions": {
     "Dashboard": "b5b67f459925338259632d29aabef163b351f090666d9b5aa25b19a11aa2c986",
-    "DashboardStats": "5de31d7b60adc1f2d8f999d1a216e8dd4c608fd0f7b9a871eeb3c7f2620e5795",
+    // Only the rejected fee-unavailability heading suffix was removed; cell values are unchanged.
+    "DashboardStats": "dc42ace8210d70818d6d2da168246fe68c899e842c1d93d2999419d409e720f5",
     "DisciplineReview": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
   }
 };
