@@ -55,3 +55,19 @@
   .recap-backgrounds button { font-size: 13px; }
 }
 @media(prefers-reduced-motion: reduce) { .recap-dialog button { transition: none; } }
+
+/* Only the uploaded background moves; the exported recap remains a fixed overlay. */
+.recap-stage { --recap-stage-height: min(750px, calc(100dvh - 158px)); height: var(--recap-stage-height); }
+.recap-editor { position: relative; width: min(100%, calc(var(--recap-stage-height) * var(--recap-ratio))); aspect-ratio: var(--recap-ratio); max-height: 100%; overflow: hidden; touch-action: none; cursor: grab; user-select: none; background: #080d12; }
+.recap-editor:active { cursor: grabbing; }
+.recap-editor:focus-visible { outline: 2px solid #8aabff; outline-offset: -3px; }
+.recap-stage .recap-editor img { position: absolute; max-width: none; max-height: none; object-fit: fill; pointer-events: none; }
+.recap-stage .recap-still-proof { display: none; }
+.recap-transform label { display: flex; justify-content: space-between; color: #c3cddb; font-size: 14px; }
+.recap-transform input { width: 100%; min-height: 34px; margin: 4px 0; accent-color: #7095ef; }
+.recap-transform-actions { display: flex; align-items: center; gap: 8px; }
+.recap-transform-actions span { margin-right: auto; color: #a5b1c2; font-size: 13px; }
+.recap-transform-actions button { min-width: 64px; padding: 8px 14px; background: rgb(237 240 245 / 6%); }
+.recap-export [data-recap-gif-download] { background: #315dca; color: #fff; }
+.recap-export:has([data-recap-gif-download]) [data-recap-download] { background: rgb(237 240 245 / 8%); }
+@media(max-width: 720px) { .recap-stage { --recap-stage-height: min(54dvh,420px); } }

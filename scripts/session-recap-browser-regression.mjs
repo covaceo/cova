@@ -5,6 +5,7 @@ import {readFile,writeFile,mkdtemp,mkdir,rm,readdir} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join,relative} from 'node:path';
 import {createServer,build,preview} from 'vite';
+import {exerciseRecapGif} from './helpers/recap-gif-browser.mjs';
 const output=process.env.RECAP_EVIDENCE||join(tmpdir(),'cova-recap-browser');await mkdir(output,{recursive:true});const downloads=await mkdtemp(join(output,'exports-'));
 const profile=await mkdtemp(join(tmpdir(),'cova-recap-'));
 const styles=[...(await readFile('src/main.tsx','utf8')).matchAll(/import "([^"]+)";/g)].map(m=>m[1]).filter(n=>n.startsWith('@fontsource')||n.endsWith('.css')).map(n=>`import '${n.startsWith('./')?'/src/'+n.slice(2):n}';`).join('\n');
@@ -40,6 +41,7 @@ try{
  const capture=async name=>{assert.equal(await evaluate(`(()=>{const d=document.querySelector('dialog[open]'),r=d.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth+1&&r.top>=0&&r.bottom<=innerHeight+1&&d.scrollWidth<=d.clientWidth+1;})()`),true,name+' modal fits');assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'),true,name+' root fits');await writeFile(join(output,name+'.png'),Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));};
  const ready=()=>wait(`Boolean(document.querySelector('[data-recap-preview]')?.complete&&document.querySelector('[data-recap-preview]')?.naturalWidth===1080&&!document.querySelector('[data-recap-download]')?.disabled)`);
  await send('Runtime.enable');await send('Page.enable');await send('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:downloads});
+ if(process.env.RECAP_GIF_ONLY==='1') { await exerciseRecapGif({send,evaluate,wait,click,ready,capture,url:`http://127.0.0.1:${port}${pagePath}`,downloads,output,errors}); } else {
  // A deliberately delayed saved profile must never enable a photo-less identity export.
  await send('Page.navigate',{url:`http://127.0.0.1:${port}${pagePath}?delayed=1`});await wait(`Boolean(window.__releaseProfile)`);await click('button','Share recap');
  assert.match(await evaluate(`document.querySelector('.recap-wait')?.textContent||''`),/Loading saved profile/);
@@ -138,5 +140,6 @@ try{
  await evaluate(`window.__trades([200,-80,160,360].map((pnl,i)=>({...window.__rows[i],id:'demo-recap-'+i,pnl,source:undefined})));window.__drawn=[]`);await click('button','Share recap');await ready();
  for(const format of ['Story','Feed','Square']){await click('dialog button',format);await ready();assert.match(await evaluate(`document.querySelector('[data-recap-preview]').alt`),/Sample data/);await exportPreview('sample-'+format.toLowerCase());assert.doesNotMatch(await evaluate(`document.querySelector('[data-recap-preview]').alt`),/HOT STREAK/);}assert((await evaluate('window.__drawn')).some(t=>t==='Sample data · Not a live account'));
  await click('[aria-label="Close recap"]');
+ }
  assert.deepEqual(errors,[],'No runtime or console errors');await writeFile(join(output,'receipt.json'),JSON.stringify({receipts,downloads,files:await readdir(downloads),errors},null,2));console.log('Session recap browser PASS',JSON.stringify({output,downloads,viewports:receipts.length}));
 }finally{if(errors.length)console.error(JSON.stringify(errors));ws?.close();if(chrome?.pid){try{process.platform==='win32'?execFileSync('taskkill',['/PID',String(chrome.pid),'/T','/F'],{stdio:'ignore'}):chrome.kill('SIGKILL');}catch{}}if(server?.close)await server.close();else if(server?.httpServer)await new Promise(r=>server.httpServer.close(r));await rm(profile,{recursive:true,force:true,maxRetries:10,retryDelay:200});if(fixtureDir)await rm(fixtureDir,{recursive:true,force:true});}
