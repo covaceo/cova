@@ -1,8 +1,10 @@
 import { recapExportError, recapHeadlineCents, recapHotStreakLine, recapMoney, type SessionRecap, type RecapBackground } from './sessionRecap';
+import { recapBackgroundRect, type RecapTransform } from './recapBackground';
+export { recapBackgroundRect } from './recapBackground';
 export type RecapFormat = 'story' | 'feed' | 'square';
 export const recapFormats = [{ id: 'story' as const, label: 'Story', width: 1080, height: 1920 }, { id: 'feed' as const, label: 'Feed', width: 1080, height: 1350 }, { id: 'square' as const, label: 'Square', width: 1080, height: 1080 }];
 export const recapBackgrounds = [{ id: 'new-york' as const, label: 'New York', src: '/recaps/new-york.webp' }, { id: 'london' as const, label: 'London', src: '/recaps/london.webp' }, { id: 'asia' as const, label: 'Asia', src: '/recaps/asia.webp' }, { id: 'plain' as const, label: 'Plain', src: '' }];
-export type RecapRenderInput = { recap: SessionRecap; format: RecapFormat; background: RecapBackground; customPhoto?: string; username?: string | null; avatar?: string | null };
+export type RecapRenderInput = { recap: SessionRecap; format: RecapFormat; background: RecapBackground; customPhoto?: string; transform?: RecapTransform; username?: string | null; avatar?: string | null };
 const displayFamily = 'Cova Recap Space Grotesk';
 let fontReady: Promise<void> | null = null;
 function loadRecapFont(): Promise<void> {
@@ -29,12 +31,12 @@ function cover(ctx: CanvasRenderingContext2D, img: CanvasImageSource & { width: 
   ctx.drawImage(img, (img.width - sw) / 2, (img.height - sh) / 2, sw, sh, x, y, width, height);
 }
 /** Each format has an authored composition; only the underlying photograph is cropped. */
-export async function renderSessionRecap(input: RecapRenderInput, signal?: AbortSignal) {
+export async function renderSessionRecap(input: RecapRenderInput, signal?: AbortSignal, foregroundOnly = false) {
   const { recap, format, background, username, avatar } = input;
   const issue = recapExportError(recap); if (issue) throw new Error(issue);
   const headline = recapHeadlineCents(recap)!;
   const preset = recapFormats.find(f => f.id === format)!;
-  const source = background === 'custom' ? input.customPhoto : recapBackgrounds.find(b => b.id === background)?.src;
+  const source = foregroundOnly ? null : background === 'custom' ? input.customPhoto : recapBackgrounds.find(b => b.id === background)?.src;
   const [photo, face, logo] = await Promise.all([source ? image(source, signal) : null, username && avatar ? image(avatar, signal) : null, image('/media/wordmark-options/cova-wordmark-option-3-sleek-cropped.png', signal)]);
   await loadRecapFont();
   const fonts = await document.fonts.load(`700 40px "${displayFamily}"`);
@@ -46,10 +48,13 @@ export async function renderSessionRecap(input: RecapRenderInput, signal?: Abort
   const layout = format === 'story' ? { head: 160, title: 1160, market: 1210, amount: 1360, basis: 1416, stat: 1526, label: 1570, footer: 1688, sample: 1776, font: 180 }
     : format === 'feed' ? { head: 86, title: 720, market: 768, amount: 928, basis: 983, stat: 1066, label: 1112, footer: 1212, sample: 1300, font: 176 }
       : { head: 78, title: 472, market: 522, amount: 668, basis: 720, stat: 792, label: 834, footer: 948, sample: 1036, font: 164 };
-  ctx.fillStyle = '#080d12'; ctx.fillRect(0, 0, w, h);
-  if (photo) {
-    cover(ctx, photo, 0, 0, w, h);
-    if (background !== 'custom') {
+  if (!foregroundOnly) { ctx.fillStyle = '#080d12'; ctx.fillRect(0, 0, w, h); }
+  if (photo || foregroundOnly) {
+    if (photo) {
+      const r = recapBackgroundRect(photo.width, photo.height, w, h, input.transform);
+      ctx.drawImage(photo, r.x, r.y, r.width, r.height);
+    }
+    if (photo && background !== 'custom') {
       // Grade only the curated photographs, before any identity or text is drawn.
       // A tiny channel lookup keeps this consistent without Canvas filter support.
       const tone = Uint8ClampedArray.from({ length: 256 }, (_, value) => ((value - 127.5) * 1.1 + 127.5) * 1.07);
