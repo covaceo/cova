@@ -24,7 +24,9 @@ import {
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { scopedStorageKey } from "../lib/storageScope";
 import { PassportHoloCard } from "./PassportHoloCard";
-import { useProfileUsername } from "./UserProfile";
+import { useProfileUsername, useRecapProfile } from "./UserProfile";
+import { PassportProgress, type PassportJournal } from "./PassportProgress";
+import type { Trade } from "../lib/risk";
 import { PassportShareComposer } from "./PassportShareComposer";
 import { buildHoloPassportModel, type HoloPassportMode } from "../lib/passportHolo";
 import { loadPassportAppearance, type PassportAppearance } from "../lib/passportMaterials";
@@ -808,11 +810,12 @@ function getPassportDiamondPreviewStats(mode: PassportShareModeId): PassportStat
   ];
 }
 
-export function Passport({ analysis, entitlements, isSampleReview, go, upgradeToPro }: { analysis: ReturnType<typeof analyze>; entitlements: WorkspaceEntitlements; isSampleReview: boolean; go: (section: Section) => void; upgradeToPro: () => void }) {
+export function Passport({ analysis, entitlements, isSampleReview, go, upgradeToPro, accountControl, ownerId, trades=[], rules=[], journal }: { analysis: ReturnType<typeof analyze>; entitlements: WorkspaceEntitlements; isSampleReview: boolean; go: (section: Section) => void; upgradeToPro: () => void; accountControl?: ReactNode; ownerId?: string; trades?: Trade[]; rules?: RiskRule[]; journal?: PassportJournal }) {
   const username = useProfileUsername();
+  const profile = useRecapProfile();
   const initialPreferences = useMemo(() => readPassportPreferences(), []);
   const [shareModeId, setShareModeId] = useState<PassportShareModeId>(initialPreferences.shareModeId);
-  const [exportPresetId, setExportPresetId] = useState<PassportExportPresetId>(initialPreferences.exportPresetId);
+  const [exportPresetId, setExportPresetId] = useState<PassportExportPresetId>("square");
   const [sharing, setSharing] = useState(false);
   const [material, setMaterial] = useState<{ rank: string; appearance?: PassportAppearance; error?: string } | null>(null);
   const [materialRetry, setMaterialRetry] = useState(0);
@@ -864,23 +867,16 @@ export function Passport({ analysis, entitlements, isSampleReview, go, upgradeTo
   function openShare() {
     if (!entitlements.canExportPassport) { upgradeToPro(); return; }
     if (!faceRef.current || !appearance || sharing) return;
-    setExportPresetId("square");
+
     setSharing(true);
   }
 
   return (
     <div className="passport-workspace">
-      <SectionShell eyebrow={isSampleReview ? "Sample trader profile" : "Trader profile"} title="Risk Passport" variant="workspace">
-        <div className="passport-workbench passport-holo-workbench">
-          <div className="passport-workspace-toolbar">
-            <p>{isSampleReview ? "Sample review · demo data · Not account verified." : `${model.provenance}.`}</p>
-            <div className="passport-workspace-actions">
-              <button type="button" onClick={() => go("dashboard")}>Back to review</button>
-              <button type="button" className="passport-workspace-share" aria-haspopup={entitlements.canExportPassport ? "dialog" : undefined} disabled={entitlements.canExportPassport && !appearance} onClick={openShare}>
-                {entitlements.canExportPassport ? "Share" : "Unlock export"}
-              </button>
-            </div>
-          </div>
+      <SectionShell title="Passport" variant="workspace">
+        <div className="passport-workbench passport-holo-workbench passport-utility">
+          <header className="passport-identity"><span className="passport-avatar" aria-hidden="true">{shareModeId!=="private"&&profile.avatar?<img src={profile.avatar} alt=""/>:<span>{shareModeId!=="private"?username?.slice(0,1).toUpperCase():""}</span>}</span><div className="passport-identity-name"><h2>{shareModeId==="private"?"Private profile":username?`@${username}`:isSampleReview?"Sample trader":"Your trading profile"}</h2><p>{isSampleReview?"Sample data · ":""}{shareModeId==="private"?"Markets hidden":model.marketLine}</p></div><span className="passport-current-rank"><small>Trading rank</small>{tier.rank}</span></header>
+          <div className="passport-utility-layout"><div className="passport-utility-main">
 
           <section className="passport-workspace-stage" aria-label="Passport card" aria-busy={!appearance && !materialError}>
             {appearance ? <PassportHoloCard key={appearance.id} model={model} appearance={appearance} engraved ref={faceRef} /> :
@@ -889,10 +885,7 @@ export function Passport({ analysis, entitlements, isSampleReview, go, upgradeTo
               </div>}
           </section>
 
-          <div className="passport-workspace-modes" role="group" aria-label="Card view" aria-describedby="passport-mode-description">
-            {passportShareModes.map(mode => <button type="button" key={mode.id} aria-pressed={shareModeId === mode.id} onClick={() => setShareModeId(mode.id)}>{mode.label}</button>)}
-          </div>
-          <p className="passport-workspace-mode-note" id="passport-mode-description">{shareMode.tagline}</p>
+
 
           <details className="passport-review-detail passport-workspace-detail">
             <summary>Review detail</summary>
@@ -932,7 +925,23 @@ export function Passport({ analysis, entitlements, isSampleReview, go, upgradeTo
               <p>{getPassportExportDisclosure(isSampleReview)}</p>
             </div>
           </details>
+          <PassportProgress owner={ownerId} trades={trades} rules={rules} sample={isSampleReview} journal={journal}/>
+          </div><section className="passport-utility-controls" aria-label="Passport controls">
+          {accountControl&&<div><label>Account</label>{accountControl}</div>}
+          <fieldset><legend>Card view</legend>          <div className="passport-workspace-modes" role="group" aria-label="Card view" aria-describedby="passport-mode-description">
+            {passportShareModes.map(mode => <button type="button" key={mode.id} aria-pressed={shareModeId === mode.id} onClick={() => setShareModeId(mode.id)}>{mode.label}</button>)}
+          </div>
+          <p className="passport-workspace-mode-note" id="passport-mode-description">{shareMode.tagline}</p></fieldset>
+          <label className="passport-privacy-toggle"><input type="checkbox" checked={shareModeId==="private"} onChange={e=>setShareModeId(e.target.checked?"private":"flex")}/> Hide identity</label>
+          <label>Format<select aria-label="Passport export format" value={exportPresetId} onChange={e=>setExportPresetId(e.target.value as PassportExportPresetId)}>{passportExportPresets.map(p=><option key={p.id} value={p.id}>{p.label}</option>)}</select></label>
+            <div className="passport-workspace-actions">
+              <button type="button" onClick={() => go("dashboard")}>Back to review</button>
+              <button type="button" className="passport-workspace-share" aria-haspopup={entitlements.canExportPassport ? "dialog" : undefined} disabled={entitlements.canExportPassport && !appearance} onClick={openShare}>
+                {entitlements.canExportPassport ? "Share" : "Unlock export"}
+              </button>
+            </div>
           <p className="passport-workspace-file-note">Shared PNGs are permanent local still images. Cova does not host, revoke, or expire the file.</p>
+          </section></div>
         </div>
         {sharing && entitlements.canExportPassport && appearance && <PassportShareComposer face={faceRef} rank={tier.rank} finish="standard" mode={shareModeId} onModeChange={setShareModeId} preset={exportPresetId} onPresetChange={preset => {
           if (passportExportPresets.some(option => option.id === preset)) setExportPresetId(preset as PassportExportPresetId);

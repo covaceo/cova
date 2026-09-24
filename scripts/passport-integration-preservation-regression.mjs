@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+// Approved utility release adds owner-bound Passport progression and account controls; existing broker/auth/accounting code remains frozen.
 // Owner-authorized cent formatting and opt-in account accuracy review have executable journal regressions.
 // Authorized profile UI adds an owner-scoped context and replaces rail identity/actions; no accounting/auth changes.
 // Lockfile adds only the PGlite dev dependency for executable PostgreSQL uniqueness/RLS tests.
@@ -49,13 +50,13 @@ const protectedFiles = {
   // Auto-history adds principal+selection guarded merge, scoped account review and saved-history props.
   // Callback hints never authorize imports; all marketing, OAuth and Passport artwork remain unchanged.
   // Approved OA review headers reuse the exact owner-bound selector; route-prop parity remains enforced.
-  "src/App.tsx": "331cd1990a5a5cd61b9999f97956823a49419b29945af7e50aacb2b1097ce0f7",
+  "src/App.tsx": "7411901265b8490164a115aa8002b88bc4ce24074df86b9c54f843d2c8d06cc2",
   "src/components/AstraEquityCurve.tsx": "41af4ca602a699399b73f2594a21cde26f5ac54f4022bf32bf34f52a5acbc27b",
   "src/components/DashboardTradeDialog.tsx": "5425bcaaabce7c99ee925b577d3c2324c4c41cd9bcb9b1c849871a712c7ec730",
   // Owner-approved recap action, source CTA/averages and standalone fee-label removal; financial logic remains locked by approved-dashboard-preservation.
   "src/components/DashboardView.tsx": "be5be86f9ad551e6cb365393a3c94fea79ed62cb27327527220c05a8cac60ac4",
   // Owner-approved Passport book icon, duplicate rail copy removal and Settings-to-Accounts entry; shell handlers remain intact.
-  "src/components/WorkspaceShell.tsx": "f39db56cb370c47547894bdaba6384dc523d3f9e55fc2d6f5eba0eaa9452a9b4",
+  "src/components/WorkspaceShell.tsx": "7f1f3e8da88a5fec1f8741bb5b212f37572a4b54c83a30a13116d9c5a3b1deb7",
   // Owner-approved left hero overline removal only; all dashboard CSS remains unchanged.
   "src/index.css": "e124ef2202d6a2eb61be19faa302b94132d1d4e0ba788774cc33749019ae55e4",
   // Retain UTC ordering while preserving legacy same-day input order and member annotations.

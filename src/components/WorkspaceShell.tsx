@@ -1,4 +1,5 @@
-import { Activity, ArrowUpRight, BarChart3, ChevronRight, FileUp, Gauge, LayoutGrid, Search, BookUser } from "lucide-react";
+import { Activity, ArrowUpRight, BarChart3, ChevronRight, FileUp, Gauge, Search, BookUser } from "lucide-react";
+import { WorkspaceNavIcon } from "./WorkspaceNavIcon";
 import { ProfileMenu } from "./UserProfile";
 import { motion, useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -67,6 +68,7 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
       }))
       .filter((group) => group.items.length > 0);
   }, [search]);
+  const showAccounts = !search.trim() || "accounts tradovate ninjatrader rithmic csv".includes(search.trim().toLowerCase());
   const riskScoreLabel = typeof riskScore === "number" && Number.isFinite(riskScore) ? String(riskScore) : "--";
 
   return (
@@ -78,7 +80,7 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
           </button>
         </div>
 
-        <button className="astra-rail-account" aria-current={isWorkspaceNavActive(section, "import") ? "page" : undefined} onClick={() => go("import")} type="button"><span className="astra-rail-account-copy"><strong>Accounts</strong><small>{brokerLabel}</small></span><ChevronRight aria-hidden="true" /></button>
+
 
         <label className="workspace-sidebar-search">
           <Search aria-hidden="true" className="h-4 w-4" />
@@ -91,13 +93,15 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
           />
         </label>
 
+        {showAccounts && <button className="astra-rail-account" aria-current={isWorkspaceNavActive(section, "import") ? "page" : undefined} onClick={() => go("import")} type="button"><WorkspaceNavIcon section="import" /><span className="astra-rail-account-copy"><strong>Accounts</strong><small>{brokerLabel}</small></span><ChevronRight aria-hidden="true" /></button>}
+
         <nav className="workspace-sidebar-nav">
           {filteredGroups.map((group) => (
             <div className="workspace-sidebar-group" key={group.label}>
               <p className="workspace-sidebar-group-label">{({ Review: "Workspace", Proof: "Your record" }[group.label] || group.label)}</p>
               <div className="workspace-sidebar-group-links">
                 {group.items.map((item) => {
-                  const Icon = item.id === "dashboard" ? LayoutGrid : item.icon;
+                  // Route identity is unchanged by the new presentation.
                   const active = isWorkspaceNavActive(section, item.id);
                   return (
                     <button
@@ -115,7 +119,7 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
                           transition={reducedMotion ? { duration: 0 } : { type: "spring", stiffness: 550, damping: 40 }}
                         />
                       )}
-                      <span className="workspace-sidebar-icon"><Icon className="h-4 w-4" /></span>
+                      <span className="workspace-sidebar-icon"><WorkspaceNavIcon section={item.id} /></span>
                       <span className="workspace-sidebar-copy">{item.label}</span>
                     </button>
                   );
@@ -123,7 +127,7 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
               </div>
             </div>
           ))}
-          {filteredGroups.length === 0 && <p className="workspace-sidebar-empty">No matching workspace route.</p>}
+          {filteredGroups.length === 0 && !showAccounts && <p className="workspace-sidebar-empty">No matching workspace route.</p>}
         </nav>
 
 

@@ -332,7 +332,7 @@ test('Passport-only styling loads before the final dashboard cascade and keeps c
   assert.match(read('src/styles/passportWorkspace.css'), /@media/);
   const { Passport } = load('src/components/WorkspaceSections.tsx');
   const html = text(React.createElement(Passport, props()));
-  assert.match(html, /passport-workspace-toolbar[\s\S]*?Sample review · demo data/);
+  assert.match(html, /passport-identity[\s\S]*?Sample data/);
   assert.match(html, /class="passport-review-detail passport-workspace-detail"/);
 });
 test('Passport workspace binds one Standard engraved card to the current review and opens square sharing', async () => {
@@ -341,7 +341,7 @@ test('Passport workspace binds one Standard engraved card to the current review 
     let tree = h.render();
     const initial = text(tree);
     assert.ok(initial.includes('class="passport-workspace"'), 'The route needs its own scoped compact workspace wrapper');
-    assert.ok(initial.includes('Risk Passport'));
+    assert.match(initial, /section-shell-title[^>]*>Passport<\/h2>/);
     assert.ok(initial.includes('Back to review'));
     assert.doesNotMatch(initial, /passport-credential-card|passport-share-rail|passport-export-list|passport-privacy-list/);
     await h.flush(); tree = h.render();

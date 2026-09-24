@@ -53,6 +53,8 @@ import "./styles/homeStory.css";
 import "./styles/publicPassportExample.css";
 import "./styles/siteInteractionPolish.css";
 import "./styles/deskJournal.css";
+import "./styles/workspaceUtility.css";
+import "./styles/passportProgress.css";
 
 if (navigator.platform.startsWith("Win")) {
   document.documentElement.classList.add("cova-platform-windows");

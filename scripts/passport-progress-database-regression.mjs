@@ -1,0 +1,37 @@
+import assert from 'node:assert/strict';
+import {readFileSync,existsSync} from 'node:fs';
+import {PGlite} from '@electric-sql/pglite';
+const file='supabase/migrations/20260923010000_passport_progress.sql';
+assert.ok(existsSync(file),'Passport plans and rewards require a server-owned migration');
+const db=new PGlite(),A='11111111-1111-4111-8111-111111111111',B='22222222-2222-4222-8222-222222222222';
+try{
+ await db.exec(`create role anon;create role authenticated;create role service_role bypassrls;create schema auth;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;grant usage on schema auth to authenticated;grant execute on function auth.uid() to authenticated;insert into auth.users values('${A}'),('${B}');`);
+ await db.exec(readFileSync(file,'utf8'));
+ await db.exec(`set role authenticated;select set_config('request.jwt.claim.sub','${A}',false)`);
+ const limits={maxDailyLoss:300,maxTradeLoss:150,maxContracts:2,maxLossStreak:3};
+ const call=()=>db.query('select public.passport_save_plan($1,$2::jsonb) as plan',[A,JSON.stringify(limits)]);
+ const first=(await call()).rows[0].plan,second=(await call()).rows[0].plan;
+ assert.equal(first.id,second.id,'Reloading the same plan does not change its effective timestamp');
+ assert.ok(Date.parse(first.created_at)>Date.parse('2026-01-01'));
+ await assert.rejects(db.query('select public.passport_save_plan($1,$2::jsonb)',[B,JSON.stringify(limits)]),/session_changed/);
+ await assert.rejects(db.query('update public.passport_rule_plans set created_at=now()-interval \'1 day\''),/permission denied/);
+ await db.exec(`select set_config('request.jwt.claim.sub','${B}',false)`);
+ assert.equal((await db.query('select * from public.passport_rule_plans')).rows.length,0);
+ await assert.rejects(db.query('select public.passport_commit_review($1,$2,$3,$4,$5,$6,$7,$8,$9)',[A,'2026-09-18','Tradovate:1','Keep the same risk limit.',60,'','0'.repeat(64),'2026-09-18T15:00:00Z',0]),/permission denied/);
+ await db.exec('reset role;set role service_role');
+ const commit=(account,xp,hash,revision,asOf='2026-09-18T15:00:00Z')=>db.query('select public.passport_commit_review($1,$2,$3,$4,$5,$6,$7,$8,$9) as receipt',[A,'2026-09-18',account,'Keep the same risk limit.',xp,'',hash.repeat(64),asOf,revision]);
+ const earned=(await commit('Tradovate:1',60,'0',0)).rows[0].receipt;
+ assert.equal(earned.xp,60);assert.equal(earned.revision,1);
+ assert.equal((await commit('Tradovate:1',60,'0',0)).rows[0].receipt.revision,1,'Identical retry is idempotent even with the old revision');
+ assert.equal((await commit('Tradovate:2',60,'1',0)).rows[0].receipt.xp,0,'Another account cannot farm a second reward');
+ await assert.rejects(commit('Tradovate:1',15,'2',0,'2026-09-18T16:00:00Z'),/revision_conflict/);
+ await assert.rejects(commit('Tradovate:1',15,'2',1,'2026-09-18T14:00:00Z'),/stale_evidence/);
+ assert.equal((await commit('Tradovate:1',15,'2',1,'2026-09-18T16:00:00Z')).rows[0].receipt.xp,15,'Correction replaces 60 with 15, not adds 15');
+ assert.equal((await commit('Tradovate:1',0,'3',2,'2026-09-18T17:00:00Z')).rows[0].receipt.xp,0);
+ assert.equal((await commit('Tradovate:2',60,'4',1,'2026-09-18T18:00:00Z')).rows[0].receipt.xp,0,'The awarded account remains bound after a downward correction');
+ const snapshot=(await db.query('select public.passport_progress_snapshot($1) as snapshot',[A])).rows[0].snapshot;assert.equal(snapshot.total_xp,0);assert.equal(snapshot.receipts.length,2);
+ await db.exec(`reset role;set role authenticated;select set_config('request.jwt.claim.sub','${B}',false)`);
+ assert.equal((await db.query('select * from public.passport_session_reviews')).rows.length,0);
+ await assert.rejects(db.query('update public.passport_session_reviews set xp=60'),/permission denied/);
+ console.log('PASS PostgreSQL progress: server timestamps, owner RLS, service-only scoring, idempotence, daily account cap, revisions and downward corrections');
+}finally{await db.close()}

@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';import {existsSync} from 'node:fs';import {createRequire} from 'node:module';
+assert.ok(existsSync('api/_lib/passport-evidence.ts'),'Server must reproduce cash evidence checks, not trust a client XP or reconciled flag');
+const load=createRequire(import.meta.url)('./helpers/load-ts.cjs');const {readProgressEvidence}=load('api/_lib/passport-evidence.ts');
+import {trades,cash,payload} from './helpers/passport-progress-fixture.mjs';
+const now=Date.parse('2026-09-19T00:00:00Z');
+assert.equal(readProgressEvidence(payload,now).netCents,7100);
+assert.equal(readProgressEvidence({...payload,cash:null,reconciled:true,xp:999999},now).netCents,null);
+assert.equal(readProgressEvidence({...payload,cash:{...cash,netCents:999999}},now).netCents,null);
+assert.throws(()=>readProgressEvidence({...payload,trades:[...trades,trades[0]]},now));
+assert.throws(()=>readProgressEvidence({...payload,account:'Tradovate:2'},now));
+assert.throws(()=>readProgressEvidence({...payload,trades:trades.map(t=>({...t,id:'demo-'+t.id}))},now));
+assert.throws(()=>readProgressEvidence({...payload,day:'2026-02-30'},now));
+assert.throws(()=>readProgressEvidence(payload,Date.parse('2026-09-18T12:00:00Z')));
+console.log('PASS real cash-window validation: net after fees, no client-score trust, account/day identity, duplicates, sample and future evidence');

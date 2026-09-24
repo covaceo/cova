@@ -133,5 +133,6 @@ assert.match(importPanels, /entitlements\.canUseDirectSync && rithmicStatusCheck
 const login = read("src", "components", "RithmicLogin.tsx");
 assert.match(login, /<RithmicAttribution compact/);
 assert.doesNotMatch(login, /localStorage|sessionStorage|console\./, "One-time credentials must not be persisted or logged.");
-assert.match(importPanels, /NinjaTrader/);
+assert.match(importPanels, /<BrokerBrand provider="tradovate"/);
+assert.match(read("src", "components", "BrokerBrand.tsx"), /NinjaTrader/);
 console.log("Rithmic data/security preservation and gated login: passed");

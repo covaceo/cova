@@ -56,6 +56,7 @@ import { PrivacyPage, SecurityPage, TermsPage } from "./components/LegalPages";
 import { Coach, Passport, RulesEngine } from "./components/WorkspaceSections";
 import { Dashboard } from "./components/DashboardView";
 import { ImportDesk } from "./components/ImportDesk";
+import { PassportPlanSync } from "./components/PassportProgress";
 import { Navbar } from "./components/Navbar";
 import { OAuthConnectPage } from "./components/OAuthConnectPage";
 import { Toast } from "./components/Toast";
@@ -1311,23 +1312,24 @@ export default function App() {
         pendingPolicyConfirmation={Boolean(pendingSupabaseSession)}
       />
       <Toast toast={toast} />
+      {isSignedIn&&authSession?.userId&&<PassportPlanSync key={authSession.userId} owner={authSession.userId} rules={rules}/>}
 
       <main className="relative z-10">
         {isProtectedSection(section) ? (
           isSignedIn ? (
             <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={visibleRiskScore} section={section} signOut={signOut}>
-              {tradeAccounts.some(account => account !== "local") && section !== "oauth" && section !== "dashboard" && section !== "rules" && section !== "coach" && (
+              {tradeAccounts.some(account => account !== "local") && section !== "oauth" && section !== "dashboard" && section !== "rules" && section !== "coach" && section !== "passport" && section !== "import" && (
                 <div className="mx-4 mt-24 sm:mx-6 lg:mt-4" data-account-switcher>
                   <TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} value={tradeAccount} onChange={selectTradeAccount} />
 
                 </div>
               )}
               {section === "dashboard" && <Dashboard key={`${authSession?.userId || authSession?.email}:${tradeAccount}`} analysis={analysis} rules={rules} go={go} accountControl={tradeAccounts.some(account => account !== "local") ? <div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} value={tradeAccount} onChange={selectTradeAccount} /></div> : undefined} onSaveTradeNote={saveTradeNote} journalActions={journalActions} onAddManualTrade={addManualTrade} onDeleteManualTrade={deleteManualTrade} manualAccounts={[...new Set([...tradeAccounts,"local"])]} selectedAccount={tradeAccount} rithmicSyncAvailable={brokerStatus?.provider === "Rithmic" && brokerStatus.status === "imported"} />}
-              {section === "import" && <ImportDesk key={authSession?.userId || authSession?.email} entitlements={entitlements} importCsv={importCsv} prepareImportCsv={prepareImportCsv} openFirmOAuth={openFirmOAuth} status={status} reset={() => { const demoTrades = entitlements.plan === "free" ? sampleTrades.slice(0, entitlements.maxStoredTrades) : sampleTrades; tradesRef.current = demoTrades; setTrades(demoTrades); selectTradeAccount("local"); setRules(defaultRules); clearBrokerStatus(); window.dispatchEvent(new CustomEvent("cova:broker-status")); setStatus("Demo trades restored."); announce("Demo trades restored.", "success"); }} upgradeToPro={upgradeToPro} />}
+              {section === "import" && <ImportDesk key={authSession?.userId || authSession?.email} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} entitlements={entitlements} importCsv={importCsv} prepareImportCsv={prepareImportCsv} openFirmOAuth={openFirmOAuth} status={status} reset={() => { const demoTrades = entitlements.plan === "free" ? sampleTrades.slice(0, entitlements.maxStoredTrades) : sampleTrades; tradesRef.current = demoTrades; setTrades(demoTrades); selectTradeAccount("local"); setRules(defaultRules); clearBrokerStatus(); window.dispatchEvent(new CustomEvent("cova:broker-status")); setStatus("Demo trades restored."); announce("Demo trades restored.", "success"); }} upgradeToPro={upgradeToPro} />}
               {section === "oauth" && <OAuthConnectPage firmId={oauthFirmId} onApprove={completeFirmOAuth} onCancel={cancelFirmOAuth} />}
               {section === "rules" && <RulesEngine analysis={analysis} entitlements={entitlements} rules={rules} setRules={setRules} go={go} upgradeToPro={upgradeToPro} accountControl={tradeAccounts.some(account => account !== "local") ? <div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} value={tradeAccount} onChange={selectTradeAccount} /></div> : undefined} />}
               {section === "coach" && <Coach analysis={analysis} entitlements={entitlements} go={go} upgradeToPro={upgradeToPro} accountControl={tradeAccounts.some(account => account !== "local") ? <div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} value={tradeAccount} onChange={selectTradeAccount} /></div> : undefined} />}
-              {section === "passport" && <Passport analysis={analysis} entitlements={entitlements} isSampleReview={isSampleReview} go={go} upgradeToPro={upgradeToPro} />}
+              {section === "passport" && <Passport key={`${authSession?.userId || authSession?.email}:${tradeAccount}`} analysis={analysis} entitlements={entitlements} isSampleReview={isSampleReview} go={go} upgradeToPro={upgradeToPro} ownerId={authSession?.userId} trades={visibleTrades} rules={rules} journal={tradeAccount!=="all"?journalActions:undefined} accountControl={<div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts.length?tradeAccounts:["local"]} value={tradeAccount} onChange={selectTradeAccount}/></div>}/>}
             </WorkspaceShell>
           ) : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={openAuth} onDevPreview={signInAsDevPreview} />
         ) : (
