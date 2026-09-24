@@ -12,7 +12,11 @@ export function tradeAccountKey(trade: Trade) {
   return trade.source?.provider === "Rithmic" ? `Rithmic:${trade.source.accountKey}:${trade.source.accountId}` : trade.source ? `Tradovate:${trade.source.accountId}` : "local";
 }
 export function filterTradeAccount(trades: Trade[], selected: string) {
-  return selected === "all" ? trades : trades.filter(trade => tradeAccountKey(trade) === selected);
+  // Keep standalone demos usable, but never mix their synthetic history into a
+  // member review. Filter the view, not the stored ledger or imported records.
+  const real = trades.filter(trade => trade.source || trade.manual || !trade.id.startsWith("demo-"));
+  const review = real.length ? real : trades;
+  return selected === "all" ? review : review.filter(trade => tradeAccountKey(trade) === selected);
 }
 export class HistoryRunGuard {
   private controller: AbortController | null = null;
