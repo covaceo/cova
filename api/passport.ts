@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
 import { ApiError, requirePolicyAcceptedUser, sendApiError } from './_lib/auth.js';
 import { supabaseServiceHeaders } from './_lib/supabase.js';
-import { readProgressEvidence } from './_lib/passport-evidence';
-import { evaluatePassportProgress, type ProgressPlan } from '../src/lib/passportProgress';
+import { readProgressEvidence, evaluatePassportProgress } from './_lib/passport-runtime.mjs';
+import type { ProgressPlan } from '../src/lib/passportProgress';
 
 type RestOptions={body?:any;query?:Record<string,string>;authorization?:string};
 async function progressRest(path:string,{body,query,authorization}:RestOptions={}){

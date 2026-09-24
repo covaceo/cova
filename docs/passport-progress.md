@@ -18,6 +18,10 @@ The original shareable Passport remains visible before progression. Existing ran
 
 Owner changes abort pending UI requests and clear the previous owner's display. API requests verify the signed-in owner before reading or writing. Deleting the auth user cascades the new records.
 
+## Server packaging
+
+The server imports the committed, reproducible `api/_lib/passport-runtime.mjs` bundle. `npm run build` regenerates it from shared source without changing financial modules. A native Node ESM startup regression and a generated-source freshness check prevent a Vite-only test from hiding extensionless-import failures in Vercel.
+
 ## Verification
 
 - `npm run test:passport-progress`: scoring, cash evidence, PostgreSQL permissions/RLS, idempotence, account binding, revisions and compiled API authentication/server-scored success.
