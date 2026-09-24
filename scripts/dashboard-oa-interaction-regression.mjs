@@ -579,10 +579,10 @@ async function sourceLifecycle() {
   const sample = { ...base, id: 'demo-source-latest', date: '2026-08-20', pnl: 0, notes: '' };
   const olderRithmic = { ...base, id: 'rithmic-source-old', date: '2026-08-01', pnl: -25, source: { provider: 'Rithmic', accountKey: 'qa-disposable', accountId: 'QA-ONLY', currency: 'USD' } };
   const cases = [
-    { name: 'Rithmic history outside selected range', trades: [olderRithmic, sample], broker: null, account: 'Sample + Rithmic review', source: 'Sample review', count: 1, attribution: 1 },
+    { name: 'Newer demo rows cannot displace the latest real Rithmic session', trades: [olderRithmic, sample], broker: null, account: 'Rithmic history', source: 'Rithmic history', count: 1, attribution: 1 },
     { name: 'Rithmic resync receipt without retained provider rows', trades: [sample], broker: { provider: 'Rithmic', status: 'imported', connected: false, mode: 'ephemeral', message: 'QA-only imported history; login discarded.', updatedAt: new Date().toISOString() }, account: 'Sample review', source: 'Sample review', count: 1, attribution: 1 },
     { name: 'Empty account with Rithmic resync receipt', trades: [], broker: { provider: 'Rithmic', status: 'imported', connected: false, mode: 'ephemeral', message: 'QA-only imported history; login discarded.', updatedAt: new Date().toISOString() }, account: 'No trade history', source: 'No trade history', count: 0, attribution: 0 },
-    { name: 'Linked account is distinct from selected source', trades: [olderRithmic, sample], broker: { provider: 'Tradovate', status: 'connected', connected: true, mode: 'linked', message: 'QA-only linked account label.', updatedAt: new Date().toISOString() }, account: 'Tradovate linked', source: 'Sample review', count: 1, attribution: 1 },
+    { name: 'Linked account is distinct from selected source', trades: [olderRithmic, sample], broker: { provider: 'Tradovate', status: 'connected', connected: true, mode: 'linked', message: 'QA-only linked account label.', updatedAt: new Date().toISOString() }, account: 'Tradovate linked', source: 'Rithmic history', count: 1, attribution: 1 },
   ];
   try {
     for (const scenario of cases) {

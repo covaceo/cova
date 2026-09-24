@@ -168,7 +168,7 @@ export default function App() {
   const entitlements = planEntitlements[authSession?.plan ?? "free"];
   const proCheckoutAvailable = Boolean(getProCheckoutUrl()) || isDemoPreviewEnabled();
   const visibleTrades = useMemo(() => filterTradeAccount(trades, tradeAccount), [trades, tradeAccount]);
-  const tradeAccounts = useMemo(() => [...new Set(trades.map(tradeAccountKey))], [trades]);
+  const tradeAccounts = useMemo(() => [...new Set(filterTradeAccount(trades, "all").map(tradeAccountKey))], [trades]);
   const analysis = useMemo(() => analyze(visibleTrades, rules), [visibleTrades, rules]);
   const visibleRiskScore = visibleTrades.length ? analysis.score : null;
   const hasSampleTrades = visibleTrades.some((trade) => trade.id.startsWith("demo-"));
