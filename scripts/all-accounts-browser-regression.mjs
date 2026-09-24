@@ -298,6 +298,7 @@ for(const [width,height,mobile] of [[1440,1000,false],[1280,720,false],[390,844,
  for(const [account,count,amount,history] of [['all','3','+$150.00','split'],['Tradovate:71','2','−$150.00','loss'],['Tradovate:72','1','+$300.00','profit'],['all','3','+$150.00','split']]){
   await choose(account);await waitFor(`document.querySelector('[data-dashboard-trade-count]')?.dataset.dashboardTradeCount==='${count}' && document.querySelector('.astra-chart-main')?.dataset.equityHistory==='${history}'`);
   assert.equal(await evaluate("document.querySelector('[data-astra-stat=pnl] .astra-stat-value').textContent"),amount);
+  assert.equal(await evaluate("document.querySelector('[data-astra-stat=pnl] .astra-stat-label').textContent"),'Gross P&L');
   assert.deepEqual(await evaluate("[...document.querySelectorAll('select[aria-label=\"Trade account\"] option')].map(n=>n.value)"),['all','Tradovate:71','Tradovate:72']);
   assert.doesNotMatch(await evaluate("document.querySelector('.astra-chart-svg').textContent"),/Apr|May/);
  }

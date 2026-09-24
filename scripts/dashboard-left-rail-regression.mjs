@@ -93,7 +93,7 @@ const overlappingWarning = {
 };
 assert.equal(dashboardModule.getActionableReviewCount(overlappingWarning), 1, "a configured breach and its derived behavior flag must not double-count one warning");
 assert.deepEqual(dashboardModule.getDashboardSummaryAction(overlappingWarning), { label: "Review warnings", target: "rules" }, "configured breaches must still route to Limits");
-assert.match(dashboard, /label: net \? "Net cash P&L" : tradovateOnly \? "Gross P&L · fees unavailable" : "Reported P&L"/, "dashboard summary must not call provider-reported gross P&L net");
+assert.match(dashboard, /label: net \? "Net cash P&L" : tradovateOnly \? "Gross P&L" : "Reported P&L"/, "dashboard summary must not call provider-reported gross P&L net");
 assert.match(dashboard, /Cumulative gross \/ reported P&L from the selected trade history\./, "equity explanation must stay truthful across Rithmic, Tradovate, CSV, and sample rows");
 assert.doesNotMatch(dashboard.replace('netCash ? "Net P&L curve" : "Equity curve"', '"Equity curve"'), /Net P&L|Net cumulative P&amp;L|imported trade history/, "Risk Desk copy must stay truthful for gross provider history and sample review rows");
 assert.match(dashboardCards, /\["Reported P&L", formatMoney\(analysis\.totalPnl\)\]/, "shared dashboard metrics must use the same provider-neutral P&L label");
