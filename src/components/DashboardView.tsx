@@ -15,6 +15,7 @@ import { TradeHistoryDialog } from "./TradeHistoryDialog";
 import { OaDisciplineReview } from "./OaDisciplineReview";
 import { MiniJournal, type JournalActions } from "./MiniJournal";
 import { ManualTradeDialog, type AddManualTrade } from "./ManualTradeDialog";
+import { TradingCalendar } from "./TradingCalendar";
 import { SessionRecapAction } from "./SessionRecapComposer";
 import { brokerCashSummary, type CashSummary } from '../lib/brokerCash';
 import { signedMoney } from "../lib/dashboardPresentation";
@@ -147,6 +148,7 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, o
       </div>
 
     </>}
+    <TradingCalendar key={selectedAccount} trades={analysis.trades} />
     <footer className="astra-dashboard-footer"><span>Retrospective review only. No live brokerage execution.</span></footer>
     {manualOpen && onAddManualTrade && <ManualTradeDialog accounts={manualAccounts} selected={selectedAccount} onSave={onAddManualTrade} onClose={() => setManualOpen(false)} />}
     {!hasTradeHistory && <MiniJournal initialDate={new Date().toLocaleDateString("en-CA")} actions={journalActions} trades={analysis.trades} onOpenTrade={id => { setAttachedTradeId(id); setHistoryOpen(true); }} />}

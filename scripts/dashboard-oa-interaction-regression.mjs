@@ -299,7 +299,12 @@ async function auditDarkDashboard(label) {
     const forbiddenPalette = [...document.querySelectorAll('.oa-dashboard-app *, .workspace-shell *')].filter(visible).flatMap((node) => {
       const style = getComputedStyle(node);
       const values = [style.color, style.backgroundColor, style.backgroundImage, style.borderColor, style.outlineColor, style.boxShadow, style.fill, style.stroke];
-      const forbidden = values.flatMap(parseColors).filter(forbiddenAccent);
+      // Raf explicitly approved green for profitable calendar days only.
+      // Permit only the two implemented green tokens within positive day cells;
+      // all other dashboard accents and retired colors remain checked.
+      const profitCell = node.closest('.trading-calendar [data-calendar-state="profit"]');
+      const calendarGreen = ([r,g,b]) => profitCell && ((r===115 && g===215 && b===174) || (r===82 && g===199 && b===154));
+      const forbidden = values.flatMap(parseColors).filter(color => forbiddenAccent(color) && !calendarGreen(color));
       return forbidden.length ? [{ tag: node.tagName, className: node.className?.baseVal || node.className || '', values, forbidden }] : [];
     }).slice(0, 10);
     const forbiddenClassMarkers = [...document.querySelectorAll('.oa-dashboard-app *, .workspace-shell *')].flatMap((node) => {
@@ -327,7 +332,8 @@ async function auditDarkDashboard(label) {
       '.astra-chart-note > span', '.oa-discipline-score small', '.oa-discipline-reading p',
       '.oa-discipline-focus h3', '.oa-discipline-focus p', '.oa-review-details-button',
       '.mini-journal-footer > span', '.astra-win-loss', '.astra-trade-table th', '.oa-discipline-state',
-      '.astra-dashboard-footer > span',
+      '.astra-dashboard-footer > span', '.calendar-month', '.calendar-table th', '.calendar-day:not(.calendar-day--outside) time',
+      ...(document.querySelector('.calendar-pnl') ? ['.calendar-pnl'] : []),
       ...(innerWidth >= 851 ? ['.workspace-sidebar-group-label', '.cova-profile-trigger > span:nth-child(2)', '.astra-rail-account small'] : []),
       // Owner removed the duplicate rail disclaimer; the actual dashboard footer remains required above.
       ...(document.querySelector('[data-discipline-details]:modal') ? ['.oa-review-evidence', '.astra-factor-list span', '.oa-next-review p', '.dashboard-review-disclosure'] : []),
