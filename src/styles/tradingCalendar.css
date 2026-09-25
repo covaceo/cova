@@ -8,7 +8,7 @@
 .astra-dashboard .calendar-month { min-width:146px; text-align:center; color:#dce5f2; font:500 14px/1.3 Inter,Arial,sans-serif; font-variant-numeric:tabular-nums; }
 .astra-dashboard .calendar-table { width:100%; table-layout:fixed; border-collapse:separate; border-spacing:6px; padding:0 14px 14px; }
 .astra-dashboard .calendar-table th { padding:0 0 8px; text-align:center; color:#9daabd; font:500 12px/1.4 Inter,Arial,sans-serif; }
-.astra-dashboard .calendar-day { padding:0; border:1px solid #ffffff08; border-radius:4px; background:#ffffff03; vertical-align:top; color:#929ead; }
+.astra-dashboard .calendar-day { padding:0; border:1px solid #ffffff08; border-radius:4px; background:#ffffff03; vertical-align:top; color:#929fb2; }
 .astra-dashboard .calendar-day--profit { background:#52c79a12; border-color:#52c79a24; color:#73d7ae; }
 .astra-dashboard .calendar-day--loss { background:#e57c8912; border-color:#e57c8924; color:#efa1ab; }
 .astra-dashboard .calendar-day--breakeven { background:#ffffff08; border-color:#ffffff16; color:#d3dbe7; }
