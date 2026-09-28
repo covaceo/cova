@@ -53,6 +53,16 @@ test('only a paid matching subscription grants Pro; failed renewal and cancellat
  assert.equal((await service.status({id:OWNER,plan:'free'})).plan,'free');
  assert.equal((await service.status({id:OWNER,plan:'pro'})).plan,'pro','manual entitlement survives');
 });
+test('portal cancel_at schedules show Ending and cannot extend access beyond cancellation',async()=>{
+ const {createBillingService,billingConfig}=await import(path),stripe=provider(),store=memoryStore();
+ const service=createBillingService({config:billingConfig(env),stripe,store});await service.checkout({id:OWNER,email:'one@example.test'});
+ const sub=paidSubscription();stripe.setSubs([sub]);stripe.invoices={retrieve:async()=>sub.latest_invoice};
+ sub.cancel_at=sub.latest_invoice.lines.data[0].period.end;sub.cancel_at_period_end=false;
+ let state=await service.status({id:OWNER});assert.equal(state.cancelAtPeriodEnd,true);assert.equal(state.plan,'pro');
+ sub.cancel_at-=3600;state=await service.status({id:OWNER});assert.equal(Date.parse(state.paidUntil),sub.cancel_at*1000);
+ sub.cancel_at=Math.floor(Date.now()/1000)-1;assert.equal((await service.status({id:OWNER})).plan,'free');
+ sub.cancel_at=null;state=await service.status({id:OWNER});assert.equal(state.cancelAtPeriodEnd,false);assert.equal(state.plan,'pro');
+});
 test('webhook payload cannot grant access; duplicate/reversed events reconcile current provider state',async()=>{
  const {createBillingService,billingConfig}=await import(path); const stripe=provider(),store=memoryStore();
  const service=createBillingService({config:billingConfig(env),stripe,store}); await service.checkout({id:OWNER,email:'one@example.test'});

@@ -72,9 +72,12 @@ export function createBillingService({ config, stripe, store, now = Date.now }) 
         if(invoice.status!=='paid' || idOf(invoice.customer)!==row.customerId) continue;
         if(invoice.lines?.has_more) throw new BillingError(503,'Invoice details need review.');
         const line=invoice.lines?.data?.find(l=>l.quantity===1 && idOf(l.pricing?.price_details?.price || l.price)===config.priceId && idOf(l.parent?.subscription_item_details?.subscription || l.subscription)===sub.id);
-        const until=Number(line?.period?.end)*1000;
+        const paidEnd=Number(line?.period?.end)*1000;
+        const cancelAt=sub.cancel_at==null?null:Number(sub.cancel_at)*1000;
+        if(cancelAt!==null&&(!Number.isSafeInteger(cancelAt)||cancelAt<=0))throw new BillingError(503,'Subscription cancellation needs review.');
+        const until=cancelAt===null?paidEnd:Math.min(paidEnd,cancelAt);
         if(!Number.isSafeInteger(until) || until<=now()) continue;
-        if(!state.paidUntil || until>Date.parse(state.paidUntil)) Object.assign(state,{plan:'pro',status:'active',paidUntil:new Date(until).toISOString(),cancelAtPeriodEnd:Boolean(sub.cancel_at_period_end)});
+        if(!state.paidUntil || until>Date.parse(state.paidUntil)) Object.assign(state,{plan:'pro',status:'active',paidUntil:new Date(until).toISOString(),cancelAtPeriodEnd:Boolean(sub.cancel_at_period_end)||cancelAt!==null});
       }
     }
     row.state=state;row.verifiedAt=now();await save();return state;
