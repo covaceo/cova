@@ -1,3 +1,4 @@
+import { resolveSandboxBillingPlan } from "./billing-runtime.js";
 import { CURRENT_PRIVACY_VERSION, CURRENT_TERMS_VERSION } from "./legal-policy.js";
 import { hasPolicyAcceptance, supabaseServiceHeaders } from "./supabase.js";
 
@@ -15,7 +16,7 @@ function getBearerToken(req) {
   return match?.[1]?.trim() || "";
 }
 
-export async function requireAuthenticatedUser(req, { fetchImpl = fetch, timeoutMs = 5_000 } = {}) {
+export async function requireAuthenticatedUser(req, { fetchImpl = fetch, timeoutMs = 5_000, billing = true } = {}) {
   const token = getBearerToken(req);
   if (!token) {
     throw new ApiError(401, "Sign in to continue.");
@@ -52,7 +53,7 @@ export async function requireAuthenticatedUser(req, { fetchImpl = fetch, timeout
   return {
     id: String(user.id),
     email: typeof user.email === "string" ? user.email : "",
-    plan: user.app_metadata?.plan === "pro" ? "pro" : "free",
+    plan: billing ? await resolveSandboxBillingPlan({id:String(user.id), plan:user.app_metadata?.plan === "pro" ? "pro" : "free"}, {fetchImpl}) : (user.app_metadata?.plan === "pro" ? "pro" : "free"),
   };
 }
 
@@ -85,7 +86,7 @@ export function requireProEntitlement(user) {
   return user;
 }
 
-export async function requireProUserById(userId, { fetchImpl = fetch, timeoutMs = 5_000 } = {}) {
+export async function requireProUserById(userId, { fetchImpl = fetch, timeoutMs = 5_000, billing = true } = {}) {
   const supabaseUrl = String(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "").replace(/\/$/, "");
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
   if (!supabaseUrl || !serviceRoleKey) {
@@ -114,7 +115,7 @@ export async function requireProUserById(userId, { fetchImpl = fetch, timeoutMs 
   const entitledUser = requireProEntitlement({
     id: String(user.id),
     email: typeof user.email === "string" ? user.email : "",
-    plan: user.app_metadata?.plan === "pro" ? "pro" : "free",
+    plan: billing ? await resolveSandboxBillingPlan({id:String(user.id), plan:user.app_metadata?.plan === "pro" ? "pro" : "free"}, {fetchImpl}) : (user.app_metadata?.plan === "pro" ? "pro" : "free"),
   });
   await requireCurrentPolicyAcceptance(entitledUser.id, { fetchImpl, timeoutMs });
   return entitledUser;

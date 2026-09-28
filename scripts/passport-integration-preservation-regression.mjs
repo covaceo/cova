@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 // Authorized profile UI adds an owner-scoped context and replaces rail identity/actions; no accounting/auth changes.
 // Lockfile includes PGlite test support and approved local GIF decode/encode dependencies; existing packages are unchanged.
 const protectedFiles = {
-  "api/_lib/auth.js": "446e3e5afa5afe711f0c340143707917959ca5f9a8a4c390e7e462c06292b16a",
+  "api/_lib/auth.js": "a436b9177e08d6beb42e7450893b04b3e3a059430e3717fdc21aabe0d8df66a1",
   "api/_lib/cookies.js": "8dd442d3e4480190c3470526ac75e410464b04df51a182dbce14fac85c2a7314",
   "api/_lib/encryption.js": "e18f0572f16dfc1cac928b23a0b1f474c012344481ed5911dcf8cea6234243bb",
   "api/_lib/legal-policy.js": "9f3798402ae4610a1c51118fd5ae45382ba6e03dc4065f9229ccfd1a4c738449",
@@ -19,7 +19,7 @@ const protectedFiles = {
   "api/_lib/supabase.js": "141cec62ceb5f53b94d40508156b9af76f6beb350b9c25c00b49c2b062bc1c67",
   "api/_lib/tradovate-capability.js": "8b8fc0d0dff72d8191d78c1b32f6686b61a676c2401b453df37dbf33ff5df26c",
   "api/_lib/urls.js": "1ba7f7e12d5fcf0c399c1b0204d1f0dbe005081d2e368997d8c80edb3218dc7d",
-  "api/account/delete.js": "99ebb60740774bf90189d4b9d2af28ee963e21230aed6dd08a5eae60df22c45e",
+  "api/account/delete.js": "d4ef0fadd6f38c4658d3fbc9c67bc2f92201e8c5a71633cfa8ccd0469ea24a02",
   "api/auth/consent.js": "c71b5ae6fd461be78ecadddc0fca2459a1f5a91c3ca1fd1e25b940035013f76c",
   "api/auth/logout.js": "4d60687ec3912727183867eb9567507f0c8c0f2a91db2e6698b0e1050ca24691",
   "api/connectors/disconnect.js": "721760440d17b9923adda92953aa55a6c81f3a1c58919991d28b83e9c6ed42df",
@@ -30,7 +30,7 @@ const protectedFiles = {
   "api/tradovate/connect.js": "0e32e6d9d728c0a1ee42a6b8c6edd44ee159d6c89ad7c064cd1c1502475e267d",
   // Owner-approved recent-history mode reuses owner lookup, limiter and deadline; legacy sync remains.
   "api/tradovate/sync.js": "c7452c268a2c4f579c2de7b384c591d98c1e54d49f52139dcca6d5594e2a371f",
-  "package-lock.json": "b88343ea59e23d3208a205286777bbe1888d8b9d88d0a9636d3d9ce57d2443d8",
+  "package-lock.json": "4e9a565164d83552f1eaf651ee1fd956d0691ae62345f267962223b9655a8535",
   "public/.well-known/security.txt": "c944f837cb8c32091a4aba3afdea372afa7ffbd058ab24b5d6fbfc285e3490d9",
   "public/cova-logo-minimal-black.svg": "539ead98bec67d21afe240ea2ff60aba7e3f9e988b4d1742e0de953f01a6f6dd",
   "public/cova-logo-minimal-white.svg": "3cab047eb026b8c3160fdab46218c0aa82978681ec9d60ec2e0116317178cbab",
@@ -51,7 +51,7 @@ const protectedFiles = {
   // Callback hints never authorize imports; all marketing, OAuth and Passport artwork remain unchanged.
   // Approved OA review headers reuse the exact owner-bound selector; route-prop parity remains enforced.
   // All-accounts bug fix filters synthetic rows from the selector as well as the review; ledger/auth untouched.
-  "src/App.tsx": "f146876a61f63ac8bdfa7bc12d0da3616f1e78812c7b19fa7c135fcb28e613d6",
+  "src/App.tsx": "fcd51228e7fff3bac2491be245bfdd06e49d58ae43a9e88a21989ab1d86c0dc0",
   "src/components/AstraEquityCurve.tsx": "41af4ca602a699399b73f2594a21cde26f5ac54f4022bf32bf34f52a5acbc27b",
   "src/components/DashboardTradeDialog.tsx": "5425bcaaabce7c99ee925b577d3c2324c4c41cd9bcb9b1c849871a712c7ec730",
   // Owner-approved recap action, source CTA/averages and standalone fee-label removal; financial logic remains locked by approved-dashboard-preservation.

@@ -61,6 +61,7 @@ import { Navbar } from "./components/Navbar";
 import { OAuthConnectPage } from "./components/OAuthConnectPage";
 import { Toast } from "./components/Toast";
 import { WorkspaceShell } from "./components/WorkspaceShell";
+import { BillingProvider, openBilling } from "./components/Billing";
 import { UserProfileProvider } from "./components/UserProfile";
 import { getHostedLogoutUrl, isDemoPreviewEnabled } from "./lib/authEnvironment";
 import { CURRENT_PRIVACY_VERSION, CURRENT_TERMS_VERSION } from "./lib/legal";
@@ -166,7 +167,7 @@ export default function App() {
   const validatedAccessTokenRef = useRef("");
   const isSignedIn = Boolean(authSession);
   const entitlements = planEntitlements[authSession?.plan ?? "free"];
-  const proCheckoutAvailable = Boolean(getProCheckoutUrl()) || isDemoPreviewEnabled();
+  const proCheckoutAvailable = isBillingEnabled() || Boolean(getProCheckoutUrl()) || isDemoPreviewEnabled();
   const visibleTrades = useMemo(() => filterTradeAccount(trades, tradeAccount), [trades, tradeAccount]);
   const tradeAccounts = useMemo(() => [...new Set(filterTradeAccount(trades, "all").map(tradeAccountKey))], [trades]);
   const analysis = useMemo(() => analyze(visibleTrades, rules), [visibleTrades, rules]);
@@ -1060,6 +1061,10 @@ export default function App() {
   }
 
   function upgradeToPro() {
+    if (isBillingEnabled()) {
+      if (authSession?.source !== "supabase") { openAuth("signup"); return; }
+      openBilling(); return;
+    }
     const checkoutUrl = getProCheckoutUrl();
     if (!checkoutUrl && !isDemoPreviewEnabled()) {
       announce("Pro checkout is not open yet. Keep using Free while billing is prepared.", "warning");
@@ -1275,6 +1280,7 @@ export default function App() {
   }
 
   return (
+    <BillingProvider enabled={isBillingEnabled()} key={authSession?.userId || "signed-out"} ownerId={authSession?.source === "supabase" ? authSession.userId : undefined} onPlan={(owner, plan) => { if(authSessionRef.current?.userId === owner) setAuthSession(current => current?.userId === owner ? {...current, plan, subscriptionStatus:plan === "pro" ? "active" : "none"} : current); }}>
     <UserProfileProvider userId={isSignedIn && authSession?.source === "supabase" ? authSession.userId : undefined} email={authSession?.email}>
     <div className={`min-h-screen bg-black text-white ${isProtectedSection(section) ? "oa-dashboard-app" : ""}`}>
       <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_70%_20%,rgba(255,255,255,0.055),transparent_30%),linear-gradient(180deg,#000,rgba(1,9,6,0.94))]" />
@@ -1390,6 +1396,7 @@ export default function App() {
       </main>
     </div>
     </UserProfileProvider>
+    </BillingProvider>
   );
 }
 
@@ -1427,6 +1434,11 @@ async function settleWithin<T>(promise: Promise<T>, timeoutMs: number): Promise<
       window.setTimeout(() => reject(new Error("Operation timed out.")), timeoutMs);
     }),
   ]);
+}
+
+function isBillingEnabled() {
+  const env = ((import.meta as unknown as { env?: Record<string, string | undefined> }).env ?? {});
+  return env.VITE_COVA_BILLING_ENABLED === "true";
 }
 
 function getProCheckoutUrl() {

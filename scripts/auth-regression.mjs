@@ -360,9 +360,9 @@ test("provider status routes share one authenticated function within the Hobby d
   const apiRoot = join(root, "api");
   const endpointFiles = listFiles(apiRoot).filter((path) => {
     const relative = path.slice(apiRoot.length + 1).replaceAll("\\", "/");
-    return relative.endsWith(".js") && !relative.split("/").some((part) => part.startsWith("_"));
+    return /\.(js|ts)$/.test(relative) && !relative.split("/").some((part) => part.startsWith("_"));
   });
-  assert.equal(endpointFiles.length, 10);
+  assert.equal(endpointFiles.length, 12, "Billing and Passport remain within the 12-function limit");
 
   const vercel = JSON.parse(read("vercel.json"));
   assert.deepEqual(vercel.rewrites, [
