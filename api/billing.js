@@ -16,7 +16,7 @@ export default async function handler(req,res){
   let body=req.body;
   if(body===undefined){const chunks=[];let size=0;for await(const chunk of req){size+=Buffer.byteLength(chunk);if(size>16384)throw new BillingError(413,'Billing request is too large.');chunks.push(Buffer.from(chunk));}body=Buffer.concat(chunks).toString('utf8');}
   if(typeof body==='string'||Buffer.isBuffer(body)){try{body=JSON.parse(String(body));}catch{throw new BillingError(400,'Invalid billing request.');}}
-  if(!body||Object.keys(body).some(k=>k!=='action')||!['checkout','portal'].includes(body.action))throw new BillingError(400,'Choose a valid billing action.');
+  if(!body||Object.keys(body).some(k=>k!=='action')||!['checkout','portal','cancel'].includes(body.action))throw new BillingError(400,'Choose a valid billing action.');
   if(body.action==='checkout')await requirePolicyAcceptedUser(req,{billing:false});
   return res.status(200).json(await runtime.service[body.action](user));
  }catch(error){return sendApiError(res,error,'Billing could not be verified. Please try again.');}
