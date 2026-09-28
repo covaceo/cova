@@ -330,7 +330,7 @@ try {
   await send("Page.navigate", { url: navigationUrl });
   await waitFor("document.readyState === 'complete'", 45_000);
   if (ordinaryReload) {
-    await waitFor("Boolean(document.querySelector('.workspace-sidebar'))", 45_000);
+    await waitFor("Boolean(document.querySelector('.workspace-sidebar')) && window.__covaRecoveryRequests.some(r => r.host === 'synthetic.supabase.test' && r.path === '/rest/v1/user_profiles' && r.method === 'GET')", 45_000);
   } else if (forgedRecoveryMarker) {
     await waitFor("document.querySelector('#root')?.childElementCount > 0 && localStorage.getItem('cova-supabase-auth-v1') === null", 45_000);
   } else if (mismatchedRecovery) {
