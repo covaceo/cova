@@ -1,4 +1,5 @@
-import { ArrowUpRight, ChevronDown, Link2, LogOut, Settings, ShieldCheck, UserRound, UserRoundPen, X } from "lucide-react";
+import { BillingPanel, useBilling } from "./Billing";
+import { CreditCard, ArrowUpRight, ChevronDown, Link2, LogOut, Settings, ShieldCheck, UserRound, UserRoundPen, X } from "lucide-react";
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { createProfileRepository, type ProfileRepository } from "../lib/profileRepository";
 import { normalizeUsername, usernameChangeStatus, validateAvatarData, validateUsername, type UserProfile } from "../lib/userProfile";
@@ -160,8 +161,9 @@ function ProfileDialog({ mode, email, deleteAccount, signOut, manageAccounts, cl
     catch (caught) { if (alive.current) setError(caught instanceof Error ? caught.message : "Your profile could not be saved."); }
     finally { if (alive.current) setBusy(false); }
   }
-  const [tab, setTab] = useState<"profile" | "account" | "connections">("profile");
-  const tabs = [{ id: "profile" as const, label: "Profile", icon: UserRound }, { id: "account" as const, label: "Account", icon: ShieldCheck }, ...(manageAccounts ? [{ id: "connections" as const, label: "Connections", icon: Link2 }] : [])];
+  const billing = useBilling();
+  const [tab, setTab] = useState<"profile" | "account" | "connections" | "billing">("profile");
+  const tabs = [{ id: "profile" as const, label: "Profile", icon: UserRound }, { id: "account" as const, label: "Account", icon: ShieldCheck }, ...(billing?.enabled ? [{id:"billing" as const,label:"Billing",icon:CreditCard}] : []), ...(manageAccounts ? [{ id: "connections" as const, label: "Connections", icon: Link2 }] : [])];
   const profileForm = (<form onSubmit={save}>
       <div className="cova-profile-dialog-body">
         <div className="cova-profile-photo-row"><Avatar data={avatar} large /><div><button type="button" className="cova-profile-photo-action" disabled={locked || !profile.editable || profile.loading || Boolean(profile.error)} onClick={() => file.current?.click()}>Change photo</button>{avatar && <button className="cova-profile-remove-photo" type="button" disabled={locked} onClick={() => setAvatar(null)}>Remove photo</button>}</div></div>
@@ -195,6 +197,7 @@ function ProfileDialog({ mode, email, deleteAccount, signOut, manageAccounts, cl
       </div>
       <div className="cova-settings-panel" role="tabpanel" id={`cova-settings-panel-${tab}`} aria-labelledby={`cova-settings-tab-${tab}`}>
         {tab === "profile" && <><div className="cova-settings-heading"><h3>Your profile</h3><p>How you appear in Cova.</p></div>{profileForm}</>}
+        {tab === "billing" && <BillingPanel />}
         {tab === "account" && <div className="cova-settings-sections">
           <section><h3>Sign-in email</h3><div className="cova-settings-plate"><p className="cova-profile-email">{email || "Demo account"}</p><p className="cova-profile-help">Your sign-in email stays the same.</p></div></section>
           <section><h3>Password</h3><div className="cova-settings-plate"><p>Send a secure reset link to your sign-in email.</p><button data-reset-password type="button" className="cova-settings-button" disabled={resetBusy || resetSent || !profile.editable || !email} onClick={() => void requestReset()}>{resetBusy ? "Sending…" : resetSent ? "Link requested" : "Send reset link"}</button>
