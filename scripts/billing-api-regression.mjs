@@ -17,7 +17,7 @@ assert.ok(commands.filter(c=>c[0]==='EVAL'&&c[2]===3).every(c=>c[1].includes("re
 const res=()=>({statusCode:200,headers:{},setHeader(k,v){this.headers[k]=v},status(v){this.statusCode=v;return this},json(v){this.body=v;return this}});
 const {default:billing}=await import('../api/billing.js');const webhook=(req,res)=>{req.url='/api/billing?webhook=1';return billing(req,res)};
 const old={...process.env},originalFetch=globalThis.fetch;try{delete process.env.COVA_BILLING_MODE;
-let r=res();await billing({method:'POST',headers:{},body:{action:'checkout'}},r);assert.equal(r.statusCode,401);
+let r=res();for(const action of ['checkout','cancel']){r=res();await billing({method:'POST',headers:{},body:{action}},r);assert.equal(r.statusCode,401);}
 r=res();await billing({method:'DELETE',headers:{}},r);assert.equal(r.statusCode,405);
 r=res();await webhook({method:'POST',headers:{}},r);assert.equal(r.statusCode,503);
 process.env.COVA_BILLING_MODE='sandbox';process.env.VERCEL_ENV='production';r=res();await webhook({method:'POST',headers:{}},r);assert.equal(r.statusCode,503);
@@ -31,7 +31,7 @@ for(const[body,signature,status]of[[payload,signed,200],[payload+' ',signed,400]
 
 process.env.SUPABASE_URL='https://auth.example.test';process.env.SUPABASE_ANON_KEY='fixture_public';
 globalThis.fetch=async()=>new Response(JSON.stringify({id:'11111111-1111-4111-8111-111111111111',email:'one@example.test',app_metadata:{}}),{status:200});
-for(const[body,origin,status]of[[JSON.stringify({action:'checkout',customer:'cus_other'}),'https://preview.example.test',400],['{broken','https://preview.example.test',400],['x'.repeat(16385),'https://preview.example.test',413],[JSON.stringify({action:'portal'}),'https://evil.example.test',403]]){
+for(const[body,origin,status]of[[JSON.stringify({action:'cancel',subscription:'sub_other'}),'https://preview.example.test',400],[JSON.stringify({action:'cancel'}),'https://evil.example.test',403],[JSON.stringify({action:'checkout',customer:'cus_other'}),'https://preview.example.test',400],['{broken','https://preview.example.test',400],['x'.repeat(16385),'https://preview.example.test',413],[JSON.stringify({action:'portal'}),'https://evil.example.test',403]]){
  const req=Readable.from([Buffer.from(body)]);Object.assign(req,{url:'/api/billing',method:'POST',headers:{authorization:'Bearer fixture_token',origin}});r=res();await billing(req,r);assert.equal(r.statusCode,status,'authenticated raw JSON branch cannot accept caller-owned targets or foreign origin');
 }
 }finally{process.env=old;globalThis.fetch=originalFetch}

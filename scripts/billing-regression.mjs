@@ -53,6 +53,35 @@ test('only a paid matching subscription grants Pro; failed renewal and cancellat
  assert.equal((await service.status({id:OWNER,plan:'free'})).plan,'free');
  assert.equal((await service.status({id:OWNER,plan:'pro'})).plan,'pro','manual entitlement survives');
 });
+
+test('in-page cancellation stops renewal, preserves paid access, and is idempotent',async()=>{
+ const {createBillingService,billingConfig}=await import(path),stripe=provider(),store=memoryStore();
+ const service=createBillingService({config:billingConfig(env),stripe,store});await service.checkout({id:OWNER,email:'one@example.test'});
+ const sub=paidSubscription();stripe.setSubs([sub]);stripe.invoices={retrieve:async()=>sub.latest_invoice};let updates=0;
+ stripe.subscriptions.update=async(id,params)=>{assert.equal(id,sub.id);assert.deepEqual(params,{cancel_at_period_end:true});updates++;sub.cancel_at_period_end=true;return sub;};
+ assert.equal(typeof service.cancel,'function','Billing page needs server-owned cancellation');
+ assert.equal((await service.status({id:OWNER})).canCancel,true);
+ const result=await service.cancel({id:OWNER});assert.equal(result.plan,'pro');assert.equal(result.cancelAtPeriodEnd,true);assert.equal(result.canCancel,false);assert.equal(result.ownerId,OWNER);
+ await service.cancel({id:OWNER});assert.equal(updates,1);
+});
+
+
+for(const mode of ['sandbox','live'])test(`${mode} cancellation rejects unlinked, wrong-owner, wrong-mode, ambiguous and scheduled-plan targets`,async()=>{
+ const {createBillingService,billingConfig}=await import(path),stripe=provider(),store=memoryStore(),live=mode==='live';
+ const config={...billingConfig(env),mode,amount:live?2900:3000};stripe.accounts.retrieve=async()=>({id:'acct_fixture',charges_enabled:true});
+ stripe.customers.retrieve=async()=>({id:'cus_fixture',livemode:live,metadata:{cova_user_id:OWNER}});
+ let updates=0;stripe.subscriptions.update=async(id)=>{updates++;sub.cancel_at_period_end=true;return sub;};
+ const service=createBillingService({config,stripe,store});const granted=await service.status({id:OWNER,plan:'pro'});assert.equal(granted.hasSubscription,false);assert.equal(granted.canCancel,false);assert.equal(granted.plan,'pro');
+ await assert.rejects(()=>service.cancel({id:OWNER}),e=>e.statusCode===409);assert.equal(updates,0);
+ store.rows.set(OWNER,{ownerId:OWNER,customerId:'cus_fixture'});const sub=paidSubscription();sub.livemode=live;sub.latest_invoice.livemode=live;stripe.invoices={retrieve:async()=>sub.latest_invoice};stripe.setSubs([sub]);
+ sub.customer='cus_foreign';await assert.rejects(()=>service.cancel({id:OWNER}),/ownership/);assert.equal(updates,0);sub.customer='cus_fixture';
+ sub.livemode=!live;await assert.rejects(()=>service.cancel({id:OWNER}),/verified/);assert.equal(updates,0);sub.livemode=live;
+ sub.items.data[0].price.id='price_other';await assert.rejects(()=>service.cancel({id:OWNER}),/eligible/);assert.equal(updates,0);sub.items.data[0].price.id='price_fixture';
+ sub.schedule='sub_sched_fixture';await assert.rejects(()=>service.cancel({id:OWNER}),/eligible/);assert.equal(updates,0);delete sub.schedule;
+ stripe.setSubs([sub,{...sub,id:'sub_duplicate'}]);await assert.rejects(()=>service.cancel({id:OWNER}),/review/);assert.equal(updates,0);stripe.setSubs([sub]);
+ const results=await Promise.allSettled([service.cancel({id:OWNER}),service.cancel({id:OWNER})]);assert.equal(results.filter(r=>r.status==='fulfilled').length,1);assert.equal(updates,1);assert.equal((await service.status({id:OWNER})).cancelAtPeriodEnd,true);
+});
+
 test('portal cancel_at schedules show Ending and cannot extend access beyond cancellation',async()=>{
  const {createBillingService,billingConfig}=await import(path),stripe=provider(),store=memoryStore();
  const service=createBillingService({config:billingConfig(env),stripe,store});await service.checkout({id:OWNER,email:'one@example.test'});

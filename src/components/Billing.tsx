@@ -2,16 +2,17 @@ import {createContext,useCallback,useContext,useEffect,useRef,useState,type Reac
 import {ArrowUpRight,CreditCard,RefreshCw,X} from "lucide-react";
 
 
-export type BillingState={ownerId:string;plan:"free"|"pro";mode:"sandbox"|"live";status:string;paidUntil:string|null;cancelAtPeriodEnd:boolean;canManage:boolean;canCheckout:boolean;amount:number;currency:string;interval:string};
-type Request=(action?:"checkout"|"portal",signal?:AbortSignal)=>Promise<BillingState|{url:string}>;
+export type BillingState={ownerId:string;plan:"free"|"pro";mode:"sandbox"|"live";status:string;paidUntil:string|null;cancelAtPeriodEnd:boolean;hasSubscription?:boolean;canCancel?:boolean;canManage:boolean;canCheckout:boolean;amount:number;currency:string;interval:string};
+type BillingAction="checkout"|"portal"|"cancel";
+type Request=(action?:BillingAction,signal?:AbortSignal)=>Promise<BillingState|{url:string}>;
 
 export function openBilling(){window.dispatchEvent(new Event("cova:billing-open"));}
-async function requestBilling(action?:"checkout"|"portal",signal?:AbortSignal){
+async function requestBilling(action?:BillingAction,signal?:AbortSignal){
  const {authorizedFetch}=await import("../lib/apiClient");
  const response=await authorizedFetch("/api/billing",{method:action?"POST":"GET",headers:action?{"Content-Type":"application/json"}:undefined,body:action?JSON.stringify({action}):undefined,signal});
  const data=await response.json();if(!response.ok)throw new Error(data.error||"Billing is unavailable. Try again.");return data;
 }
-type Context={enabled:boolean;state:BillingState|null;loading:boolean;busy:boolean;error:string;refresh:()=>Promise<void>;act:(action:"checkout"|"portal")=>Promise<void>};
+type Context={enabled:boolean;state:BillingState|null;loading:boolean;busy:boolean;error:string;refresh:()=>Promise<void>;act:(action:BillingAction)=>Promise<boolean>};
 const BillingContext=createContext<Context|null>(null);
 export const useBilling=()=>useContext(BillingContext);
 export function BillingProvider({ownerId,children,onPlan,enabled=false,request=requestBilling,navigate=(url:string)=>window.location.assign(url)}:{ownerId?:string;children:ReactNode;onPlan:(owner:string,plan:"free"|"pro")=>void;enabled?:boolean;request?:Request;navigate?:(url:string)=>void}){
@@ -34,12 +35,16 @@ export function BillingProvider({ownerId,children,onPlan,enabled=false,request=r
   const focus=()=>void refresh();window.addEventListener("focus",focus);
   return()=>{window.removeEventListener("cova:billing-open",show);window.removeEventListener("focus",focus);clearInterval(timer);};
  },[enabled,ownerId,refresh]);
- async function act(action:"checkout"|"portal"){
-  if(acting.current||!ownerId)return;acting.current=true;setBusy(true);setError("");const epoch=generation.current;
-  try{const data=await requestRef.current(action);if(epoch!==generation.current)return;
+ async function act(action:BillingAction){
+  if(acting.current||!ownerId)return false;acting.current=true;setBusy(true);setError("");const epoch=generation.current;
+  try{const data=await requestRef.current(action);if(epoch!==generation.current)return false;
+   if(action==="cancel"){
+    if(!("ownerId"in data)||data.ownerId!==ownerId||!data.cancelAtPeriodEnd||data.canCancel!==false||!["free","pro"].includes(data.plan)||!["sandbox","live"].includes(data.mode)||data.currency!=="usd"||data.interval!=="month"||data.amount!==(data.mode==="live"?2900:3000))throw Error("Cancellation could not be verified. Refresh billing.");
+    setState(data);onPlanRef.current(ownerId,data.plan);return true;
+   }
    if(!("url"in data))throw Error("Stripe did not return a link.");const url=new URL(data.url),host=action==="checkout"?"checkout.stripe.com":"billing.stripe.com";
-   if(url.protocol!=="https:"||url.hostname!==host||url.username||url.password)throw Error("Stripe did not return a secure link.");navigate(url.href);
-  }catch(caught){if(epoch===generation.current)setError(caught instanceof Error?caught.message:"Billing is unavailable. Try again.");}
+   if(url.protocol!=="https:"||url.hostname!==host||url.username||url.password)throw Error("Stripe did not return a secure link.");navigate(url.href);return true;
+  }catch(caught){if(epoch===generation.current)setError(caught instanceof Error?caught.message:"Billing is unavailable. Try again.");return false;}
   finally{if(epoch===generation.current){acting.current=false;setBusy(false);}}
  }
  const value={enabled:enabled&&Boolean(ownerId),state,loading,busy,error,refresh,act};
@@ -51,9 +56,12 @@ function BillingDialog({close}:{close:()=>void}){
  return <dialog ref={dialog} className="cova-profile-dialog cova-billing-dialog" aria-labelledby="billing-dialog-title" onCancel={event=>{event.preventDefault();close();}}><div className="cova-profile-dialog-head"><h2 id="billing-dialog-title">Billing</h2><button type="button" aria-label="Close billing" onClick={close}><X aria-hidden="true"/></button></div><div className="cova-billing-dialog-body"><BillingPanel/></div></dialog>;
 }
 export function BillingPanel(){
- const billing=useBilling();if(!billing?.enabled)return null;const{state,loading,busy,error}=billing;
+ const billing=useBilling();const[confirmCancel,setConfirmCancel]=useState(false);
+ useEffect(()=>setConfirmCancel(false),[billing?.state?.ownerId,billing?.state?.canCancel]);
+ if(!billing?.enabled)return null;const{state,loading,busy,error}=billing;
  const renewal=state?.paidUntil?new Date(state.paidUntil).toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}):null;
- const label=state?.status==="past_due"?"Payment needed":state?.cancelAtPeriodEnd?"Ending":state?.plan==="pro"?"Active":state?.status==="canceled"?"Canceled":"Free";
+ const included=state?.plan==="pro"&&state.hasSubscription===false;
+ const label=included?"Included":state?.status==="past_due"?"Payment needed":state?.cancelAtPeriodEnd?"Ending":state?.plan==="pro"?"Active":state?.status==="canceled"?"Canceled":"Free";
  return <section className="cova-billing" aria-label="Subscription" aria-busy={loading||busy}>
   <div className="cova-billing-heading"><h3>Your plan</h3>{state?.mode==="sandbox"&&<span className="cova-billing-sandbox">Sandbox</span>}</div>
   <div className="cova-billing-plate">
@@ -63,8 +71,14 @@ export function BillingPanel(){
    <div className="cova-billing-actions">
     {state?.canCheckout&&state.plan!=="pro"&&<button className="cova-settings-button cova-settings-primary" type="button" disabled={busy||loading} onClick={()=>void billing.act("checkout")}>{busy?"Opening Stripe…":"Continue to checkout"}<ArrowUpRight aria-hidden="true"/></button>}
     {state?.canManage&&<button className="cova-settings-button" type="button" disabled={busy||loading} onClick={()=>void billing.act("portal")}>{busy?"Opening Stripe…":"Manage billing"}<ArrowUpRight aria-hidden="true"/></button>}
+    {state?.canCancel&&!confirmCancel&&<button className="cova-settings-button" type="button" disabled={busy||loading} onClick={()=>setConfirmCancel(true)}>Cancel subscription</button>}
    </div>
   </div>
+  {state?.canCancel&&confirmCancel&&<div className="cova-billing-confirm" role="group" aria-label="Confirm subscription cancellation">
+    <p>{renewal?`Stop renewal? Your paid access continues until ${renewal}.`:"Stop renewal at the end of this billing period?"}</p>
+    <div className="cova-billing-actions"><button className="cova-settings-button" type="button" disabled={busy||loading} onClick={()=>setConfirmCancel(false)}>Keep subscription</button><button className="cova-settings-button" type="button" disabled={busy||loading} onClick={async()=>{if(await billing.act("cancel"))setConfirmCancel(false);}}>{busy?"Canceling…":"Confirm cancellation"}</button></div>
+   </div>}
+  {included&&<p className="cova-billing-note">No paid subscription to cancel.</p>}
   <div className="cova-billing-foot">{state?.mode==="sandbox"&&<p>No real charges in this preview.</p>}<button type="button" aria-label="Refresh billing" disabled={busy||loading} onClick={()=>void billing.refresh()}><RefreshCw aria-hidden="true"/>Refresh</button></div>
   {error&&<p className="cova-profile-error" role="alert">{error}</p>}
   <span className="cova-billing-sr" role="status">{loading?"Checking subscription…":state?`Current plan: ${state.plan}`:""}</span>
