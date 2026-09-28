@@ -1,5 +1,6 @@
 import { requireAuthenticatedUser, sendApiError } from "../_lib/auth.js";
 import { billingRuntime } from "../_lib/billing-runtime.js";
+import { billingOwnerEnabled } from "../_lib/billing.js";
 import { clearCookie } from "../_lib/cookies.js";
 import { deleteAuthUser } from "../_lib/supabase.js";
 
@@ -12,7 +13,7 @@ export default async function handler(req, res) {
   try {
     const user = await requireAuthenticatedUser(req);
     const billing = billingRuntime();
-    if (billing?.config.allowedUsers.has(user.id)) await billing.service.assertDeletable(user);
+    if (billingOwnerEnabled(billing?.config,user.id)) await billing.service.assertDeletable(user);
     await deleteAuthUser(user.id);
 
     res.setHeader("Cache-Control", "no-store");

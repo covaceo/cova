@@ -2,7 +2,7 @@ import {createContext,useCallback,useContext,useEffect,useRef,useState,type Reac
 import {ArrowUpRight,CreditCard,RefreshCw,X} from "lucide-react";
 
 
-export type BillingState={ownerId:string;plan:"free"|"pro";mode:"sandbox";status:string;paidUntil:string|null;cancelAtPeriodEnd:boolean;canManage:boolean;canCheckout:boolean;amount:number;currency:string;interval:string};
+export type BillingState={ownerId:string;plan:"free"|"pro";mode:"sandbox"|"live";status:string;paidUntil:string|null;cancelAtPeriodEnd:boolean;canManage:boolean;canCheckout:boolean;amount:number;currency:string;interval:string};
 type Request=(action?:"checkout"|"portal",signal?:AbortSignal)=>Promise<BillingState|{url:string}>;
 
 export function openBilling(){window.dispatchEvent(new Event("cova:billing-open"));}
@@ -20,7 +20,7 @@ export function BillingProvider({ownerId,children,onPlan,enabled=false,request=r
  const refresh=useCallback(async()=>{
   if(!enabled||!ownerId)return;active.current?.abort();const controller=new AbortController();active.current=controller;const epoch=generation.current;setLoading(true);setError("");
   try{const data=await requestRef.current(undefined,controller.signal);if(controller.signal.aborted||epoch!==generation.current)return;
-   if(!("ownerId" in data)||data.ownerId!==ownerId||!["free","pro"].includes(data.plan)||data.mode!=="sandbox")throw Error("Your billing account could not be verified.");
+   if(!("ownerId" in data)||data.ownerId!==ownerId||!["free","pro"].includes(data.plan)||!["sandbox","live"].includes(data.mode)||data.currency!=="usd"||data.interval!=="month"||data.amount!==(data.mode==="live"?2900:3000))throw Error("Your billing account could not be verified.");
    setState(data);onPlanRef.current(ownerId,data.plan);
   }catch(caught){if(!controller.signal.aborted&&epoch===generation.current)setError(caught instanceof Error?caught.message:"Billing is unavailable. Try again.");}
   finally{if(!controller.signal.aborted&&epoch===generation.current)setLoading(false);}
@@ -55,17 +55,17 @@ export function BillingPanel(){
  const renewal=state?.paidUntil?new Date(state.paidUntil).toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}):null;
  const label=state?.status==="past_due"?"Payment needed":state?.cancelAtPeriodEnd?"Ending":state?.plan==="pro"?"Active":state?.status==="canceled"?"Canceled":"Free";
  return <section className="cova-billing" aria-label="Subscription" aria-busy={loading||busy}>
-  <div className="cova-billing-heading"><h3>Your plan</h3><span className="cova-billing-sandbox">Sandbox</span></div>
+  <div className="cova-billing-heading"><h3>Your plan</h3>{state?.mode==="sandbox"&&<span className="cova-billing-sandbox">Sandbox</span>}</div>
   <div className="cova-billing-plate">
    <div className="cova-billing-plan"><span>Cova Pro</span><CreditCard aria-hidden="true"/></div>
-   <div className="cova-billing-price"><span>$30</span><span>USD / month</span></div>
+   <div className="cova-billing-price"><span>{state?`$${state.amount/100}`:"…"}</span><span>USD / month</span></div>
    <dl className="cova-billing-facts"><div><dt>Current plan</dt><dd>{state?state.plan==="pro"?"Pro":"Free":loading?"Loading…":"Unavailable"}</dd></div>{state&&<div><dt>Status</dt><dd>{label}</dd></div>}{renewal&&<div><dt>{state?.cancelAtPeriodEnd?"Access until":"Paid through"}</dt><dd>{renewal}</dd></div>}</dl>
    <div className="cova-billing-actions">
     {state?.canCheckout&&state.plan!=="pro"&&<button className="cova-settings-button cova-settings-primary" type="button" disabled={busy||loading} onClick={()=>void billing.act("checkout")}>{busy?"Opening Stripe…":"Continue to checkout"}<ArrowUpRight aria-hidden="true"/></button>}
     {state?.canManage&&<button className="cova-settings-button" type="button" disabled={busy||loading} onClick={()=>void billing.act("portal")}>{busy?"Opening Stripe…":"Manage billing"}<ArrowUpRight aria-hidden="true"/></button>}
    </div>
   </div>
-  <div className="cova-billing-foot"><p>No real charges in this preview.</p><button type="button" aria-label="Refresh billing" disabled={busy||loading} onClick={()=>void billing.refresh()}><RefreshCw aria-hidden="true"/>Refresh</button></div>
+  <div className="cova-billing-foot">{state?.mode==="sandbox"&&<p>No real charges in this preview.</p>}<button type="button" aria-label="Refresh billing" disabled={busy||loading} onClick={()=>void billing.refresh()}><RefreshCw aria-hidden="true"/>Refresh</button></div>
   {error&&<p className="cova-profile-error" role="alert">{error}</p>}
   <span className="cova-billing-sr" role="status">{loading?"Checking subscription…":state?`Current plan: ${state.plan}`:""}</span>
  </section>;

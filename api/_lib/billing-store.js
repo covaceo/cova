@@ -2,7 +2,7 @@ import {randomUUID} from 'node:crypto';
 import {BillingError} from './billing.js';
 // Separate namespace, no expiry on money/ownership records, never touches broker keys.
 export function createBillingStore(config,{env=process.env,fetchImpl=fetch,command:override}={}) {
- const prefix=`cova:billing:v1:sandbox:${config.accountId}:`;
+ const prefix=`cova:billing:v1:${config.mode||'sandbox'}:${config.accountId}:`;
  async function command(args){
   if(override)return override(args);
   const url=new URL(env.KV_REST_API_URL||'https://unconfigured.invalid');

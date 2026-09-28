@@ -7,7 +7,8 @@ import { createHash } from 'node:crypto';
 // Authorized profile UI adds an owner-scoped context and replaces rail identity/actions; no accounting/auth changes.
 // Lockfile includes PGlite test support and approved local GIF decode/encode dependencies; existing packages are unchanged.
 const protectedFiles = {
-  "api/_lib/auth.js": "a436b9177e08d6beb42e7450893b04b3e3a059430e3717fdc21aabe0d8df66a1",
+  // Approved live billing generalizes the entitlement resolver; auth and policy gates retain executable tests.
+  "api/_lib/auth.js": "e0ab625abed207064385a1a2f7c72db245e29d0f646b228113bd07fcf506230a",
   "api/_lib/cookies.js": "8dd442d3e4480190c3470526ac75e410464b04df51a182dbce14fac85c2a7314",
   "api/_lib/encryption.js": "e18f0572f16dfc1cac928b23a0b1f474c012344481ed5911dcf8cea6234243bb",
   "api/_lib/legal-policy.js": "9f3798402ae4610a1c51118fd5ae45382ba6e03dc4065f9229ccfd1a4c738449",
@@ -19,7 +20,8 @@ const protectedFiles = {
   "api/_lib/supabase.js": "141cec62ceb5f53b94d40508156b9af76f6beb350b9c25c00b49c2b062bc1c67",
   "api/_lib/tradovate-capability.js": "8b8fc0d0dff72d8191d78c1b32f6686b61a676c2401b453df37dbf33ff5df26c",
   "api/_lib/urls.js": "1ba7f7e12d5fcf0c399c1b0204d1f0dbe005081d2e368997d8c80edb3218dc7d",
-  "api/account/delete.js": "d4ef0fadd6f38c4658d3fbc9c67bc2f92201e8c5a71633cfa8ccd0469ea24a02",
+  // Live-linked accounts retain the same deletion fence, proved by billing-live-regression.
+  "api/account/delete.js": "ce29310010dd78d292c9e14cff7a3f384916b8c682ba900b30223dd736fa116e",
   "api/auth/consent.js": "c71b5ae6fd461be78ecadddc0fca2459a1f5a91c3ca1fd1e25b940035013f76c",
   "api/auth/logout.js": "4d60687ec3912727183867eb9567507f0c8c0f2a91db2e6698b0e1050ca24691",
   "api/connectors/disconnect.js": "721760440d17b9923adda92953aa55a6c81f3a1c58919991d28b83e9c6ed42df",

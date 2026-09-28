@@ -1,4 +1,4 @@
-import { resolveSandboxBillingPlan } from "./billing-runtime.js";
+import { resolveBillingPlan } from "./billing-runtime.js";
 import { CURRENT_PRIVACY_VERSION, CURRENT_TERMS_VERSION } from "./legal-policy.js";
 import { hasPolicyAcceptance, supabaseServiceHeaders } from "./supabase.js";
 
@@ -53,7 +53,7 @@ export async function requireAuthenticatedUser(req, { fetchImpl = fetch, timeout
   return {
     id: String(user.id),
     email: typeof user.email === "string" ? user.email : "",
-    plan: billing ? await resolveSandboxBillingPlan({id:String(user.id), plan:user.app_metadata?.plan === "pro" ? "pro" : "free"}, {fetchImpl}) : (user.app_metadata?.plan === "pro" ? "pro" : "free"),
+    plan: billing ? await resolveBillingPlan({id:String(user.id), plan:user.app_metadata?.plan === "pro" ? "pro" : "free"}, {fetchImpl}) : (user.app_metadata?.plan === "pro" ? "pro" : "free"),
   };
 }
 
@@ -115,7 +115,7 @@ export async function requireProUserById(userId, { fetchImpl = fetch, timeoutMs 
   const entitledUser = requireProEntitlement({
     id: String(user.id),
     email: typeof user.email === "string" ? user.email : "",
-    plan: billing ? await resolveSandboxBillingPlan({id:String(user.id), plan:user.app_metadata?.plan === "pro" ? "pro" : "free"}, {fetchImpl}) : (user.app_metadata?.plan === "pro" ? "pro" : "free"),
+    plan: billing ? await resolveBillingPlan({id:String(user.id), plan:user.app_metadata?.plan === "pro" ? "pro" : "free"}, {fetchImpl}) : (user.app_metadata?.plan === "pro" ? "pro" : "free"),
   });
   await requireCurrentPolicyAcceptance(entitledUser.id, { fetchImpl, timeoutMs });
   return entitledUser;
