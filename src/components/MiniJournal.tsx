@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { BookOpen, Paperclip, Search, X } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
 import { groupJournalEntries, type Trade, type JournalEntryGroup } from '../lib/risk';
@@ -21,6 +21,13 @@ export function MiniJournal({ initialDate, actions, trades = [], onOpenTrade }: 
   const [entry, setEntry] = useState(() => read(initialDate));
   const [dirty, setDirty] = useState(false);
   const [status, setStatus] = useState('');
+  // Owner refs are committed in the parent's layout effect. Hydrate afterward,
+  // but never replace a draft when the parent refreshes its guarded actions.
+  useEffect(() => {
+    if (dirty) return;
+    const saved = actions?.readEntry?.(date) ?? { note: actions?.read(date) || '', tradeId: null };
+    setEntry(current => current.note === saved.note && current.tradeId === saved.tradeId ? current : saved);
+  }, [actions, date, dirty]);
   const [choosing, setChoosing] = useState(false);
   const [query, setQuery] = useState('');
   const [shown, setShown] = useState(8);

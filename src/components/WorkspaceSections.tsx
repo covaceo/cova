@@ -25,7 +25,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { scopedStorageKey } from "../lib/storageScope";
 import { PassportHoloCard } from "./PassportHoloCard";
 import { useProfileUsername, useRecapProfile } from "./UserProfile";
-import { PassportProgress, type PassportJournal } from "./PassportProgress";
+import { PassportProgress } from "./PassportProgress";
 import type { Trade } from "../lib/risk";
 import { PassportShareComposer } from "./PassportShareComposer";
 import { buildHoloPassportModel, type HoloPassportMode } from "../lib/passportHolo";
@@ -810,7 +810,7 @@ function getPassportDiamondPreviewStats(mode: PassportShareModeId): PassportStat
   ];
 }
 
-export function Passport({ analysis, entitlements, isSampleReview, go, upgradeToPro, accountControl, ownerId, trades=[], rules=[], journal }: { analysis: ReturnType<typeof analyze>; entitlements: WorkspaceEntitlements; isSampleReview: boolean; go: (section: Section) => void; upgradeToPro: () => void; accountControl?: ReactNode; ownerId?: string; trades?: Trade[]; rules?: RiskRule[]; journal?: PassportJournal }) {
+export function Passport({ analysis, entitlements, isSampleReview, go, upgradeToPro, accountControl, ownerId, trades=[], rules=[] }: { analysis: ReturnType<typeof analyze>; entitlements: WorkspaceEntitlements; isSampleReview: boolean; go: (section: Section) => void; upgradeToPro: () => void; accountControl?: ReactNode; ownerId?: string; trades?: Trade[]; rules?: RiskRule[] }) {
   const username = useProfileUsername();
   const profile = useRecapProfile();
   const initialPreferences = useMemo(() => readPassportPreferences(), []);
@@ -925,7 +925,7 @@ export function Passport({ analysis, entitlements, isSampleReview, go, upgradeTo
               <p>{getPassportExportDisclosure(isSampleReview)}</p>
             </div>
           </details>
-          <PassportProgress owner={ownerId} trades={trades} rules={rules} sample={isSampleReview} journal={journal}/>
+          <PassportProgress owner={ownerId} trades={trades} rules={rules} sample={isSampleReview}/>
           </div><section className="passport-utility-controls" aria-label="Passport controls">
           {accountControl&&<div><label>Account</label>{accountControl}</div>}
           <fieldset><legend>Card view</legend>          <div className="passport-workspace-modes" role="group" aria-label="Card view" aria-describedby="passport-mode-description">

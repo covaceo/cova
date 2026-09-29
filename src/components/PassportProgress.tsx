@@ -3,13 +3,13 @@ import type {RiskRule,Trade} from '../lib/risk';
 import {readBrokerCashEvidence} from '../lib/brokerCash';
 import {progressLevel,progressLimits,progressAccount,type ProgressState} from '../lib/passportProgress';
 import {requestPassportProgress,type ProgressInspection} from '../lib/passportProgressClient';
-export type PassportJournal={read:(day:string)=>string;save:(day:string,note:string)=>boolean};
+
 export function PassportPlanSync({owner,rules}:{owner?:string;rules:RiskRule[]}){
  const signature=JSON.stringify(progressLimits(rules));
  useEffect(()=>{if(!owner)return;let active=true;const timer=setTimeout(()=>{void requestPassportProgress(owner,{action:'plan',limits:JSON.parse(signature)}).catch(()=>{if(active)window.dispatchEvent(new CustomEvent('cova:progress-plan-error',{detail:owner}))})},500);return()=>{active=false;clearTimeout(timer)}},[owner,signature]);
  return null;
 }
-export function PassportProgress({owner,trades=[],rules=[],sample=false,journal}:{owner?:string;trades?:Trade[];rules?:RiskRule[];sample?:boolean;journal?:PassportJournal}){
+export function PassportProgress({owner,trades=[],rules=[],sample=false}:{owner?:string;trades?:Trade[];rules?:RiskRule[];sample?:boolean}){
  const [state,setState]=useState<ProgressState|null>(null),[inspection,setInspection]=useState<ProgressInspection|null>(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[editing,setEditing]=useState(false),[note,setNote]=useState(''),[saving,setSaving]=useState(false),[attempt,setAttempt]=useState(0),[leveled,setLeveled]=useState(false);
  const generation=useRef(0),controller=useRef<AbortController|null>(null);
  const limits=JSON.stringify(progressLimits(rules));
@@ -19,14 +19,14 @@ export function PassportProgress({owner,trades=[],rules=[],sample=false,journal}
   if(!owner){setLoading(false);return()=>abort.abort();}
   void(async()=>{try{
    await requestPassportProgress(owner,{action:'plan',limits:JSON.parse(limits)},abort.signal);
-   if(payload){const result:ProgressInspection=await requestPassportProgress(owner,{...payload,action:'inspect'},abort.signal);if(run!==generation.current)return;setInspection(result);setState(result.state);setNote(journal?.read(payload.day)||result.receipt?.note||'')}
+   if(payload){const result:ProgressInspection=await requestPassportProgress(owner,{...payload,action:'inspect'},abort.signal);if(run!==generation.current)return;setInspection(result);setState(result.state);setNote(result.receipt?.note||'')}
    else{const result:ProgressState=await requestPassportProgress(owner,undefined,abort.signal);if(run===generation.current)setState(result)}
   }catch(e){if(!abort.signal.aborted&&run===generation.current)setError(e instanceof Error?e.message:'Progress could not load.')}finally{if(!abort.signal.aborted&&run===generation.current)setLoading(false)}})();
   return()=>{abort.abort();generation.current++};
  },[identity,payload,limits,attempt]);
  const summary=state?progressLevel(state.total_xp):null,receipt=inspection?.receipt,fresh=!!receipt&&receipt.evidence_hash===inspection?.evidenceHash;
  const hint=error||(!owner?'Sign in to save your progress.':sample?'Sample data does not earn XP.':!trades.length?'Import a trading session to review.':!payload?'Select one account to review a session.':inspection?.quote.reason||'');
- async function saveReview(){if(!owner||!payload||!inspection||saving)return;const run=generation.current;setSaving(true);setError('');try{const result:ProgressInspection=await requestPassportProgress(owner,{...payload,action:'review',note,revision:receipt?.revision??0},controller.current?.signal);if(run!==generation.current)return;setLeveled(!!summary&&progressLevel(result.state.total_xp).level>summary.level);setState(result.state);setInspection(result);setEditing(false);if(journal&&!journal.save(payload.day,note.trim()))setError('Review saved to your profile; the local journal could not be updated.')}catch(e){if(run===generation.current)setError(e instanceof Error?e.message:'Review could not save.')}finally{if(run===generation.current)setSaving(false)}}
+ async function saveReview(){if(!owner||!payload||!inspection||saving)return;const run=generation.current;setSaving(true);setError('');try{const result:ProgressInspection=await requestPassportProgress(owner,{...payload,action:'review',note,revision:receipt?.revision??0},controller.current?.signal);if(run!==generation.current)return;setLeveled(!!summary&&progressLevel(result.state.total_xp).level>summary.level);setState(result.state);setInspection(result);setEditing(false)}catch(e){if(run===generation.current)setError(e instanceof Error?e.message:'Review could not save.')}finally{if(run===generation.current)setSaving(false)}}
  return <section className={`session-progression ${leveled?'level-up':''}`} aria-label="Session progression" aria-busy={loading||saving}>
   <div className="level-heading"><div className="level-emblem" aria-hidden="true"><span>{summary?.level??'–'}</span></div><div><p className="level-label">Your progress</p><h2>Level {summary?.level??'–'}</h2></div><div className="xp-count"><strong>{summary?.within??'–'}</strong><span> / 100 XP</span></div></div>
   <div className="level-meter" role="progressbar" aria-label="Progress to next level" aria-valuemin={0} aria-valuemax={100} aria-valuenow={summary?.within??0}><span style={{width:`${summary?.within??0}%`}}/></div>

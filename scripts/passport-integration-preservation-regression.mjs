@@ -53,7 +53,8 @@ const protectedFiles = {
   // Callback hints never authorize imports; all marketing, OAuth and Passport artwork remain unchanged.
   // Approved OA review headers reuse the exact owner-bound selector; route-prop parity remains enforced.
   // All-accounts bug fix filters synthetic rows from the selector as well as the review; ledger/auth untouched.
-  "src/App.tsx": "fcd51228e7fff3bac2491be245bfdd06e49d58ae43a9e88a21989ab1d86c0dc0",
+  // Approved journal isolation removes only the Passport journal prop; auth and ledger logic stay unchanged.
+  "src/App.tsx": "e52e7ec8ddce4a815b778bb59d49bc1d6d7e83ab61eee134d509dc69cf780c0e",
   "src/components/AstraEquityCurve.tsx": "41af4ca602a699399b73f2594a21cde26f5ac54f4022bf32bf34f52a5acbc27b",
   "src/components/DashboardTradeDialog.tsx": "5425bcaaabce7c99ee925b577d3c2324c4c41cd9bcb9b1c849871a712c7ec730",
   // Owner-approved recap action, source CTA/averages and standalone fee-label removal; financial logic remains locked by approved-dashboard-preservation.
