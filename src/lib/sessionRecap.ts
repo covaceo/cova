@@ -5,7 +5,7 @@ import { groupRecapEntries } from './recapEntryGroups';
 import type { Trade, JournalEntryGroup } from './risk';
 
 export type RecapKind = 'daily' | 'new-york' | 'london' | 'asia';
-export type RecapBackground = 'new-york' | 'london' | 'asia' | 'plain' | 'custom';
+export type RecapBackground = 'new-york' | 'london' | 'asia' | 'blue-tower' | 'cloud-towers' | 'plain' | 'custom';
 export type SessionRecap = {
   id: string; kind: RecapKind; date: string; title: string; dateLabel: string; windowLabel: string;
   hotStreak: HotStreak | null; fees: RecapFees | null; totalCents: string; count: number; wins: number; winRate: string; countLabel: string;
