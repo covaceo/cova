@@ -1,73 +1,181 @@
-/* Scoped photo composer. The export itself is rendered once, identically to its preview. */
-.recap-dialog { --recap-ink: #edf0f5; color-scheme: dark; color: var(--recap-ink); background: #0b1017; border: 1px solid rgb(237 240 245 / 12%); border-radius: 24px; padding: 24px; width: min(1040px, calc(100vw - 40px)); max-width: none; max-height: calc(100dvh - 40px); margin: auto; overflow: auto; font-family: 'Inter Tight Variable', sans-serif; box-shadow: 0 24px 100px #0009; }
-.recap-dialog::backdrop { background: rgb(0 3 8 / 78%); backdrop-filter: blur(8px); }
-.recap-dialog *, .recap-dialog *::before, .recap-dialog *::after { box-sizing: border-box; }
-.recap-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 22px; }
-.recap-heading h2 { margin: 0; font-size: 25px; font-weight: 500; line-height: 1.25; letter-spacing: -.025em; }
-.recap-dialog button { font-family: inherit; font-size: 14px; font-weight: 450; line-height: 1.2; color: var(--recap-ink); border-radius: 999px; border: 1px solid transparent; min-height: 42px; cursor: pointer; transition: background-color .16s ease, border-color .16s ease; }
-.recap-heading > button { display: grid; place-items: center; width: 42px; min-width: 42px; padding: 0; background: rgb(237 240 245 / 6%); }
-.recap-dialog button svg { width: 17px; height: 17px; flex: 0 0 auto; }
-.recap-dialog button:disabled { cursor: default; }
-.recap-dialog :is(button,select,input,summary):focus-visible { outline: 2px solid #8aabff; outline-offset: 3px; }
-.recap-body { display: grid; grid-template-columns: minmax(0,1fr) 340px; gap: 32px; align-items: start; }
-.recap-stage { min-width: 0; display: grid; place-items: center; overflow: hidden; border-radius: 14px; background: #05080c; height: min(750px, calc(100dvh - 158px)); }
-.recap-stage img { display: block; width: auto; height: auto; max-width: 100%; max-height: min(750px, calc(100dvh - 158px)); object-fit: contain; }
-.recap-wait { padding: 40px 24px; font-size: 15px; line-height: 1.5; text-align: center; color: #b8c2d0; }
-.recap-controls { display: grid; gap: 23px; min-width: 0; }
-.recap-controls fieldset { border: 0; min-width: 0; padding: 0; margin: 0; }
-.recap-controls legend, .recap-field { font-size: 14px; font-weight: 500; color: #d3dbe6; }
-.recap-controls legend { padding: 0; margin-bottom: 10px; }
-.recap-field { display: grid; gap: 10px; }
-.recap-field select { appearance: auto; min-width: 0; width: 100%; min-height: 46px; padding: 10px 14px; border: 1px solid rgb(237 240 245 / 12%); border-radius: 14px; background: #151c26; color: var(--recap-ink); font: 400 14px/1.3 'Inter Tight Variable', sans-serif; }
-.recap-formats { display: flex; padding: 4px; gap: 4px; background: rgb(237 240 245 / 4%); border-radius: 999px; }
-.recap-formats button { flex: 1; background: transparent; color: #aeb8c7; }
-.recap-formats button[aria-pressed=true] { background: rgb(237 240 245 / 10%); color: #f4f6fa; }
-.recap-backgrounds { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 8px; }
-.recap-backgrounds button { display: grid; gap: 8px; padding: 0 0 5px; background: transparent; font-size: 12px; line-height: 1.35; border-radius: 12px; color: #b8c2d0; }
-.recap-swatch { display: block; width: 100%; height: 82px; overflow: hidden; border-radius: 12px; background: #121923; border: 2px solid transparent; }
-.recap-swatch img { width: 100%; height: 100%; object-fit: cover; }
-.recap-backgrounds [aria-pressed=true] .recap-swatch { border-color: #d2def3; }
-.recap-backgrounds [aria-pressed=true] { color: #f3f5f9; }
-.recap-dialog .recap-upload { display: flex; align-items: center; justify-content: center; gap: 9px; width: 100%; margin-top: 12px; background: rgb(237 240 245 / 6%); }
-.recap-file { display: none; }
-.recap-identity { display: flex; align-items: center; gap: 10px; color: #c3cddb; font-size: 14px; min-height: 32px; }
-.recap-identity input { width: 17px; height: 17px; accent-color: #7095ef; }
-.recap-export { display: grid; gap: 10px; }
-.recap-export button { display: flex; align-items: center; justify-content: center; gap: 9px; padding: 12px; background: rgb(237 240 245 / 8%); }
-.recap-export [data-recap-download] { background: #315dca; color: #fff; }
-.recap-export button:disabled { opacity: .45; }
-.recap-dialog button:hover:not(:disabled) { border-color: rgb(237 240 245 / 25%); }
-.recap-output-note { margin: -12px 0 0; text-align: center; color: #a5b1c2; font-size: 12px; }
-.recap-notice, .recap-error { margin: -8px 0 0; color: #c0ccde; font-size: 14px; line-height: 1.4; }
-.recap-error { color: #ffb7b7; }
-.recap-details { color: #aab6c7; font-size: 13px; line-height: 1.6; }
-.recap-details summary { cursor: pointer; min-height: 32px; }
-.recap-details p { margin: 10px 0; }
-@media(max-width: 720px) {
-  .recap-dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); border-radius: 19px; padding: 18px; }
-  .recap-heading { padding-bottom: 16px; }
-  .recap-heading h2 { font-size: 22px; }
-  .recap-body { grid-template-columns: minmax(0,1fr); gap: 22px; }
-  .recap-stage { height: min(54dvh,420px); }
-  .recap-stage img { max-height: min(54dvh,420px); }
-  .recap-controls { gap: 20px; }
-  .recap-field select { font-size: 16px; }
-  .recap-backgrounds button { font-size: 13px; }
+/* Scoped editor chrome. The preview and downloads use the same rendered artwork. */
+.recap-dialog {
+  --recap-ink: #f4f6fc;
+  --recap-muted: #b1bed3;
+  --recap-line: #344157;
+  --recap-blue: #1553f5;
+  --recap-focus: #9fbdff;
+  color-scheme: dark;
+  color: var(--recap-ink);
+  background: linear-gradient(145deg, #0b111c 0%, #070c13 58%, #090f18 100%);
+  border: 1px solid #2c384c;
+  border-radius: 22px;
+  padding: 28px 32px 32px;
+  width: min(1240px, calc(100vw - 48px));
+  max-width: none;
+  max-height: calc(100dvh - 48px);
+  margin: auto;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #3c4b65 transparent;
+  font-family: 'Inter Tight Variable', sans-serif;
+  box-shadow: 0 32px 120px #000a, inset 0 1px 0 rgb(255 255 255 / 2%);
 }
-@media(prefers-reduced-motion: reduce) { .recap-dialog button { transition: none; } }
+.recap-dialog::backdrop { background: rgb(1 4 10 / 84%); backdrop-filter: blur(10px); }
+.recap-dialog::-webkit-scrollbar { display: block; width: 6px; height: 6px; }
+.recap-dialog::-webkit-scrollbar-thumb { background: #3c4b65; border-radius: 999px; }
+.recap-dialog *, .recap-dialog *::before, .recap-dialog *::after { box-sizing: border-box; }
+.recap-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 24px; }
+.recap-heading > div { min-width: 0; }
+.recap-heading h2 { margin: 0; font-size: clamp(25px, 2.3vw, 32px); font-weight: 500; line-height: 1.2; letter-spacing: -.035em; }
+.recap-dialog button {
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  color: var(--recap-ink);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 450;
+  line-height: 1.3;
+  cursor: pointer;
+  transition: background-color .16s ease, border-color .16s ease, box-shadow .16s ease;
+}
+.recap-dialog button svg { width: 19px; height: 19px; flex: 0 0 auto; }
+.recap-dialog button:disabled { cursor: default; }
+.recap-dialog button:disabled:not([aria-pressed=true]), .recap-field select:disabled { opacity: .48; }
+.recap-dialog :is(button, select, input, summary):focus-visible { outline: 2px solid var(--recap-focus); outline-offset: 4px; }
+.recap-heading > button { display: grid; place-items: center; flex: 0 0 44px; width: 44px; padding: 0; color: #aebbd1; background: transparent; }
+.recap-heading > button svg { width: 23px; height: 23px; }
+.recap-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 376px); gap: clamp(32px, 4vw, 60px); align-items: start; }
+.recap-stage {
+  --recap-stage-height: min(820px, calc(100dvh - 164px));
+  --recap-preview-height: calc(var(--recap-stage-height) - 2px);
+  position: sticky;
+  top: 0;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  height: var(--recap-stage-height);
+  padding: 1px;
+  overflow: hidden;
+  border-radius: 18px;
+  background: #050a11;
+}
+.recap-stage > img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: var(--recap-preview-height);
+  object-fit: contain;
+  border-radius: 16px;
+  box-shadow: 0 0 0 1px rgb(113 151 214 / 16%), 0 20px 56px #0007;
+}
+.recap-wait { max-width: 360px; padding: 40px 24px; color: var(--recap-muted); font-size: 15px; line-height: 1.6; text-align: center; }
+.recap-controls { display: grid; gap: 22px; min-width: 0; padding-block: 5px 0; }
+.recap-controls fieldset { min-width: 0; padding: 0; margin: 0; border: 0; }
+.recap-controls legend, .recap-field { color: var(--recap-ink); font-size: 14px; font-weight: 500; line-height: 1.4; }
+.recap-controls legend { margin-bottom: 11px; padding: 0; }
+.recap-field { display: grid; gap: 11px; }
+.recap-field select {
+  appearance: auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 50px;
+  padding: 12px 14px;
+  border: 1px solid var(--recap-line);
+  border-radius: 11px;
+  color: var(--recap-ink);
+  background: #0e1623;
+  font: 400 15px/1.4 'Inter Tight Variable', sans-serif;
+}
+.recap-formats { display: flex; gap: 4px; padding: 3px; border: 1px solid var(--recap-line); border-radius: 999px; background: #0d1420; }
+.recap-formats button { flex: 1; min-width: 0; padding: 11px 8px; border-radius: 999px; color: #c1cce0; background: transparent; }
+.recap-formats button[aria-pressed=true] { border-color: #487dff; color: #fff; background: linear-gradient(180deg, #2863f2, #164acb); box-shadow: inset 0 1px 2px rgb(255 255 255 / 12%), 0 2px 8px #02091866; }
+/* Six existing choices stay visible; a saved upload becomes a seventh tile. */
+.recap-backgrounds { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 10px; }
+.recap-backgrounds button { display: grid; align-content: start; gap: 7px; min-width: 0; padding: 0 0 3px; border-radius: 11px; color: #b9c6dc; background: transparent; font-size: 12px; line-height: 1.4; }
+.recap-swatch { display: block; width: 100%; height: 90px; overflow: hidden; border: 2px solid #334058; border-radius: 11px; background: linear-gradient(140deg, #080d17, #152137); transition: border-color .16s ease, box-shadow .16s ease; }
+.recap-swatch img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.recap-backgrounds [aria-pressed=true] { color: #fff; }
+.recap-backgrounds [aria-pressed=true] .recap-swatch { border-color: #4c83ff; box-shadow: 0 0 0 1px #1553f5; }
+.recap-dialog .recap-upload { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 58px; margin-top: 14px; padding: 13px 12px; border: 1px dashed #4b5b76; border-radius: 12px; color: #cbd6ec; background: rgb(17 26 41 / 32%); }
+.recap-file { display: none; }
+.recap-identity { display: flex; align-items: center; gap: 11px; min-height: 44px; color: #e2e9f7; font-size: 14px; line-height: 1.5; cursor: pointer; }
+.recap-identity input { flex: 0 0 20px; width: 20px; height: 20px; margin: 0; accent-color: var(--recap-blue); }
+.recap-export { display: grid; gap: 10px; }
+.recap-export button { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 52px; padding: 13px 16px; border: 1px solid var(--recap-line); border-radius: 14px; background: #131e30; font-size: 15px; }
+.recap-export [data-recap-download], .recap-export [data-recap-gif-download] { min-height: 56px; border-color: #4279ff; color: #fff; background: linear-gradient(180deg, #1c5afa, #1045e5); box-shadow: inset 0 1px 2px rgb(255 255 255 / 14%), 0 6px 24px rgb(0 62 214 / 18%); }
+.recap-export:has([data-recap-gif-download]) [data-recap-download] { min-height: 52px; border-color: var(--recap-line); background: #131e30; box-shadow: none; }
+.recap-output-note { margin: -10px 0 0; color: #a6b5ce; font-size: 12px; line-height: 1.5; text-align: center; }
+.recap-notice, .recap-error { margin: -6px 0 0; color: #c3d4ed; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.recap-error { color: #ffb8c0; }
+.recap-details { padding-top: 5px; border-top: 1px solid #283447; color: var(--recap-muted); font-size: 13px; line-height: 1.6; }
+.recap-details summary { min-height: 44px; padding-block: 11px; color: #cbd8ef; cursor: pointer; }
+.recap-details summary::marker { color: #90a5c8; }
+.recap-details p { margin: 10px 0; }
 
 /* Only the uploaded background moves; the exported recap remains a fixed overlay. */
-.recap-stage { --recap-stage-height: min(750px, calc(100dvh - 158px)); height: var(--recap-stage-height); }
-.recap-editor { position: relative; width: min(100%, calc(var(--recap-stage-height) * var(--recap-ratio))); aspect-ratio: var(--recap-ratio); max-height: 100%; overflow: hidden; touch-action: none; cursor: grab; user-select: none; background: #080d12; }
+.recap-editor { position: relative; width: min(100%, calc(var(--recap-preview-height) * var(--recap-ratio))); aspect-ratio: var(--recap-ratio); max-height: 100%; overflow: hidden; border-radius: 16px; background: #080d12; box-shadow: 0 0 0 1px rgb(113 151 214 / 16%); touch-action: none; cursor: grab; user-select: none; }
 .recap-editor:active { cursor: grabbing; }
-.recap-editor:focus-visible { outline: 2px solid #8aabff; outline-offset: -3px; }
+.recap-editor:focus-visible { outline: 2px solid var(--recap-focus); outline-offset: -4px; }
 .recap-stage .recap-editor img { position: absolute; max-width: none; max-height: none; object-fit: fill; pointer-events: none; }
 .recap-stage .recap-still-proof { display: none; }
-.recap-transform label { display: flex; justify-content: space-between; color: #c3cddb; font-size: 14px; }
-.recap-transform input { width: 100%; min-height: 34px; margin: 4px 0; accent-color: #7095ef; }
-.recap-transform-actions { display: flex; align-items: center; gap: 8px; }
-.recap-transform-actions span { margin-right: auto; color: #a5b1c2; font-size: 13px; }
-.recap-transform-actions button { min-width: 64px; padding: 8px 14px; background: rgb(237 240 245 / 6%); }
-.recap-export [data-recap-gif-download] { background: #315dca; color: #fff; }
-.recap-export:has([data-recap-gif-download]) [data-recap-download] { background: rgb(237 240 245 / 8%); }
-@media(max-width: 720px) { .recap-stage { --recap-stage-height: min(54dvh,420px); } }
+.recap-transform label { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #cbd6e8; font-size: 14px; }
+.recap-transform output { color: #f1f5fe; font-variant-numeric: tabular-nums; }
+.recap-transform input { width: 100%; min-height: 44px; margin: 2px 0; accent-color: #3974ff; }
+.recap-transform-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.recap-transform-actions span { margin-right: auto; color: var(--recap-muted); font-size: 13px; }
+.recap-transform-actions button { min-width: 66px; padding: 10px 14px; border-color: var(--recap-line); background: #131e30; }
+
+@media (hover: hover) {
+  .recap-heading > button:hover { color: #fff; background: #172235; }
+  .recap-field select:hover:not(:disabled) { border-color: #667c9f; }
+  .recap-formats button:hover:not(:disabled) { color: #fff; background: #1b2a43; }
+  .recap-backgrounds button:hover:not(:disabled) { color: #fff; }
+  .recap-backgrounds button:hover:not(:disabled) .recap-swatch { border-color: #8ba8d9; }
+  .recap-dialog .recap-upload:hover:not(:disabled) { border-color: #8ba8d9; background: #121f32; }
+  .recap-export button:hover:not(:disabled), .recap-transform-actions button:hover:not(:disabled) { border-color: #81a8ff; }
+  .recap-details summary:hover { color: #fff; }
+}
+@media (max-width: 820px) {
+  .recap-dialog { width: min(620px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); padding: 20px; border-radius: 18px; }
+  .recap-heading { padding-bottom: 18px; }
+  .recap-heading h2 { font-size: 25px; }
+  .recap-body { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+  .recap-stage { --recap-stage-height: min(64dvh, 560px); position: relative; border-radius: 14px; }
+  .recap-stage > img, .recap-editor { border-radius: 13px; }
+  .recap-controls { gap: 22px; padding: 0; }
+  .recap-field select { font-size: 16px; }
+  .recap-backgrounds button { font-size: 13px; }
+  .recap-swatch { height: clamp(82px, 22vw, 116px); }
+}
+@media (max-width: 380px) {
+  .recap-dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); padding: 16px; }
+  .recap-heading { gap: 8px; }
+  .recap-heading h2 { font-size: 23px; }
+  .recap-backgrounds { gap: 11px 8px; }
+  .recap-backgrounds button { font-size: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .recap-dialog *, .recap-dialog *::before, .recap-dialog *::after { scroll-behavior: auto; transition: none; animation: none; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .recap-dialog::backdrop { background: #02050b; backdrop-filter: none; }
+  .recap-dialog .recap-upload { background: #111a29; }
+}
+@media (prefers-contrast: more) {
+  .recap-dialog { --recap-muted: #dce5f5; --recap-line: #8498b9; border-color: #8498b9; }
+  .recap-swatch, .recap-dialog .recap-upload, .recap-details { border-color: #8498b9; }
+  .recap-backgrounds [aria-pressed=true] .recap-swatch { border-color: #c2d5ff; box-shadow: 0 0 0 2px #4c83ff; }
+  .recap-output-note { color: #cfdbed; }
+}
+@media (forced-colors: active) {
+  .recap-dialog { border-color: CanvasText; }
+  .recap-dialog button, .recap-field select, .recap-swatch, .recap-details { border-color: ButtonText; }
+  .recap-formats button[aria-pressed=true], .recap-backgrounds [aria-pressed=true] .recap-swatch { outline: 2px solid Highlight; outline-offset: -3px; }
+  .recap-dialog :is(button, select, input, summary):focus-visible { outline-color: Highlight; }
+  .recap-editor:focus-visible { outline-color: Highlight; }
+}
