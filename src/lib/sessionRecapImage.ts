@@ -3,7 +3,7 @@ import { recapBackgroundRect, type RecapTransform } from './recapBackground';
 export { recapBackgroundRect } from './recapBackground';
 export type RecapFormat = 'story' | 'feed' | 'square';
 export const recapFormats = [{ id: 'story' as const, label: 'Story', width: 1080, height: 1920 }, { id: 'feed' as const, label: 'Feed', width: 1080, height: 1350 }, { id: 'square' as const, label: 'Square', width: 1080, height: 1080 }];
-export const recapBackgrounds = [{ id: 'new-york' as const, label: 'New York', src: '/recaps/new-york.webp' }, { id: 'london' as const, label: 'London', src: '/recaps/london.webp' }, { id: 'asia' as const, label: 'Asia', src: '/recaps/asia.webp' }, { id: 'plain' as const, label: 'Plain', src: '' }];
+export const recapBackgrounds = [{ id: 'new-york' as const, label: 'New York', src: '/recaps/new-york.webp' }, { id: 'london' as const, label: 'London', src: '/recaps/london.webp' }, { id: 'asia' as const, label: 'Asia', src: '/recaps/asia.webp' }, { id: 'blue-tower' as const, label: 'Blue Tower', src: '/recaps/blue-tower.png' }, { id: 'cloud-towers' as const, label: 'Cloud Towers', src: '/recaps/cloud-towers.png' }, { id: 'plain' as const, label: 'Plain', src: '' }];
 export type RecapRenderInput = { recap: SessionRecap; format: RecapFormat; background: RecapBackground; customPhoto?: string; transform?: RecapTransform; username?: string | null; avatar?: string | null };
 const displayFamily = 'Cova Recap Space Grotesk';
 let fontReady: Promise<void> | null = null;
