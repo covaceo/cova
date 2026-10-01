@@ -62,7 +62,7 @@ function installCanvasRecorder(t) {
         createLinearGradient(...rect) { const gradient = { type: 'linear', rect, stops: [], addColorStop(at, color) { this.stops.push([at, color]); } }; canvas.gradients.push(gradient); return gradient; },
         createRadialGradient(...rect) { const gradient = this.createLinearGradient(...rect); gradient.type = 'radial'; return gradient; },
         getImageData() { canvas.grades++; return { data: new Uint8ClampedArray([10, 20, 30, 255]) }; },
-        putImageData() {}, fill() {}, beginPath() { path.length = 0; },
+        scale() {}, putImageData() {}, fill() {}, beginPath() { path.length = 0; },
         rect(...args) { path.push({ kind: 'rect', args }); },
         clip() { this.activeClips.push(structuredClone(path)); },
         arc(...args) { canvas.arcs.push(args); path.push({ kind: 'arc', args }); },
@@ -83,7 +83,7 @@ function installCanvasRecorder(t) {
 
 test('all production formats and six existing background choices remain available', () => {
   assert.deepEqual(renderer.recapFormats, [
-    { id: 'wide', label: 'Recap', width:1080, height:580 },
+    { id: 'wide', label: 'Recap', width:2160, height:1160 },
     { id: 'story', label: 'Story', width: 1080, height: 1920 },
     { id: 'feed', label: 'Feed', width: 1080, height: 1350 },
     { id: 'square', label: 'Square', width: 1080, height: 1080 },
@@ -151,7 +151,7 @@ test('all formats preserve exact net money, sign treatment, truthful metrics, pr
   await renderer.renderSessionRecap({recap,format,background:'plain'});
   assert.deepEqual(recap,before);
   const canvas=state.canvases.at(-1), ink=canvas.ink;
-  assert.deepEqual([canvas.width,canvas.height],[1080,layout.height]);
+  assert.deepEqual([canvas.width,canvas.height],[format === 'wide' ? 2160 : 1080,layout.height * (format === 'wide' ? 2 : 1)]);
   const money=ink.filter(x=>x.value===recapMoney(cents));assert(money.length);
   assert.equal(money[0].x,56);assert.equal(money[0].align,'left');assert.equal(money[0].y,layout.amount);
   assert(money[0].width <= (format==='wide'?640:968));
@@ -254,7 +254,7 @@ test('one identical badge renderer for broker and owner approval; long markets a
  for(const format of Object.keys(layouts))for(const basis of ['tradovate','owner-approved'])for(const hidden of [false,true]){
   const now=Date.now();const recap={...fixture(),markets:'MNQ · ES · NQ · MES · A VERY LONG INSTRUMENT NAME',verification:{owner:'synthetic-owner',basis,accountId:'7',connectionId:basis==='tradovate'?'synthetic-connection':'',checkedAt:now,expiresAt:now+30000}};
   await renderer.renderSessionRecap({recap,format,background:'plain',username:hidden?null:'long_profile_username_abcdefgh',showPnl:!hidden});
-  const c=canvases.at(-1),badge=c.ink.find(i=>i.value==='Verified trade'),market=c.ink.find(i=>i.value.startsWith('MNQ'));
+  const c=canvases.at(-1),badge=c.ink.find(i=>i.value==='Verified'),market=c.ink.find(i=>i.value.startsWith('MNQ'));
   assert(badge);assert.equal(badge.x,1024);assert.equal(badge.color,'#b9ddff');assert(market.y<badge.y,'Badge sits in footer above identity');const center=({wide:535,story:1780,feed:1260,square:1000})[format]-55;assert.equal(badge.y+(badge.actualBoundingBoxDescent-badge.actualBoundingBoxAscent)/2,center,'Measured glyph center aligns with badge');assert.equal(badge.align,'right');assert(c.arcs.some(a=>a[2]===8&&a[1]===center&&a[0]===1024-badge.width-18),'Icon stays adjacent to fitted right-aligned text');
   assert.equal(c.arcs.filter(a=>a[2]===3).length,8,'Same light-blue scalloped check');
   assert.equal(c.ink.some(i=>i.value.includes('$')),!hidden);assert(!c.ink.some(i=>/owner-approved|Tradovate|lino@/.test(i.value)),'No special-account qualifier or private email on image');

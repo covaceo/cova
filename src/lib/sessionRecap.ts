@@ -122,7 +122,7 @@ export function buildSessionRecaps(trades: readonly Trade[], cashEvidence?: unkn
     const rows = selected.flatMap(g => g.rows), wins = amounts.filter(value => value > 0n).length;
     const percentage = Math.round(wins / selected.length * 10000) / 100;
     const winRate = wins === 0 ? '0%' : wins === selected.length ? '100%' : percentage === 0 ? '<0.01%' : percentage === 100 ? '>99.99%' : `${percentage}%`;
-    const grouped = selected.every(g => g.entryIdentified);
+    const grouped = selected.every(g => g.entryIdentified) || rows.every(r => !r.source && r.manual);
     const gross = rows.every(r => r.source?.provider === 'Tradovate' && r.source.pnlBasis === 'gross_before_fees');
     const reportedNet = rows.every(r => !r.source && r.manual?.pnlBasis === 'reported_net');
     const timed = selected.every(g => timings.get(g)!.timed);
