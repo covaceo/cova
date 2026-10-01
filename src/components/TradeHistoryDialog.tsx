@@ -49,7 +49,7 @@ export function TradeHistoryDialog({ trades, journalReview, onClose, attachedTra
       </details></div>
       {journalReview && <JournalHeadlineStats journal={journal} />}
       <div className="astra-history-scroll" tabIndex={0} role="region" aria-label="Trade history table, scroll for more columns">
-        <table className="astra-history-table"><thead><tr>{['Closed','Market','Side','Contracts','Gross / reported P&L','Provided risk','Notes / partial exits'].map(label => <th scope="col" key={label}>{label}</th>)}</tr></thead>
+        <table className="astra-history-table"><thead><tr>{['Closed','Market','Side','Contracts','Gross / reported P&L','Planned risk','Notes / partial exits'].map(label => <th scope="col" key={label}>{label}</th>)}</tr></thead>
           <tbody>{[...groups].reverse().slice(currentPage * 50, (currentPage + 1) * 50).map(group => <JournalEntryRow key={group.id} group={group} journalReview={journalReview} />)}</tbody>
         </table>
       </div>

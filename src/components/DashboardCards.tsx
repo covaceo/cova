@@ -1,4 +1,4 @@
-import { analyze, formatMoney } from "../lib/risk";
+import { analyze, formatR, formatMoney } from "../lib/risk";
 
 export function MetricDock({ analysis }: { analysis: ReturnType<typeof analyze> }) {
   const metrics = [
@@ -6,7 +6,7 @@ export function MetricDock({ analysis }: { analysis: ReturnType<typeof analyze> 
     ["Reported P&L", formatMoney(analysis.totalPnl)],
     ["Biggest Dip", formatMoney(-analysis.maxDrawdown)],
     ["Profit Factor", Number.isFinite(analysis.profitFactor) ? analysis.profitFactor.toFixed(2) : "∞"],
-    ["Average R", `${analysis.avgR.toFixed(2)}R`],
+    [`Average R (${analysis.riskCount}/${analysis.trades.length} rows)`, formatR(analysis.avgR)],
   ];
   return (
     <div className="mt-5 grid overflow-hidden rounded-[28px] border border-white/10 md:grid-cols-5">
@@ -50,9 +50,9 @@ export function FlagStack({ analysis, onReviewRisk }: { analysis: ReturnType<typ
   const fallbackItems = analysis.ruleStatuses.slice(0, 3).map((status) => ({
     id: status.rule.id,
     label: status.rule.name,
-    status: status.breached ? "Review" : "Good",
+    status: !status.evaluated ? "Not checked" : status.breached ? "Review" : "Good",
     summary: status.evidence[0] ?? status.summary,
-    tone: status.breached ? "oa-tone-negative" : "oa-tone-positive",
+    tone: !status.evaluated ? "oa-tone-neutral" : status.breached ? "oa-tone-negative" : "oa-tone-positive",
   }));
   const behaviorItems = analysis.behaviorFlags.map((flag) => ({
     id: flag.id,
@@ -95,8 +95,8 @@ export function SetupQuality({ analysis }: { analysis: ReturnType<typeof analyze
         {analysis.bySetup.slice(0, 4).map((setup) => (
           <div className="grid grid-cols-[1fr_auto_auto] items-center gap-4 font-body text-sm" key={setup.name}>
             <span>{setup.name}</span>
-            <span className="text-white/50">{setup.count} trades</span>
-            <span className={setup.pnl >= 0 ? "oa-tone-positive" : "oa-tone-negative"}>{setup.avgR.toFixed(2)}R</span>
+            <span className="text-white/50">{setup.riskCount}/{setup.count} rows with risk</span>
+            <span className={setup.pnl >= 0 ? "oa-tone-positive" : "oa-tone-negative"}>{formatR(setup.avgR)}</span>
           </div>
         ))}
       </div>

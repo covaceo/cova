@@ -3,8 +3,9 @@ import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import ts from 'typescript';
 const read=f=>readFileSync(f,'utf8').replaceAll('\r\n','\n');
+// Risk/Coach baselines include the approved missing-planned-risk correction; missing-risk-regression verifies its behavior.
 // Sidebar baseline includes the separately approved icon/copy/Settings entry update.
-const hashes={"src/components/WorkspaceShell.tsx": "be3056fd874d6f624421a17d177b1f0ee71c52d2213632c86410c1ec44d15758", "src/components/TradeAccountSelect.tsx": "a2bb1e76714dbf41633c145b5d61d6f5468d2b11166097bbdf9633d9d8cc8678", "src/lib/risk.ts": "56dc6981baa1a5bbacb10acc487cca6881443388087ebca124363966517fc2b7", "src/lib/journalAccuracy.ts": "7a05f8373f469f1944bf9577c51a30237cbfb8bf2ceb7484f085b4988cd179d6", "src/lib/storageScope.ts": "3cd9c57c38bb10e9f7b61776f00422ab9590bdebd1d0e458eba5a33cc676e183", "src/styles/astraWorkspace.css": "e7abada755af571165c7ed70e50791327a9e0de243835ba1cb7fa3495a5ecb44", "src/styles/approvedDashboard.css": "7a3497aff68e23cfb7fe1daed298ad1cdb1c7cba499ddd7e4945c4fe9ae903e7"};
+const hashes={"src/components/WorkspaceShell.tsx": "be3056fd874d6f624421a17d177b1f0ee71c52d2213632c86410c1ec44d15758", "src/components/TradeAccountSelect.tsx": "a2bb1e76714dbf41633c145b5d61d6f5468d2b11166097bbdf9633d9d8cc8678", "src/lib/risk.ts": "a33f74c7e3a66dc5ddfe2ad3dd343ea074ab2fbd847860e96c8561406d132a24", "src/lib/journalAccuracy.ts": "7a05f8373f469f1944bf9577c51a30237cbfb8bf2ceb7484f085b4988cd179d6", "src/lib/storageScope.ts": "3cd9c57c38bb10e9f7b61776f00422ab9590bdebd1d0e458eba5a33cc676e183", "src/styles/astraWorkspace.css": "e7abada755af571165c7ed70e50791327a9e0de243835ba1cb7fa3495a5ecb44", "src/styles/approvedDashboard.css": "7a3497aff68e23cfb7fe1daed298ad1cdb1c7cba499ddd7e4945c4fe9ae903e7"};
 for(const [f,h] of Object.entries(hashes))assert.equal(createHash('sha256').update(read(f)).digest('hex'),h,f+' must remain untouched');
 const source=read('src/components/WorkspaceSections.tsx');
 assert.match(source,/oa-review-page oa-limits/,'Approved OA Limits surface');
@@ -17,5 +18,5 @@ assert.doesNotMatch(css,/workspace-sidebar|astra-rail|workspace-nav/,'Never rest
 const tree=ts.createSourceFile('WorkspaceSections.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 const coach=tree.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='Coach');
 const nonRender=coach.body.statements.filter(n=>!ts.isReturnStatement(n)).map(n=>n.getText(tree)).join('\n');
-assert.equal(createHash('sha256').update(nonRender).digest('hex'),'a4099d0c022f470ed54270bb29bcb6ec522d21eb8abcf7946ad1465fc0643269','Insight derivations, prioritization and entitlements preserved');
+assert.equal(createHash('sha256').update(nonRender).digest('hex'),'cc0a4abc785be793bc099d03446d3f92210083037677d10e85ac3fb569d6f236','Insight derivations, prioritization and entitlements preserved');
 console.log('oa-review-contract: sidebar, financial modules and insight logic preserved; approved OA structure present');

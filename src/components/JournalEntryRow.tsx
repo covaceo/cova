@@ -1,4 +1,4 @@
-import { formatMoney, type JournalEntryGroup, type Trade } from '../lib/risk';
+import { hasPlannedRisk, formatMoney, type JournalEntryGroup, type Trade } from '../lib/risk';
 import { rowMoneyText } from '../lib/journalAccuracy';
 
 function closedLabel(trade: Trade) {
@@ -16,12 +16,12 @@ export function JournalEntryRow({ group, journalReview }: { group: JournalEntryG
     <td className="p-3">{first.market}</td><td className="p-3">{first.side}</td>
     <td className="p-3">{group.contracts}</td>
     <td className="whitespace-nowrap p-3">{money(first, group.pnl)}</td>
-    <td className="whitespace-nowrap p-3">{partial ? 'See exits' : first.risk > 0 ? money(first, first.risk) : 'Not provided'}</td>
+    <td className="whitespace-nowrap p-3">{partial ? 'See exits' : hasPlannedRisk(first) ? money(first, first.risk) : 'Not provided'}</td>
     <td className="min-w-40 max-w-80 break-words p-3">{partial ? <details>
       <summary className="cursor-pointer">{rows.length} partial exits</summary>
       <ul className="mt-3 space-y-3">{rows.map(row => <li data-partial-exit={row.id} key={row.id}>
         <p>{closedLabel(row)} · {row.contracts} closed @ {row.exit}</p>
-        <p>{money(row, row.pnl)} · Risk: {row.risk > 0 ? money(row, row.risk) : 'Not provided'}</p>
+        <p>{money(row, row.pnl)} · Risk: {hasPlannedRisk(row) ? money(row, row.risk) : 'Not provided'}</p>
         <p>{row.notes || 'No note'}</p>
       </li>)}</ul>
     </details> : first.notes || 'No note'}</td>
