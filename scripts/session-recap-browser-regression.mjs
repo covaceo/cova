@@ -6,7 +6,7 @@ import {tmpdir} from 'node:os';
 import {join,relative} from 'node:path';
 import {createServer,build,preview} from 'vite';
 import {recapSyncFixture} from './helpers/recap-verification-fixture.mjs';
-import {exerciseRecapGif} from './helpers/recap-gif-browser.mjs';
+import {exerciseRecapGif,exerciseRecapShare} from './helpers/recap-gif-browser.mjs';
 const output=process.env.RECAP_EVIDENCE||join(tmpdir(),'cova-recap-browser');await mkdir(output,{recursive:true});const downloads=await mkdtemp(join(output,'exports-'));
 const profile=await mkdtemp(join(tmpdir(),'cova-recap-'));
 const styles=[...(await readFile('src/main.tsx','utf8')).matchAll(/import "([^"]+)";/g)].map(m=>m[1]).filter(n=>n.startsWith('@fontsource')||n.endsWith('.css')).map(n=>`import '${n.startsWith('./')?'/src/'+n.slice(2):n}';`).join('\n');
@@ -153,7 +153,7 @@ try{
  await evaluate('window.__drawn=[]');await click('#recap-show-pnl');await ready();
  assert.doesNotMatch(await evaluate(`document.querySelector('dialog').innerText+document.querySelector('[data-recap-preview]').alt`),/627\.66|12\.34|640\.00|\$/);
  assert(!(await evaluate('window.__drawn')).some(t=>t.includes('$')));await exportPreview('hidden-pnl');
- await evaluate(`window.__xOpen=null;window.open=(...args)=>{window.__xOpen=args;return null}`);await click('[data-recap-x]');
+ await evaluate(`Object.defineProperty(navigator,'canShare',{configurable:true,value:()=>false});window.__xOpen=null;window.open=(...args)=>{window.__xOpen=args;return null}`);await click('[data-recap-x]');
  const intent=await evaluate('window.__xOpen[0]');assert(intent.startsWith('https://x.com/intent/post?text='));assert(!decodeURIComponent(intent).includes('$'));assert.match(await evaluate(`document.querySelector('.recap-notice').textContent`),/Attach it manually/);
  await click('#recap-show-pnl');await ready();
  // Explicit session switch changes the real selected context without resetting background.
@@ -173,10 +173,18 @@ try{
  await uploadPhoto('image/svg+xml');await wait(`document.querySelector('[role=alert]')?.textContent.includes('under 8 MB')`);
  await uploadPhoto();await ready();await wait(`Boolean(document.querySelector('.recap-backgrounds [aria-pressed=true] img')?.src.startsWith('data:image/jpeg;base64,'))`);await exportPreview('custom-square');
  await evaluate(`window.__bitmap=createImageBitmap;window.createImageBitmap=async file=>{await new Promise(r=>window.__releasePhoto=r);return window.__bitmap(file)}`);await uploadPhoto();await wait(`Boolean(window.__releasePhoto)`);await click('dialog button','London');await evaluate(`window.__releasePhoto();window.createImageBitmap=window.__bitmap`);await ready();await sleep(100);assert.equal(await evaluate(`document.querySelector('.recap-backgrounds [aria-pressed=true]').textContent.trim()`),'London','Late upload must not override a newer background choice');
- // Sharing tests stub only the device transport, never the real PNG renderer.
- await evaluate(`Object.defineProperty(navigator,'canShare',{configurable:true,value:d=>d.files?.[0]?.type==='image/png'});Object.defineProperty(navigator,'share',{configurable:true,value:async d=>{window.__shareReceipt={name:d.files[0].name,size:d.files[0].size,type:d.files[0].type,active:navigator.userActivation.isActive};if(window.__shareFailure)throw new DOMException('unavailable','NotAllowedError');}})`);
- await click('dialog button','Feed');await ready();await click('dialog button','Share image');const shared=await evaluate('window.__shareReceipt');assert.equal(shared.type,'image/png');assert(shared.size>10000);assert.equal(shared.active,true);assert.doesNotMatch(shared.name,/recap_qa|private-original|owner/);
- await evaluate('window.__shareFailure=true');await click('dialog button','Share image');await wait(`document.querySelector('[role=alert]')?.textContent.includes('Download the image instead')`);await evaluate('window.__shareFailure=false');
+ // Exercise the two actions with the real selected PNG and a stubbed OS transport.
+ await click('dialog button','Feed');await ready();
+ const selectedPng=Buffer.from(await evaluate(`(async()=>{const blob=await(await fetch(document.querySelector('[data-recap-preview]').src)).blob();return await new Promise(resolve=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result.split(',')[1]);reader.readAsDataURL(blob)})})()`),'base64');
+ await exerciseRecapShare({evaluate,wait,click,ready,downloads,expectedBytes:selectedPng});
+ // A result from a dismissed or changed selection cannot write stale share status.
+ const beforeStaleSharing=(await readdir(downloads)).sort();
+ await evaluate(`Object.defineProperty(navigator,'canShare',{configurable:true,value:()=>true});Object.defineProperty(navigator,'share',{configurable:true,value:()=>new Promise((resolve,reject)=>window.__rejectStaleShare=()=>reject(new DOMException('old selection','NotAllowedError')))})`);
+ await click('[data-recap-x]');await wait(`Boolean(window.__rejectStaleShare)`);await click('dialog button','Square');await evaluate(`window.__rejectStaleShare()`);await ready();
+ assert.equal(await evaluate(`Boolean(document.querySelector('.recap-error')||document.querySelector('.recap-notice'))`),false,'A pending old native share cannot overwrite the new selection');
+ await evaluate(`window.__rejectStaleShare=null`);await click('[data-recap-x]');await wait(`Boolean(window.__rejectStaleShare)`);await click('[aria-label="Close recap"]');await evaluate(`window.__rejectStaleShare()`);await click('button','Share recap');await ready();
+ assert.equal(await evaluate(`Boolean(document.querySelector('.recap-error')||document.querySelector('.recap-notice'))`),false,'Closing and reopening cannot revive a stale native-share result');assert.deepEqual((await readdir(downloads)).sort(),beforeStaleSharing,'Stale and closed native shares never trigger fallback downloads');
+ await evaluate(`delete navigator.canShare;delete navigator.share`);
  await evaluate(`window.__owner('owner-b')`);await wait(`!document.querySelector('dialog[open]')`);await click('button','Share recap');
  await wait(`document.querySelector('[data-recap-download]')?.disabled&&!document.querySelector('[data-recap-preview]')`);
  assert.match(await evaluate(`document.querySelector('.recap-wait').textContent`),/Sync.*fees/,'Owner B cannot inherit owner A cash');

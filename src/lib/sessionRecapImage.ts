@@ -5,7 +5,7 @@ export { recapBackgroundRect } from './recapBackground';
 export type RecapFormat = 'wide' | 'story' | 'feed' | 'square';
 export const recapFormats = [{ id: 'wide' as const, label: 'Recap', width: 2160, height: 1160 }, { id: 'story' as const, label: 'Story', width: 1080, height: 1920 }, { id: 'feed' as const, label: 'Feed', width: 1080, height: 1350 }, { id: 'square' as const, label: 'Square', width: 1080, height: 1080 }];
 export const recapBackgrounds = [{ id: 'new-york' as const, label: 'New York', src: '/recaps/new-york.webp' }, { id: 'london' as const, label: 'London', src: '/recaps/london.webp' }, { id: 'asia' as const, label: 'Asia', src: '/recaps/asia.webp' }, { id: 'blue-tower' as const, label: 'Blue Tower', src: '/recaps/blue-tower.png' }, { id: 'cloud-towers' as const, label: 'Cloud Towers', src: '/recaps/cloud-towers.png' }, { id: 'plain' as const, label: 'Plain', src: '' }];
-export type RecapRenderInput = { recap: SessionRecap; format: RecapFormat; background: RecapBackground; customPhoto?: string; transform?: RecapTransform; username?: string | null; avatar?: string | null; showPnl?: boolean; verificationCurrent?: () => boolean };
+export type RecapRenderInput = { recap: SessionRecap; format: RecapFormat; background: RecapBackground; customPhoto?: string; animatedBackground?: boolean; transform?: RecapTransform; username?: string | null; avatar?: string | null; showPnl?: boolean; verificationCurrent?: () => boolean };
 const displayFamily = 'Cova Recap Space Grotesk';
 const amountFamily = 'Cova Recap Instrument Serif';
 let fontReady: Promise<void> | null = null;
@@ -34,6 +34,14 @@ function image(src: string, signal?: AbortSignal): Promise<HTMLImageElement> {
 function cover(ctx: CanvasRenderingContext2D, img: CanvasImageSource & { width: number; height: number }, x: number, y: number, width: number, height: number) {
   const scale = Math.max(width / img.width, height / img.height), sw = width / scale, sh = height / scale;
   ctx.drawImage(img, (img.width - sw) / 2, (img.height - sh) / 2, sw, sh, x, y, width, height);
+}
+/** Opaque at the photograph's real edge, with a gentle eased reveal into the art. */
+export function recapWideFadeStops(width: number, photoLeft = 0) {
+  const start = Math.max(width * .32, photoLeft), end = Math.max(width * .86, start + (width - start) * .7);
+  return Array.from({ length: 33 }, (_, index) => {
+    const t = index / 32, reveal = t * t * (3 - 2 * t);
+    return [(start + (end - start) * t) / width, 1 - .9 * reveal] as const;
+  });
 }
 /** Each format has an authored composition; only the underlying photograph is cropped. */
 export async function renderSessionRecap(input: RecapRenderInput, signal?: AbortSignal, foregroundOnly = false) {
@@ -65,10 +73,12 @@ export async function renderSessionRecap(input: RecapRenderInput, signal?: Abort
     : { head: 90, title: 410, market: 480, amount: 680, basis: 745, stat: 900, label: 820, footer: 1000, sample: 1050, font: 182, fadeStart: 170, fadeEnd: 770 };
   if (!foregroundOnly) { ctx.fillStyle = '#000'; ctx.fillRect(0, 0, w, h); }
   if (photo || foregroundOnly) {
+    let photoLeft = 0;
     if (photo) {
       const r = format === 'wide' && background !== 'custom'
         ? { x: w - h * photo.width / photo.height * 1.7, y: -h * .35, width: h * photo.width / photo.height * 1.7, height: h * 1.7 }
         : recapBackgroundRect(photo.width, photo.height, w, h, input.transform);
+      photoLeft = r.x;
       ctx.drawImage(photo, r.x, r.y, r.width, r.height);
     }
     if (photo && background !== 'custom') {
@@ -87,7 +97,16 @@ export async function renderSessionRecap(input: RecapRenderInput, signal?: Abort
       ctx.fillStyle = edge; ctx.fillRect(0, 0, w, h);
     }
     const fade = format === 'wide' ? ctx.createLinearGradient(0, 0, w, 0) : ctx.createLinearGradient(0, layout.fadeStart, 0, layout.fadeEnd);
-    if (format === 'wide') { fade.addColorStop(0, '#000'); fade.addColorStop(.4, 'rgba(0,0,0,.86)'); fade.addColorStop(.75, 'rgba(0,0,0,.12)'); fade.addColorStop(1, 'rgba(0,0,0,.1)'); }
+    if (format === 'wide' && input.animatedBackground) {
+      // GIF backgrounds retain their existing foreground and preview treatment.
+      fade.addColorStop(0, '#000'); fade.addColorStop(.4, 'rgba(0,0,0,.86)'); fade.addColorStop(.75, 'rgba(0,0,0,.12)'); fade.addColorStop(1, 'rgba(0,0,0,.1)');
+    } else if (format === 'wide') {
+      // Curated portraits can begin halfway across the canvas. Cover that
+      // boundary completely rather than exposing it through a canvas-wide fade.
+      fade.addColorStop(0, '#000');
+      for (const [position, opacity] of recapWideFadeStops(w, photoLeft)) fade.addColorStop(position, `rgba(0,0,0,${opacity})`);
+      fade.addColorStop(1, 'rgba(0,0,0,.1)');
+    }
     else { fade.addColorStop(0, 'rgba(0,0,0,0)'); fade.addColorStop(.42, 'rgba(0,0,0,.32)'); fade.addColorStop(.72, 'rgba(0,0,0,.88)'); fade.addColorStop(1, '#000'); }
     ctx.fillStyle = fade; ctx.fillRect(0, 0, w, h);
     const top = ctx.createLinearGradient(0, 0, 0, layout.head + 160); top.addColorStop(0, 'rgba(8,13,18,.75)'); top.addColorStop(1, 'rgba(8,13,18,0)'); ctx.fillStyle = top; ctx.fillRect(0, 0, w, layout.head + 160);

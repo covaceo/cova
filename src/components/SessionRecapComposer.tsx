@@ -48,6 +48,7 @@ function SessionRecapComposer({ trades, selectedAccount, onConfirmManualNet, pro
   const [playing, setPlaying] = useState(() => !window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const [foreground, setForeground] = useState<{ key: string; url: string; blob: Blob } | null>(null);
   const [gifProgress, setGifProgress] = useState<number | null>(null);
+  const [fileType, setFileType] = useState<'png' | 'gif'>('png');
   const gifExport = useRef<AbortController | null>(null), gifUpload = useRef<AbortController | null>(null);
   const downloadUrls = useRef(new Set<string>());
   const [showPnl, setShowPnl] = useState(true);
@@ -65,7 +66,7 @@ function SessionRecapComposer({ trades, selectedAccount, onConfirmManualNet, pro
   const proofKey = recapVerificationKey(recap?.verification);
   const verificationCurrent = () => Boolean(proofKey && recapVerificationKey(proofRef.current) === proofKey && recapVerificationCurrent(proofRef.current));
   const renderRecap = recap ? { ...recap, verification: proofKey } : recap;
-  const foregroundKey = JSON.stringify([renderRecap, format, background, photo, showPnl, showIdentity && username, showIdentity && avatar, uploading, identityPending]);
+  const foregroundKey = JSON.stringify([renderRecap, format, background, photo, Boolean(gif && background === 'custom'), showPnl, showIdentity && username, showIdentity && avatar, uploading, identityPending]);
   const renderKey = JSON.stringify([foregroundKey, transform]);
   const currentKey = useRef(renderKey); currentKey.current = renderKey;
   const ready = (!recap?.verification || recapVerificationCurrent(recap.verification)) && !feeIssue && !identityPending && !uploading && rendered?.key === renderKey && rendered.url === activeUrl.current ? rendered : null;
@@ -86,7 +87,7 @@ function SessionRecapComposer({ trades, selectedAccount, onConfirmManualNet, pro
   useEffect(() => {
     const controller = new AbortController(); let url = '';
     if (!recap || feeIssue || uploading || identityPending || background !== 'custom') return () => controller.abort();
-    void renderSessionRecap({ recap, format, background, username: identity, avatar: showIdentity ? avatar : null, showPnl, verificationCurrent }, controller.signal, true).then(blob => {
+    void renderSessionRecap({ recap, format, background, animatedBackground: Boolean(gif && background === 'custom'), username: identity, avatar: showIdentity ? avatar : null, showPnl, verificationCurrent }, controller.signal, true).then(blob => {
       if (controller.signal.aborted) return;
       url = URL.createObjectURL(blob); foregroundUrl.current = url; setForeground({ key: foregroundKey, url, blob });
     }).catch(() => { if (!controller.signal.aborted) setError('The recap could not be prepared. Try another background.'); });
@@ -95,7 +96,7 @@ function SessionRecapComposer({ trades, selectedAccount, onConfirmManualNet, pro
   useEffect(() => {
     const controller = new AbortController(); let url = '';
     if (!recap || feeIssue || uploading || identityPending) return () => controller.abort();
-    const timer = setTimeout(() => { void renderSessionRecap({ recap, format, background, customPhoto: photo, transform, username: identity, avatar: showIdentity ? avatar : null, showPnl, verificationCurrent }, controller.signal).then(blob => {
+    const timer = setTimeout(() => { void renderSessionRecap({ recap, format, background, animatedBackground: Boolean(gif && background === 'custom'), customPhoto: photo, transform, username: identity, avatar: showIdentity ? avatar : null, showPnl, verificationCurrent }, controller.signal).then(blob => {
       if (controller.signal.aborted || currentKey.current !== renderKey) return;
       url = URL.createObjectURL(blob); activeUrl.current = url;
       const name = `cova-${recap.kind}-${recap.date}-${format}${recap.sample ? '-sample' : ''}.png`;
@@ -103,11 +104,11 @@ function SessionRecapComposer({ trades, selectedAccount, onConfirmManualNet, pro
     }).catch(() => { if (!controller.signal.aborted && currentKey.current === renderKey) setError('The saved photo, background or Cova logo could not be loaded. Try again, hide identity or choose another image.'); }); }, background === 'custom' ? 120 : 0);
     return () => { clearTimeout(timer); controller.abort(); if (url) URL.revokeObjectURL(url); if (activeUrl.current === url) activeUrl.current = ''; };
   }, [renderKey]); // The key includes every pixel input; changing any input hides the old artifact synchronously.
-  function chooseBackground(value: RecapBackground) { uploadSequence.current++; gifUpload.current?.abort(); setUploading(false); invalidate(); setTransform(defaultRecapTransform); setBackground(value); }
+  function chooseBackground(value: RecapBackground) { setFileType('png'); uploadSequence.current++; gifUpload.current?.abort(); setUploading(false); invalidate(); setTransform(defaultRecapTransform); setBackground(value); }
   function close() { dialog.current?.close(); onClose(); }
   async function choosePhoto(file?: File) {
     if (!file) return;
-    const sequence = ++uploadSequence.current; invalidate(); setUploading(true);
+    const sequence = ++uploadSequence.current; setFileType('png'); invalidate(); setUploading(true);
     gifUpload.current?.abort(); const controller = new AbortController(); gifUpload.current = controller;
     try {
       if (file.type === 'image/gif') {
@@ -145,31 +146,37 @@ function SessionRecapComposer({ trades, selectedAccount, onConfirmManualNet, pro
     } catch (cause) { if (alive.current && !controller.signal.aborted && currentKey.current === key) setError(cause instanceof Error ? cause.message : 'GIF export failed. Try another file.'); }
     finally { if (gifExport.current === controller) { gifExport.current = null; if (alive.current) setGifProgress(null); } }
   }
-  const canShare = (() => { try { return Boolean(ready && typeof navigator.share === 'function' && navigator.canShare?.({ files: [ready.file] })); } catch { return false; } })();
+  function exportCurrent() {
+    return Boolean(ready && ready.key === currentKey.current && ready.url === activeUrl.current && (!recap?.verification || verificationCurrent()));
+  }
   function download() {
-    if (recap?.verification && !verificationCurrent()) return;
-    if (!ready || (ready.key !== currentKey.current || ready.url !== activeUrl.current)) return;
+    if (!exportCurrent() || !ready) return;
     const anchor = document.createElement('a'); anchor.href = ready.url; anchor.download = ready.file.name;
-    document.body.appendChild(anchor); anchor.click(); anchor.remove(); setNotice('Image downloaded. Choose it from your social app.');
+    document.body.appendChild(anchor); anchor.click(); anchor.remove(); setNotice('Image downloaded.');
   }
   async function shareOnX() {
-    if (recap?.verification && !verificationCurrent()) return;
-    if (!ready || ready.key !== currentKey.current || shareBusy.current) return;
-    const text = previewAlt + ' covadesk.com';
-    // Web intents cannot attach a local image. Download this exact preview first.
+    if (!exportCurrent() || !ready || shareBusy.current) return;
+    const file = ready.file, key = ready.key;
+    let canShare = false;
+    try { canShare = typeof navigator.share === 'function' && Boolean(navigator.canShare?.({ files: [file] })); } catch { /* Unsupported file type uses the explicit fallback below. */ }
+    setError('');
+    if (canShare) {
+      shareBusy.current = true; setSharing(true); setNotice('Choose X in your device’s share menu to attach this image.');
+      try { await navigator.share({ files: [file] }); }
+      catch (cause) {
+        if (alive.current && currentKey.current === key) {
+          setNotice('');
+          // Cancelling never downloads, opens X, or retries sharing on its own.
+          if (!(cause instanceof Error && cause.name === 'AbortError')) setError('Device sharing is unavailable. Download the image instead and attach it in X.');
+        }
+      } finally { shareBusy.current = false; if (alive.current) setSharing(false); }
+      return;
+    }
+    // X web intents accept text, not local file attachments. Keep the fallback
+    // explicit. Sharing retains the existing PNG-still behavior for GIF backgrounds.
     download();
-    const opened = window.open('https://x.com/intent/post?text=' + encodeURIComponent(text), '_blank', 'noopener,noreferrer');
-    void opened;
-    setNotice('Recap downloaded. Attach it manually in X; the composer contains text only. If X did not open, copy the caption below.');
-  }
-  async function share() {
-    if (recap?.verification && !verificationCurrent()) return;
-    if (!ready || (ready.key !== currentKey.current || ready.url !== activeUrl.current) || !canShare || shareBusy.current) return;
-    shareBusy.current = true; setSharing(true); setNotice(''); setError('');
-    const key = ready.key;
-    try { await navigator.share({ files: [ready.file] }); }
-    catch (cause) { if (alive.current && currentKey.current === key && !(cause instanceof Error && cause.name === 'AbortError')) setError('Device sharing is unavailable. Download the image instead.'); }
-    finally { shareBusy.current = false; if (alive.current) setSharing(false); }
+    window.open('https://x.com/intent/post?text=' + encodeURIComponent(previewAlt + ' covadesk.com'), '_blank', 'noopener,noreferrer');
+    setNotice('Image downloaded. Attach it manually in X; the composer contains text only. If X did not open, select and copy the caption below.');
   }
   return <dialog ref={dialog} className="recap-dialog" aria-labelledby="recap-title" onCancel={event => { event.preventDefault(); close(); }} onClick={event => { if (event.target === event.currentTarget) { const r = event.currentTarget.getBoundingClientRect(); if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) close(); } }}>
     <header className="recap-heading"><div><h2 id="recap-title">Session recap</h2></div><button type="button" aria-label="Close recap" onClick={close}><X aria-hidden="true" /></button></header>
@@ -204,9 +211,16 @@ function SessionRecapComposer({ trades, selectedAccount, onConfirmManualNet, pro
       {(username || profile.owner !== 'preview') && <label className="recap-identity" htmlFor="recap-show-identity"><input id="recap-show-identity" type="checkbox" checked={showIdentity} onChange={event => { invalidate(); setShowIdentity(event.target.checked); }} />Show username and photo</label>}
       {showIdentity && profile.error && <button type="button" className="recap-upload" onClick={profile.retry}>Retry saved profile</button>}
       {showIdentity && username && !avatar && !identityPending && <p role="status" className="recap-output-note">No saved profile photo. Add one in Settings → Profile.</p>}
-      <div className="recap-export"><button data-recap-x type="button" onClick={() => void shareOnX()} disabled={!ready || sharing}>Share on X</button>{gif && background === 'custom' && <><button data-recap-gif-download type="button" onClick={() => void downloadGif()} disabled={!ready || !activeForeground || sharing || gifProgress !== null}><Download aria-hidden="true" />{gifProgress === null ? 'Download GIF' : `Exporting ${gifProgress}%`}</button>{gifProgress !== null && <button type="button" onClick={() => { gifExport.current?.abort(); setGifProgress(null); }}>Cancel export</button>}</>}<button data-recap-download type="button" onClick={download} disabled={!ready || sharing}><Download aria-hidden="true" />{gif && background === 'custom' ? 'Download PNG' : 'Download recap'}</button>{canShare && <button type="button" onClick={() => void share()} disabled={sharing}><Share2 aria-hidden="true" />{sharing ? 'Sharing…' : 'Share image'}</button>}</div>
-      <p className="recap-output-note">{recapFormats.find(f => f.id === format)!.width} × {recapFormats.find(f => f.id === format)!.height} {gif && background === 'custom' ? 'GIF / PNG' : 'PNG'} · {format === 'wide' ? '54:29' : format === 'story' ? '9:16' : format === 'feed' ? '4:5' : '1:1'}</p>
-      {notice && <p role="status" className="recap-notice">{notice}</p>}{notice.includes('Attach it manually') && <label className="recap-field">Caption<textarea readOnly value={previewAlt + ' covadesk.com'} /><button type="button" onClick={() => { if (!navigator.clipboard) { setError('Copy unavailable. Select the caption text to copy it.'); return; } void navigator.clipboard.writeText(previewAlt + ' covadesk.com').then(() => setNotice('Caption copied. Attach the downloaded image manually in X.')).catch(() => setError('Copy unavailable. Select the caption text to copy it.')); }}>Copy caption</button></label>}{error && <p role="alert" className="recap-error">{error}</p>}
+      {gif && background === 'custom' && <label className="recap-field" htmlFor="recap-file-type">Download format<select id="recap-file-type" value={fileType} onChange={event => { setNotice(''); setError(''); gifExport.current?.abort(); setGifProgress(null); setFileType(event.target.value as 'png' | 'gif'); }}><option value="png">PNG · still image</option><option value="gif">GIF · animated image</option></select></label>}
+      {fileType === 'gif' && gifProgress !== null && <p role="status" className="recap-output-note">Exporting animated image {gifProgress}%. Choose PNG to cancel.</p>}
+      <div className="recap-export">
+        <button data-recap-download type="button" onClick={() => { if (fileType === 'gif' && gif && background === 'custom') void downloadGif(); else download(); }} disabled={!ready || sharing || gifProgress !== null || fileType === 'gif' && !activeForeground}><Download aria-hidden="true" />Download image</button>
+        <button data-recap-x type="button" onClick={() => void shareOnX()} disabled={!ready || sharing}><svg aria-hidden="true" data-recap-x-logo viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.64 7.584H.47l8.6-9.835L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z" /></svg>Share on X</button>
+      </div>
+      <p className="recap-output-note">{preset.width} × {preset.height} {fileType.toUpperCase()} · {format === 'wide' ? '54:29' : format === 'story' ? '9:16' : format === 'feed' ? '4:5' : '1:1'}</p>
+      {gif && background === 'custom' && <p className="recap-output-note">Share on X uses the PNG still. Choose GIF to download the animation.</p>}
+      <p className="recap-output-note">Choose X in the device share menu. If file sharing isn’t supported, the image downloads for you to attach in X.</p>
+      {notice && <p role="status" className="recap-notice">{notice}</p>}{notice.includes('Attach it manually') && <label className="recap-field">Caption<textarea readOnly value={previewAlt + ' covadesk.com'} /></label>}{error && <p role="alert" className="recap-error">{error}</p>}
       {recap && <details className="recap-details"><summary>What’s included</summary><p>{recap.windowLabel}. {recap.details}</p>{showPnl && recap.fees && <p>{recapFeeLine(recap)}. Cash snapshot: {recap.fees.asOf}.</p>}{recap.hotStreak && <p>Verified net-positive trading days through this date: {recap.hotStreak.atLeast ? 'at least ' : ''}{recap.hotStreak.days}. This uses the whole UTC day, including on regional recaps, and remains a sync snapshot.</p>}<p>Win rate uses grouped gross outcomes for Tradovate and reported outcomes for other sources; breakevens count in the denominator. The session selector uses the selected account’s full history and the displayed date/window, independently of the dashboard range.</p><p>{!recap.verification ? 'Verification needs current eligible account and record provenance. Legacy CSV without recorded origin needs a one-time reimport; new CSV provenance is saved for this owner on this browser.' : recap.verification.basis === 'owner-approved' ? 'Badge basis: owner-approved account; manual and CSV records are allowed. This does not establish broker provenance.' : 'Badge basis: a validated Tradovate API sync for the selected account and a recent matching connection check. Cached history needs a new sync to establish provenance.'} The badge is a Cova indicator, not Twitter verification or a guarantee of performance.</p><p>Your background stays in this browser and is not uploaded. Sharing opens your device’s supported destinations; it does not post automatically.</p></details>}
     </div></div>
   </dialog>;

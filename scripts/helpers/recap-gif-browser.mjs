@@ -19,6 +19,57 @@ function fixture() {
   }
   gif.finish();return gif.bytes();
 }
+// The renderer and encoder stay real. Only the OS sharing transport and the
+// external X window are intercepted; captured Files are compared byte-for-byte.
+export async function exerciseRecapShare({evaluate,wait,click,ready,downloads,expectedBytes}) {
+  assert.deepEqual(await evaluate(`[...document.querySelectorAll('.recap-export button')].map(b=>b.textContent.trim())`),['Download image','Share on X'],'Exactly two stable export actions');
+  assert.equal(await evaluate(`Boolean(document.querySelector('[data-recap-x] svg path'))`),true,'Share on X includes the brand SVG');
+  const beforeFiles=(await readdir(downloads)).sort();
+  const beforeStorage=await evaluate(`Object.entries(localStorage).sort(([a],[b])=>a.localeCompare(b))`);
+  await evaluate(`window.__shareOriginal={canShare:Object.getOwnPropertyDescriptor(navigator,'canShare'),share:Object.getOwnPropertyDescriptor(navigator,'share'),open:window.open,setItem:Storage.prototype.setItem};window.__sharePayloads=[];window.__shareOpens=[];window.__shareWrites=[];window.__shareSupported=true;window.__shareClick=null;
+    window.__shareClickListener=event=>{if(event.target.closest?.('[data-recap-x]')){window.__shareClick={trusted:event.isTrusted}}};document.addEventListener('click',window.__shareClickListener,true);
+    Storage.prototype.setItem=function(key,value){window.__shareWrites.push(key);return window.__shareOriginal.setItem.call(this,key,value)};
+    window.open=(...args)=>{window.__shareOpens.push(args);return null};
+    Object.defineProperty(navigator,'canShare',{configurable:true,value:data=>{window.__capabilityFile=data.files?.[0];const turn={synchronous:true};window.__shareCapabilityTurn=turn;queueMicrotask(()=>turn.synchronous=false);return window.__shareSupported&&data.files?.length===1&&data.files[0].type==='image/png'}});
+    Object.defineProperty(navigator,'share',{configurable:true,value:data=>{const file=data.files[0],record={name:file.name,type:file.type,size:file.size,active:navigator.userActivation.isActive,trusted:window.__shareClick?.trusted,beforeMicrotask:window.__shareCapabilityTurn?.synchronous,sameCapabilityFile:file===window.__capabilityFile,fileCount:data.files.length};window.__sharePayloads.push(record);const reader=new FileReader();reader.onload=()=>record.bytes=reader.result.split(',')[1];reader.readAsDataURL(file);return new Promise((resolve,reject)=>{window.__shareResolve=resolve;window.__shareReject=name=>reject(new DOMException('Synthetic OS result',name))})}});`);
+  try {
+    const startShare=async()=>{
+      const count=await evaluate('window.__sharePayloads.length');await click('[data-recap-x]');
+      await wait(`window.__sharePayloads.length===${count+1}&&Boolean(window.__sharePayloads[${count}].bytes)`);
+      const shared=await evaluate(`window.__sharePayloads[${count}]`);
+      assert.equal(shared.type,'image/png');assert.equal(shared.fileCount,1);assert.equal(shared.active,true,'Native share retains browser user activation');assert.equal(shared.trusted,true,'Native share originates in a trusted pointer click');assert.equal(shared.beforeMicrotask,true,'navigator.share is invoked synchronously with the selected-File capability check');assert.equal(shared.sameCapabilityFile,true,'canShare tests the actual selected File');assert.doesNotMatch(shared.name,/recap_qa|private-original|owner|background/);assert.deepEqual(Buffer.from(shared.bytes,'base64'),expectedBytes,'Native share receives the exact current PNG still');
+      assert.match(await evaluate(`document.querySelector('.recap-notice')?.textContent||''`),/choose.*\bX\b/i,'Native sheet truthfully prompts the user to choose X');
+      return count+1;
+    };
+    const count=await startShare();
+    assert.equal(await evaluate(`[...document.querySelectorAll('.recap-export button')].every(b=>b.disabled)`),true,'Both actions are disabled while the OS share sheet is pending');
+    await click('[data-recap-x]');await click('[data-recap-download]');
+    assert.equal(await evaluate('window.__sharePayloads.length'),count,'Repeated clicks cannot launch duplicate native shares');
+    await evaluate('window.__shareResolve()');await ready();
+    await startShare();await evaluate(`window.__shareReject('AbortError')`);await ready();
+    assert.equal(await evaluate(`Boolean(document.querySelector('.recap-error'))`),false,'User cancellation is quiet');
+    assert.equal(await evaluate(`Boolean(document.querySelector('.recap-notice'))`),false,'Cancellation clears the pending choose-X hint');
+    await startShare();await evaluate(`window.__shareReject('NotAllowedError')`);await ready();
+    assert.match(await evaluate(`document.querySelector('[role=alert]')?.textContent||''`),/download.*(image|instead|manually)/i,'Device failure tells the user to download manually');
+    assert.deepEqual((await readdir(downloads)).sort(),beforeFiles,'Native success, cancellation, failure and duplicate clicks never download');
+    assert.deepEqual(await evaluate('window.__shareOpens'),[],'Native outcomes never open a text-only intent automatically');
+    await evaluate('window.__shareSupported=false');
+    const nativeCount=await evaluate('window.__sharePayloads.length');await click('[data-recap-x]');await ready();
+    let fallbackFile,bytes;for(let i=0;i<200;i++){fallbackFile=(await readdir(downloads)).find(n=>!beforeFiles.includes(n)&&n.endsWith('.png'));if(fallbackFile){try{bytes=await readFile(join(downloads,fallbackFile));if(bytes.equals(expectedBytes))break}catch{}}await sleep(50)}
+    assert(fallbackFile,'Unsupported native file sharing downloads the current PNG still');assert.deepEqual(bytes,expectedBytes,'Text-only X fallback downloads the exact current PNG still');
+    assert.equal(await evaluate('window.__sharePayloads.length'),nativeCount,'Unsupported native sharing skips navigator.share');
+    const opens=await evaluate('window.__shareOpens');assert.equal(opens.length,1);const intent=new URL(opens[0][0]);assert.equal(intent.origin,'https://x.com');assert.equal(intent.pathname,'/intent/post');assert.deepEqual([...intent.searchParams.keys()],['text']);assert.equal(intent.searchParams.get('text'),await evaluate(`document.querySelector('[data-recap-preview]').alt+' covadesk.com'`));assert.equal(opens[0][1],'_blank');assert.match(opens[0][2],/noopener/);
+    assert.match(await evaluate(`document.querySelector('.recap-notice')?.textContent||''`),/attach.*manually.*text only/i,'Fallback explains that the downloaded file must be attached manually');
+    assert.equal(await evaluate(`document.querySelector('textarea')?.readOnly`),true);assert.equal(await evaluate(`document.querySelector('textarea')?.value`),intent.searchParams.get('text'));
+    assert.equal(await evaluate(`[...document.querySelectorAll('dialog button')].some(b=>/Copy caption|Share image|Download GIF|Cancel export/.test(b.textContent))`),false,'No obsolete third action or copy button');
+    assert.deepEqual(await evaluate('window.__shareWrites'),[],'Sharing and download perform zero storage/ledger writes');
+    assert.deepEqual(await evaluate(`Object.entries(localStorage).sort(([a],[b])=>a.localeCompare(b))`),beforeStorage,'Every stored ledger and account value remains byte-identical');
+    await rm(join(downloads,fallbackFile));
+  } finally {
+    await evaluate(`for(const key of ['canShare','share']){const original=window.__shareOriginal[key];if(original)Object.defineProperty(navigator,key,original);else delete navigator[key]}window.open=window.__shareOriginal.open;Storage.prototype.setItem=window.__shareOriginal.setItem;document.removeEventListener('click',window.__shareClickListener,true)`);
+  }
+}
+
 export async function exerciseRecapGif({send,evaluate,wait,click,ready,capture,url,downloads,output}) {
   await send('Emulation.setDeviceMetricsOverride',{width:1440,height:960,deviceScaleFactor:1,mobile:false});
   await send('Page.navigate',{url});
@@ -30,7 +81,10 @@ export async function exerciseRecapGif({send,evaluate,wait,click,ready,capture,u
   await upload();await ready();
   await wait(`Boolean(document.querySelector('[data-recap-foreground]')?.complete && document.querySelector('[data-recap-background]')?.naturalWidth===320)`);
   assert.equal(await evaluate(`document.querySelector('.recap-backgrounds [aria-pressed=true]').textContent`),'Your GIF');
-  assert.equal(await evaluate(`document.querySelector('[data-recap-gif-download]').disabled`),false);
+  assert.deepEqual(await evaluate(`[...document.querySelector('#recap-file-type').options].map(o=>[o.value,o.textContent])`),[['png','PNG · still image'],['gif','GIF · animated image']]);
+  assert.equal(await evaluate(`document.querySelector('#recap-file-type').value`),'png');
+  assert.match(await evaluate(`document.querySelector('label[for="recap-file-type"]').textContent`),/^Download format/);
+  const selectType=async(type)=>{await evaluate(`(()=>{const select=document.querySelector('#recap-file-type');if(select.value!==${JSON.stringify(type)}){select.value=${JSON.stringify(type)};select.dispatchEvent(new Event('change',{bubbles:true}))}})()`);await ready()};
   const initialForeground=await evaluate(`document.querySelector('[data-recap-foreground]').src`);
   const start=await evaluate(`(()=>{const editor=document.querySelector('.recap-editor');editor.scrollIntoView({block:'center'});const b=editor.getBoundingClientRect();return {x:b.x+b.width/2,y:b.y+b.height/4}})()`);
   const before=await evaluate(`document.querySelector('[data-recap-background]').style.left`);
@@ -55,18 +109,20 @@ export async function exerciseRecapGif({send,evaluate,wait,click,ready,capture,u
   await click('dialog button','Play');
   // Hold the real worker result beyond the original lease; successful renewal must
   // preserve its render identity, foreground and eventual delivery.
-  await evaluate(`window.__OriginalWorker=Worker;window.__holdGif=true;window.__gifRelease=null;window.__readsBeforeExport=window.__connectionReads;window.__foregroundBeforeRenew=document.querySelector('[data-recap-foreground]').src;
-  window.Worker=class extends window.__OriginalWorker {set onmessage(fn){super.onmessage=event=>{if(event.data.blob&&window.__holdGif){window.__gifRelease=()=>fn(event)}else fn(event)}}};`);
+  await evaluate(`window.__OriginalWorker=Worker;window.__holdGif=true;window.__gifRelease=null;window.__readsBeforeExport=window.__connectionReads;window.__foregroundBeforeRenew=document.querySelector('[data-recap-foreground]').src;window.__gifEncodeStarts=0;
+  window.Worker=class extends window.__OriginalWorker {postMessage(data,...args){if(data.overlay)window.__gifEncodeStarts++;return super.postMessage(data,...args)}set onmessage(fn){super.onmessage=event=>{if(event.data.blob&&window.__holdGif){window.__gifRelease=()=>fn(event)}else fn(event)}}};`);
   const resultFiles=[];
   for(const [format,height] of [['Recap',1160],['Story',1920],['Feed',1350],['Square',1080]]) {
-    await click('dialog button',format);await ready();
-    await click('[data-recap-gif-download]');
+    await selectType('png');await click('dialog button',format);await ready();
+    const filesBeforeExport=(await readdir(downloads)).sort();const startsBefore=await evaluate('window.__gifEncodeStarts');await selectType('gif');await sleep(200);
+    assert.equal(await evaluate('window.__gifEncodeStarts'),startsBefore,'Choosing GIF alone does not start an encoder');assert.deepEqual((await readdir(downloads)).sort(),filesBeforeExport,'Choosing GIF alone does not download');await click('[data-recap-download]');
     if(format==='Recap') {
       await wait(`Boolean(window.__gifRelease)`);
       const began=Date.now();while(Date.now()-began<31000)await sleep(500);
       assert(await evaluate(`window.__connectionReads>window.__readsBeforeExport`),'Authenticated lease renewed during delayed export');
-      assert(await evaluate(`[...document.querySelectorAll('dialog button')].some(b=>b.textContent==='Cancel export')`),'Healthy renewal did not abort active export');
-      await evaluate(`window.__holdGif=false;window.__gifRelease();window.Worker=window.__OriginalWorker`);
+      assert(await evaluate(`document.querySelector('[data-recap-download]').disabled`),'Healthy renewal preserves the active on-demand GIF export');
+      assert.match(await evaluate(`document.querySelector('.recap-output-note[role=status]')?.textContent||document.querySelector('dialog').innerText`),/Exporting animated image/);
+      await evaluate(`window.__holdGif=false;window.__gifRelease()`);
     }
     const path=join(downloads,`cova-daily-2026-09-18-${format==='Recap'?'wide':format.toLowerCase()}.gif`);
     let bytes;for(let i=0;i<300;i++){try{bytes=await readCompleteGif(path);break;}catch{}await sleep(100);}
@@ -88,27 +144,30 @@ export async function exerciseRecapGif({send,evaluate,wait,click,ready,capture,u
     if(format==='Square') await writeFile(join(output,'verified-square.gif'),bytes);
     await ready();
   }
+  await evaluate(`window.Worker=window.__OriginalWorker`);
   await evaluate(`window.__hiddenInk=[];window.__hiddenFill=CanvasRenderingContext2D.prototype.fillText;CanvasRenderingContext2D.prototype.fillText=function(text,...args){window.__hiddenInk.push(String(text));return window.__hiddenFill.call(this,text,...args)}`);
   await click('#recap-show-pnl');await ready();
   assert(!(await evaluate('window.__hiddenInk')).some(t=>t.includes('$')),'PNG and GIF foreground omit hidden money');
   assert((await evaluate('window.__hiddenInk')).includes('P&L HIDDEN'));
   assert((await evaluate('window.__hiddenInk')).includes('Verified'),'Same badge survives hidden money in PNG and animated foreground');
   const hiddenPath=join(downloads,'cova-daily-2026-09-18-square.gif');await rm(hiddenPath);
-  await click('[data-recap-gif-download]');
+  await click('[data-recap-download]');
   let hiddenBytes;for(let i=0;i<300;i++){try{hiddenBytes=await readCompleteGif(hiddenPath);break;}catch{}await sleep(100);}assert(hiddenBytes);
   const hiddenParsed=parseGIF(hiddenBytes.buffer.slice(hiddenBytes.byteOffset,hiddenBytes.byteOffset+hiddenBytes.byteLength));assert.equal(decompressFrames(hiddenParsed,true).length,6);
   await writeFile(join(output,'verified-hidden-square.gif'),hiddenBytes);
   await evaluate(`CanvasRenderingContext2D.prototype.fillText=window.__hiddenFill`);await click('#recap-show-pnl');await ready();
-  await click('[data-recap-download]');
+  await selectType('png');await click('[data-recap-download]');
   const png=join(downloads,'cova-daily-2026-09-18-square.png');
   for(let i=0;i<100;i++){try{await readFile(png);break;}catch{}await sleep(50);}
   const pngBytes=await readFile(png);assert.deepEqual([pngBytes.readUInt32BE(16),pngBytes.readUInt32BE(20)],[1080,1080]);
+  await selectType('gif');assert.match(await evaluate(`document.querySelector('dialog').innerText`),/Share on X uses the PNG still\. Choose GIF to download the animation\./);
+  await exerciseRecapShare({evaluate,wait,click,ready,downloads,expectedBytes:pngBytes});
 
   for(const name of await readdir(downloads))if(name.endsWith('.gif'))await rm(join(downloads,name));
   await evaluate(`window.__holdGif=true;window.__gifRelease=null;window.Worker=class extends window.__OriginalWorker {set onmessage(fn){super.onmessage=event=>{if(event.data.blob&&window.__holdGif){window.__gifRelease=()=>fn(event)}else fn(event)}}};`);
-  await click('[data-recap-gif-download]');await wait(`Boolean(window.__gifRelease)`);
-  await evaluate(`window.__connection.status.connected=false;window.__refreshConnection()`);await wait(`document.querySelector('[data-recap-preview]')&&!document.querySelector('[data-recap-preview]').alt.includes('Verified')`);await ready();
-  await evaluate(`window.__holdGif=false;window.__gifRelease();window.Worker=window.__OriginalWorker`);await sleep(150);
+  await selectType('gif');await click('[data-recap-download]');await wait(`Boolean(window.__gifRelease)`);
+  await evaluate(`window.__releaseOldGif=window.__gifRelease;window.__holdGif=false;window.__connection.status.connected=false;window.__refreshConnection()`);await wait(`document.querySelector('[data-recap-preview]')&&!document.querySelector('[data-recap-preview]').alt.includes('Verified')`);await ready();
+  await evaluate(`window.__releaseOldGif();window.Worker=window.__OriginalWorker`);await sleep(150);
   assert.equal((await readdir(downloads)).filter(n=>n.endsWith('.gif')).length,0,'True eligibility loss prevents a delayed old worker from delivering');
   await evaluate(`window.__connection.status.connected=true;window.__refreshConnection()`);await wait(`document.querySelector('[data-recap-preview]')?.alt.includes('Verified')`);await ready();
 
@@ -120,7 +179,7 @@ export async function exerciseRecapGif({send,evaluate,wait,click,ready,capture,u
     disposal.writeFrame(p,320,320,{palette,transparent:n>0,transparentIndex:4,delay:200,dispose:n===1?3:n===2?2:1});
   }
   disposal.finish();await upload(disposal.bytes());await ready();await click('dialog button','Square');await ready();
-  const beforeDisposal=new Set(await readdir(downloads));await click('[data-recap-gif-download]');
+  const beforeDisposal=new Set(await readdir(downloads));await selectType('gif');await click('[data-recap-download]');
   let disposalFile;for(let i=0;i<150;i++){disposalFile=(await readdir(downloads)).find(n=>n.endsWith('.gif')&&!beforeDisposal.has(n));if(disposalFile){try{await readCompleteGif(join(downloads,disposalFile));break}catch{disposalFile=undefined}}await sleep(100);}
   assert(disposalFile,'Disposal fixture exported');
   const db=await readCompleteGif(join(downloads,disposalFile)),df=decompressFrames(parseGIF(db.buffer.slice(db.byteOffset,db.byteOffset+db.byteLength)),true);
@@ -129,14 +188,23 @@ export async function exerciseRecapGif({send,evaluate,wait,click,ready,capture,u
   assert(blue[2]>blue[0]+30 && red[0]>red[2]+80,'Transparent patch composites over the prior background');
   assert(restored.every((v,i)=>Math.abs(v-blue[i])<12),'Disposal 3 restores the previous canvas');
   assert(cleared.every((v,i)=>Math.abs(v-[8,13,18][i])<8),'Disposal 2 clears before the next frame');
-  await rm(join(downloads,disposalFile));await upload();await ready();
-  // A changed crop cancels the old export, as does explicitly cancelling.
+  await rm(join(downloads,disposalFile));
+  await upload();await ready();
+  // Changing type, crop, format, session, or background cancels an old real worker result.
   const filesBefore=(await readdir(downloads)).filter(n=>n.endsWith('.gif')).length;
-  await click('[data-recap-gif-download]');await click('dialog button','Cancel export');
-  await wait(`!document.querySelector('[data-recap-gif-download]').disabled`);
-  await click('[data-recap-gif-download]');await click('dialog button','London');await ready();
-  await sleep(500);assert.equal((await readdir(downloads)).filter(n=>n.endsWith('.gif')).length,filesBefore,'Cancelled/stale exports never download');
-  assert.equal(await evaluate(`Boolean(document.querySelector('[data-recap-gif-download]'))`),false);
+  const holdExport=async()=>{await selectType('png');await evaluate(`window.__holdGif=true;window.__gifRelease=null;window.Worker=class extends window.__OriginalWorker {set onmessage(fn){super.onmessage=event=>{if(event.data.blob&&window.__holdGif){window.__gifRelease=()=>fn(event)}else fn(event)}}}`);await selectType('gif');await sleep(150);assert.equal(await evaluate(`Boolean(window.__gifRelease)`),false,'GIF selection never starts a background encode');await click('[data-recap-download]');await wait(`Boolean(window.__gifRelease)`);assert.equal(await evaluate(`document.querySelector('[data-recap-download]').disabled`),true);await click('[data-recap-download]');assert.equal((await readdir(downloads)).filter(n=>n.endsWith('.gif')).length,filesBefore,'Repeated download clicks cannot deliver a pending GIF');};
+  const releaseStale=async()=>{await evaluate(`window.__holdGif=false;window.__gifRelease();window.Worker=window.__OriginalWorker`);await ready();await sleep(100);assert.equal((await readdir(downloads)).filter(n=>n.endsWith('.gif')).length,filesBefore,'Stale GIF exports never download');};
+  await holdExport();await selectType('png');await releaseStale();
+  assert.equal(await evaluate(`document.querySelector('#recap-file-type').value`),'png','Selecting PNG cancels the active GIF export');
+  await holdExport();await evaluate(`window.__holdGif=false`);await click('dialog button','Feed');await releaseStale();
+  assert.equal(await evaluate(`document.querySelector('[data-recap-preview]').naturalHeight`),1350,'Old square export cannot overwrite a newer format');
+  await holdExport();await evaluate(`(()=>{window.__holdGif=false;const input=document.querySelector('#recap-zoom');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,'1.5');input.dispatchEvent(new Event('change',{bubbles:true}));input.dispatchEvent(new Event('input',{bubbles:true}));})()`);await releaseStale();
+  assert.equal(await evaluate(`document.querySelector('#recap-zoom').value`),'1.5','New crop remains selected after old export resolves');
+  await holdExport();await evaluate(`(()=>{window.__holdGif=false;const select=document.querySelector('#recap-session');select.value='daily:2026-09-17';select.dispatchEvent(new Event('change',{bubbles:true}));})()`);await releaseStale();
+  assert.match(await evaluate(`document.querySelector('[data-recap-preview]').alt`),/Sep 17, 2026/,'New session remains selected after old export resolves');
+  await selectType('png');await evaluate(`(()=>{const select=document.querySelector('#recap-session');select.value='daily:2026-09-18';select.dispatchEvent(new Event('change',{bubbles:true}));})()`);await ready();
+  await holdExport();await click('dialog button','London');await releaseStale();
+  assert.equal(await evaluate(`Boolean(document.querySelector('#recap-file-type'))`),false,'Preset backgrounds offer only PNG');
   await click('dialog button','Your GIF');await ready();
   // Mobile touch and keyboard navigation manipulate only background geometry.
   await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
@@ -157,10 +225,14 @@ export async function exerciseRecapGif({send,evaluate,wait,click,ready,capture,u
   await upload(new Uint8Array([1,2,3]));await wait(`document.querySelector('[role=alert]')?.textContent.includes('valid GIF')`);await ready();
   assert.equal(await evaluate(`document.querySelector('.recap-backgrounds [aria-pressed=true]').textContent`),'Your GIF','Bad file preserves previous accepted background');
   const tooLarge=new Uint8Array(8*1024*1024+1);await upload(tooLarge);await wait(`document.querySelector('[role=alert]')?.textContent.includes('8 MB')`);await ready();
+  // Closing cancels export and reopening cannot revive the prior artifact.
+  await holdExport();await click('[aria-label="Close recap"]');await wait(`!document.querySelector('dialog[open]')`);await evaluate(`window.__holdGif=false;window.__gifRelease();window.Worker=window.__OriginalWorker`);await sleep(150);
+  assert.equal((await readdir(downloads)).filter(n=>n.endsWith('.gif')).length,filesBefore,'Closing never downloads a late GIF');await click('button','Share recap');await ready();assert.equal(await evaluate(`Boolean(document.querySelector('#recap-file-type'))`),false);await upload();await ready();
   // No cross-owner background state or late worker may survive composer unmount.
-  await click('[data-recap-gif-download]');await evaluate(`window.__owner('owner-b')`);await wait(`!document.querySelector('dialog[open]')`);await sleep(500);
+  await holdExport();await evaluate(`window.__owner('owner-b')`);await wait(`!document.querySelector('dialog[open]')`);
+  await evaluate(`window.__holdGif=false;window.__gifRelease();window.Worker=window.__OriginalWorker`);await sleep(500);
   assert.equal((await readdir(downloads)).filter(n=>n.endsWith('.gif')).length,filesBefore);
   await click('button','Share recap');assert.equal(await evaluate(`Boolean(document.querySelector('[data-recap-background]'))`),false);
   await click('[aria-label="Close recap"]');
-  await writeFile(join(output,'gif-receipt.json'),JSON.stringify({synthetic:true,resultFiles,desktop:true,mobileTouch:true,keyboard:true,cancellation:true},null,2));
+  await writeFile(join(output,'gif-receipt.json'),JSON.stringify({synthetic:true,resultFiles,desktop:true,mobileTouch:true,keyboard:true,cancellation:true,nativePngExactBytesWithGifDownloadSelected:true,trustedShareActivation:true,nativeCancellationAndFailureNoFallback:true,unsupportedShareTextOnlyFallback:true,onDemandGifExport:true,staleGifExport:true},null,2));
 }
