@@ -100,7 +100,16 @@ try {
   await phone.getByLabel("Journal note", {exact:true}).fill("Recreated daily note");
   await phone.getByRole("button", {name:"Save note",exact:true}).click();
   await phase(phone,"review");
+  await phone.reload();
+  await phase(phone,"review");
+  assert.equal(await phone.evaluate(() => window.__sync.preview.conflicts.some(
+    ({local,remote}) => local.kind === "daily_note" && local.payload.note === "Recreated daily note" && !!remote.deletedAt)),true);
+  const beforeApproval = await page(A,true);await phase(beforeApproval,"saved");
+  await beforeApproval.getByLabel("Trade account",{exact:true}).selectOption("local");
+  assert.equal(await beforeApproval.getByLabel("Journal note",{exact:true}).inputValue(),"");
+  receipts.push("refresh before daily-note recreation approval returns to review and leaves remote tombstone intact");
   await phone.getByRole("button",{name:"Back up and copy browser changes"}).click();
+  await phone.getByLabel("Trade account",{exact:true}).selectOption("local");
   await phase(phone,"saved");
   const recreated = await page(A,true);await phase(recreated,"saved");
   await recreated.getByLabel("Trade account",{exact:true}).selectOption("local");

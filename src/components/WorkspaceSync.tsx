@@ -193,17 +193,15 @@ export function useWorkspaceSync(
           : [];
         setDeletions(missing);
         setIssues(local.issues.map((i) => i.reason));
-        // A cached baseline proves which data this browser already acknowledged.
-        const clean =
-          old &&
-          workspaceDiff(
-            [
-              ...local.records,
-              ...old.filter((r) => r.kind === "broker_cash" && !r.deletedAt),
-            ],
-            old,
-            true,
-          ).length === 0;
+        // Clean means exact agreement with the acknowledged active records.
+        // A local value at a cached tombstone is a review conflict, not a diff
+        // to send (and not an error that prevents reaching explicit review).
+        const acknowledged = old ? workspacePreview(
+          [...local.records, ...old.filter((r) => r.kind === "broker_cash" && !r.deletedAt)],
+          old,
+        ) : null;
+        const clean = acknowledged && !acknowledged.added.length &&
+          !acknowledged.conflicts.length && !acknowledged.cloudOnly;
         if (
           cloud.consent &&
           (clean ||

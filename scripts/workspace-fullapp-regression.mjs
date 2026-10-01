@@ -24,10 +24,20 @@ const trade={id:'manual-full-app',date:'2026-10-01',market:'ES',side:'Long',cont
 const headers={Authorization:'Bearer qa-'+owner};
 assert.equal((await context.request.post('http://127.0.0.1:4179/api/workspace',{headers,data:{owner,action:'consent',disclosure:'workspace-cloud-v1'}})).status(),200);
 assert.equal((await context.request.post('http://127.0.0.1:4179/api/workspace',{headers,data:{owner,action:'apply',operationId:crypto.randomUUID(),records:[{kind:'trade',recordId:trade.id,accountId:'local',schemaVersion:1,payload:trade,expectedRevision:0,deleted:false}]}})).status(),200);
-const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.accept());
+const page=await context.newPage();const dismissFixtureAuthPanel=async()=>{
+ // Synthetic authority can finish while the pre-auth route panel is animating.
+ // Settle that fixture-only panel before querying accessibility roles behind it.
+ await page.waitForTimeout(500);
+ for(let i=0;i<20;i++){
+  const close=page.getByRole('button',{name:'Close auth panel',exact:true});
+  if(await close.count()) await close.evaluate(button=>button.click());
+  if(await page.getByRole('combobox',{name:'Trade account',exact:true}).count())return;
+  await page.waitForTimeout(100);
+ }
+};const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.accept());
 try{
  await page.goto('http://127.0.0.1:4179/#dashboard',{waitUntil:'domcontentloaded'});
- await page.getByText('Saved to your account',{exact:true}).waitFor({timeout:15000});if(await page.getByRole('button',{name:'Close auth panel',exact:true}).count())await page.getByRole('button',{name:'Close auth panel',exact:true}).click({force:true});
+ await page.getByText('Saved to your account',{exact:true}).waitFor({timeout:15000});await dismissFixtureAuthPanel();
  if(await page.getByRole('combobox',{name:'Trade account',exact:true}).inputValue()!=='local') await page.getByRole('combobox',{name:'Trade account',exact:true}).selectOption('local');
  await page.getByLabel('Journal note',{exact:true}).fill('Trigger an in-flight daily save');
  await page.getByRole('button',{name:'Review ES trade from 2026-10-01'}).click();
@@ -44,13 +54,13 @@ try{
  assert(await page.locator('.astra-trade-dialog').evaluate(d=>d.open));
  assert.match(await page.locator('.astra-trade-dialog').innerText(),/Not saved/);
  assert.equal(await page.evaluate(owner=>JSON.parse(localStorage.getItem('cova-react-risk-os-v2:'+owner)).trades[0].notes,owner),'Original trade note');
- release();await page.getByText('Saved to your account',{exact:true}).waitFor({timeout:15000});if(await page.getByRole('button',{name:'Close auth panel',exact:true}).count())await page.getByRole('button',{name:'Close auth panel',exact:true}).click({force:true});
- await page.reload({waitUntil:"domcontentloaded"});await page.getByText('Saved to your account',{exact:true}).waitFor({timeout:15000});if(await page.getByRole('button',{name:'Close auth panel',exact:true}).count())await page.getByRole('button',{name:'Close auth panel',exact:true}).click({force:true});
+ release();await page.getByText('Saved to your account',{exact:true}).waitFor({timeout:15000});await dismissFixtureAuthPanel();
+ await page.reload({waitUntil:"domcontentloaded"});await page.getByText('Saved to your account',{exact:true}).waitFor({timeout:15000});await dismissFixtureAuthPanel();
  await page.getByRole('button',{name:'Review ES trade from 2026-10-01'}).click();
  assert.equal(await page.getByLabel('Trade journal note',{exact:true}).inputValue(),'Draft entered during in-flight save');
  await page.locator('.astra-save-note').click();
  assert.equal(await page.evaluate(owner=>JSON.parse(localStorage.getItem('cova-react-risk-os-v2:'+owner)).trades[0].notes,owner),'Draft entered during in-flight save');
- await page.waitForTimeout(800);await page.getByText('Saved to your account',{exact:true}).waitFor({timeout:15000});if(await page.getByRole('button',{name:'Close auth panel',exact:true}).count())await page.getByRole('button',{name:'Close auth panel',exact:true}).click({force:true});
+ await page.waitForTimeout(800);await page.getByText('Saved to your account',{exact:true}).waitFor({timeout:15000});await dismissFixtureAuthPanel();
  if(await page.getByRole('combobox',{name:'Trade account',exact:true}).inputValue()!=='local') await page.getByRole('combobox',{name:'Trade account',exact:true}).selectOption('local');
  await page.getByRole('button',{name:'Review ES trade from 2026-10-01'}).click();
  await page.getByLabel('Trade journal note',{exact:true}).fill('Quota-protected trade draft');
@@ -66,7 +76,7 @@ try{
  await page.evaluate(owner=>window.dispatchEvent(new StorageEvent('storage',{key:'cova-workspace-cache-v2:'+owner,newValue:'synthetic-notification'})),owner);
  await page.getByText('Account storage needs attention',{exact:true}).waitFor();
  assert.equal(await page.getByLabel('Journal note',{exact:true}).inputValue(),'Unsaved daily draft survives same-owner invalidation');
- await page.reload({waitUntil:"domcontentloaded"});await page.getByText('Saved to your account',{exact:true}).waitFor({timeout:15000});if(await page.getByRole('button',{name:'Close auth panel',exact:true}).count())await page.getByRole('button',{name:'Close auth panel',exact:true}).click({force:true});
+ await page.reload({waitUntil:"domcontentloaded"});await page.getByText('Saved to your account',{exact:true}).waitFor({timeout:15000});await dismissFixtureAuthPanel();
  if(await page.getByRole('combobox',{name:'Trade account',exact:true}).inputValue()!=='local') await page.getByRole('combobox',{name:'Trade account',exact:true}).selectOption('local');
  assert.equal(await page.getByLabel('Journal note',{exact:true}).inputValue(),'Unsaved daily draft survives same-owner invalidation');
  page.removeAllListeners('dialog');page.on('dialog',d=>d.dismiss());
@@ -79,7 +89,7 @@ try{
  await page.evaluate(o=>localStorage.setItem('qa-owner-override',o),otherOwner);
  await page.reload({waitUntil:'domcontentloaded'});
  await page.getByText('Review account storage',{exact:true}).waitFor();
- if(await page.getByRole('button',{name:'Close auth panel',exact:true}).count())await page.getByRole('button',{name:'Close auth panel',exact:true}).click({force:true});
+ await dismissFixtureAuthPanel();
  assert.equal(await page.getByLabel('Journal note',{exact:true}).count(),0); // no pre-consent owner workspace exposed
  await page.getByRole('button',{name:'Back up and copy browser changes'}).click();
  await page.getByText('Saved to your account',{exact:true}).waitFor();
@@ -88,7 +98,7 @@ try{
  await page.evaluate(()=>localStorage.removeItem('qa-owner-override'));
  await page.reload({waitUntil:'domcontentloaded'});
  await page.getByText('Saved to your account',{exact:true}).waitFor();
- if(await page.getByRole('button',{name:'Close auth panel',exact:true}).count()) await page.getByRole('button',{name:'Close auth panel',exact:true}).click({force:true});
+ await dismissFixtureAuthPanel();
  if(await page.getByRole('combobox',{name:'Trade account',exact:true}).inputValue()!=='local') await page.getByRole('combobox',{name:'Trade account',exact:true}).selectOption('local');
  assert.equal(await page.getByLabel('Journal note',{exact:true}).inputValue(),'Unsaved daily draft survives same-owner invalidation');
  await page.screenshot({path:out+'/draft-restored.png'});
