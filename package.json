@@ -55,7 +55,10 @@
     "test:passport-integration": "node --test scripts/passport-integration-preservation-regression.mjs scripts/passport-workspace-regression.mjs scripts/dashboard-preview-export-regression.mjs scripts/passport-holo-regression.mjs scripts/passport-etched-regression.mjs scripts/passport-share-actions-regression.mjs scripts/passport-share-export-regression.mjs scripts/passport-square-export-regression.mjs",
     "test:astra-dashboard": "node --test scripts/equity-range-baseline-regression.mjs scripts/equity-history-regression.mjs scripts/equity-color-regression.mjs scripts/equity-smoothing-regression.mjs scripts/astra-dashboard-regression.mjs scripts/astra-workspace-shell-regression.mjs scripts/astra-workspace-layout-regression.mjs scripts/astra-workspace-content-regression.mjs && node scripts/net-curve-browser-regression.mjs && node scripts/equity-color-browser-regression.mjs && node scripts/approved-dashboard-preservation.mjs && node scripts/approved-dashboard-browser-regression.mjs && npm run build && node scripts/desk-journal-browser-regression.mjs",
     "test:site-polish": "node --test scripts/site-motion-polish-regression.mjs scripts/public-polish-regression.mjs && node scripts/auth-connection-visual-regression.mjs --source",
-    "test:site-polish-browser": "npm run build && node scripts/public-polish-browser-regression.mjs && node scripts/auth-connection-visual-regression.mjs"
+    "test:site-polish-browser": "npm run build && node scripts/public-polish-browser-regression.mjs && node scripts/auth-connection-visual-regression.mjs",
+    "test:workspace": "node --test scripts/workspace-model-regression.mjs scripts/workspace-candidate-regression.mjs scripts/workspace-api-regression.mjs scripts/workspace-database-regression.mjs scripts/workspace-hydration-regression.mjs",
+    "test:workspace-browser:fixture": "node scripts/workspace-browser-fixture.mjs",
+    "test:workspace-browser": "node scripts/workspace-browser-regression.mjs"
   },
   "dependencies": {
     "@fontsource-variable/bricolage-grotesque": "^5.3.0",
@@ -89,6 +92,7 @@
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react": "^6.0.3",
     "autoprefixer": "^10.4.20",
+    "playwright": "1.63.0",
     "postcss": "^8.5.23",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.2",

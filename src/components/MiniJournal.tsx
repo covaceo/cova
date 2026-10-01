@@ -21,6 +21,11 @@ export function MiniJournal({ initialDate, actions, trades = [], onOpenTrade }: 
   const [entry, setEntry] = useState(() => read(initialDate));
   const [dirty, setDirty] = useState(false);
   const [status, setStatus] = useState('');
+  useEffect(() => {
+    const guard = (event: Event) => { if (dirty) { if (!window.confirm('Discard the unsaved journal note?')) event.preventDefault(); else setDirty(false); } };
+    window.addEventListener('cova:before-account-change', guard);
+    return () => window.removeEventListener('cova:before-account-change', guard);
+  }, [dirty]);
   // Owner refs are committed in the parent's layout effect. Hydrate afterward,
   // but never replace a draft when the parent refreshes its guarded actions.
   useEffect(() => {

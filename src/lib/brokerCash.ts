@@ -89,3 +89,6 @@ export function brokerCashSummary(trades: Trade[], range: 'all'|'today'|'week'):
     return {status:'available',grossCents,feeCents,netCents:grossCents+feeCents,asOf:cash.asOf,startDate:start,endDate:end,points};
   } catch {return unavailable;}
 }
+
+// Fingerprint export for scoped workspace backup validation only.
+export const brokerCashFingerprint = fingerprint;
