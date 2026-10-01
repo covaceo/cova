@@ -10,6 +10,7 @@ const source = stripTypeScriptTypes(
   ),
 );
 const {
+  recreateDailyNote,
   workspaceKey,
   workspaceEqual,
   workspacePreview,
@@ -161,4 +162,17 @@ test("receipt merge preserves unrelated rows, isolates returned objects, and rej
       mergeWorkspaceReceipt([], [record(value(), Number.MAX_SAFE_INTEGER + 1)]),
     /revision/,
   );
+});
+
+test("daily note clear/re-enter requires explicit exact-version recreation; trades cannot revive", () => {
+  const note = {kind:"daily_note",recordId:'["local","2026-10-01"]',accountId:"local",schemaVersion:1,payload:{date:"2026-10-01",note:"again",tradeId:null}};
+  const deleted = record({...note,payload:{}},2,"2026-10-01T00:00:02Z");
+  assert.equal(workspaceDiff([], [record(note)], true)[0].deleted, true);
+  assert.throws(()=>workspaceDiff([note],[deleted],true), /Deleted/);
+  assert.equal(workspacePreview([note],[deleted]).conflicts.length,1);
+  assert.deepEqual(recreateDailyNote(note,deleted), {...note,expectedRevision:2,deleted:false,recreateDailyNote:true});
+  assert.throws(()=>recreateDailyNote(value(),record(value(),2,deleted.deletedAt)),/Only/);
+  const recreated=record(note,3);
+  assert.deepEqual(mergeWorkspaceReceipt([deleted],[recreated]),[recreated]);
+  assert.deepEqual(mergeWorkspaceReceipt([recreated],[deleted]),[recreated]);
 });

@@ -12,6 +12,11 @@ import {
   WORKSPACE_DISCLOSURE,
 } from "../src/lib/workspaceValidation";
 
+export class WorkspaceOperationRejection extends ApiError {
+  constructor(status: number, message: string, public rejectedOperationId: string, public rejectionCode: string) {
+    super(status, message);
+  }
+}
 async function workspaceRest(path: string, options: any = {}) {
   const base = String(process.env.SUPABASE_URL || "").replace(/\/$/, "");
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -30,15 +35,9 @@ async function workspaceRest(path: string, options: any = {}) {
   const data = await response.json();
   if (!response.ok) {
     const message = String(data?.message || "");
-    if (
-      /revision_conflict|operation_id_reused|deleted_record|trade_account_changed|missing_delete_target/.test(
-        message,
-      )
-    )
-      throw new ApiError(
-        409,
-        "A newer change exists. Review the account copy before saving.",
-      );
+    if (["revision_conflict", "deleted_record", "trade_account_changed", "missing_delete_target"].includes(message))
+      throw new WorkspaceOperationRejection(409,
+        "A newer change exists. Review the account copy before saving.", options.body?.p_operation, message);
     if (/incomplete_other_batch|missing_batch_start/.test(message))
       throw new ApiError(
         423,
@@ -47,7 +46,7 @@ async function workspaceRest(path: string, options: any = {}) {
     if (message === "consent_required")
       throw new ApiError(403, "Enable account storage first.");
     if (message === "trade_cap_exceeded")
-      throw new ApiError(422, "Your saved trade limit would be exceeded.");
+      throw new WorkspaceOperationRejection(422, "Your saved trade limit would be exceeded. Correct your browser copy and reload to review.", options.body?.p_operation, message);
     throw new ApiError(503, "Account storage is unavailable.");
   }
   return data;
@@ -98,66 +97,46 @@ export function createWorkspaceHandler({
         return rows[0] || null;
       };
       if (req.method === "GET") {
-        for (let attempt = 0; attempt < 3; attempt++) {
-          const before = await settings();
-          if (before?.pending_manifest)
-            return res
-              .status(200)
-              .json({
-                owner: user.id,
-                consent: true,
-                pendingWrite: before.pending_manifest,
-                records: [],
-                revision: before.revision,
-              });
-          const records: any[] = [];
-          for (let offset = 0; ;) {
-            const page = await rest("workspace_records", {
-              query: {
-                owner_id: "eq." + user.id,
-                select:
-                  "kind,record_id,account_id,schema_version,payload,revision,created_at,updated_at,deleted_at",
-                order: "kind.asc,record_id.asc",
-                limit: "500",
-                offset: String(offset),
-              },
-            });
-            if (!Array.isArray(page)) throw Error("Invalid page");
-            if (!page.length) break;
-            records.push(
-              ...page.map((r: any) => ({
-                kind: r.kind,
-                recordId: r.record_id,
-                accountId: r.account_id,
-                schemaVersion: r.schema_version,
-                payload: r.payload,
-                revision: r.revision,
-                createdAt: r.created_at,
-                updatedAt: r.updated_at,
-                deletedAt: r.deleted_at,
-              })),
-            );
-            offset += page.length;
-            if (offset > 100000)
-              throw new ApiError(
-                413,
-                "Workspace exceeds the supported snapshot size.",
-              );
-          }
-          const after = await settings();
-          if (JSON.stringify(before) !== JSON.stringify(after)) continue;
-          assertRecords(records);
-          return res
-            .status(200)
-            .json({
-              owner: user.id,
-              consent: before?.disclosure_version === WORKSPACE_DISCLOSURE,
-              pendingWrite: null,
-              revision: before?.revision || 0,
-              records,
-            });
-        }
-        throw new ApiError(409, "Account changed while loading. Retry.");
+        const offset = Number(url.searchParams.get("offset") || "0");
+        const byteOffset = Number(url.searchParams.get("byteOffset") || "0");
+        const expected = url.searchParams.get("revision");
+        if (!Number.isSafeInteger(offset) || offset < 0 ||
+            !Number.isSafeInteger(byteOffset) || byteOffset < 0 ||
+            (expected !== null && (!/^\d+$/.test(expected) || !Number.isSafeInteger(Number(expected)))) ||
+            ((offset || byteOffset) && expected === null))
+          throw new ApiError(400, "Invalid snapshot cursor.");
+        const before = await settings();
+        const revision = before?.revision || 0;
+        if (expected !== null && Number(expected) !== revision)
+          throw new ApiError(409, "Account changed while loading. Retry.");
+        if (before?.pending_manifest)
+          return res.status(200).json({owner:user.id,consent:true,pendingWrite:before.pending_manifest,
+            revision,chunk:"",next:null});
+        const page = await rest("workspace_records", {query:{
+          owner_id:"eq."+user.id,
+          select:"kind,record_id,account_id,schema_version,payload,revision,created_at,updated_at,deleted_at",
+          order:"kind.asc,record_id.asc",limit:"250",offset:String(offset),
+        }});
+        if (!Array.isArray(page)) throw Error("Invalid page");
+        const records = page.map((r:any)=>({kind:r.kind,recordId:r.record_id,accountId:r.account_id,
+          schemaVersion:r.schema_version,payload:r.payload,revision:r.revision,
+          createdAt:r.created_at,updatedAt:r.updated_at,deletedAt:r.deleted_at}));
+        assertRecords(records);
+        // NDJSON byte fragments also support a single large legacy record. No
+        // partial row/page is usable until the client completes the snapshot.
+        const encoded = Buffer.from(records.map((r:any)=>JSON.stringify(r)+"\n").join(""));
+        if (byteOffset > encoded.length) throw new ApiError(400,"Invalid snapshot cursor.");
+        const end = Math.min(encoded.length,byteOffset+1048576);
+        const next = end < encoded.length ? {offset,byteOffset:end} :
+          (page.length ? {offset:offset+page.length,byteOffset:0} : null);
+        const after = await settings();
+        if (JSON.stringify(before)!==JSON.stringify(after))
+          throw new ApiError(409,"Account changed while loading. Retry.");
+        const result={owner:user.id,consent:before?.disclosure_version===WORKSPACE_DISCLOSURE,
+          pendingWrite:null,revision,chunk:encoded.subarray(byteOffset,end).toString("base64"),next};
+        // 1 MiB bytes expand to <1.4 MiB base64, well below platform limits.
+        if (Buffer.byteLength(JSON.stringify(result))>1500000) throw Error("Snapshot page exceeds byte budget");
+        return res.status(200).json(result);
       }
       if (body?.action === "consent") {
         if (
@@ -247,8 +226,12 @@ export function createWorkspaceHandler({
         },
       });
       assertRecords(result.records);
-      return res.status(200).json({ ...result, owner: user.id });
+      return res.status(200).json({ operationId: result.operationId, owner: user.id, records: [], applied: true });
     } catch (e) {
+      if (e instanceof ApiError && (e as any).rejectedOperationId)
+        return res.status(e.statusCode).json({ error: e.message,
+          rejectedOperationId: (e as any).rejectedOperationId,
+          rejectionCode: (e as any).rejectionCode });
       return sendApiError(
         res,
         e,

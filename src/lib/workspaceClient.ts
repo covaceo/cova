@@ -1,3 +1,4 @@
+import { readCompleteWorkspace, type SnapshotCursor } from "./workspaceSnapshot";
 import { getSupabaseClient } from "./supabaseClient";
 import { getActiveStorageIdentity } from "./storageScope";
 import {
@@ -10,6 +11,7 @@ export class WorkspaceError extends Error {
   constructor(
     message: string,
     public status = 503,
+    public definitiveRejection = false,
   ) {
     super(message);
   }
@@ -33,7 +35,7 @@ export type WorkspaceSnapshot = {
   };
 };
 export function createWorkspaceClient(owner: string) {
-  async function request(body?: unknown) {
+  async function request(body?: unknown, cursor?: SnapshotCursor) {
     if (!workspaceOwnerCurrent(owner))
       throw new WorkspaceError("Your active account changed.", 401);
     const client = getSupabaseClient(),
@@ -46,7 +48,7 @@ export function createWorkspaceClient(owner: string) {
     let response: Response;
     try {
       response = await fetch(
-        "/api/workspace" + (body ? "" : "?owner=" + encodeURIComponent(owner)),
+        "/api/workspace" + (body ? "" : "?owner=" + encodeURIComponent(owner) + (cursor ? "&" + new URLSearchParams(Object.entries(cursor).map(([k,v])=>[k,String(v)])).toString() : "")),
         {
           method: body ? "POST" : "GET",
           headers: {
@@ -69,23 +71,18 @@ export function createWorkspaceClient(owner: string) {
       throw new WorkspaceError(
         data.error || "Account storage unavailable.",
         response.status,
+        !!body && (body as any).action === "apply" &&
+          response.status === (data.rejectionCode === "trade_cap_exceeded" ? 422 : 409) &&
+          data.rejectedOperationId === (body as any).operationId &&
+          ["revision_conflict", "deleted_record", "trade_account_changed",
+            "missing_delete_target", "trade_cap_exceeded"].includes(data.rejectionCode),
       );
     if (data.owner !== owner)
       throw new WorkspaceError("Account response did not match.", 403);
     return data;
   }
   return {
-    load: async (): Promise<WorkspaceSnapshot> => {
-      const d = await request();
-      assertRecords(d.records);
-      if (
-        typeof d.consent !== "boolean" ||
-        !Number.isSafeInteger(d.revision) ||
-        d.revision < 0
-      )
-        throw Error("Invalid account snapshot");
-      return d;
-    },
+    load: (): Promise<WorkspaceSnapshot> => readCompleteWorkspace(owner, cursor => request(undefined,cursor)),
     consent: () =>
       request({ owner, action: "consent", disclosure: WORKSPACE_DISCLOSURE }),
     apply: async (

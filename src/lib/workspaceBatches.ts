@@ -85,7 +85,20 @@ export async function sendWorkspaceBatches(
   if (!current()) throw Error("Account or browser state changed.");
   // New atomic-plan RPC: all chunks commit together or all roll back. The first
   // persisted operation ID is stable across lost responses and process restarts.
-  await client.apply(plan.batches[0].id, records, plan.metadata);
+  try {
+    await client.apply(plan.batches[0].id, records, plan.metadata);
+  } catch (err) {
+    if (current() && (err as { definitiveRejection?: boolean })?.definitiveRejection === true) {
+      // The API attests this exact operation rolled back. Archive before clearing;
+      // unknown responses keep the immutable plan and operation ID for replay.
+      const key = planKey(owner) + ":rejected:" + plan.batches[0].id + ":" + encodeURIComponent(owner);
+      const raw = JSON.stringify(plan);
+      localStorage.setItem(key, raw);
+      if (localStorage.getItem(key) !== raw) throw Error("Rejected save backup could not be verified.");
+      finishWorkspaceBatches(owner);
+    }
+    throw err;
+  }
   if (!current()) throw Error("Account changed. Resume when signed in again.");
   plan.next = plan.batches.length;
   persist(plan);

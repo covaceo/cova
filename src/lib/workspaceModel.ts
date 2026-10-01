@@ -17,6 +17,7 @@ export type WorkspaceRecord = WorkspaceValue & {
 export type WorkspaceWrite = WorkspaceValue & {
   expectedRevision: number;
   deleted: boolean;
+  recreateDailyNote?: true;
 };
 
 // Matches the database primary key within ONE authenticated owner's workspace.
@@ -144,6 +145,17 @@ export function workspaceDiff(
   return writes;
 }
 
+// Called only after the user reviews the current tombstone and chooses the
+// browser copy. Automatic diff never authorizes recreation.
+export function recreateDailyNote(row: WorkspaceValue, previous: WorkspaceRecord): WorkspaceWrite {
+  if (row.kind !== "daily_note" || previous.kind !== "daily_note" ||
+      !previous.deletedAt || workspaceKey(row) !== workspaceKey(previous) ||
+      row.accountId !== previous.accountId)
+    throw new Error("Only the reviewed daily note can be recreated.");
+  return { ...structuredClone(row), expectedRevision: revision(previous),
+    deleted: false, recreateDailyNote: true };
+}
+
 // An old operation receipt may arrive after a newer authoritative load.
 export function mergeWorkspaceReceipt(
   baseline: readonly WorkspaceRecord[],
@@ -166,7 +178,8 @@ export function mergeWorkspaceReceipt(
         throw new Error("Inconsistent workspace receipt.");
       continue;
     }
-    if (previous?.deletedAt && !row.deletedAt)
+    if (previous?.deletedAt && !row.deletedAt &&
+        !(row.kind === "daily_note" && previous.accountId === row.accountId))
       throw new Error("Receipt would revive a deleted record.");
     if (previous?.kind === "trade" && previous.accountId !== row.accountId)
       throw new Error("Receipt changes trade account.");

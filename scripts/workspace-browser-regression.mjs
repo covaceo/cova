@@ -94,6 +94,18 @@ try {
     "Synthetic daily A — local candidate only",
   );
   receipts.push("all/local notes remain distinct");
+  await phone.getByLabel("Journal note", {exact:true}).fill("");
+  await phone.getByRole("button", {name:"Save note",exact:true}).click();
+  await settle(phone);
+  await phone.getByLabel("Journal note", {exact:true}).fill("Recreated daily note");
+  await phone.getByRole("button", {name:"Save note",exact:true}).click();
+  await phase(phone,"review");
+  await phone.getByRole("button",{name:"Back up and copy browser changes"}).click();
+  await phase(phone,"saved");
+  const recreated = await page(A,true);await phase(recreated,"saved");
+  await recreated.getByLabel("Trade account",{exact:true}).selectOption("local");
+  assert.equal(await recreated.getByLabel("Journal note",{exact:true}).inputValue(),"Recreated daily note");
+  receipts.push("clear/sync/re-enter same-account/date explicitly recreates daily note and fresh device restores it");
   const other = await page(B, true);
   await phase(other, "review");
   assert.equal(await other.evaluate(() => window.__rows.length), 0);

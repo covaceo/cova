@@ -13,6 +13,7 @@ import {
 } from "../lib/workspaceLocal";
 import {
   workspaceDiff,
+  recreateDailyNote,
   workspaceEqual,
   workspaceKey,
   workspacePreview,
@@ -142,7 +143,7 @@ export function useWorkspaceSync(
           try {
             await sendWorkspaceBatches(o, client, () => current(o, e));
           } catch (err) {
-            if (err instanceof WorkspaceError && err.status === 409) {
+            if (err instanceof WorkspaceError && err.definitiveRejection) {
               finishWorkspaceBatches(o);
             } else throw err;
           }
@@ -250,13 +251,15 @@ export function useWorkspaceSync(
   useEffect(() => {
     const notify = () => setTick((n) => n + 1);
     const other = (ev: StorageEvent) => {
+      if (ev.key?.startsWith("cova-journal-draft-v1:")) return;
       if (
         owner &&
         ev.key?.endsWith(":" + encodeURIComponent(owner)) &&
         phaseRef.current !== "local"
       ) {
         epoch.current++;
-        readyOwner.current = undefined;
+        phaseRef.current = "error";
+        // Retain mounted same-owner editors and drafts; commits are blocked by phase.
         setError(
           "This account changed in another tab. Reload and review before continuing.",
         );
@@ -302,6 +305,15 @@ export function useWorkspaceSync(
                 (r) => r.kind === "broker_cash" && !r.deletedAt,
               ),
             ];
+            const preview = workspacePreview(values, baseline.current);
+            if (preview.conflicts.some(({ remote }) => remote.deletedAt)) {
+              setPreview(preview);
+              setDeletions(workspaceDiff(values.filter((v) => !baseline.current.some(
+                (r) => r.deletedAt && workspaceKey(r) === workspaceKey(v))), baseline.current, true)
+                .filter((w) => w.deleted));
+              setPhase("review");
+              return;
+            }
             const writes = workspaceDiff(values, baseline.current, true);
             if (!writes.length) return;
             setPhase("saving");
@@ -341,7 +353,7 @@ export function useWorkspaceSync(
             });
           } catch (err) {
             if (current(o, e)) {
-              if (err instanceof WorkspaceError && err.status === 409)
+              if (err instanceof WorkspaceError && err.definitiveRejection)
                 finishWorkspaceBatches(o);
               setError(
                 err instanceof Error ? err.message : "Account save failed.",
@@ -387,7 +399,10 @@ export function useWorkspaceSync(
             const r = cloud.records.find(
               (r) => workspaceKey(r) === workspaceKey(v),
             );
-            if (r?.deletedAt) continue;
+            if (r?.deletedAt) {
+              if (v.kind === "daily_note") writes.push(recreateDailyNote(v, r));
+              continue;
+            }
             if (!r || !workspaceEqual(r, v))
               writes.push({
                 ...v,
@@ -471,6 +486,10 @@ export function useWorkspaceSync(
       )
         return load();
     },
+    canEditNow: () => !enabledRef.current ||
+      (!busy.current && readyOwner.current === state.current.owner &&
+        !!state.current.owner && workspaceOwnerCurrent(state.current.owner) &&
+        ["saved", "local"].includes(phaseRef.current)),
     hasWorkspace: !enabled || readyOwner.current === owner,
     allowEdit:
       !enabled ||
@@ -560,7 +579,7 @@ export function WorkspaceSyncPanel({
             {sync.preview?.conflicts.length} differences ·{" "}
             {sync.preview?.cloudOnly} account-only records ·{" "}
             {sync.deletions.length} pending browser deletions. Deleted account
-            records stay deleted.
+            trades stay deleted. Choosing browser changes explicitly recreates listed deleted daily notes.
           </p>
           {sync.preview?.conflicts.map(({ local, remote }) => (
             <details key={workspaceKey(local)}>
@@ -580,7 +599,7 @@ export function WorkspaceSyncPanel({
               if (
                 (!sync.preview?.conflicts.length && !sync.deletions.length) ||
                 window.confirm(
-                  "Use this browser’s version for every listed difference and apply the listed deletions? Other account-only records are kept.",
+                  "Use this browser’s version for every listed difference and apply the listed deletions? Listed deleted daily notes will be recreated; deleted trades stay deleted. Other account-only records are kept.",
                 )
               )
                 void sync.choose(true);

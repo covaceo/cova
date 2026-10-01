@@ -223,10 +223,13 @@ export function assertWrites(
         "payload",
         "expectedRevision",
         "deleted",
+        "recreateDailyNote",
       ]) ||
       !Number.isSafeInteger((r as any).expectedRevision) ||
       (r as any).expectedRevision < 0 ||
       typeof (r as any).deleted !== "boolean" ||
+      ("recreateDailyNote" in r && ((r as any).recreateDailyNote !== true ||
+        r.kind !== "daily_note" || (r as any).deleted || (r as any).expectedRevision < 1)) ||
       (r.kind === "broker_cash" && !(r as any).deleted)
     )
       throw Error("Invalid workspace change.");
@@ -238,8 +241,8 @@ export function assertWrites(
 export function assertRecords(
   rows: unknown,
 ): asserts rows is WorkspaceRecord[] {
-  if (!Array.isArray(rows) || rows.length > 100000)
-    throw Error("Workspace snapshot is too large.");
+  if (!Array.isArray(rows))
+    throw Error("Invalid workspace snapshot.");
   const seen = new Set();
   for (const r of rows) {
     assertValue(r, !!r?.deletedAt);

@@ -33,7 +33,8 @@ const rangeOptions: { id: TimeRange; label: string }[] = [
   { id: "all", label: "All trades" },
 ];
 
-export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, onSaveTradeNote, journalReview = journalReviewEnabled(), accountControl, journalActions, onConfirmManualNet, onAddManualTrade, onDeleteManualTrade, manualAccounts = ["local"], selectedAccount = "local" }: {
+export function Dashboard({ noteDraftOwner, analysis, rules, go, rithmicSyncAvailable = false, onSaveTradeNote, journalReview = journalReviewEnabled(), accountControl, journalActions, onConfirmManualNet, onAddManualTrade, onDeleteManualTrade, manualAccounts = ["local"], selectedAccount = "local" }: {
+  noteDraftOwner?: string;
   journalActions?: JournalActions;
   onAddManualTrade?: AddManualTrade;
   onConfirmManualNet?: ConfirmManualNet;
@@ -155,7 +156,7 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, o
     {manualOpen && onAddManualTrade && <ManualTradeDialog accounts={manualAccounts} selected={selectedAccount} onSave={onAddManualTrade} onClose={() => setManualOpen(false)} />}
     {!hasTradeHistory && <MiniJournal initialDate={new Date().toLocaleDateString("en-CA")} actions={journalActions} trades={analysis.trades} onOpenTrade={id => { setAttachedTradeId(id); setHistoryOpen(true); }} />}
     {historyOpen && <TradeHistoryDialog attachedTradeId={attachedTradeId} trades={analysis.trades} journalReview={journalReview} onClose={() => setHistoryOpen(false)} />}
-    <DashboardTradeDialog journalReview={journalReview} trade={selectedTrade} onClose={() => setSelectedTradeId(null)} onSave={noteSaveRef.current} onDelete={onDeleteManualTrade} />
+    <DashboardTradeDialog draftOwner={noteDraftOwner} journalReview={journalReview} trade={selectedTrade} onClose={() => setSelectedTradeId(null)} onSave={noteSaveRef.current} onDelete={onDeleteManualTrade} />
   </section>;
 }
 

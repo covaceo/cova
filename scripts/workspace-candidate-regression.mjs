@@ -173,3 +173,30 @@ test('migration collection preserves IDs, scope and exact originals; excludes un
 test('ambiguous local trade identities stop migration instead of deduplicating',async()=>{
  const {stableWorkspaceTrades}=load('src/lib/workspaceLocal.ts');await assert.rejects(stableWorkspaceTrades([trade(),{...trade(),pnl:999}]),/Duplicate trade identity/);
 });
+
+test("definitive rejected plan is archived and rebuildable; ambiguous failures retain exact replay",async()=>{
+ data.clear();const first=batches.prepareWorkspaceBatches(owner,Array.from({length:26},(_,i)=>write("manual-repair-"+i)),meta);
+ await assert.rejects(batches.sendWorkspaceBatches(owner,{apply:async()=>{throw Object.assign(Error("cap"),{definitiveRejection:true,status:422});}},()=>true),/cap/);
+ assert.equal(batches.readWorkspaceBatchPlan(owner),null);
+ assert([...data.keys()].some(k=>k.includes(":rejected:")));
+ const next=batches.prepareWorkspaceBatches(owner,Array.from({length:25},(_,i)=>write("manual-repair-"+i)),meta);
+ assert.notEqual(next.batches[0].id,first.batches[0].id);
+ const attempts=[];
+ await assert.rejects(batches.sendWorkspaceBatches(owner,{apply:async(id,rows)=>{attempts.push({id,rows});throw Error("lost response");}},()=>true),/lost response/);
+ await batches.sendWorkspaceBatches(owner,{apply:async(id,rows)=>{attempts.push({id,rows});return {records:[]};}},()=>true);
+ assert.deepEqual(attempts[0],attempts[1]);
+});
+
+test("snapshot restart discards partial rows and rejects cross-owner or truncated pages",async()=>{
+ const {readCompleteWorkspace}=load("src/lib/workspaceSnapshot.ts");
+ const make=(note)=>({...value(),payload:{...trade(),notes:note},revision:1,createdAt:"2026-10-01T00:00:00Z",updatedAt:"2026-10-01T00:00:00Z",deletedAt:null});
+ const encode=r=>Buffer.from(JSON.stringify(r)+"\n").toString("base64");
+ let restarted=false;
+ const result=await readCompleteWorkspace(owner,async cursor=>{
+  if(cursor.offset && !restarted){restarted=true;throw Object.assign(Error("changed"),{status:409});}
+  return {owner,consent:true,revision:restarted?2:1,pendingWrite:null,chunk:cursor.offset?"":encode(make(restarted?"new":"old")),next:cursor.offset?null:{offset:1,byteOffset:0}};
+ });
+ assert.equal(result.records.length,1);assert.equal(result.records[0].payload.notes,"new");
+ await assert.rejects(readCompleteWorkspace(owner,async()=>({owner:"other",consent:true,revision:1,chunk:"",next:null})),/Invalid/);
+ await assert.rejects(readCompleteWorkspace(owner,async()=>({owner,consent:true,revision:1,chunk:Buffer.from('{"kind":').toString("base64"),next:null})),/Incomplete/);
+});

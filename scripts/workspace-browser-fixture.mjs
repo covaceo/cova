@@ -13,7 +13,7 @@ const built = await build({
 });
 const dir = mkdtempSync(join(tmpdir(), "cova-sync-browser-"));
 writeFileSync(join(dir, "api.mjs"), built.output[0].code);
-const { createWorkspaceHandler } = await import(
+const { createWorkspaceHandler, WorkspaceOperationRejection } = await import(
   pathToFileURL(join(dir, "api.mjs"))
 );
 const db = new PGlite();
@@ -75,11 +75,9 @@ const rest = async (path, o) => {
       )
     ).rows[0].result;
   } catch (e) {
-    throw Object.assign(e, {
-      statusCode: /revision_conflict|deleted_record/.test(e.message)
-        ? 409
-        : 503,
-    });
+    if (["revision_conflict","deleted_record","trade_cap_exceeded"].includes(e.message))
+      throw new WorkspaceOperationRejection(e.message==="trade_cap_exceeded"?422:409,e.message,b.p_operation,e.message);
+    throw e;
   }
 };
 const handler = createWorkspaceHandler({
@@ -95,7 +93,7 @@ window.__owner=new URLSearchParams(location.search).get('owner')||'11111111-1111
 function App(){const[owner,setOwner]=useState(window.__owner),[trades,setTrades]=useState(()=>JSON.parse(localStorage.getItem('cova-react-risk-os-v2:'+owner)||'{}').trades||[]),[rules,setRules]=useState(()=>JSON.parse(localStorage.getItem('cova-react-risk-os-v2:'+owner)||'{}').rules||defaultRules),[account,setAccount]=useState('all');const sync=useWorkspaceSync(owner,trades,rules,(t,r)=>{setTrades(t);setRules(r);});
 React.useEffect(()=>{if(sync.allowEdit)persistTradingLedger('cova-react-risk-os-v2:'+owner,JSON.stringify({trades,rules,tradeAccount:account}));},[owner,trades,rules,account,sync.allowEdit]);
 window.__sync=sync;window.__rows=trades;window.__rules=rules;window.__setNote=note=>setTrades(t=>t.map(r=>({...r,notes:note})));window.__switchOwner=o=>{window.__owner=o;setActiveStorageIdentity(o);setOwner(o);setTrades([]);setRules(defaultRules);};
-return <><WorkspaceSyncPanel sync={sync}/><fieldset disabled={!sync.allowEdit}><select aria-label='Trade account' value={account} onChange={e=>{if(window.dispatchEvent(new Event('cova:before-account-change',{cancelable:true})))setAccount(e.target.value);}}><option value='all'>All accounts</option><option value='local'>CSV / local history</option></select><button onClick={()=>setTrades(t=>[...t,{id:'manual-'+crypto.randomUUID(),date:'2026-10-01',market:'ES',side:'Long',contracts:1,entry:100,exit:101,pnl:25,risk:0,riskStatus:'missing',setup:'',notes:'Trade A',manual:{accountKey:'local',currency:'USD',pnlBasis:'reported_net'}}])}>Add synthetic trade</button><button onClick={()=>setRules(r=>r.map(x=>x.metric==='maxDailyLoss'?{...x,limit:1250}:x))}>Set loss limit</button><MiniJournal key={owner+account} initialDate='2026-10-01' trades={trades} actions={{read:date=>readDailyJournalEntry(owner,account,date).note,readEntry:date=>readDailyJournalEntry(owner,account,date),save:(date,n,id)=>saveDailyJournal(owner,account,date,n,id)}}/></fieldset><output id='rows'>{JSON.stringify(trades)}</output><output id='phase'>{sync.phase}</output></>};createRoot(document.getElementById('root')).render(<App/>);`;
+return <><WorkspaceSyncPanel sync={sync}/><fieldset disabled={!sync.allowEdit}><select aria-label='Trade account' value={account} onChange={e=>{if(window.dispatchEvent(new Event('cova:before-account-change',{cancelable:true})))setAccount(e.target.value);}}><option value='all'>All accounts</option><option value='local'>CSV / local history</option></select><button onClick={()=>setTrades(t=>[...t,{id:'manual-'+crypto.randomUUID(),date:'2026-10-01',market:'ES',side:'Long',contracts:1,entry:100,exit:101,pnl:25,risk:0,riskStatus:'missing',setup:'',notes:'Trade A',manual:{accountKey:'local',currency:'USD',pnlBasis:'reported_net'}}])}>Add synthetic trade</button><button onClick={()=>setRules(r=>r.map(x=>x.metric==='maxDailyLoss'?{...x,limit:1250}:x))}>Set loss limit</button><MiniJournal key={owner+account} initialDate='2026-10-01' trades={trades} actions={{draftKey:JSON.stringify([owner,account]),read:date=>readDailyJournalEntry(owner,account,date).note,readEntry:date=>readDailyJournalEntry(owner,account,date),save:(date,n,id)=>saveDailyJournal(owner,account,date,n,id)}}/></fieldset><output id='rows'>{JSON.stringify(trades)}</output><output id='phase'>{sync.phase}</output></>};createRoot(document.getElementById('root')).render(<App/>);`;
 writeFileSync("scripts/.workspace-fixture.tsx", entry);
 const server = await createServer({
   configFile: false,
@@ -107,7 +105,9 @@ const server = await createServer({
       enforce: "pre",
       load(id) {
         if (id.endsWith("/src/lib/supabaseClient.ts"))
-          return `export const getSupabaseClient=()=>({auth:{getSession:async()=>({data:{session:{user:{id:window.__owner},access_token:'qa-'+window.__owner}}})}});`;
+          return readFileSync("src/lib/supabaseClient.ts","utf8").replace("export function getSupabaseClient() {","function unusedRealSupabaseClient() {").replace("export function getSupabaseAuthSessionId(accessToken: string)","function unusedRealSessionId(accessToken: string)") + `
+export const getSupabaseAuthSessionId=()=>"qa-session";
+export const getSupabaseClient=()=>({auth:{getSession:async()=>({data:{session:window.__qaSession||{user:{id:window.__owner},access_token:'qa-'+window.__owner}}}),onAuthStateChange:()=>({data:{subscription:{unsubscribe(){}}}}),signOut:async()=>({error:null})}});`;
       },
       configureServer(s) {
         s.middlewares.use(async (req, res, next) => {

@@ -199,6 +199,9 @@ export default function App() {
     setRules(nextRules);
   });
 
+  const currentLedgerFields = useRef({ rules, tradeAccount });
+  currentLedgerFields.current = { rules, tradeAccount };
+
   useEffect(() => {
     if (isSignedIn && workspaceSync.allowEdit) {
       if (!persistTradingLedger(scopedStorageKey(STORAGE_KEY), JSON.stringify({ trades, rules, tradeAccount }))) {
@@ -429,6 +432,7 @@ export default function App() {
   }, []);
 
   function go(next: Section) {
+    if (next !== section && !window.dispatchEvent(new Event("cova:before-account-change", {cancelable:true}))) return;
     setMobileOpen(false);
     setSection(next);
   }
@@ -1167,7 +1171,7 @@ export default function App() {
   }
 
   function getCurrentImportPrincipal(): ImportPrincipal | null {
-    if (!workspaceSync.allowEdit) return null;
+    if (!workspaceSync.canEditNow()) return null;
     const session = authSessionRef.current;
     const identity = toImportPrincipalIdentity(session);
     if (!identity) return null;
@@ -1180,6 +1184,7 @@ export default function App() {
 
   const dashboardSelectionCurrent = historySelection.current.capture();
   const journalActions = {
+    draftKey: dashboardPrincipal ? JSON.stringify([dashboardPrincipal.identity, tradeAccount]) : undefined,
     read: (date: string) => dashboardPrincipal && dashboardSelectionCurrent() && isImportPrincipalCurrent(dashboardPrincipal,getCurrentImportPrincipal()) ? readDailyJournal(dashboardPrincipal.identity,tradeAccount,date) : "",
     readEntry: (date: string) => dashboardPrincipal && dashboardSelectionCurrent() && isImportPrincipalCurrent(dashboardPrincipal,getCurrentImportPrincipal()) ? readDailyJournalEntry(dashboardPrincipal.identity,tradeAccount,date) : {note:"",tradeId:null},
     save: (date: string, note: string, tradeId?: string | null) => Boolean(dashboardPrincipal && dashboardSelectionCurrent() && isImportPrincipalCurrent(dashboardPrincipal,getCurrentImportPrincipal()) && canAttachJournalTrade(tradesRef.current,tradeAccount,tradeId) && saveDailyJournal(dashboardPrincipal.identity,tradeAccount,date,note,tradeId)),
@@ -1211,6 +1216,14 @@ export default function App() {
   function saveTradeNote(id: string, notes: string) {
     const nextTrades = saveDashboardTradeNote(tradesRef.current, id, notes, dashboardPrincipal, getCurrentImportPrincipal());
     if (!nextTrades) return false;
+    const key = scopedStorageKey(STORAGE_KEY);
+    const ledger = JSON.stringify({ trades: nextTrades, ...currentLedgerFields.current });
+    let persisted = false;
+    try { persisted = persistTradingLedger(key, ledger) && localStorage.getItem(key) === ledger; } catch { /* Draft remains recoverable. */ }
+    if (!persisted) {
+      announce("Trade note not saved. Keep the draft and free browser storage.", "warning");
+      return false;
+    }
     tradesRef.current = nextTrades;
     setTrades(nextTrades);
     announce("Trade note saved to this account on this browser.", "success");
@@ -1366,7 +1379,7 @@ export default function App() {
 
                 </div>
               )}
-              {section === "dashboard" && <Dashboard key={`${authSession?.userId || authSession?.email}:${tradeAccount}`} analysis={analysis} rules={rules} go={go} accountControl={ <div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={[...new Set([...tradeAccounts,"local"])]} value={tradeAccount} onChange={selectTradeAccount} /></div>} onSaveTradeNote={saveTradeNote} journalActions={journalActions} onConfirmManualNet={confirmManualNetRows} onAddManualTrade={addManualTrade} onDeleteManualTrade={deleteManualTrade} manualAccounts={[...new Set([...tradeAccounts,"local"])]} selectedAccount={tradeAccount} rithmicSyncAvailable={brokerStatus?.provider === "Rithmic" && brokerStatus.status === "imported"} />}
+              {section === "dashboard" && <Dashboard noteDraftOwner={dashboardPrincipal?.identity} key={`${authSession?.userId || authSession?.email}:${tradeAccount}`} analysis={analysis} rules={rules} go={go} accountControl={ <div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={[...new Set([...tradeAccounts,"local"])]} value={tradeAccount} onChange={selectTradeAccount} /></div>} onSaveTradeNote={saveTradeNote} journalActions={journalActions} onConfirmManualNet={confirmManualNetRows} onAddManualTrade={addManualTrade} onDeleteManualTrade={deleteManualTrade} manualAccounts={[...new Set([...tradeAccounts,"local"])]} selectedAccount={tradeAccount} rithmicSyncAvailable={brokerStatus?.provider === "Rithmic" && brokerStatus.status === "imported"} />}
               {section === "import" && <ImportDesk key={authSession?.userId || authSession?.email} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} entitlements={entitlements} importCsv={importCsv} prepareImportCsv={prepareImportCsv} openFirmOAuth={openFirmOAuth} status={status} reset={() => { if (workspaceSync.enabled) { announce("Keep sample trades separate from your saved account workspace.", "info"); return; } const demoTrades = entitlements.plan === "free" ? sampleTrades.slice(0, entitlements.maxStoredTrades) : sampleTrades; tradesRef.current = demoTrades; setTrades(demoTrades); selectTradeAccount("local"); setRules(defaultRules); clearBrokerStatus(); window.dispatchEvent(new CustomEvent("cova:broker-status")); setStatus("Demo trades restored."); announce("Demo trades restored.", "success"); }} upgradeToPro={upgradeToPro} />}
               {section === "oauth" && <OAuthConnectPage firmId={oauthFirmId} onApprove={completeFirmOAuth} onCancel={cancelFirmOAuth} />}
               {section === "rules" && <RulesEngine analysis={analysis} entitlements={entitlements} rules={rules} setRules={setRules} go={go} upgradeToPro={upgradeToPro} accountControl={tradeAccounts.some(account => account !== "local") ? <div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} value={tradeAccount} onChange={selectTradeAccount} /></div> : undefined} />}
