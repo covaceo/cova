@@ -25,5 +25,5 @@ test('two extra city options preserve every existing preset and export size',()=
   {id:'asia',label:'Asia',src:'/recaps/asia.webp'},
   {id:'plain',label:'Plain',src:''},
  ]);
- assert.deepEqual(recapFormats.map(({id,width,height})=>({id,width,height})),[{id:'story',width:1080,height:1920},{id:'feed',width:1080,height:1350},{id:'square',width:1080,height:1080}]);
+ assert.deepEqual(recapFormats.map(({id,width,height})=>({id,width,height})),[{id:'wide',width:1080,height:580},{id:'story',width:1080,height:1920},{id:'feed',width:1080,height:1350},{id:'square',width:1080,height:1080}]);
 });

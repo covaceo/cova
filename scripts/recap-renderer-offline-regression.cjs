@@ -12,7 +12,7 @@ const root = process.cwd();
 for (const [file, family] of [['recap-space-grotesk.ttf', 'Cova Recap Space Grotesk'], ['recap-instrument-serif.ttf', 'Cova Recap Instrument Serif']]) {
   assert(GlobalFonts.registerFromPath(path.join(root, 'public/fonts', file), family), `${family} registered from real bundled font`);
 }
-let ink = [], draws = [];
+let ink = [], draws = [], arcs = [];
 global.Image = class Image extends CanvasImage {
   set src(value) { super.src = typeof value === 'string' && value.startsWith('/') ? path.join(root, 'public', value) : value; }
   get src() { return super.src; }
@@ -27,10 +27,11 @@ global.document = {
     assert.equal(tag, 'canvas');
     const canvas = createCanvas(300, 150), getContext = canvas.getContext.bind(canvas);
     canvas.getContext = kind => {
-      const ctx = getContext(kind), fill = ctx.fillText.bind(ctx), draw = ctx.drawImage.bind(ctx);
+      const ctx = getContext(kind), fill = ctx.fillText.bind(ctx), draw = ctx.drawImage.bind(ctx), arc = ctx.arc.bind(ctx);
+      ctx.arc = (...args) => { arcs.push(args); return arc(...args); };
       ctx.fillText = (text, x, y) => {
         const m = ctx.measureText(text);
-        ink.push({ text, x, y, font: ctx.font, color: ctx.fillStyle, left: x - m.actualBoundingBoxLeft, right: x + m.actualBoundingBoxRight, top: y - m.actualBoundingBoxAscent, bottom: y + m.actualBoundingBoxDescent });
+        ink.push({ text, x, y, font: ctx.font, color: ctx.fillStyle, width: m.width, align: ctx.textAlign, left: x - m.actualBoundingBoxLeft, right: x + m.actualBoundingBoxRight, top: y - m.actualBoundingBoxAscent, bottom: y + m.actualBoundingBoxDescent });
         return fill(text, x, y);
       };
       ctx.drawImage = (image, ...args) => { draws.push({ width: image.width, height: image.height, args }); return draw(image, ...args); };
@@ -49,6 +50,7 @@ const amounts = ['64000', '-1', '0', '9007199254740991', '-9007199254740991'];
 const cases = [], receipts = [];
 for (const background of recapBackgrounds) for (const format of recapFormats) cases.push({ name: `${background.id}-${format.id}`, recap: sample, format: format.id, background: background.id });
 for (const format of recapFormats) {
+  for (const username of ['a', 'a_very_long_valid_username_123456', 'x'.repeat(200)]) cases.push({name: `identity-${username.length}-${format.id}`,recap:sample,format:format.id,background:'blue-tower',username});
   for (const totalCents of amounts) cases.push({ name: `currency-${totalCents}-${format.id}`, recap: { ...sample, totalCents }, format: format.id, background: 'plain' });
   // Synthetic unit fixtures isolate the existing conditional text paths. Never production records.
   cases.push({ name: `streak-${format.id}`, recap: { ...sample, sample: false, fees: { signedCents: '-1234', netCashCents: '62766', asOf: '2026-09-18T14:15:00.000Z' }, hotStreak: { days: 3, atLeast: false }, countLabel: 'Trade entries' }, format: format.id, background: 'cloud-towers', username: 'recap_qa' });
@@ -58,18 +60,20 @@ for (const format of recapFormats) {
 }
 (async () => {
   for (const input of cases) {
-    ink = []; draws = [];
+    ink = []; draws = []; arcs = [];
     const blob = await renderSessionRecap(input, undefined, input.foregroundOnly);
     const bytes = Buffer.from(await blob.arrayBuffer()), preset = recapFormats.find(f => f.id === input.format);
     assert.equal(blob.type, 'image/png'); assert.equal(bytes.readUInt32BE(16), preset.width); assert.equal(bytes.readUInt32BE(20), preset.height);
     const amount = ink.find(t => t.text === model.recapMoney(model.recapHeadlineCents(input.recap)));
     assert(amount, `${input.name}: complete signed currency present`);
     assert.match(amount.font, /^400 .*Cova Recap Instrument Serif/);
-    assert.equal(amount.x, 540); assert(amount.left >= 76 && amount.right <= 1004, `${input.name}: currency stays inside safe margins`);
+    assert.equal(amount.x, 56); assert(amount.left >= 54 && amount.right <= 1024, `${input.name}: currency stays inside safe margins`);
     const net = BigInt(model.recapHeadlineCents(input.recap));
     const amountPasses = ink.filter(t => t.text === amount.text && t.font.includes('Cova Recap Instrument Serif'));
     assert.deepEqual(amountPasses.map(t => t.color), net > 0n ? ['#76d5ad', '#f4f5f6'] : [net < 0n ? '#fdb6b5' : '#f4f5f6']);
     for (const text of ink) assert(text.left >= 0 && text.right <= 1080 && text.top >= 0 && text.bottom <= preset.height, `${input.name}: text clipped ${text.text}`);
+    const identity = ink.find(t=>t.text.startsWith('@'));
+    if (input.username) { const date=ink.find(t=>t.text===input.recap.dateLabel);assert.equal(identity.x,date.x);assert.equal(identity.align,'right');assert(identity.right<=1025);assert.equal(arcs[0][0]+20,identity.x-identity.width-10);assert(arcs[0][0]-20>306);assert.equal(arcs[0][1],identity.y-10); } else { assert.equal(identity,undefined);assert.equal(arcs.length,0); }
     const market = ink.find(t => t.text === input.recap.markets);
     assert(amount.top >= market.bottom + 8, `${input.name}: market and currency do not overlap`);
     const secondary = ink.find(t => t.text === model.recapHotStreakLine(input.recap) || t.text === input.recap.basis);
@@ -80,7 +84,7 @@ for (const format of recapFormats) {
     }
     for (const text of [String(input.recap.count), input.recap.winRate, input.recap.countLabel, 'Win rate', 'covadesk.com', input.recap.dateLabel]) assert(ink.some(t => t.text === text), `${input.name}: retained ${text}`);
     assert.equal(ink.some(t => t.text === 'Sample data · Not a live account'), input.recap.sample);
-    assert.equal(ink.some(t => t.text.includes('HOT STREAK')), Boolean(model.recapHotStreakLine(input.recap)));
+    assert.equal(ink.some(t => t.text.includes('HOT STREAK')), false);
     assert(draws.some(d => d.width === 1375 && d.height === 318), `${input.name}: original Cova wordmark drawn`);
     receipts.push({ name: input.name, width: preset.width, height: preset.height, outputSha256: hash(bytes), amount, textCount: ink.length });
   }

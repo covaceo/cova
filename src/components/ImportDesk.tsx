@@ -1,3 +1,4 @@
+import { recordRecapSync } from '../lib/recapVerification';
 import { saveBrokerCash } from '../lib/brokerCash';
 import { useEffect, useMemo, useRef, useState } from "react";
 import { rememberAccountNames, readAccountNames, accountDisplayName } from "../lib/accountNames";
@@ -14,7 +15,7 @@ import { BrokerConnectPanel, CsvExportGuide, CsvPreview, CsvUploadPanel } from "
 
 type ImportMode = "append" | "replace" | "merge";
 type ImportCommit = (text: string, mode?: ImportMode) => TradeMergeResult["receipt"] | null;
-type PreparedImport = { commit: ImportCommit; isCurrent: () => boolean; scopeKey: string; commitHistory: (text: string, accountId: string, coverage: string) => TradeMergeResult["receipt"] | null };
+type PreparedImport = { commit: ImportCommit; commitBroker: (text: string) => TradeMergeResult["receipt"] | null; isCurrent: () => boolean; scopeKey: string; commitHistory: (text: string, accountId: string, coverage: string) => TradeMergeResult["receipt"] | null };
 type PrepareImportCsv = () => PreparedImport | null;
 type ImportEntitlements = {
   canUseDirectSync: boolean;
@@ -283,6 +284,7 @@ export function ImportDesk({ entitlements, importCsv, prepareImportCsv, openFirm
       if (verified.count > 0) {
         const receipt = preparedImport.commitHistory(verified.csv, verified.accountId, coverage);
         if (!receipt) throw new Error("The active Cova account changed. Nothing was imported.");
+        recordRecapSync(preparedImport.scopeKey, current.connectionId, data);
         notice = `${receipt.added} new, ${receipt.corrected} corrected, ${receipt.unchanged} unchanged. ${coverage}`;
       }
       for (const item of verified.accounts) {
@@ -377,7 +379,7 @@ export function ImportDesk({ entitlements, importCsv, prepareImportCsv, openFirm
         throw new Error("Rithmic returned an inconsistent trade ledger, so Cova did not import it.");
       }
       requireCurrentRequest();
-      const mergeReceipt = preparedImport.commit(data.csv, "merge");
+      const mergeReceipt = preparedImport.commitBroker(data.csv);
       if (!mergeReceipt) {
         throw new Error("Rithmic history passed validation but the active Cova account changed before it could be merged.");
       }

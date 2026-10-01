@@ -179,3 +179,58 @@
   .recap-dialog :is(button, select, input, summary):focus-visible { outline-color: Highlight; }
   .recap-editor:focus-visible { outline-color: Highlight; }
 }
+
+/* Approved recap concept: wide artwork above a quiet, single-column composer. */
+.recap-dialog { width: min(1080px, calc(100vw - 32px)); padding: 0; background: #080909; border-color: #292b2b; --recap-blue: #00dfbf; --recap-focus: #62ffe6; }
+.recap-heading { padding: 16px 28px; }
+.recap-heading h2 { font-size: 20px; }
+.recap-body { display: flex; flex-direction: column; gap: 0; }
+.recap-stage { position: relative; top: auto; width: 100%; height: auto; min-height: 260px; --recap-preview-height: 640px; padding: 0; background: #000; border-radius: 0; }
+.recap-stage > img { max-height: 640px; border-radius: 0; box-shadow: none; }
+.recap-stage[data-format=wide] { min-height: 0; aspect-ratio: 54 / 29; }
+.recap-stage[data-format=wide] > img { width: 100%; height: auto; max-height: none; }
+.recap-controls { width: 100%; padding: 24px 36px 30px; gap: 20px; border-top: 1px solid #292b2b; }
+.recap-controls > .recap-field { order: 0; }
+.recap-controls > fieldset:not(.recap-background-field) { order: 1; }
+.recap-controls > .recap-background-field { order: -1; }
+.recap-background-field { position: relative; }
+.recap-background-field legend { font-size: 25px; margin-bottom: 24px; }
+.recap-pnl-toggle { position: absolute; top: -58px; right: 0; display: flex; align-items: center; gap: 14px; font-size: 22px; font-weight: 500; cursor: pointer; }
+.recap-pnl-toggle input { appearance: none; width: 56px; height: 32px; border-radius: 999px; background: #4b5050; margin: 0; cursor: pointer; }
+.recap-pnl-toggle input::before { content: ''; display: block; width: 26px; height: 26px; margin: 3px; border-radius: 50%; background: #fff; transition: transform .15s; }
+.recap-pnl-toggle input:checked { background: #00dfbf; }
+.recap-pnl-toggle input:checked::before { transform: translateX(24px); }
+.recap-backgrounds { gap: 15px 18px; }
+.recap-backgrounds button { font-size: 16px; gap: 8px; }
+.recap-swatch { height: auto; aspect-ratio: 2.1; background: #000; border: 1px solid #262929; }
+.recap-backgrounds [aria-pressed=true] .recap-swatch { border: 3px solid #00e6c5; box-shadow: 0 0 0 1px #00e6c5; }
+.recap-field select, .recap-formats { background: #111414; border-color: #353b3b; }
+.recap-formats button[aria-pressed=true] { background: #303636; border-color: #5d6e6b; box-shadow: none; }
+.recap-controls > *:not(fieldset):not(.recap-field) { order: 2; }
+.recap-dialog .recap-upload { min-height: 44px; background: #101313; border-color: #3b4644; }
+.recap-export { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 12px; }
+.recap-export button, .recap-export [data-recap-download], .recap-export [data-recap-gif-download] { min-height: 62px; background: #f7f8f8; color: #070909; border-color: #fff; box-shadow: none; font-size: 20px; font-weight: 600; }
+.recap-controls textarea { width: 100%; min-height: 90px; padding: 12px; background: #111414; color: #fff; border: 1px solid #52615f; border-radius: 8px; resize: vertical; }
+.recap-output-note { margin: 0; }
+@media (max-width: 600px) {
+  .recap-dialog { width: calc(100vw - 16px); padding: 0; }
+  .recap-heading { padding: 8px 16px; }
+  .recap-heading h2 { font-size: 18px; }
+  .recap-controls { padding: 20px 16px; }
+  .recap-background-field legend { font-size: 20px; }
+  .recap-pnl-toggle { font-size: 16px; gap: 8px; }
+  .recap-backgrounds { gap: 12px 9px; }
+  .recap-backgrounds button { font-size: 12px; }
+  .recap-export button, .recap-export [data-recap-download], .recap-export [data-recap-gif-download] { font-size: 15px; min-height: 52px; padding: 10px; }
+  .recap-stage { --recap-preview-height: 520px; }
+  .recap-stage > img { max-height: 520px; }
+}
+
+.recap-dialog .recap-pnl-toggle input { display: block; min-height: 32px; min-width: 56px; padding: 0; border: 0; box-shadow: none; flex: 0 0 56px; }
+.recap-dialog .recap-pnl-toggle input:checked { background: #00dfbf; }
+/* Override the workspace's global input background rule for this switch only. */
+.recap-dialog .recap-pnl-toggle input { background-color: #4b5050 !important; }
+.recap-dialog .recap-pnl-toggle input:checked { background-color: #00dfbf !important; }
+.recap-dialog .recap-pnl-toggle input { border-radius: 999px !important; }
+.recap-dialog .recap-export button { font-size: 20px; font-weight: 600; }
+@media (max-width: 600px) { .recap-dialog .recap-export button { font-size: 15px; } }

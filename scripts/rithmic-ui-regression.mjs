@@ -75,7 +75,7 @@ assert.match(vercel, /"api\/rithmic\/status\.js"\s*:\s*\{\s*"maxDuration"\s*:\s*
 assert.match(importDesk, /mode: "ephemeral"/, "Rithmic history must be labeled imported, not persistently linked.");
 assert.match(rithmicZeroTradeBranch, /status: "imported"[\s\S]*writeBrokerStatus\(nextStatus\)[\s\S]*return data/, "A verified zero-trade Rithmic login must persist an ephemeral sync receipt for dashboard resync.");
 assert.match(rithmicZeroTradeBranch, /Already up to date/, "A successful zero-row Rithmic resync must report a truthful zero-change receipt.");
-assert.match(importDesk, /const mergeReceipt = preparedImport\.commit\(data\.csv, "merge"\)/, "Rithmic resync must merge stable provider trade ids through the captured principal guard.");
+assert.match(importDesk, /const mergeReceipt = preparedImport\.commitBroker\(data\.csv\)/, "Rithmic resync must merge stable provider trade ids through the captured principal guard.");
 assert.match(importDesk, /Already up to date/, "A zero-change resync needs a truthful receipt.");
 assert.match(importDesk, /mergeReceipt\.added[\s\S]*mergeReceipt\.corrected[\s\S]*mergeReceipt\.unchanged/, "The Rithmic receipt must distinguish new, corrected, and unchanged trades.");
 assert.match(app, /mergeTradeLedger\(currentTrades, acceptedTrades\)/, "The product import boundary must execute the tested account-safe merge against the latest ledger.");

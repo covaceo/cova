@@ -11,9 +11,10 @@ const renderer = load('src/lib/sessionRecapImage.ts');
 const { recapMoney } = load('src/lib/sessionRecap.ts');
 const css = postcss.parse(readFileSync('src/styles/sessionRecap.css', 'utf8'));
 const layouts = {
-  story: { height: 1920, head: 160, title: 1136, market: 1200, amount: 1416, basis: 1488, font: 202, streak: 1498, stat: 1570, label: 1616, footer: 1714, website: 1758, sample: 1812, fade: [760, 1470] },
-  feed: { height: 1350, head: 86, title: 676, market: 740, amount: 952, basis: 1016, font: 192, streak: 1028, stat: 1100, label: 1142, footer: 1220, website: 1264, sample: 1310, fade: [348, 1012] },
-  square: { height: 1080, head: 78, title: 432, market: 492, amount: 696, basis: 760, font: 182, streak: 772, stat: 840, label: 882, footer: 966, website: 1010, sample: 1048, fade: [170, 770] },
+ wide: { height: 580, head: 78, amount: 319, font: 126, sample:564, fade:[0,580] },
+ story: { height:1920, head:112, amount:1395, font:202, sample:1860, fade:[760,1470] },
+ feed: { height:1350, head:100, amount:920, font:192, sample:1320, fade:[348,1012] },
+ square: { height:1080, head:90, amount:680, font:182, sample:1050, fade:[170,770] },
 };
 const fixture = (netCashCents = '62766') => ({
   id: 'daily:2026-09-18', kind: 'daily', date: '2026-09-18', title: 'Daily recap', dateLabel: 'Sep 18, 2026',
@@ -53,7 +54,7 @@ function installCanvasRecorder(t) {
           // pretending to measure browser kerning or final raster appearance.
           const size = Number(this.font.match(/([\d.]+)px/)[1]);
           const width = value.length * size * .5;
-          return { width, actualBoundingBoxLeft: 0, actualBoundingBoxRight: width + 2 };
+          return { width, actualBoundingBoxLeft: 0, actualBoundingBoxRight: width + 2, actualBoundingBoxAscent: size * .72, actualBoundingBoxDescent: size * .2 };
         },
         fillText(value, x, y) { canvas.ink.push({ value, x, y, font: this.font, align: this.textAlign, color: this.fillStyle, spacing: this.letterSpacing, shadowColor: this.shadowColor, shadowBlur: this.shadowBlur, shadowOffsetX: this.shadowOffsetX, shadowOffsetY: this.shadowOffsetY, clips: structuredClone(this.activeClips), ...this.measureText(value) }); },
         drawImage(image, ...rect) { canvas.draws.push({ source: image.source, rect }); },
@@ -61,7 +62,7 @@ function installCanvasRecorder(t) {
         createLinearGradient(...rect) { const gradient = { type: 'linear', rect, stops: [], addColorStop(at, color) { this.stops.push([at, color]); } }; canvas.gradients.push(gradient); return gradient; },
         createRadialGradient(...rect) { const gradient = this.createLinearGradient(...rect); gradient.type = 'radial'; return gradient; },
         getImageData() { canvas.grades++; return { data: new Uint8ClampedArray([10, 20, 30, 255]) }; },
-        putImageData() {}, beginPath() { path.length = 0; },
+        putImageData() {}, fill() {}, beginPath() { path.length = 0; },
         rect(...args) { path.push({ kind: 'rect', args }); },
         clip() { this.activeClips.push(structuredClone(path)); },
         arc(...args) { canvas.arcs.push(args); path.push({ kind: 'arc', args }); },
@@ -82,6 +83,7 @@ function installCanvasRecorder(t) {
 
 test('all production formats and six existing background choices remain available', () => {
   assert.deepEqual(renderer.recapFormats, [
+    { id: 'wide', label: 'Recap', width:1080, height:580 },
     { id: 'story', label: 'Story', width: 1080, height: 1920 },
     { id: 'feed', label: 'Feed', width: 1080, height: 1350 },
     { id: 'square', label: 'Square', width: 1080, height: 1080 },
@@ -97,7 +99,7 @@ test('all production formats and six existing background choices remain availabl
   for (const background of renderer.recapBackgrounds) if (background.src) assert(existsSync('public' + background.src), background.src);
 });
 
-test('PNG and GIF foreground composition use the same default signed-money rendering without a toggle', () => {
+test('PNG and GIF foreground composition use the same default signed-money rendering with the same privacy setting', () => {
   const composer = readFileSync('src/components/SessionRecapComposer.tsx', 'utf8');
   const source = ts.createSourceFile('SessionRecapComposer.tsx', composer, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const calls = [];
@@ -110,7 +112,7 @@ test('PNG and GIF foreground composition use the same default signed-money rende
   const foreground = calls.find(call => call.arguments.length === 3), normal = calls.find(call => call.arguments.length === 2);
   assert(foreground && normal);
   assert.equal(foreground.arguments[2].kind, ts.SyntaxKind.TrueKeyword);
-  for (const [call, expected] of [[foreground, ['recap', 'format', 'background', 'username', 'avatar']], [normal, ['recap', 'format', 'background', 'customPhoto', 'transform', 'username', 'avatar']]]) {
+  for (const [call, expected] of [[foreground, ['recap', 'format', 'background', 'username', 'avatar', 'showPnl', 'verificationCurrent']], [normal, ['recap', 'format', 'background', 'customPhoto', 'transform', 'username', 'avatar', 'showPnl', 'verificationCurrent']]]) {
     assert(ts.isObjectLiteralExpression(call.arguments[0]));
     assert.deepEqual(call.arguments[0].properties.map(property => property.name?.getText(source)), expected, 'No sign-color override or spread can bypass the default');
   }
@@ -142,64 +144,47 @@ test('bundled amount face is actual regular Instrument Serif with its redistribu
   assert.match(readFileSync('public/fonts/recap-space-grotesk-OFL.txt', 'utf8'), /SIL OPEN FONT LICENSE/);
 });
 
-test('the production renderer preserves exact net money, authored typography, identity and branding in all formats', async t => {
-  const state = installCanvasRecorder(t);
-  for (const [format, layout] of Object.entries(layouts)) for (const cents of ['62766', '-1000', '0', '1234567890123']) {
-    const recap = fixture(cents), before = structuredClone(recap);
-    const blob = await renderer.renderSessionRecap({ recap, format, background: 'plain', username: 'recap_qa', avatar: 'data:image/jpeg;base64,test' });
-    assert.equal(blob.type, 'image/png');
-    assert.deepEqual(recap, before, 'Rendering does not mutate financial evidence');
-    const canvas = state.canvases.at(-1), ink = value => canvas.ink.find(item => item.value === value);
-    assert.deepEqual([canvas.width, canvas.height], [1080, layout.height]);
-    const amount = ink(recapMoney(cents));
-    assert(amount, 'Complete signed amount survives fitting without an ellipsis');
-    assert.match(amount.font, /^400 \d+px "Cova Recap Instrument Serif"$/);
-    assert.equal(amount.y, layout.amount); assert.equal(amount.x, 540); assert.equal(amount.align, 'center');
-    assert(Math.max(amount.width, amount.actualBoundingBoxLeft + amount.actualBoundingBoxRight) <= 928);
-    assert(Number(amount.font.match(/(\d+)px/)[1]) <= layout.font);
-    const passes = canvas.ink.filter(item => item.value === recapMoney(cents));
-    if (BigInt(cents) > 0n) {
-      assert.equal(passes.length, 2, 'Positive money uses two complete shaped-string passes');
-      assert.deepEqual(passes.map(pass => pass.color), ['#76d5ad', '#f4f5f6']);
-      const signEnd = 540 - amount.width / 2 + Number(amount.font.match(/(\d+)px/)[1]) * .5;
-      assert.deepEqual(passes[0].clips, [[{ kind: 'rect', args: [0, 0, signEnd, layout.height] }]], 'Only the positive sign receives green');
-      assert.deepEqual(passes[1].clips, [[{ kind: 'rect', args: [signEnd, 0, 1080 - signEnd, layout.height] }]], 'The complementary clip keeps all currency digits white');
-      for (const key of ['value', 'x', 'y', 'font', 'align', 'width']) assert.equal(passes[0][key], passes[1][key], 'No reshaping between clipped passes: ' + key);
-    } else {
-      assert.equal(passes.length, 1, 'Negative and zero money remain complete single-pass lines');
-      assert.equal(amount.color, BigInt(cents) < 0n ? '#fdb6b5' : '#f4f5f6');
-      assert.deepEqual(amount.clips, []);
-    }
-    assert(canvas.fills.every(fill => !['#76d5ad', '#fdb6b5'].includes(fill.style)), 'No positive or negative background wash');
-    for (const [value, key] of [['DAILY RECAP', 'title'], ['MNQ', 'market'], ['3 DAY HOT STREAK', 'streak'], ['4', 'stat'], ['75%', 'stat'], ['Trade entries', 'label'], ['Win rate', 'label'], ['covadesk.com', 'website']]) {
-      assert.equal(ink(value).y, layout[key], value + ' baseline');
-      assert.match(ink(value).font, /Cova Recap Space Grotesk/);
-      assert.deepEqual(ink(value).clips, [], 'Amount clipping never leaks onto labels or stats');
-    }
-    assert.equal(ink('Trade entries').x, 308); assert.equal(ink('Win rate').x, 772);
-    assert.equal(ink('MNQ').color, '#9bbcff'); assert.equal(ink('DAILY RECAP').color, '#f4f6fa'); assert.equal(ink('3 DAY HOT STREAK').color, '#9fb2ff');
-    assert.equal(ink('DAILY RECAP').font, '600 32px \"Cova Recap Space Grotesk\"');
-    assert.equal(ink('DAILY RECAP').spacing, '3px');
-    assert.equal(ink('MNQ').font, '600 36px \"Cova Recap Space Grotesk\"');
-    assert.equal(ink('MNQ').spacing, '0px');
-    for (const value of ['DAILY RECAP', 'MNQ']) assert.deepEqual([ink(value).shadowColor, ink(value).shadowBlur, ink(value).shadowOffsetX, ink(value).shadowOffsetY], ['rgba(0,0,0,.95)', 18, 0, 3], value + ' keeps a soft contrast shadow');
-    assert.deepEqual([amount.shadowColor, amount.shadowBlur, amount.shadowOffsetX, amount.shadowOffsetY], ['rgba(0,0,0,0)', 0, 0, 0], 'Label shadow never leaks onto the money');
-    assert.equal(ink('@recap_qa').y, layout.head); assert.equal(ink('Sep 18, 2026').y, layout.head);
-    assert.deepEqual(canvas.arcs[0], [104, layout.head - 10, 28, 0, Math.PI * 2]);
-    const logo = canvas.draws.find(item => item.source.includes('wordmark'));
-    assert.deepEqual(logo.rect, [430, layout.footer - 220 / 3 + 6, 220, 220 / 3]);
-    assert(!canvas.ink.some(item => /Gross|Net cash|Posted fees|UTC close date/.test(item.value)));
+test('all formats preserve exact net money, sign treatment, truthful metrics, privacy and actual branding', async t => {
+ const state=installCanvasRecorder(t);
+ for(const [format,layout] of Object.entries(layouts)) for(const cents of ['62766','-1000','0','9007199254740991','-9007199254740991']) {
+  const recap=fixture(cents), before=structuredClone(recap);
+  await renderer.renderSessionRecap({recap,format,background:'plain'});
+  assert.deepEqual(recap,before);
+  const canvas=state.canvases.at(-1), ink=canvas.ink;
+  assert.deepEqual([canvas.width,canvas.height],[1080,layout.height]);
+  const money=ink.filter(x=>x.value===recapMoney(cents));assert(money.length);
+  assert.equal(money[0].x,56);assert.equal(money[0].align,'left');assert.equal(money[0].y,layout.amount);
+  assert(money[0].width <= (format==='wide'?640:968));
+  assert.match(money[0].font,/400 .*Instrument Serif/);
+  assert.deepEqual(money.map(x=>x.color),BigInt(cents)>0n?['#76d5ad','#f4f5f6']:[BigInt(cents)<0n?'#fdb6b5':'#f4f5f6']);
+  assert(money.every(x=>x.shadowBlur===0));
+  for(const label of ['Daily recap','Trade entries','4','Win rate','75%','NET P&L · USD']) assert(ink.some(x=>x.value===label),label);
+  assert(!ink.some(x=>/HOT STREAK|R multiple|Net return|Return unavailable|capital|SESSION RECAP|UTC close date|\(gross\)|\(reported\)/.test(x.value)));
+  assert.equal(ink.find(x=>x.value==='Trade entries').x,56);assert.equal(ink.find(x=>x.value==='Win rate').x,316);
+  const logo=canvas.draws.find(x=>x.source.includes('wordmark'));assert.equal(logo.rect[0],56);assert.equal(logo.rect[2],182);
+  for(const foregroundOnly of [false,true]) {
+   await renderer.renderSessionRecap({recap,format,background:foregroundOnly?'custom':'plain',showPnl:false},undefined,foregroundOnly);
+   const hidden=state.canvases.at(-1).ink.map(x=>x.value);
+   assert(hidden.includes('P&L HIDDEN'));assert(!hidden.some(x=>/\$|627|1000|900719/.test(x)));
   }
-  for (const [format, layout] of Object.entries(layouts)) {
-    const recap = { ...fixture(), fees: null, hotStreak: null, basis: 'Reported P&L · fees unconfirmed' };
-    await renderer.renderSessionRecap({ recap, format, background: 'plain' });
-    assert.equal(state.canvases.at(-1).ink.find(item => item.value === recap.basis).y, layout.basis, 'Conditional basis moves with the result group');
-  }
-  assert.deepEqual(state.loadedFonts.map(font => [font.family, font.descriptors]), [
-    ['Cova Recap Space Grotesk', { style: 'normal', weight: '300 700' }],
-    ['Cova Recap Instrument Serif', { style: 'normal', weight: '400' }],
-  ]);
-  assert(state.fontRequests.some(font => font === '400 40px "Cova Recap Instrument Serif"'));
+ }
+ const reported={...fixture(),fees:null,basis:'Reported P&L · fees unconfirmed'};
+ await renderer.renderSessionRecap({recap:reported,format:'wide',background:'plain'});
+ assert(state.canvases.at(-1).ink.some(x=>x.value==='REPORTED P&L · USD · FEES UNCONFIRMED'));
+});
+
+test('identity right edge follows the date in all formats with short, long and hidden names', async t => {
+ const state=installCanvasRecorder(t);
+ for(const format of renderer.recapFormats.map(f=>f.id)) for(const username of ['a','recap_qa','a_very_long_valid_username_123456','x'.repeat(200),null]) {
+  await renderer.renderSessionRecap({recap:fixture(),format,background:'plain',username});
+  const c=state.canvases.at(-1),date=c.ink.find(i=>i.value===fixture().dateLabel),identity=c.ink.find(i=>i.value.startsWith('@'));
+  assert.equal(date.x,1024);assert.equal(date.align,'right');
+  if(!username){assert.equal(identity,undefined);assert.equal(c.arcs.length,0);continue;}
+  assert.equal(identity.x,date.x);assert.equal(identity.align,'right');assert(identity.width<=360);
+  const avatar=c.arcs[0];assert.equal(avatar[0]+20,identity.x-identity.width-10);assert.equal(avatar[1],identity.y-10);
+  assert(avatar[0]-20>306,'Avatar cannot overlap website even with long names');
+  assert.equal(identity.y,({wide:535,story:1780,feed:1260,square:1000})[format],'Existing bottom placement retained');
+ }
 });
 
 test('curated, custom, plain and foreground-only paths retain crop and black fade contracts', async t => {
@@ -208,7 +193,8 @@ test('curated, custom, plain and foreground-only paths retain crop and black fad
     const input = { recap: fixture(), format, background, customPhoto: 'data:image/jpeg;base64,custom', transform: { zoom: 2, x: .4, y: -.2 } };
     await renderer.renderSessionRecap(input);
     const canvas = state.canvases.at(-1);
-    if (background === 'plain') { assert.equal(canvas.gradients.length, 0); assert.equal(canvas.fills[0].style, '#080d12'); continue; }
+    if (background === 'plain') { assert.equal(canvas.gradients.length, 0); assert.equal(canvas.fills[0].style, '#000'); continue; }
+    if (format === 'wide') { assert(canvas.gradients.some(g=>g.type==='linear'&&g.rect.join() === '0,0,1080,0')); continue; }
     const fade = canvas.gradients.find(gradient => gradient.type === 'linear' && gradient.stops.at(-1)[1] === '#000');
     assert.deepEqual(fade.rect, [0, layout.fade[0], 0, layout.fade[1]]);
     assert.deepEqual(fade.stops, [[0, 'rgba(0,0,0,0)'], [.42, 'rgba(0,0,0,.32)'], [.72, 'rgba(0,0,0,.88)'], [1, '#000']]);
@@ -261,4 +247,16 @@ test('editor styles remain scoped, keyboard-visible, touch-sized, scrollable and
   assert.equal(properties.overflow, 'auto'); assert.match(properties['max-height'], /100dvh/);
   assert.equal(rule('.recap-stage .recap-editor img')['pointer-events'], 'none');
   assert.equal(rule('.recap-stage .recap-still-proof').display, 'none');
+});
+
+test('one identical badge renderer for broker and owner approval; long markets and hidden identity/money remain safe',async t=>{
+ const {canvases}=installCanvasRecorder(t);
+ for(const format of Object.keys(layouts))for(const basis of ['tradovate','owner-approved'])for(const hidden of [false,true]){
+  const now=Date.now();const recap={...fixture(),markets:'MNQ · ES · NQ · MES · A VERY LONG INSTRUMENT NAME',verification:{owner:'synthetic-owner',basis,accountId:'7',connectionId:basis==='tradovate'?'synthetic-connection':'',checkedAt:now,expiresAt:now+30000}};
+  await renderer.renderSessionRecap({recap,format,background:'plain',username:hidden?null:'long_profile_username_abcdefgh',showPnl:!hidden});
+  const c=canvases.at(-1),badge=c.ink.find(i=>i.value==='Verified trade'),market=c.ink.find(i=>i.value.startsWith('MNQ'));
+  assert(badge);assert.equal(badge.x,1024);assert.equal(badge.color,'#b9ddff');assert(market.y<badge.y,'Badge sits in footer above identity');const center=({wide:535,story:1780,feed:1260,square:1000})[format]-55;assert.equal(badge.y+(badge.actualBoundingBoxDescent-badge.actualBoundingBoxAscent)/2,center,'Measured glyph center aligns with badge');assert.equal(badge.align,'right');assert(c.arcs.some(a=>a[2]===8&&a[1]===center&&a[0]===1024-badge.width-18),'Icon stays adjacent to fitted right-aligned text');
+  assert.equal(c.arcs.filter(a=>a[2]===3).length,8,'Same light-blue scalloped check');
+  assert.equal(c.ink.some(i=>i.value.includes('$')),!hidden);assert(!c.ink.some(i=>/owner-approved|Tradovate|lino@/.test(i.value)),'No special-account qualifier or private email on image');
+ }
 });

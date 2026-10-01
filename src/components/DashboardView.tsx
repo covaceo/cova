@@ -84,7 +84,7 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, o
       <div className="astra-header-controls">
         {accountControl}
 
-        {hasTradeHistory && <SessionRecapAction trades={analysis.trades} />}
+        {hasTradeHistory && <SessionRecapAction trades={analysis.trades} selectedAccount={selectedAccount} />}
 
         <div className="astra-trade-actions">
           {onAddManualTrade && <button className="astra-button astra-add-trade" type="button" onClick={() => setManualOpen(true)}>Add trade</button>}
