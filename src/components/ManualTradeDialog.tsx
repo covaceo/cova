@@ -14,10 +14,10 @@ export function ManualTradeDialog({accounts,selected,onSave,onClose}:{accounts:s
  <label>Date<input name="date" type="date" required/></label><label>Symbol<input name="market" placeholder="MNQ" maxLength={20} required/></label>
  <label>Side<select name="side"><option>Long</option><option>Short</option></select></label><label>Quantity<input name="contracts" type="number" min="1" max="100000" step="1" required/></label>
  <label>Entry price<input name="entry" type="number" step="any" required/></label><label>Exit price<input name="exit" type="number" step="any" required/></label>
- <label>Gross P&amp;L ($)<input name="pnl" type="number" step="0.01" placeholder="-50.00 or 100.00" required/></label><label>Planned risk ($, optional)<input name="risk" type="number" step="0.01" min="0"/></label>
+ <label>Net P&amp;L ($)<input name="pnl" type="number" step="0.01" placeholder="-50.00 or 100.00" required/></label><label>Planned risk ($, optional)<input name="risk" type="number" step="0.01" min="0"/></label>
  </div>
  <details><summary>Setup &amp; note</summary><label>Setup<input name="setup" maxLength={120}/></label><label>Note<textarea name="notes" maxLength={4000} rows={2}/></label></details>
- <p className="manual-trade-disclosure">Included in this account’s reported results. If the broker imports it later, remove the manual copy to avoid counting it twice.</p>
+ <p className="manual-trade-disclosure">Enter the final P&amp;L after fees; Cova will not deduct fees again. Included in this account’s reported results. If the broker imports it later, remove the manual copy to avoid counting it twice.</p>
  {error&&<p role="alert">{error}</p>}<button type="submit" className="astra-button astra-save-note">Save trade</button>
  </form></dialog>;
 }

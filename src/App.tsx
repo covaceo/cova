@@ -68,7 +68,8 @@ import { getHostedLogoutUrl, isDemoPreviewEnabled } from "./lib/authEnvironment"
 import { CURRENT_PRIVACY_VERSION, CURRENT_TERMS_VERSION } from "./lib/legal";
 import { isImportPrincipalCurrent, toImportPrincipalIdentity, type ImportPrincipal } from "./lib/importGuard";
 import { saveDashboardTradeNote } from "./lib/dashboardTradeNotes";
-import { appendManualTrade, removeManualTrade, type ManualTradeDraft } from "./lib/manualTrades";
+import { persistManualNetConfirmation } from "./lib/manualNetConfirmation";
+import { appendManualTrade, confirmManualNet, removeManualTrade, type ManualTradeDraft } from "./lib/manualTrades";
 import { readDailyJournal, readDailyJournalEntry, saveDailyJournal, canAttachJournalTrade } from "./lib/dailyJournal";
 import { BROKER_STATUS_KEY, brokerMessageForStatus, clearBrokerStatus, readBrokerStatus, writeBrokerStatus, type BrokerStatus } from "./lib/brokerStatus";
 
@@ -1182,6 +1183,15 @@ export default function App() {
     tradesRef.current=result.trades;setTrades(result.trades);selectTradeAccount(account);
     announce("Manual trade saved. Broker records are unchanged.","success");return null;
   }
+  function confirmManualNetRows(expectedRows: readonly Trade[], account: string) {
+    if (account !== tradeAccount) return "Account changed. Reopen the recap.";
+    const result = confirmManualNet(tradesRef.current, expectedRows, account, dashboardPrincipal, getCurrentImportPrincipal(), dashboardSelectionCurrent());
+    if (result.error) return result.error;
+    const error = persistManualNetConfirmation(dashboardPrincipal?.identity || "", account, expectedRows, scopedStorageKey(STORAGE_KEY));
+    if (error) return error;
+    announce("Selected manual amounts confirmed as net. Amounts are unchanged.", "success");
+    return null;
+  }
   function deleteManualTrade(id: string) {
     const next=removeManualTrade(tradesRef.current,id,dashboardPrincipal,getCurrentImportPrincipal(),dashboardSelectionCurrent());
     if (!next) return false;
@@ -1345,7 +1355,7 @@ export default function App() {
 
                 </div>
               )}
-              {section === "dashboard" && <Dashboard key={`${authSession?.userId || authSession?.email}:${tradeAccount}`} analysis={analysis} rules={rules} go={go} accountControl={tradeAccounts.some(account => account !== "local") ? <div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} value={tradeAccount} onChange={selectTradeAccount} /></div> : undefined} onSaveTradeNote={saveTradeNote} journalActions={journalActions} onAddManualTrade={addManualTrade} onDeleteManualTrade={deleteManualTrade} manualAccounts={[...new Set([...tradeAccounts,"local"])]} selectedAccount={tradeAccount} rithmicSyncAvailable={brokerStatus?.provider === "Rithmic" && brokerStatus.status === "imported"} />}
+              {section === "dashboard" && <Dashboard key={`${authSession?.userId || authSession?.email}:${tradeAccount}`} analysis={analysis} rules={rules} go={go} accountControl={tradeAccounts.some(account => account !== "local") ? <div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} value={tradeAccount} onChange={selectTradeAccount} /></div> : undefined} onSaveTradeNote={saveTradeNote} journalActions={journalActions} onConfirmManualNet={confirmManualNetRows} onAddManualTrade={addManualTrade} onDeleteManualTrade={deleteManualTrade} manualAccounts={[...new Set([...tradeAccounts,"local"])]} selectedAccount={tradeAccount} rithmicSyncAvailable={brokerStatus?.provider === "Rithmic" && brokerStatus.status === "imported"} />}
               {section === "import" && <ImportDesk key={authSession?.userId || authSession?.email} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} entitlements={entitlements} importCsv={importCsv} prepareImportCsv={prepareImportCsv} openFirmOAuth={openFirmOAuth} status={status} reset={() => { const demoTrades = entitlements.plan === "free" ? sampleTrades.slice(0, entitlements.maxStoredTrades) : sampleTrades; tradesRef.current = demoTrades; setTrades(demoTrades); selectTradeAccount("local"); setRules(defaultRules); clearBrokerStatus(); window.dispatchEvent(new CustomEvent("cova:broker-status")); setStatus("Demo trades restored."); announce("Demo trades restored.", "success"); }} upgradeToPro={upgradeToPro} />}
               {section === "oauth" && <OAuthConnectPage firmId={oauthFirmId} onApprove={completeFirmOAuth} onCancel={cancelFirmOAuth} />}
               {section === "rules" && <RulesEngine analysis={analysis} entitlements={entitlements} rules={rules} setRules={setRules} go={go} upgradeToPro={upgradeToPro} accountControl={tradeAccounts.some(account => account !== "local") ? <div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} value={tradeAccount} onChange={selectTradeAccount} /></div> : undefined} />}

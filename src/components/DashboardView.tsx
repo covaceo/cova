@@ -1,3 +1,4 @@
+import type { ConfirmManualNet } from '../lib/manualTrades';
 import { ArrowUpRight, ChevronDown, FileText, FileUp } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { analyze, type RiskRule, type Trade } from "../lib/risk";
@@ -32,9 +33,10 @@ const rangeOptions: { id: TimeRange; label: string }[] = [
   { id: "all", label: "All trades" },
 ];
 
-export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, onSaveTradeNote, journalReview = journalReviewEnabled(), accountControl, journalActions, onAddManualTrade, onDeleteManualTrade, manualAccounts = ["local"], selectedAccount = "local" }: {
+export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, onSaveTradeNote, journalReview = journalReviewEnabled(), accountControl, journalActions, onConfirmManualNet, onAddManualTrade, onDeleteManualTrade, manualAccounts = ["local"], selectedAccount = "local" }: {
   journalActions?: JournalActions;
   onAddManualTrade?: AddManualTrade;
+  onConfirmManualNet?: ConfirmManualNet;
   onDeleteManualTrade?: (id: string) => boolean;
   manualAccounts?: string[];
   selectedAccount?: string;
@@ -84,7 +86,7 @@ export function Dashboard({ analysis, rules, go, rithmicSyncAvailable = false, o
       <div className="astra-header-controls">
         {accountControl}
 
-        {hasTradeHistory && <SessionRecapAction trades={analysis.trades} selectedAccount={selectedAccount} />}
+        {hasTradeHistory && <SessionRecapAction trades={analysis.trades} selectedAccount={selectedAccount} onConfirmManualNet={onConfirmManualNet} />}
 
         <div className="astra-trade-actions">
           {onAddManualTrade && <button className="astra-button astra-add-trade" type="button" onClick={() => setManualOpen(true)}>Add trade</button>}
