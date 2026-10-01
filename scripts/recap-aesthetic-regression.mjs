@@ -112,7 +112,7 @@ test('PNG and GIF foreground composition use the same default signed-money rende
   const foreground = calls.find(call => call.arguments.length === 3), normal = calls.find(call => call.arguments.length === 2);
   assert(foreground && normal);
   assert.equal(foreground.arguments[2].kind, ts.SyntaxKind.TrueKeyword);
-  for (const [call, expected] of [[foreground, ['recap', 'format', 'background', 'username', 'avatar', 'showPnl', 'verificationCurrent']], [normal, ['recap', 'format', 'background', 'customPhoto', 'transform', 'username', 'avatar', 'showPnl', 'verificationCurrent']]]) {
+  for (const [call, expected] of [[foreground, ['recap', 'format', 'background', 'animatedBackground', 'username', 'avatar', 'showPnl', 'verificationCurrent']], [normal, ['recap', 'format', 'background', 'animatedBackground', 'customPhoto', 'transform', 'username', 'avatar', 'showPnl', 'verificationCurrent']]]) {
     assert(ts.isObjectLiteralExpression(call.arguments[0]));
     assert.deepEqual(call.arguments[0].properties.map(property => property.name?.getText(source)), expected, 'No sign-color override or spread can bypass the default');
   }
@@ -259,4 +259,31 @@ test('one identical badge renderer for broker and owner approval; long markets a
   assert.equal(c.arcs.filter(a=>a[2]===3).length,8,'Same light-blue scalloped check');
   assert.equal(c.ink.some(i=>i.value.includes('$')),!hidden);assert(!c.ink.some(i=>/owner-approved|Tradovate|lino@/.test(i.value)),'No special-account qualifier or private email on image');
  }
+});
+
+test('wide opacity is opaque at every authored photo edge and eases monotonically into artwork', () => {
+  for (const left of [-900, 0, 422.6666667, 525.0801435, 990]) {
+    const stops = renderer.recapWideFadeStops(1080, left);
+    assert.equal(stops.length, 33);
+    assert(stops[0][0] * 1080 >= Math.max(0, left));
+    assert.equal(stops[0][1], 1);
+    assert(Math.abs(stops.at(-1)[1] - .1) < 1e-12);
+    for (let i = 1; i < stops.length; i++) {
+      assert(stops[i][0] > stops[i - 1][0] && stops[i][0] <= 1);
+      assert(stops[i][1] <= stops[i - 1][1]);
+    }
+    assert(stops[0][1] - stops[1][1] < .003, 'Photo enters gently from opaque black');
+    assert(stops.at(-2)[1] - stops.at(-1)[1] < .003, 'Reveal eases out without a new edge');
+  }
+});
+
+test('GIF preview and foreground retain their previous wide fade and base matte', async t => {
+  const state = installCanvasRecorder(t);
+  for (const foregroundOnly of [false, true]) {
+    await renderer.renderSessionRecap({ recap: fixture(), format: 'wide', background: 'custom', customPhoto: 'data:image/png;base64,synthetic', animatedBackground: true }, undefined, foregroundOnly);
+    const canvas = state.canvases.at(-1);
+    const fade = canvas.gradients.find(g => g.type === 'linear' && g.rect[0] === 0 && g.rect[1] === 0 && g.rect[2] === 1080 && g.rect[3] === 0);
+    assert.deepEqual(fade.stops, [[0, '#000'], [.4, 'rgba(0,0,0,.86)'], [.75, 'rgba(0,0,0,.12)'], [1, 'rgba(0,0,0,.1)']]);
+    if (!foregroundOnly) assert.equal(canvas.fills[0].style, '#000');
+  }
 });
