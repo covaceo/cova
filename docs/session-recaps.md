@@ -50,3 +50,9 @@ The card now shows only the selected recap title (Daily recap or the selected re
 ### Footer alignment and format parity
 
 The bottom-right avatar/username group now ends at the same 56px right inset as the date. The fitted username is right-aligned and the avatar follows its measured width with a 10px gap; names are bounded to 360px to protect the website on the left. Hidden identity removes both. Story, Feed and Square retain individually authored layouts and typography sizes, sharing the approved two-metric hierarchy, sign styling and renderer with wide Recap and GIF foregrounds.
+
+### Manual entries inside a Tradovate account
+
+A manual trade keeps the selected account in `manual.accountKey` and never acquires broker-source metadata. When one account contains both manual and Tradovate records, the composer offers a **Trade source** selector outside the artwork. Manual and Tradovate get separate dated recap options; switching sources preserves the date/session when available. The card keeps its original title, layout and source-specific P&L basis label. Controls, accessibility text and share captions identify the selected source; no combined account total is implied.
+
+Manual recaps retain reported gross amounts with unconfirmed fees. Tradovate recaps use only the full broker history for cash-fingerprint validation and still require reconciled fees. Badge rules remain unchanged: the exact freshly confirmed owner exception may cover genuine manual rows, but never converts them into broker evidence. Existing saved manual trades need no migration or re-entry.

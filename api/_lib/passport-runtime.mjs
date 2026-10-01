@@ -753,7 +753,24 @@ function buildSessionRecaps(trades, cashEvidence, verification) {
 	if (new Set(trades.map((t) => t.id)).size !== trades.length) return unavailable("Resolve duplicate trade records before sharing.");
 	if (new Set(trades.map(tradeAccountKey)).size !== 1) return unavailable("Select one account before sharing a recap.");
 	if (!sample && trades.some((t) => !(t.source?.provider === "Tradovate" && t.source.accountId && t.source.pnlBasis === "gross_before_fees") && !(t.source?.provider === "Rithmic" && t.source.accountId && t.source.currency === "USD") && !(!t.source && t.manual?.currency === "USD" && t.manual.pnlBasis === "gross_before_fees" && t.manual.accountKey))) return unavailable("This history needs verified USD amounts before it can be shared.");
-	if (trades.some((t) => t.source?.provider === "Tradovate") && !trades.every((t) => t.source?.provider === "Tradovate")) return unavailable("Separate manual and Tradovate records before sharing; combined fees cannot be verified.");
+	const brokerRows = trades.filter((t) => t.source?.provider === "Tradovate");
+	if (brokerRows.length && brokerRows.length !== trades.length) {
+		const manualRows = trades.filter((t) => !t.source && t.manual);
+		if (brokerRows.length + manualRows.length !== trades.length) return unavailable("Separate manual and Tradovate records before sharing; combined fees cannot be verified.");
+		const manual = buildSessionRecaps(manualRows, void 0, verification);
+		const broker = buildSessionRecaps(brokerRows, cashEvidence, verification);
+		if (manual.error || broker.error) return unavailable(manual.error || broker.error);
+		const scoped = (recap, source) => ({
+			...recap,
+			id: `${source.toLowerCase()}:${recap.id}`,
+			sourceScope: source,
+			details: `${source} records only for the selected account; excludes ${source === "Manual" ? "Tradovate" : "manual"} records. These are separate recaps, not a combined account total. ${recap.details}`
+		});
+		return {
+			error: "",
+			options: [...manual.options.map((r) => scoped(r, "Manual")), ...broker.options.map((r) => scoped(r, "Tradovate"))]
+		};
+	}
 	try {
 		let total = 0n;
 		for (const row of trades) {

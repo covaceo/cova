@@ -49,7 +49,7 @@ test('exception permits manual/USD CSV in one selected account, never samples, m
  }
  assert.equal(verify([{...manual,id:'demo-1'}],owner,'Tradovate:7',connection),null);
  assert.equal(verify([manual,csv],owner,'Tradovate:7',connection),null);
- assert(buildSessionRecaps([row,manual]).error,'Manual rows cannot turn a broker net headline into an unchecked gross fallback');
+ const split=buildSessionRecaps([row,manual]);assert.equal(split.error,'');assert.equal(split.options.find(r=>r.id.startsWith('tradovate:')).fees,null);assert.equal(split.options.find(r=>r.id.startsWith('manual:')).basis,'Reported gross P&L · fees unconfirmed');
  assert(buildSessionRecaps([{...manual,manual:{...manual.manual,currency:'EUR'}}]).error);
  assert(buildSessionRecaps([{...row,id:'csv-generic',source:undefined}],undefined,{owner,selectedAccount:'local',connection}).error,'Badge is not evidence of currency');
 });

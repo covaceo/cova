@@ -88,3 +88,30 @@ test('sample and unsupported provider history never acquire a broker net-cash cl
  assert.equal(recaps(trades.map(t=>({...t,id:'demo-1'})),cash).options[0].fees,null);
  assert.equal(recaps(trades.map(t=>({...t,source:{provider:'Rithmic',accountId:'7',accountKey:'7',currency:'USD'}})),cash).options[0].fees,null);
 });
+
+test('manual entry under selected Tradovate account gets separate accurate recaps and owner-only manual badge',()=>{
+ const {appendManualTrade}=load('src/lib/manualTrades.ts'),{tradeAccountKey}=load('src/lib/tradovateHistory.ts');
+ const {checkedRecapIdentity}=load('src/lib/recapVerification.ts');
+ const {buildSessionRecaps,recapHeadlineCents,recapExportError}=load('src/lib/sessionRecap.ts');
+ const broker=[row(10,11,10)],cash=cashFor(broker),principal={identity:'owner-a',authGeneration:1,identityGeneration:1};
+ const draft={date:'2026-09-18',market:'MNQ',side:'Long',contracts:'1',entry:'20000',exit:'20010',pnl:'20',risk:'',setup:'',notes:''};
+ const added=appendManualTrade(broker,draft,'Tradovate:7',100,principal,principal,true);assert.equal(added.error,null);
+ const manual=added.trades.at(-1);assert.equal(manual.source,undefined);assert.equal(tradeAccountKey(manual),'Tradovate:7');
+ const before=JSON.stringify(added.trades),previous=global.localStorage;global.localStorage={getItem:k=>k==='cova-active-storage-identity-v1'?'owner-a':null};
+ try {
+  const connection=checkedRecapIdentity('owner-a',{id:'owner-a',email:'lino@covadesk.com',email_confirmed_at:'2026-01-01T00:00:00Z'});
+  const selection={owner:'owner-a',selectedAccount:'Tradovate:7',connection};
+  const data=buildSessionRecaps(added.trades,cash,selection);assert.equal(data.error,'');
+  const m=data.options.find(r=>r.id==='manual:daily:2026-09-18'),b=data.options.find(r=>r.id==='tradovate:daily:2026-09-18');
+  assert.equal(m.title,'Daily recap');assert.equal(b.title,'Daily recap');assert.equal(m.sourceScope,'Manual');assert.equal(b.sourceScope,'Tradovate');assert.equal(m.count,1);assert.equal(b.count,1);
+  assert.equal(recapHeadlineCents(m),'2000');assert.equal(m.fees,null);assert.match(m.basis,/fees unconfirmed/);assert.equal(m.verification.basis,'owner-approved');
+  assert.equal(recapHeadlineCents(b),'900');assert.equal(b.fees.signedCents,'-100');assert.equal(b.verification,null,'Manual owner approval never fabricates a broker receipt');
+  assert.equal(recapExportError(m),'');assert.equal(recapExportError(b),'');assert.match(m.details,/excludes Tradovate records/);
+  const missing=buildSessionRecaps(added.trades,null,selection);assert.equal(recapHeadlineCents(missing.options.find(r=>r.id===b.id)),null);assert(recapExportError(missing.options.find(r=>r.id===b.id)));assert.equal(recapHeadlineCents(missing.options[0]),'2000');
+  for(const connection of [null,checkedRecapIdentity('owner-a',{id:'owner-a',email:'other@example.invalid',email_confirmed_at:'2026-01-01T00:00:00Z'}),{...selection.connection,expiresAt:Date.now()-1}])assert.equal(buildSessionRecaps(added.trades,cash,{...selection,connection}).options[0].verification,null);
+  assert.equal(buildSessionRecaps(added.trades,cash,{...selection,selectedAccount:'all'}).options[0].verification,null);
+  assert(buildSessionRecaps([...broker,{...manual,manual:{...manual.manual,currency:'EUR'}}],cash,selection).error);
+  assert(buildSessionRecaps([...broker,{...manual,pnl:Infinity}],cash,selection).error);
+  assert.equal(JSON.stringify(added.trades),before,'No ledger mutation or customer-data migration');
+ } finally {global.localStorage=previous}
+});
