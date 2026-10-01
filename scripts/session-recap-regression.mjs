@@ -47,3 +47,15 @@ test('a nearly perfect entry win rate never rounds a losing record to 100%',()=>
 test('pure sample provenance survives the model and large/loss/zero money is exact',()=>{
  const result=model().buildSessionRecaps([{...row(10,11,-0.01),id:'demo-1',source:undefined}]);assert.equal(result.options[0].sample,true);assert.equal(model().recapMoney('-1'),'−$0.01');assert.equal(model().recapMoney('0'),'$0.00');assert.equal(model().recapMoney('1234567890123'),'+$12,345,678,901.23');assert.equal(model().buildSessionRecaps([]).options.length,0);
 });
+
+test('gross wins include breakevens; unknown and unverified risk never invent recap R or capital',()=>{
+ const trades=[row(10,11,10),row(20,21,-5),row(30,31,0)].map((t,i)=>({...t,risk:i?Number.NaN:0,riskStatus:'missing'}));
+ const r=model().buildSessionRecaps(trades).options[0];assert.equal(r.count,3);assert.equal(r.wins,1);assert.equal(r.winRate,'33.33%');assert.equal(r.totalCents,'500');assert.equal(r.netReturn,undefined);assert.equal(r.rMultiple,undefined);
+ const legacy=trades.map((t,i)=>({...t,id:'csv-'+i,source:{provider:'Rithmic',accountId:'7',accountKey:'7',currency:'USD'},risk:999,riskStatus:undefined}));
+ const imported=model().buildSessionRecaps(legacy).options[0];assert.equal(imported.rMultiple,undefined);assert.equal(imported.netReturn,undefined);
+});
+test('mixed instruments preserve actual labels while mixed currencies and unsafe numeric input fail closed',()=>{
+ const rows=[row(10,11,10),{...row(20,21,-5),market:'MES'}];const r=model().buildSessionRecaps(rows).options[0];assert.equal(r.markets,'MNQ · MES');assert.equal(r.totalCents,'500');
+ for(const pnl of [NaN,Infinity,-Infinity,1e20,90071992547410])assert.equal(model().buildSessionRecaps([{...rows[0],pnl}]).options.length,0);
+ const currencies=['USD','EUR'].map((currency,i)=>({...rows[i],source:{provider:'Rithmic',accountId:'7',accountKey:'7',currency}}));assert.equal(model().buildSessionRecaps(currencies).options.length,0);
+});

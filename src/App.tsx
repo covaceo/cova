@@ -1,3 +1,4 @@
+import { persistTradingLedger, recordRecapIngestion } from './lib/recapVerification';
 import { AnimatePresence, motion } from "motion/react";
 import { TradeAccountSelect } from "./components/TradeAccountSelect";
 import {
@@ -191,7 +192,9 @@ export default function App() {
 
   useEffect(() => {
     if (isSignedIn) {
-      localStorage.setItem(scopedStorageKey(STORAGE_KEY), JSON.stringify({ trades, rules, tradeAccount }));
+      if (!persistTradingLedger(scopedStorageKey(STORAGE_KEY), JSON.stringify({ trades, rules, tradeAccount }))) {
+        setStatus("Browser storage is full or unavailable. Recent changes could not be saved. Export your trades before leaving.");
+      }
     }
   }, [authSession?.email, authSession?.userId, isSignedIn, trades, rules, tradeAccount]);
 
@@ -1209,10 +1212,14 @@ export default function App() {
         }
         return importCsv(text, mode);
       },
+      commitBroker: (text: string) => {
+        if (!isCurrent()) return null;
+        return importCsv(text, "merge", "broker");
+      },
       scopeKey: principalAtStart.identity,
       commitHistory: (text: string, accountId: string, coverage: string) => {
         if (!isCurrent() || authSessionRef.current?.plan !== "pro") return null;
-        const receipt = importCsv(text, "merge");
+        const receipt = importCsv(text, "merge", "broker");
         if (receipt) {
           selectTradeAccount(`Tradovate:${accountId}`);
           setStatus(`${receipt.added} new, ${receipt.corrected} corrected, ${receipt.unchanged} unchanged. ${coverage}`);
@@ -1222,7 +1229,7 @@ export default function App() {
     };
   }
 
-  function importCsv(text: string, mode: ImportMode = "append") {
+  function importCsv(text: string, mode: ImportMode = "append", origin: "csv" | "broker" = "csv") {
     if (!isSignedIn) {
       openAuth("login");
       announce("Sign in before importing trades.", "warning");
@@ -1249,10 +1256,18 @@ export default function App() {
     const acceptedTrades = imported.slice(0, allowedCount);
     const mergeResult = mode === "merge" ? mergeTradeLedger(currentTrades, acceptedTrades) : null;
     const nextTrades = mode === "replace" ? acceptedTrades : mergeResult?.trades ?? [...currentTrades, ...acceptedTrades];
+    const sources = [...new Set(acceptedTrades.map(tradeAccountKey))];
+    const nextAccount = sources.length === 1 ? sources[0] : "all";
+    // Commit the ledger before optional provenance or any in-memory success state.
+    if (!persistTradingLedger(scopedStorageKey(STORAGE_KEY), JSON.stringify({ trades: nextTrades, rules, tradeAccount: nextAccount }))) {
+      setStatus("Import was not saved: browser storage is full or unavailable. Existing trade history is unchanged.");
+      announce("Import could not be saved. Free browser storage and try again.", "warning");
+      return null;
+    }
     tradesRef.current = nextTrades;
     setTrades(nextTrades);
-    const sources = [...new Set(acceptedTrades.map(tradeAccountKey))];
-    selectTradeAccount(sources.length === 1 ? sources[0] : "all");
+    recordRecapIngestion(toImportPrincipalIdentity(authSessionRef.current), acceptedTrades, origin);
+    selectTradeAccount(nextAccount);
     if (mode === "replace" && brokerStatus?.mode === "ephemeral") {
       clearBrokerStatus();
       setBrokerStatus(null);

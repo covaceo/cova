@@ -1,3 +1,5 @@
+import { tradeAccountKey } from './tradovateHistory';
+import { verifyRecapTrades, type RecapConnection, type RecapVerification } from './recapVerification';
 import { verifyBrokerCash } from './brokerCash';
 import { buildHotStreaks, type HotStreak } from './recapHotStreak';
 import { recapCashFees, type RecapFees } from './sessionRecapFees';
@@ -7,6 +9,7 @@ import type { Trade, JournalEntryGroup } from './risk';
 export type RecapKind = 'daily' | 'new-york' | 'london' | 'asia';
 export type RecapBackground = 'new-york' | 'london' | 'asia' | 'blue-tower' | 'cloud-towers' | 'plain' | 'custom';
 export type SessionRecap = {
+  verification?: RecapVerification | null;
   id: string; kind: RecapKind; date: string; title: string; dateLabel: string; windowLabel: string;
   hotStreak: HotStreak | null; fees: RecapFees | null; totalCents: string; count: number; wins: number; winRate: string; countLabel: string;
   markets: string; basis: string; sample: boolean; theme: RecapBackground; details: string;
@@ -58,15 +61,16 @@ function timing(group: JournalEntryGroup) {
   const first = regions[0];
   return { day: latest.slice(0, 10), region: first && regions.every(r => r?.kind === first.kind && r.date === first.date) ? first : null, timed: true };
 }
-export function buildSessionRecaps(trades: readonly Trade[], cashEvidence?: unknown): { error: string; options: SessionRecap[] } {
+export function buildSessionRecaps(trades: readonly Trade[], cashEvidence?: unknown, verification?: { owner: string; selectedAccount: string; connection: RecapConnection | null }): { error: string; options: SessionRecap[] } {
   if (!trades.length) return { error: 'Import trades to create a session recap.', options: [] };
   const unavailable = (error: string) => ({ error, options: [] as SessionRecap[] });
   const sample = trades.every(t => t.id.startsWith('demo-'));
   if (!sample && trades.some(t => t.id.startsWith('demo-'))) return unavailable('Sample and imported trades cannot share one recap.');
   if (new Set(trades.map(t => t.id)).size !== trades.length) return unavailable('Resolve duplicate trade records before sharing.');
-  const accounts = new Set(trades.map(t => t.source?.provider === 'Tradovate' ? `Tradovate:${t.source.accountId}` : t.source?.provider === 'Rithmic' ? `Rithmic:${t.source.accountId}:${t.source.accountKey}` : 'unverified'));
+  const accounts = new Set(trades.map(tradeAccountKey));
   if (accounts.size !== 1) return unavailable('Select one account before sharing a recap.');
-  if (!sample && trades.some(t => !(t.source?.provider === 'Tradovate' && t.source.accountId && t.source.pnlBasis === 'gross_before_fees') && !(t.source?.provider === 'Rithmic' && t.source.accountId && t.source.currency === 'USD'))) return unavailable('This history needs verified USD amounts before it can be shared.');
+  if (!sample && trades.some(t => !(t.source?.provider === 'Tradovate' && t.source.accountId && t.source.pnlBasis === 'gross_before_fees') && !(t.source?.provider === 'Rithmic' && t.source.accountId && t.source.currency === 'USD') && !(!t.source && t.manual?.currency === 'USD' && t.manual.pnlBasis === 'gross_before_fees' && t.manual.accountKey))) return unavailable('This history needs verified USD amounts before it can be shared.');
+  if (trades.some(t => t.source?.provider === 'Tradovate') && !trades.every(t => t.source?.provider === 'Tradovate')) return unavailable('Separate manual and Tradovate records before sharing; combined fees cannot be verified.');
   try {
     let total = 0n;
     for (const row of trades) {
@@ -111,14 +115,15 @@ export function buildSessionRecaps(trades: readonly Trade[], cashEvidence?: unkn
       : kind === 'london' ? { start: instant(date, 8, 0, 'Europe/London'), end: instant(date, 9, 30, 'America/New_York') }
       : { start: instant(date, 9, 0, 'Asia/Tokyo'), end: instant(date, 8, 0, 'Europe/London') };
     return {
+      verification: verification ? verifyRecapTrades(rows, verification.owner, verification.selectedAccount, verification.connection) : null,
       hotStreak: null, fees: gross ? recapCashFees(cash, rows, window) : null,
       id, kind, date, title: titles[kind], dateLabel: new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`)),
       windowLabel: kind === 'daily' ? timed ? 'UTC close date' : 'Reported date' : kind === 'new-york' ? '09:30–16:00 New York' : kind === 'london' ? '08:00 London–09:30 New York' : '09:00 Tokyo–08:00 London',
       totalCents: amounts.reduce((sum, value) => sum + value, 0n).toString(), count: selected.length, wins,
       winRate, countLabel: grouped ? 'Trade entries' : 'Reported trades',
-      markets: [...new Set(rows.map(r => r.market))].join(' · '), basis: gross ? 'Gross P&L · before fees' : 'Reported P&L · fees unconfirmed',
+      markets: [...new Set(rows.map(r => r.market))].join(' · '), basis: gross ? 'Gross P&L · before fees' : rows.every(r => r.manual && !r.source) ? 'Reported gross P&L · fees unconfirmed' : 'Reported P&L · fees unconfirmed',
       sample: rows.every(r => r.id.startsWith('demo-')), theme,
-      details: 'Broker-linked opening and closing fills are combined so linked split fills, scale-ins and trims count once. Separate re-entries remain separate. This is not certified flat-to-flat coverage: rows without shared broker fill evidence remain separate, never grouped by time or price alone. Breakeven entries are included in the win-rate denominator. Whole groups belong to their final observed exit date. Regional recaps require every entry and exit timestamp within the same dated review window. Daily recaps can span regions. Review windows follow local daylight-saving time and are not exchange calendars. The Tradovate headline uses reconciled trade cash plus signed posted fees, excluding funding, through the latest sync. It does not wait for the session or UTC day to end. The complete synced report-window fingerprint must match, and selected-window trade postings must match the recap at supported timestamp, cents and market-root granularity. Win rate uses grouped gross trade outcomes, not invented per-trade net allocation. Fees can relate to carried or open positions. The source gross ledger stays unchanged. Snapshot time and fee breakdown are available here, not printed on the card; later postings or adjustments can change the result. Missing or mismatched Tradovate fee evidence blocks sharing instead of silently substituting gross or zero fees. Hot streak counts consecutive net-positive UTC trading days for this account through the selected date, using the whole day even on regional cards. Red or breakeven days reset it; verified idle days and deposits do not count. Missing fee evidence or unexplained cash-only activity stops the count rather than bridging a gap. The card displays the count of verified synced days, not an all-time streak certification. Earlier coverage may be unavailable, so the actual streak may have started before the synced history. Today remains a snapshot, not a declaration that trading has ended; later trades or fee postings can change the streak. Backgrounds are illustrative, not a record of market conditions.',
+      details: 'Broker-linked opening and closing fills are combined so linked split fills, scale-ins and trims count once. Separate re-entries remain separate. This is not certified flat-to-flat coverage: rows without shared broker fill evidence remain separate, never grouped by time or price alone. Breakeven entries are included in the win-rate denominator. Whole groups belong to their final observed exit date. Regional recaps require every entry and exit timestamp within the same dated review window. Daily recaps can span regions. Review windows follow local daylight-saving time and are not exchange calendars. The Tradovate headline uses reconciled trade cash plus signed posted fees, excluding funding, through the latest sync. It does not wait for the session or UTC day to end. The complete synced report-window fingerprint must match, and selected-window trade postings must match the recap at supported timestamp, cents and market-root granularity. Win rate uses grouped gross trade outcomes, not invented per-trade net allocation. Fees can relate to carried or open positions. The source gross ledger stays unchanged. Snapshot time and fee breakdown are available here, not printed on the card; later postings or adjustments can change the result. Missing or mismatched Tradovate fee evidence blocks sharing instead of silently substituting gross or zero fees. Hot streak counts consecutive net-positive UTC trading days for this account through the selected date, using the whole day even on regional cards. Red or breakeven days reset it; verified idle days and deposits do not count. Missing fee evidence or unexplained cash-only activity stops the count rather than bridging a gap. The details show verified synced days, not an all-time streak certification; limited history is labelled as a lower bound. Earlier coverage may be unavailable, so the actual streak may have started before the synced history. Today remains a snapshot, not a declaration that trading has ended; later trades or fee postings can change the streak. Backgrounds are illustrative, not a record of market conditions.',
     };
   }).sort((a, b) => b.date.localeCompare(a.date) || (a.kind === 'daily' ? -1 : b.kind === 'daily' ? 1 : a.kind.localeCompare(b.kind)));
   const streaks = buildHotStreaks(options, cash);

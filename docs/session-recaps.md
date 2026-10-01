@@ -30,3 +30,23 @@ Owner/account changes dismiss the composer. Pixel-input changes invalidate expor
 ## Verification
 
 `npm run test:recap` executes source/model and real-component browser regressions. `RECAP_COMPILED=1 node scripts/session-recap-browser-regression.mjs` additionally builds the real-component fixture and serves it under the exact production CSP/headers. Both use synthetic fixtures, real Canvas image generation, trusted pointer/keyboard input, measured desktop/laptop/phone/short-phone viewports, and actual PNG downloads. Only profile persistence boundaries and the device share transport are synthetic; no real broker account is synced and no social post is made.
+
+## Approved composer update (October 2026)
+
+The current composition supersedes the earlier centered Option B styling: a wide Recap (1080×580) joins Story, Feed and Square, with the actual cropped Cova wordmark upper-left, left-aligned regular Instrument Serif money, and a three-column metric row. Blue Tower is the initial choice; all six shipped backgrounds and private photo/GIF uploads remain available. The preview and PNG download are the same artifact; GIFs reuse the same foreground renderer. Positive money keeps only its plus sign green, losses are wholly #FDB6B5, and zero is neutral without glow.
+
+Net return is deliberately unavailable (`—`), with starting-capital context in both the export and composer. A reconciled cash-window opening balance is not evidence of selected-session starting equity; risk, nominal account size and realized profit cannot supply the denominator. No R metric is introduced. Trade entries / Reported trades retain their actual grouping semantics. Win rate is explicitly labelled gross for Tradovate, reported otherwise, with breakevens retained in the denominator. Reconciled Tradovate cash remains the headline; other sources retain reported-fee-unknown or sample labels. Existing full-account history, dated review windows, grouping and fee gates are unchanged; the dashboard range does not silently narrow recap history.
+
+Show P&L invalidates the preview and both export paths. When off, no monetary headline, fee breakdown, accessible preview description, caption, native image share, PNG or GIF includes the hidden amount. Net return remains unavailable. Verified-day streak information is retained in details, with an explicit lower-bound qualification when historical coverage is limited; it is not printed as an exact streak on the artwork.
+
+Share on X is an explicit click: it downloads the current PNG and opens a text-only X intent. X web intents cannot attach local images, so the UI instructs the user to attach the download manually and offers a copyable caption. Supported native image sharing remains a separate device action. Neither action posts automatically.
+
+Reference identity: `libfile_d3038bee55a08191bb4bc38bd6129a33`, version 1, backing `file_00000000cdd081f5b148882062d2a9a5`, `cova-session-recap-concept.png` (1165×1350). Exact pixels were inspected before implementation; reference placeholders are never used as session statistics.
+
+### User-requested simplification
+
+The card now shows only the selected recap title (Daily recap or the selected regional session), the authentic wordmark without adjacent SESSION RECAP copy, and two metrics: Trade entries / Reported trades and Win rate. Net return and its unavailable-value explanation are removed entirely. Win-rate basis and date-window methodology remain in What’s included; accessible preview and share captions use the simplified labels. Financial calculations, fee gates and source-specific headline labels are unchanged.
+
+### Footer alignment and format parity
+
+The bottom-right avatar/username group now ends at the same 56px right inset as the date. The fitted username is right-aligned and the avatar follows its measured width with a 10px gap; names are bounded to 360px to protect the website on the left. Hidden identity removes both. Story, Feed and Square retain individually authored layouts and typography sizes, sharing the approved two-metric hierarchy, sign styling and renderer with wide Recap and GIF foregrounds.

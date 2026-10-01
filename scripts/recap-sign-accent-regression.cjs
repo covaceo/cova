@@ -52,7 +52,7 @@ const sampleRows = [200, -80, 160, 360].map((pnl, i) => ({ id: `demo-sign-qa-${i
 const sample = model.buildSessionRecaps(sampleRows).options.find(r => r.kind === 'daily');
 assert(sample?.sample);
 const hash = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
-const layouts = { story: { font: 202, amount: 1416 }, feed: { font: 192, amount: 952 }, square: { font: 182, amount: 696 } };
+const layouts = { wide: {font:126,amount:319}, story: { font: 202, amount: 1395 }, feed: { font: 192, amount: 920 }, square: { font: 182, amount: 680 } };
 const amounts = ['64000', '-64000', '0', '1', '-1', '101', '-101', '9007199254740991', '-9007199254740991'];
 const cases = recapFormats.flatMap(format => amounts.map(totalCents => ({ name: `${format.id}-${totalCents}`, format: format.id, background: 'plain', recap: { ...sample, totalCents } })));
 for (const format of recapFormats) {
@@ -81,12 +81,12 @@ function pixelQa(name, result, accent, negative) {
   const ref = reference(result.before, call, WHITE);
   const fullWidth = ref.ctx.measureText(call.text).width;
   const suffix = call.text.slice(1), sign = call.text[0];
-  const split = call.x - fullWidth / 2 + fullWidth - ref.ctx.measureText(suffix).width;
+  const split = call.x + fullWidth - ref.ctx.measureText(suffix).width;
   const tinted = reference(result.before, call, accent || WHITE).pixels;
   const actual = result.after.data, before = result.before.data, white = ref.pixels;
   const signCanvas = createCanvas(result.before.width, result.before.height), signCtx = signCanvas.getContext('2d');
   signCtx.font = call.font; signCtx.textAlign = 'left'; signCtx.fillStyle = '#fff';
-  if (accent) signCtx.fillText(sign, call.x - fullWidth / 2, call.y);
+  if (accent) signCtx.fillText(sign, call.x, call.y);
   const signPixels = signCtx.getImageData(0, 0, signCanvas.width, signCanvas.height).data;
   let changed = 0, tintPixels = 0, whitePixels = 0, seamInk = 0, geometryMismatch = 0, leakage = 0, unexpected = 0;
   const same = (a, b, i, tolerance = 0) => [0, 1, 2, 3].every(c => Math.abs(a[i + c] - b[i + c]) <= tolerance);
@@ -153,9 +153,9 @@ function unchangedBackgroundQa(input, result, off) {
     assert.equal(calls.length, sign > 0n ? 2 : 1, `${input.name}: whole amount passes`);
     for (const draw of calls) {
       assert.equal(draw.text, amount, `${input.name}: full exact cents string in every pass`);
-      assert.equal(draw.x, 540); assert.equal(draw.y, layouts[input.format].amount);
-      assert.equal(draw.align, 'center');
-      assert(draw.left >= 76 && draw.right <= 1004, `${input.name}: fit in approved safe margins`);
+      assert.equal(draw.x, 56); assert.equal(draw.y, layouts[input.format].amount);
+      assert.equal(draw.align, 'left');
+      assert(draw.left >= 54 && draw.right <= 1024, `${input.name}: fit in approved safe margins`);
       assert.equal(draw.shadowBlur, 0, `${input.name}: no text glow`);
       assert.equal(draw.shadowOffsetX, 0); assert.equal(draw.shadowOffsetY, 0);
     }
@@ -191,5 +191,5 @@ function unchangedBackgroundQa(input, result, off) {
     assert.equal(model.recapMoney(built.options[0].totalCents), expected);
   }
   if (process.env.RECAP_SIGN_ACCENT_RECEIPT) fs.writeFileSync(process.env.RECAP_SIGN_ACCENT_RECEIPT, JSON.stringify({ fixture: 'Synthetic test data only', actualRenderer: true, browserVerified: false, actualRenders: receipts.length * 4, defaultStyling: true, cases: receipts, subcentRejected: 6, centsInputVerified: 3 }, null, 2));
-  console.log(`PASS ${receipts.length} cases across Story/Feed/Square (${receipts.length * 4} actual renders). Pixel tests confirm green positive sign and white digits, all negative characters salmon-pink based on displayed net, neutral zero, exact shape/fit/position, no wash or text glow, untouched background/labels/header/stats/footer, active default styling shared by PNG and GIF foreground paths. Six subcent values rejected; one-cent inputs exact. Browser interactions not verified.`);
+  console.log(`PASS ${receipts.length} cases across Recap/Story/Feed/Square (${receipts.length * 4} actual renders). Pixel tests confirm green positive sign and white digits, all negative characters salmon-pink based on displayed net, neutral zero, exact shape/fit/position, no wash or text glow, untouched background/labels/header/stats/footer, active default styling shared by PNG and GIF foreground paths. Six subcent values rejected; one-cent inputs exact. Browser interactions not verified.`);
 })().catch(error => { console.error(error); process.exitCode = 1; });

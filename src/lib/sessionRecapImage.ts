@@ -1,10 +1,11 @@
-import { recapExportError, recapHeadlineCents, recapHotStreakLine, recapMoney, type SessionRecap, type RecapBackground } from './sessionRecap';
+import { recapVerificationCurrent } from './recapVerification';
+import { recapExportError, recapHeadlineCents, recapMoney, type SessionRecap, type RecapBackground } from './sessionRecap';
 import { recapBackgroundRect, type RecapTransform } from './recapBackground';
 export { recapBackgroundRect } from './recapBackground';
-export type RecapFormat = 'story' | 'feed' | 'square';
-export const recapFormats = [{ id: 'story' as const, label: 'Story', width: 1080, height: 1920 }, { id: 'feed' as const, label: 'Feed', width: 1080, height: 1350 }, { id: 'square' as const, label: 'Square', width: 1080, height: 1080 }];
+export type RecapFormat = 'wide' | 'story' | 'feed' | 'square';
+export const recapFormats = [{ id: 'wide' as const, label: 'Recap', width: 1080, height: 580 }, { id: 'story' as const, label: 'Story', width: 1080, height: 1920 }, { id: 'feed' as const, label: 'Feed', width: 1080, height: 1350 }, { id: 'square' as const, label: 'Square', width: 1080, height: 1080 }];
 export const recapBackgrounds = [{ id: 'new-york' as const, label: 'New York', src: '/recaps/new-york.webp' }, { id: 'london' as const, label: 'London', src: '/recaps/london.webp' }, { id: 'asia' as const, label: 'Asia', src: '/recaps/asia.webp' }, { id: 'blue-tower' as const, label: 'Blue Tower', src: '/recaps/blue-tower.png' }, { id: 'cloud-towers' as const, label: 'Cloud Towers', src: '/recaps/cloud-towers.png' }, { id: 'plain' as const, label: 'Plain', src: '' }];
-export type RecapRenderInput = { recap: SessionRecap; format: RecapFormat; background: RecapBackground; customPhoto?: string; transform?: RecapTransform; username?: string | null; avatar?: string | null };
+export type RecapRenderInput = { recap: SessionRecap; format: RecapFormat; background: RecapBackground; customPhoto?: string; transform?: RecapTransform; username?: string | null; avatar?: string | null; showPnl?: boolean; verificationCurrent?: () => boolean };
 const displayFamily = 'Cova Recap Space Grotesk';
 const amountFamily = 'Cova Recap Instrument Serif';
 let fontReady: Promise<void> | null = null;
@@ -48,16 +49,23 @@ export async function renderSessionRecap(input: RecapRenderInput, signal?: Abort
   if (signal?.aborted) throw new Error('Render cancelled');
   const canvas = document.createElement('canvas'); canvas.width = preset.width; canvas.height = preset.height;
   const ctx = canvas.getContext('2d'); if (!ctx) throw new Error('This browser could not create an image.');
-  const w = canvas.width, h = canvas.height, pad = 76;
+  const w = canvas.width, h = canvas.height, pad = 56;
+  const showPnl = input.showPnl !== false;
+  const proofCurrent = () => input.verificationCurrent ? input.verificationCurrent() : recapVerificationCurrent(recap.verification);
+  const verified = Boolean(recap.verification && proofCurrent());
   // Keep the photograph open above a calm, format-specific editorial result block.
   // Coordinates are baselines, not CSS boxes; the full signed currency amount is fitted below.
-  const layout = format === 'story' ? { head: 160, title: 1136, market: 1200, amount: 1416, basis: 1488, streak: 1498, stat: 1570, label: 1616, footer: 1714, sample: 1812, font: 202, fadeStart: 760, fadeEnd: 1470 }
-    : format === 'feed' ? { head: 86, title: 676, market: 740, amount: 952, basis: 1016, streak: 1028, stat: 1100, label: 1142, footer: 1220, sample: 1310, font: 192, fadeStart: 348, fadeEnd: 1012 }
-      : { head: 78, title: 432, market: 492, amount: 696, basis: 760, streak: 772, stat: 840, label: 882, footer: 966, sample: 1048, font: 182, fadeStart: 170, fadeEnd: 770 };
-  if (!foregroundOnly) { ctx.fillStyle = '#080d12'; ctx.fillRect(0, 0, w, h); }
+  const layout = format === 'wide'
+    ? { head: 78, title: 128, market: 181, amount: 319, basis: 367, stat: 469, label: 425, footer: 535, sample: 564, font: 126, fadeStart: 0, fadeEnd: 580 }
+    : format === 'story' ? { head: 112, title: 1100, market: 1170, amount: 1395, basis: 1470, stat: 1625, label: 1545, footer: 1780, sample: 1860, font: 202, fadeStart: 760, fadeEnd: 1470 }
+    : format === 'feed' ? { head: 100, title: 640, market: 710, amount: 920, basis: 995, stat: 1150, label: 1070, footer: 1260, sample: 1320, font: 192, fadeStart: 348, fadeEnd: 1012 }
+    : { head: 90, title: 410, market: 480, amount: 680, basis: 745, stat: 900, label: 820, footer: 1000, sample: 1050, font: 182, fadeStart: 170, fadeEnd: 770 };
+  if (!foregroundOnly) { ctx.fillStyle = '#000'; ctx.fillRect(0, 0, w, h); }
   if (photo || foregroundOnly) {
     if (photo) {
-      const r = recapBackgroundRect(photo.width, photo.height, w, h, input.transform);
+      const r = format === 'wide' && background !== 'custom'
+        ? { x: w - h * photo.width / photo.height * 1.7, y: -h * .35, width: h * photo.width / photo.height * 1.7, height: h * 1.7 }
+        : recapBackgroundRect(photo.width, photo.height, w, h, input.transform);
       ctx.drawImage(photo, r.x, r.y, r.width, r.height);
     }
     if (photo && background !== 'custom') {
@@ -75,8 +83,9 @@ export async function renderSessionRecap(input: RecapRenderInput, signal?: Abort
       edge.addColorStop(0, 'rgba(0,0,0,0)'); edge.addColorStop(.45, 'rgba(0,0,0,0)'); edge.addColorStop(1, 'rgba(0,0,0,.32)');
       ctx.fillStyle = edge; ctx.fillRect(0, 0, w, h);
     }
-    const fade = ctx.createLinearGradient(0, layout.fadeStart, 0, layout.fadeEnd);
-    fade.addColorStop(0, 'rgba(0,0,0,0)'); fade.addColorStop(.42, 'rgba(0,0,0,.32)'); fade.addColorStop(.72, 'rgba(0,0,0,.88)'); fade.addColorStop(1, '#000');
+    const fade = format === 'wide' ? ctx.createLinearGradient(0, 0, w, 0) : ctx.createLinearGradient(0, layout.fadeStart, 0, layout.fadeEnd);
+    if (format === 'wide') { fade.addColorStop(0, '#000'); fade.addColorStop(.4, 'rgba(0,0,0,.86)'); fade.addColorStop(.75, 'rgba(0,0,0,.12)'); fade.addColorStop(1, 'rgba(0,0,0,.1)'); }
+    else { fade.addColorStop(0, 'rgba(0,0,0,0)'); fade.addColorStop(.42, 'rgba(0,0,0,.32)'); fade.addColorStop(.72, 'rgba(0,0,0,.88)'); fade.addColorStop(1, '#000'); }
     ctx.fillStyle = fade; ctx.fillRect(0, 0, w, h);
     const top = ctx.createLinearGradient(0, 0, 0, layout.head + 160); top.addColorStop(0, 'rgba(8,13,18,.75)'); top.addColorStop(1, 'rgba(8,13,18,0)'); ctx.fillStyle = top; ctx.fillRect(0, 0, w, layout.head + 160);
   }
@@ -86,63 +95,77 @@ export async function renderSessionRecap(input: RecapRenderInput, signal?: Abort
     let label = clean;
     while (ctx.measureText(label).width > max && label.length > 1) label = label.slice(0, -2) + '…';
     ctx.fillText(label, x, y);
+    return label;
   };
-  if (username) {
-    ctx.save(); ctx.beginPath(); ctx.arc(pad + 28, layout.head - 10, 28, 0, Math.PI * 2); ctx.clip();
-    ctx.fillStyle = '#f0f2f5'; ctx.fillRect(pad, layout.head - 38, 56, 56);
-    if (face) cover(ctx, face, pad, layout.head - 38, 56, 56);
-    else text(username.replace(/^@/, '').charAt(0).toUpperCase(), pad + 28, layout.head + 1, 30, '#080d12', 500, 50, 'center');
-    ctx.restore(); text(`@${username.replace(/^@/, '')}`, pad + 77, layout.head, 32, '#f0f2f5', 400, 480);
-  }
-  text(recap.dateLabel, w - pad, layout.head, 30, '#f0f2f5', 400, 320, 'right');
-  // Small labels need their own contrast against bright windows and clouds.
-  // A soft text shadow preserves the landmark instead of adding an opaque badge.
-  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.95)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 3;
-  ctx.letterSpacing = '3px'; text(recap.title.toUpperCase(), w / 2, layout.title, 32, '#f4f6fa', 600, w - pad * 2, 'center'); ctx.letterSpacing = '0px';
-  text(recap.markets, w / 2, layout.market, 36, '#9bbcff', 600, w - pad * 2, 'center');
-  ctx.restore();
-  const amount = recapMoney(headline);
+  const logoWidth = 182, logoHeight = logoWidth * logo.height / logo.width;
+  ctx.drawImage(logo, pad, layout.head - logoHeight, logoWidth, logoHeight);
+  text(recap.dateLabel, w - pad, layout.head - 4, 23, '#bac3ce', 400, 300, 'right');
+  text(recap.title, pad, layout.title, 25, '#d3dae4', 400, 760);
+  text(recap.markets, pad, layout.market, format === 'wide' ? 44 : 52, '#f4f5f6', 500, 900);
+  const amountX = pad, amountMax = format === 'wide' ? 640 : w - pad * 2;
+  const amount = showPnl ? recapMoney(headline) : '—';
   let size = layout.font;
   while (true) {
     ctx.font = `400 ${size}px "${amountFamily}"`;
     const m = ctx.measureText(amount);
-    if (Math.max(m.width, m.actualBoundingBoxLeft + m.actualBoundingBoxRight) <= w - pad * 2) break;
+    if (Math.max(m.width, m.actualBoundingBoxLeft + m.actualBoundingBoxRight) <= amountMax) break;
     if (size <= 42) throw new Error('The exact amount does not fit this format.');
     size -= 2;
   }
-  if (BigInt(headline) < 0n) {
+  if (showPnl && BigInt(headline) < 0n) {
     // Losses tint the complete currency line; the background stays untouched.
-    text(amount, w / 2, layout.amount, size, '#fdb6b5', 400, w - pad * 2, 'center', amountFamily);
-  } else if (BigInt(headline) > 0n) {
+    text(amount, amountX, layout.amount, size, '#fdb6b5', 400, amountMax, 'left', amountFamily);
+  } else if (showPnl && BigInt(headline) > 0n) {
     // Profits color only the sign. Both passes draw the complete shaped
     // string through disjoint clips, so currency, cent precision and kerning stay exact.
     const fullWidth = ctx.measureText(amount).width;
-    const signEnd = w / 2 - fullWidth / 2 + fullWidth - ctx.measureText(amount.slice(1)).width;
+    const signEnd = amountX + fullWidth - ctx.measureText(amount.slice(1)).width;
     ctx.save(); ctx.beginPath(); ctx.rect(0, 0, signEnd, h); ctx.clip();
-    text(amount, w / 2, layout.amount, size, '#76d5ad', 400, w - pad * 2, 'center', amountFamily);
+    text(amount, amountX, layout.amount, size, '#76d5ad', 400, amountMax, 'left', amountFamily);
     ctx.restore();
     ctx.save(); ctx.beginPath(); ctx.rect(signEnd, 0, w - signEnd, h); ctx.clip();
-    text(amount, w / 2, layout.amount, size, '#f4f5f6', 400, w - pad * 2, 'center', amountFamily);
+    text(amount, amountX, layout.amount, size, '#f4f5f6', 400, amountMax, 'left', amountFamily);
     ctx.restore();
   } else {
-    text(amount, w / 2, layout.amount, size, '#f4f5f6', 400, w - pad * 2, 'center', amountFamily);
+    text(amount, amountX, layout.amount, size, '#f4f5f6', 400, amountMax, 'left', amountFamily);
   }
-  if (!recap.fees && !recap.sample) text(recap.basis, w / 2, layout.basis, 32, '#bac3ce', 400, w - pad * 2, 'center');
-  const streak = recapHotStreakLine(recap);
-  if (streak) { ctx.letterSpacing = '3px'; text(streak, w / 2, layout.streak, 36, '#9fb2ff', 500, w - pad * 2, 'center'); ctx.letterSpacing = '0px'; }
-  const statY = layout.stat, labelY = layout.label;
-  const left = pad + (w - pad * 2) / 4, right = w - left;
-  text(String(recap.count), left, statY, 64, '#f4f5f6', 500, 360, 'center');
-  text(recap.winRate, right, statY, 64, '#f4f5f6', 500, 360, 'center');
-  text(recap.countLabel, left, labelY, 30, '#bac3ce', 400, 380, 'center');
-  text('Win rate', right, labelY, 30, '#bac3ce', 400, 380, 'center');
-  ctx.strokeStyle = '#414753'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(w / 2, statY - 44); ctx.lineTo(w / 2, labelY + 2); ctx.stroke();
-  const logoWidth = 220, logoHeight = logoWidth * logo.height / logo.width;
-  ctx.drawImage(logo, (w - logoWidth) / 2, layout.footer - logoHeight + 6, logoWidth, logoHeight);
-  text('covadesk.com', w / 2, layout.footer + 44, 27, '#a5b1bf', 400, 250, 'center');
-  if (recap.sample) text('Sample data · Not a live account', w / 2, layout.sample, 24, '#a5b1bf', 400, 850, 'center');
+  const basis = !showPnl ? 'P&L HIDDEN' : recap.fees ? 'NET P&L · USD' : recap.sample ? 'SAMPLE P&L · USD' : 'REPORTED P&L · USD · FEES UNCONFIRMED';
+  text(basis, pad, layout.basis, 23, '#d3dae4', 400, 940);
+  if (verified) {
+    ctx.save();
+    const y = layout.footer - 55;
+    ctx.font = `400 17px "${displayFamily}"`;
+    const glyph = ctx.measureText('Verified trade'), x = w - pad - glyph.width - 18;
+    const baseline = y + (glyph.actualBoundingBoxAscent - glyph.actualBoundingBoxDescent) / 2;
+    text('Verified trade', w - pad, baseline, 17, '#b9ddff', 400, 170, 'right');
+    ctx.fillStyle = '#80c5ff';
+    ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI * 2); ctx.fill();
+    for (let i = 0; i < 8; i++) { const angle = i * Math.PI / 4; ctx.beginPath(); ctx.arc(x + Math.cos(angle) * 6, y + Math.sin(angle) * 6, 3, 0, Math.PI * 2); ctx.fill(); }
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(x - 3.5, y); ctx.lineTo(x - 1, y + 2.5); ctx.lineTo(x + 4, y - 3); ctx.stroke(); ctx.restore();
+  }
+  const columns = [pad, pad + 260];
+  const values = [String(recap.count), recap.winRate];
+  const labels = [recap.countLabel, 'Win rate'];
+  columns.forEach((x, i) => {
+    text(labels[i], x, layout.label, 23, '#bac3ce', 400, 228);
+    text(values[i], x, layout.stat, 49, '#f4f5f6', 400, 228);
+    if (i) { ctx.strokeStyle = '#414753'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x - 28, layout.label - 21); ctx.lineTo(x - 28, layout.stat + 5); ctx.stroke(); }
+  });
+  text('covadesk.com', pad, layout.footer, 24, '#f4f5f6', 400, 250);
+  if (username) {
+    // Anchor the identity to the date inset; place the avatar beside the fitted
+    // username rather than reserving a fixed-width block that leaves a right gap.
+    const label = text(`@${username.replace(/^@/, '')}`, w - pad, layout.footer, 22, '#f4f5f6', 400, 360, 'right');
+    const x = w - pad - ctx.measureText(label).width - 30, y = layout.footer - 10;
+    ctx.save(); ctx.beginPath(); ctx.arc(x, y, 20, 0, Math.PI * 2); ctx.clip();
+    ctx.fillStyle = '#f0f2f5'; ctx.fillRect(x - 20, y - 20, 40, 40);
+    if (face) cover(ctx, face, x - 20, y - 20, 40, 40);
+    ctx.restore();
+  }
+  if (recap.sample) text('Sample data · Not a live account', pad, layout.sample, 20, '#a5b1bf', 400, 850);
   if (signal?.aborted) throw new Error('Render cancelled');
-  return new Promise<Blob>((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('The image could not be saved. Try again.')), 'image/png'));
+  return new Promise<Blob>((resolve, reject) => canvas.toBlob(blob => verified && !proofCurrent() ? reject(new Error('Verification expired. Refresh the recap.')) : blob ? resolve(blob) : reject(new Error('The image could not be saved. Try again.')), 'image/png'));
 }
 /** Decode/re-encode to strip metadata, reject SVG/remote URLs, and bound final memory. */
 export async function prepareRecapPhoto(file: File) {
