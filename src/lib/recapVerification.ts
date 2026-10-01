@@ -1,3 +1,4 @@
+import { MANUAL_NET_PREFIX } from './manualNetConfirmation';
 import { getActiveStorageIdentity } from './storageScope';
 import type { Trade } from './risk';
 import { tradeAccountKey, validateTradovateHistory } from './tradovateHistory';
@@ -31,6 +32,9 @@ export function persistTradingLedger(storageKey: string, serialized: string): bo
   try { localStorage.setItem(storageKey, serialized); return true; } catch { /* Reclaim optional metadata only. */ }
   try {
     for (const [name] of ingestionEntries()) localStorage.removeItem(name);
+    const confirmations: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) { const name = localStorage.key(i); if (name?.startsWith(MANUAL_NET_PREFIX)) confirmations.push(name); }
+    for (const name of confirmations) localStorage.removeItem(name);
     notifyIngestion();
     localStorage.setItem(storageKey, serialized);
     return true;
@@ -94,7 +98,7 @@ function ownerApprovedRow(owner: string, row: Trade) {
   if (!activeOwner(owner)) return false;
   // Explicit manual metadata is already saved with the ledger by appendManualTrade.
   // CSV parsing never imports this field. It survives ordinary reload without a migration.
-  if (!row.source && row.id.startsWith('manual-') && row.manual?.currency === 'USD' && row.manual.pnlBasis === 'gross_before_fees') return true;
+  if (!row.source && row.id.startsWith('manual-') && row.manual?.currency === 'USD' && (row.manual.pnlBasis === 'gross_before_fees' || row.manual.pnlBasis === 'reported_net')) return true;
   return readIngestion(owner, row);
 }
 export function recordRecapSync(owner: string, connectionId: string, response: unknown) {

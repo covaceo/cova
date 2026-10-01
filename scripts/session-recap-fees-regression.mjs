@@ -104,7 +104,7 @@ test('manual entry under selected Tradovate account gets separate accurate recap
   const data=buildSessionRecaps(added.trades,cash,selection);assert.equal(data.error,'');
   const m=data.options.find(r=>r.id==='manual:daily:2026-09-18'),b=data.options.find(r=>r.id==='tradovate:daily:2026-09-18');
   assert.equal(m.title,'Daily recap');assert.equal(b.title,'Daily recap');assert.equal(m.sourceScope,'Manual');assert.equal(b.sourceScope,'Tradovate');assert.equal(m.count,1);assert.equal(b.count,1);
-  assert.equal(recapHeadlineCents(m),'2000');assert.equal(m.fees,null);assert.match(m.basis,/fees unconfirmed/);assert.equal(m.verification.basis,'owner-approved');
+  assert.equal(recapHeadlineCents(m),'2000');assert.equal(m.fees,null);assert.equal(m.basis,'Reported net P&L');assert.equal(m.reportedNet,true);assert.equal(m.verification.basis,'owner-approved');
   assert.equal(recapHeadlineCents(b),'900');assert.equal(b.fees.signedCents,'-100');assert.equal(b.verification,null,'Manual owner approval never fabricates a broker receipt');
   assert.equal(recapExportError(m),'');assert.equal(recapExportError(b),'');assert.match(m.details,/excludes Tradovate records/);
   const missing=buildSessionRecaps(added.trades,null,selection);assert.equal(recapHeadlineCents(missing.options.find(r=>r.id===b.id)),null);assert(recapExportError(missing.options.find(r=>r.id===b.id)));assert.equal(recapHeadlineCents(missing.options[0]),'2000');
@@ -114,4 +114,15 @@ test('manual entry under selected Tradovate account gets separate accurate recap
   assert(buildSessionRecaps([...broker,{...manual,pnl:Infinity}],cash,selection).error);
   assert.equal(JSON.stringify(added.trades),before,'No ledger mutation or customer-data migration');
  } finally {global.localStorage=previous}
+});
+
+test('entered manual net is exact, never fee-adjusted; legacy gross is not silently relabelled',()=>{
+ const {buildSessionRecaps,recapHeadlineCents,recapFeeLine}=load('src/lib/sessionRecap.ts');
+ const manual=(id,pnl,basis='reported_net')=>({...row(1,2,pnl),id:'manual-'+id,source:undefined,manual:{accountKey:'Tradovate:7',currency:'USD',pnlBasis:basis}});
+ const input=[manual('a',500),manual('b',641.58)],before=JSON.stringify(input);
+ const result=buildSessionRecaps(input,cashFor([row(1,2,1141.58)]));const r=result.options[0];
+ assert.equal(result.error,'');assert.equal(r.reportedNet,true);assert.equal(recapHeadlineCents(r),'114158');assert.equal(r.fees,null);assert.equal(r.count,2);assert.equal(r.winRate,'100%');assert.equal(r.basis,'Reported net P&L');assert.match(recapFeeLine(r),/no additional fee deduction/);assert.equal(JSON.stringify(input),before);
+ for(const pnl of [0,-123.45,999999.99])assert.equal(recapHeadlineCents(buildSessionRecaps([manual('amount',pnl)]).options[0]),String(Math.round(pnl*100)));
+ const legacy=manual('legacy',20,'gross_before_fees');const old=buildSessionRecaps([legacy]).options[0];assert.equal(old.reportedNet,false);assert.match(old.basis,/gross/);assert.equal(legacy.manual.pnlBasis,'gross_before_fees');
+ const mixed=buildSessionRecaps([legacy,manual('net',10)]).options[0];assert.equal(mixed.reportedNet,false);assert.equal(mixed.basis,'Reported P&L · fees unconfirmed');
 });

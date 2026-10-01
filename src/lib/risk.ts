@@ -12,7 +12,7 @@ export type Trade = {
   riskStatus?: "provided" | "missing";
   setup: string;
   notes: string;
-  manual?: { accountKey: string; currency: "USD"; pnlBasis: "gross_before_fees" };
+  manual?: { accountKey: string; currency: "USD"; pnlBasis: "gross_before_fees" | "reported_net" };
   source?:
     | {
         provider: "Rithmic";

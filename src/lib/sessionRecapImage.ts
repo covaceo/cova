@@ -129,7 +129,7 @@ export async function renderSessionRecap(input: RecapRenderInput, signal?: Abort
   } else {
     text(amount, amountX, layout.amount, size, '#f4f5f6', 400, amountMax, 'left', amountFamily);
   }
-  const basis = !showPnl ? 'P&L HIDDEN' : recap.fees ? 'NET P&L · USD' : recap.sample ? 'SAMPLE P&L · USD' : 'REPORTED P&L · USD · FEES UNCONFIRMED';
+  const basis = !showPnl ? 'P&L HIDDEN' : (recap.fees || recap.reportedNet) ? 'NET P&L · USD' : recap.sample ? 'SAMPLE P&L · USD' : 'REPORTED P&L · USD · FEES UNCONFIRMED';
   text(basis, pad, layout.basis, 23, '#d3dae4', 400, 940);
   if (verified) {
     ctx.save();

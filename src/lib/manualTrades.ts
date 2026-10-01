@@ -21,10 +21,24 @@ export function appendManualTrade(trades: Trade[], draft: ManualTradeDraft, acco
   if (draft.setup.length>120 || draft.notes.length>4000) return fail('Keep setup under 120 characters and notes under 4,000.');
   const pnl=Number(draft.pnl);
   if (trades.some(t=>tradeAccountKey(t)===account && t.date===draft.date && t.market===market && t.side===draft.side && t.contracts===contracts && t.entry===entry && t.exit===exit && Math.round(t.pnl*100)===Math.round(pnl*100))) return fail('A matching trade is already saved in this account.');
-  const row:Trade={id:'manual-'+crypto.randomUUID(),date:draft.date,market,side:draft.side as Trade['side'],contracts,entry,exit,pnl,risk:draft.risk?Number(draft.risk):0,riskStatus:Number(draft.risk)>0?"provided":"missing",setup:draft.setup.trim(),notes:draft.notes.trim(),manual:{accountKey:account,currency:'USD',pnlBasis:'gross_before_fees'}};
+  const row:Trade={id:'manual-'+crypto.randomUUID(),date:draft.date,market,side:draft.side as Trade['side'],contracts,entry,exit,pnl,risk:draft.risk?Number(draft.risk):0,riskStatus:Number(draft.risk)>0?"provided":"missing",setup:draft.setup.trim(),notes:draft.notes.trim(),manual:{accountKey:account,currency:'USD',pnlBasis:'reported_net'}};
   return {trades:[...trades,row],error:null};
 }
 export function removeManualTrade(trades: Trade[], id: string, opened: ImportPrincipal | null, current: ImportPrincipal | null, selectionCurrent: boolean): Trade[] | null {
   if (!selectionCurrent || !isImportPrincipalCurrent(opened,current) || !trades.some(t=>t.id===id && t.manual && !t.source)) return null;
   return trades.filter(t=>t.id!==id);
+}
+
+export type ConfirmManualNet = (expectedRows: readonly Trade[], account: string) => string | null;
+/** Explicit user confirmation of exact existing rows; never infer net or change money. */
+export function confirmManualNet(trades: Trade[], expectedRows: readonly Trade[], account: string, opened: ImportPrincipal | null, current: ImportPrincipal | null, selectionCurrent: boolean): { trades: Trade[]; error: string | null } {
+  const fail = (error: string) => ({ trades, error });
+  if (!selectionCurrent || !isImportPrincipalCurrent(opened, current) || !account || account === 'all') return fail('Account changed. Reopen the recap.');
+  if (!expectedRows.length || new Set(expectedRows.map(t => t.id)).size !== expectedRows.length) return fail('Choose the manual trades to confirm.');
+  for (const expected of expectedRows) {
+    const matches = trades.filter(t => t.id === expected.id), row = matches[0];
+    if (matches.length !== 1 || !row.id.startsWith('manual-') || row.source || row.manual?.currency !== 'USD' || row.manual.pnlBasis !== 'gross_before_fees' || tradeAccountKey(row) !== account || !Number.isFinite(row.pnl) || Math.abs(row.pnl * 100 - Math.round(row.pnl * 100)) > 1e-6 || !Number.isSafeInteger(Math.round(row.pnl * 100)) || JSON.stringify(row) !== JSON.stringify(expected)) return fail('These trades changed. Reopen the recap before confirming.');
+  }
+  const ids = new Set(expectedRows.map(t => t.id));
+  return { trades: trades.map(row => ids.has(row.id) ? { ...row, manual: { ...row.manual!, pnlBasis: 'reported_net' } } : row), error: null };
 }

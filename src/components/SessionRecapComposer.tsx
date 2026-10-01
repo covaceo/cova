@@ -1,3 +1,5 @@
+import { resolveManualNetConfirmations } from '../lib/manualNetConfirmation';
+import type { ConfirmManualNet } from '../lib/manualTrades';
 import { useRecapConnection } from './RecapConnection';
 import { recapVerificationCurrent, recapVerificationKey } from '../lib/recapVerification';
 import { Download, ImagePlus, Share2, X } from 'lucide-react';
@@ -11,7 +13,7 @@ import { RecapBackgroundEditor } from './RecapBackgroundEditor';
 import { defaultRecapTransform, type RecapTransform } from '../lib/recapBackground';
 import type { PreparedRecapGif } from '../lib/recapGif';
 
-export function SessionRecapAction({ trades, selectedAccount = 'local' }: { trades: readonly Trade[]; selectedAccount?: string }) {
+export function SessionRecapAction({ trades, selectedAccount = 'local', onConfirmManualNet }: { trades: readonly Trade[]; selectedAccount?: string; onConfirmManualNet?: ConfirmManualNet }) {
   const profile = useRecapProfile();
   const accounts = [...new Set(trades.map(t => t.source?.provider === 'Tradovate' ? `Tradovate:${t.source.accountId}` : t.source?.provider === 'Rithmic' ? `Rithmic:${t.source.accountId}:${t.source.accountKey}` : 'local'))].sort();
   const scope = JSON.stringify([profile.owner, selectedAccount, accounts]);
@@ -19,22 +21,23 @@ export function SessionRecapAction({ trades, selectedAccount = 'local' }: { trad
   const trigger = useRef<HTMLButtonElement>(null);
   useEffect(() => { setOpenScope(null); }, [scope]);
   return <><button ref={trigger} type="button" className="astra-button recap-open" onClick={() => setOpenScope(scope)}><Share2 aria-hidden="true" />Share recap</button>
-    {openScope === scope && <SessionRecapComposer key={scope} trades={trades} selectedAccount={selectedAccount} profile={profile} onClose={() => { setOpenScope(null); if (trigger.current?.isConnected) trigger.current.focus(); }} />}</>;
+    {openScope === scope && <SessionRecapComposer key={scope} trades={trades} selectedAccount={selectedAccount} onConfirmManualNet={onConfirmManualNet} profile={profile} onClose={() => { setOpenScope(null); if (trigger.current?.isConnected) trigger.current.focus(); }} />}</>;
 }
-function SessionRecapComposer({ trades, selectedAccount, profile, onClose }: { trades: readonly Trade[]; selectedAccount: string; profile: ReturnType<typeof useRecapProfile>; onClose: () => void }) {
+function SessionRecapComposer({ trades, selectedAccount, onConfirmManualNet, profile, onClose }: { trades: readonly Trade[]; selectedAccount: string; onConfirmManualNet?: ConfirmManualNet; profile: ReturnType<typeof useRecapProfile>; onClose: () => void }) {
   const { username, avatar } = profile;
   const connection = useRecapConnection(profile.owner, selectedAccount);
   const [cashRevision, setCashRevision] = useState(0);
   useEffect(() => {
     const refresh = () => setCashRevision(value => value + 1);
-    window.addEventListener('storage', refresh); window.addEventListener('cova-broker-cash-updated', refresh); window.addEventListener('focus', refresh);
-    return () => { window.removeEventListener('storage', refresh); window.removeEventListener('cova-broker-cash-updated', refresh); window.removeEventListener('focus', refresh); };
+    window.addEventListener('cova:recap-provenance', refresh); window.addEventListener('storage', refresh); window.addEventListener('cova-broker-cash-updated', refresh); window.addEventListener('focus', refresh);
+    return () => { window.removeEventListener('cova:recap-provenance', refresh); window.removeEventListener('storage', refresh); window.removeEventListener('cova-broker-cash-updated', refresh); window.removeEventListener('focus', refresh); };
   }, []);
-  const data = useMemo(() => buildSessionRecaps(trades, readBrokerCashEvidence(trades.filter(t => t.source?.provider === 'Tradovate'), profile.owner), { owner: profile.owner, selectedAccount, connection }), [trades, profile.owner, selectedAccount, connection, cashRevision]);
+  const data = useMemo(() => buildSessionRecaps(resolveManualNetConfirmations(trades, profile.owner), readBrokerCashEvidence(trades.filter(t => t.source?.provider === 'Tradovate'), profile.owner), { owner: profile.owner, selectedAccount, connection }), [trades, profile.owner, selectedAccount, connection, cashRevision]);
   const [selection, setSelection] = useState(data.options[0]?.id ?? '');
   const recap = data.options.find(r => r.id === selection);
   const sourceScope = recap?.sourceScope ?? data.options[0]?.sourceScope;
   const sessionOptions = data.options.filter(r => r.sourceScope === sourceScope);
+  const grossManualRows = trades.filter(t => recap?.grossManualRowIds?.includes(t.id));
   const feeIssue = recap ? recapExportError(recap) : '';
   const [format, setFormat] = useState<RecapFormat>('wide');
   const [background, setBackground] = useState<RecapBackground>('blue-tower');
@@ -180,6 +183,14 @@ function SessionRecapComposer({ trades, selectedAccount, profile, onClose }: { t
         setSelection(next?.id ?? ''); invalidate();
       }}><option value="Manual">Manual</option><option value="Tradovate">Tradovate</option></select><span className="recap-output-note">Only {sourceScope.toLowerCase()} records are included. Sources are kept separate because their fee coverage differs.</span></label>}
       <label className="recap-field" htmlFor="recap-session">Session<select id="recap-session" value={recap ? selection : ''} onChange={event => { setSelection(event.target.value); invalidate(); }} disabled={!data.options.length}><option value="" disabled>Choose a session</option>{sessionOptions.map(r => <option key={r.id} value={r.id}>{r.dateLabel} · {r.title}</option>)}</select></label>
+      {onConfirmManualNet && selectedAccount !== 'all' && grossManualRows.length > 0 && <div className="recap-field" data-manual-net-confirm>
+        <span>{grossManualRows.length} manual trade{grossManualRows.length === 1 ? '' : 's'} in this recap {grossManualRows.length === 1 ? 'was' : 'were'} saved using the old gross P&amp;L field. If these amounts already include your firm’s fees, confirm them as net. Amounts will not change.</span>
+        <button type="button" onClick={() => {
+          const message = onConfirmManualNet(grossManualRows, selectedAccount);
+          if (message) { setError(message); return; }
+          invalidate(); setNotice('Selected manual amounts confirmed as net. Amounts are unchanged.');
+        }}>These amounts already include fees</button>
+      </div>}
       <fieldset><legend>Format</legend><div className="recap-formats">{recapFormats.map(f => <button key={f.id} type="button" aria-pressed={format === f.id} onClick={() => { invalidate(); setFormat(f.id); }} disabled={format === f.id}>{f.label}</button>)}</div></fieldset>
       <fieldset className="recap-background-field"><legend>Background</legend><label className="recap-pnl-toggle" htmlFor="recap-show-pnl">Show P&amp;L<input id="recap-show-pnl" type="checkbox" role="switch" checked={showPnl} onChange={event => { invalidate(); setShowPnl(event.target.checked); }} /></label><div className="recap-backgrounds">{recapBackgrounds.map(b => <button key={b.id} type="button" aria-pressed={background === b.id} onClick={() => chooseBackground(b.id)} disabled={background === b.id}><span className="recap-swatch">{b.src && <img src={b.src} alt="" loading="lazy" />}</span><span>{b.label}</span></button>)}{photo && <button type="button" aria-pressed={background === 'custom'} onClick={() => chooseBackground('custom')} disabled={background === 'custom'}><span className="recap-swatch"><img src={photo} alt="" /></span><span>{gif ? 'Your GIF' : 'Your photo'}</span></button>}</div>
         <button type="button" className="recap-upload" onClick={() => upload.current?.click()} disabled={uploading}><ImagePlus aria-hidden="true" />{uploading ? 'Preparing background…' : 'Upload photo or GIF'}</button><input ref={upload} className="recap-file" aria-label="Upload background photo or GIF" type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; void choosePhoto(file); }} />
