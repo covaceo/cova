@@ -3,7 +3,7 @@ import { recapExportError, recapHeadlineCents, recapMoney, type SessionRecap, ty
 import { recapBackgroundRect, type RecapTransform } from './recapBackground';
 export { recapBackgroundRect } from './recapBackground';
 export type RecapFormat = 'wide' | 'story' | 'feed' | 'square';
-export const recapFormats = [{ id: 'wide' as const, label: 'Recap', width: 1080, height: 580 }, { id: 'story' as const, label: 'Story', width: 1080, height: 1920 }, { id: 'feed' as const, label: 'Feed', width: 1080, height: 1350 }, { id: 'square' as const, label: 'Square', width: 1080, height: 1080 }];
+export const recapFormats = [{ id: 'wide' as const, label: 'Recap', width: 2160, height: 1160 }, { id: 'story' as const, label: 'Story', width: 1080, height: 1920 }, { id: 'feed' as const, label: 'Feed', width: 1080, height: 1350 }, { id: 'square' as const, label: 'Square', width: 1080, height: 1080 }];
 export const recapBackgrounds = [{ id: 'new-york' as const, label: 'New York', src: '/recaps/new-york.webp' }, { id: 'london' as const, label: 'London', src: '/recaps/london.webp' }, { id: 'asia' as const, label: 'Asia', src: '/recaps/asia.webp' }, { id: 'blue-tower' as const, label: 'Blue Tower', src: '/recaps/blue-tower.png' }, { id: 'cloud-towers' as const, label: 'Cloud Towers', src: '/recaps/cloud-towers.png' }, { id: 'plain' as const, label: 'Plain', src: '' }];
 export type RecapRenderInput = { recap: SessionRecap; format: RecapFormat; background: RecapBackground; customPhoto?: string; transform?: RecapTransform; username?: string | null; avatar?: string | null; showPnl?: boolean; verificationCurrent?: () => boolean };
 const displayFamily = 'Cova Recap Space Grotesk';
@@ -49,7 +49,10 @@ export async function renderSessionRecap(input: RecapRenderInput, signal?: Abort
   if (signal?.aborted) throw new Error('Render cancelled');
   const canvas = document.createElement('canvas'); canvas.width = preset.width; canvas.height = preset.height;
   const ctx = canvas.getContext('2d'); if (!ctx) throw new Error('This browser could not create an image.');
-  const w = canvas.width, h = canvas.height, pad = 56;
+  // Wide keeps its approved logical layout while rendering at 2x for full-width Retina previews.
+  const scale = format === 'wide' ? 2 : 1;
+  if (scale !== 1) ctx.scale(scale, scale);
+  const w = canvas.width / scale, h = canvas.height / scale, pad = 56;
   const showPnl = input.showPnl !== false;
   const proofCurrent = () => input.verificationCurrent ? input.verificationCurrent() : recapVerificationCurrent(recap.verification);
   const verified = Boolean(recap.verification && proofCurrent());
@@ -72,7 +75,7 @@ export async function renderSessionRecap(input: RecapRenderInput, signal?: Abort
       // Grade only the curated photographs, before any identity or text is drawn.
       // A tiny channel lookup keeps this consistent without Canvas filter support.
       const tone = Uint8ClampedArray.from({ length: 256 }, (_, value) => ((value - 127.5) * 1.1 + 127.5) * 1.07);
-      const frame = ctx.getImageData(0, 0, w, h), pixels = frame.data;
+      const frame = ctx.getImageData(0, 0, canvas.width, canvas.height), pixels = frame.data;
       for (let i = 0; i < pixels.length; i += 4) {
         pixels[i] = tone[pixels[i]]; pixels[i + 1] = tone[pixels[i + 1]]; pixels[i + 2] = tone[pixels[i + 2]];
       }
@@ -135,9 +138,9 @@ export async function renderSessionRecap(input: RecapRenderInput, signal?: Abort
     ctx.save();
     const y = layout.footer - 55;
     ctx.font = `400 17px "${displayFamily}"`;
-    const glyph = ctx.measureText('Verified trade'), x = w - pad - glyph.width - 18;
+    const glyph = ctx.measureText('Verified'), x = w - pad - glyph.width - 18;
     const baseline = y + (glyph.actualBoundingBoxAscent - glyph.actualBoundingBoxDescent) / 2;
-    text('Verified trade', w - pad, baseline, 17, '#b9ddff', 400, 170, 'right');
+    text('Verified', w - pad, baseline, 17, '#b9ddff', 400, 170, 'right');
     ctx.fillStyle = '#80c5ff';
     ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI * 2); ctx.fill();
     for (let i = 0; i < 8; i++) { const angle = i * Math.PI / 4; ctx.beginPath(); ctx.arc(x + Math.cos(angle) * 6, y + Math.sin(angle) * 6, 3, 0, Math.PI * 2); ctx.fill(); }

@@ -126,3 +126,11 @@ test('entered manual net is exact, never fee-adjusted; legacy gross is not silen
  const legacy=manual('legacy',20,'gross_before_fees');const old=buildSessionRecaps([legacy]).options[0];assert.equal(old.reportedNet,false);assert.match(old.basis,/gross/);assert.equal(legacy.manual.pnlBasis,'gross_before_fees');
  const mixed=buildSessionRecaps([legacy,manual('net',10)]).options[0];assert.equal(mixed.reportedNet,false);assert.equal(mixed.basis,'Reported P&L · fees unconfirmed');
 });
+
+test('manual count wording matches identified broker entries without grouping unrelated manual rows',()=>{
+ const {buildSessionRecaps,recapHeadlineCents}=load('src/lib/sessionRecap.ts');
+ const manual=(id,pnl)=>({id:'manual-'+id,date:'2026-09-18',market:'MNQ',side:'Long',contracts:1,entry:1,exit:2,pnl,risk:0,manual:{accountKey:'local',currency:'USD',pnlBasis:'reported_net'}});
+ const rows=[manual('a',5),manual('b',-2),manual('c',0)];
+ const before=JSON.stringify(rows),result=buildSessionRecaps(rows).options[0];
+ assert.equal(result.countLabel,'Trade entries');assert.equal(result.count,3);assert.equal(result.winRate,'33.33%');assert.equal(recapHeadlineCents(result),'300');assert.equal(JSON.stringify(rows),before);
+});

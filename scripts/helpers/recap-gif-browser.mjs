@@ -23,7 +23,7 @@ export async function exerciseRecapGif({send,evaluate,wait,click,ready,capture,u
   await send('Emulation.setDeviceMetricsOverride',{width:1440,height:960,deviceScaleFactor:1,mobile:false});
   await send('Page.navigate',{url});
   await wait(`Boolean(document.querySelector('.recap-open'))`);
-  await click('button','Share recap');await wait(`document.querySelector('[data-recap-preview]')?.alt.includes('Verified trade')`);await ready();await click('dialog button','Story');await ready();
+  await click('button','Share recap');await wait(`document.querySelector('[data-recap-preview]')?.alt.includes('Verified')`);await ready();await click('dialog button','Story');await ready();
   assert.match(await evaluate(`document.querySelector('.recap-file').accept`),/image\/gif/,'The actual upload control accepts GIF');
   const source=fixture();await writeFile(join(output,'synthetic-background.gif'),source);
   const upload = async (bytes=source,type='image/gif') => evaluate(`(()=>{const d=new DataTransfer();d.items.add(new File([Uint8Array.from(atob(${JSON.stringify(Buffer.from(bytes).toString('base64'))}),c=>c.charCodeAt(0))],'background.gif',{type:${JSON.stringify(type)}}));const input=document.querySelector('.recap-file');input.files=d.files;input.dispatchEvent(new Event('change',{bubbles:true}));})()`);
@@ -50,7 +50,7 @@ export async function exerciseRecapGif({send,evaluate,wait,click,ready,capture,u
   // The live layered crop must match the still artifact exactly (apart from alpha rounding).
   await click('dialog button','Pause');await zoom(1.7);
   await evaluate(`document.querySelector('.recap-editor').focus()`);await send('Input.dispatchKeyEvent',{type:'keyDown',key:'ArrowLeft',windowsVirtualKeyCode:37});await send('Input.dispatchKeyEvent',{type:'keyUp',key:'ArrowLeft',windowsVirtualKeyCode:37});await ready();
-  const cropMatch=await evaluate(`(async()=>{const bg=document.querySelector('[data-recap-background]'),fg=document.querySelector('[data-recap-foreground]'),png=document.querySelector('[data-recap-preview]');await Promise.all([bg.decode(),fg.decode(),png.decode()]);const c=document.createElement('canvas');c.width=1080;c.height=png.naturalHeight;const x=c.getContext('2d');x.fillStyle='#080d12';x.fillRect(0,0,c.width,c.height);const s=bg.style;x.drawImage(bg,parseFloat(s.left)*c.width/100,parseFloat(s.top)*c.height/100,parseFloat(s.width)*c.width/100,parseFloat(s.height)*c.height/100);x.drawImage(fg,0,0);const a=x.getImageData(0,0,c.width,c.height).data;x.clearRect(0,0,c.width,c.height);x.drawImage(png,0,0);const b=x.getImageData(0,0,c.width,c.height).data;let bad=0;for(let i=0;i<a.length;i++)if(Math.abs(a[i]-b[i])>3)bad++;return bad/a.length})()`);
+  const cropMatch=await evaluate(`(async()=>{const bg=document.querySelector('[data-recap-background]'),fg=document.querySelector('[data-recap-foreground]'),png=document.querySelector('[data-recap-preview]');await Promise.all([bg.decode(),fg.decode(),png.decode()]);const c=document.createElement('canvas');c.width=png.naturalWidth;c.height=png.naturalHeight;const x=c.getContext('2d');x.fillStyle='#080d12';x.fillRect(0,0,c.width,c.height);const s=bg.style;x.drawImage(bg,parseFloat(s.left)*c.width/100,parseFloat(s.top)*c.height/100,parseFloat(s.width)*c.width/100,parseFloat(s.height)*c.height/100);x.drawImage(fg,0,0);const a=x.getImageData(0,0,c.width,c.height).data;x.clearRect(0,0,c.width,c.height);x.drawImage(png,0,0);const b=x.getImageData(0,0,c.width,c.height).data;let bad=0;for(let i=0;i<a.length;i++)if(Math.abs(a[i]-b[i])>3)bad++;return bad/a.length})()`);
   assert(cropMatch<.001,'Preview and PNG use identical crop and stationary overlay');
   await click('dialog button','Play');
   // Hold the real worker result beyond the original lease; successful renewal must
@@ -58,7 +58,7 @@ export async function exerciseRecapGif({send,evaluate,wait,click,ready,capture,u
   await evaluate(`window.__OriginalWorker=Worker;window.__holdGif=true;window.__gifRelease=null;window.__readsBeforeExport=window.__connectionReads;window.__foregroundBeforeRenew=document.querySelector('[data-recap-foreground]').src;
   window.Worker=class extends window.__OriginalWorker {set onmessage(fn){super.onmessage=event=>{if(event.data.blob&&window.__holdGif){window.__gifRelease=()=>fn(event)}else fn(event)}}};`);
   const resultFiles=[];
-  for(const [format,height] of [['Recap',580],['Story',1920],['Feed',1350],['Square',1080]]) {
+  for(const [format,height] of [['Recap',1160],['Story',1920],['Feed',1350],['Square',1080]]) {
     await click('dialog button',format);await ready();
     await click('[data-recap-gif-download]');
     if(format==='Recap') {
@@ -72,18 +72,19 @@ export async function exerciseRecapGif({send,evaluate,wait,click,ready,capture,u
     let bytes;for(let i=0;i<300;i++){try{bytes=await readCompleteGif(path);break;}catch{}await sleep(100);}
     assert(bytes,`${format} GIF actually downloaded`);
     const parsed=parseGIF(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength)),frames=decompressFrames(parsed,true);
-    assert.deepEqual([parsed.lsd.width,parsed.lsd.height,frames.length],[1080,height,6]);
+    assert.deepEqual([parsed.lsd.width,parsed.lsd.height,frames.length],[format==='Recap'?2160:1080,height,6]);
     assert(frames.every(f=>f.delay===200),'Timing retained');
+    const scale=format==='Recap'?2:1,width=parsed.lsd.width;
     const badgeY=({Recap:480,Story:1725,Feed:1205,Square:945})[format];
-    assert(frames.every(f=>{let blue=0;for(let y=badgeY-15;y<badgeY+15;y++)for(let x=860;x<920;x++){const i=(y*1080+x)*4;if(f.patch[i+2]>190&&f.patch[i+1]>150&&f.patch[i]<175)blue++;}return blue>40}),'Light-blue verification badge is present in every actual GIF frame');
-    const pixel = (f,x,y)=>[...f.patch.slice((y*1080+x)*4,(y*1080+x)*4+3)];
-    assert.notDeepEqual(pixel(frames[0],540,210),pixel(frames[1],540,210),'Actual exported GIF has moving background frames');
+    assert(frames.every(f=>{let blue=0;for(let y=(badgeY-15)*scale;y<(badgeY+15)*scale;y++)for(let x=900*scale;x<1024*scale;x++){const i=(y*width+x)*4;if(f.patch[i+2]>190&&f.patch[i+1]>150&&f.patch[i]<175)blue++;}return blue>40}),'Light-blue verification badge is present in every actual GIF frame');
+    const pixel = (f,x,y)=>[...f.patch.slice((y*width+x)*4,(y*width+x)*4+3)];
+    assert.notDeepEqual(pixel(frames[0],540*scale,210*scale),pixel(frames[1],540*scale,210*scale),'Actual exported GIF has moving background frames');
     // Below the fully opaque fade, every frame must keep recap text and branding stationary.
-    const bottom=Math.round(height*.88)*1080*4;
+    const bottom=Math.round(height*.88)*width*4;
     const mismatch=frames[0].patch.slice(bottom).reduce((n,value,i)=>n+(Math.abs(value-frames[1].patch[bottom+i])>20?1:0),0);
     if (format!=='Recap') assert(mismatch/frames[0].patch.slice(bottom).length<.01,'No animated text or moving stats');
     const saved=join(output,`verified-${format==='Recap'?'wide':format.toLowerCase()}.gif`);await writeFile(saved,bytes);
-    resultFiles.push({format,path:saved,frames:frames.length,width:1080,height,bytes:bytes.length});
+    resultFiles.push({format,path:saved,frames:frames.length,width,height,bytes:bytes.length});
     if(format==='Square') await writeFile(join(output,'verified-square.gif'),bytes);
     await ready();
   }
@@ -91,7 +92,7 @@ export async function exerciseRecapGif({send,evaluate,wait,click,ready,capture,u
   await click('#recap-show-pnl');await ready();
   assert(!(await evaluate('window.__hiddenInk')).some(t=>t.includes('$')),'PNG and GIF foreground omit hidden money');
   assert((await evaluate('window.__hiddenInk')).includes('P&L HIDDEN'));
-  assert((await evaluate('window.__hiddenInk')).includes('Verified trade'),'Same badge survives hidden money in PNG and animated foreground');
+  assert((await evaluate('window.__hiddenInk')).includes('Verified'),'Same badge survives hidden money in PNG and animated foreground');
   const hiddenPath=join(downloads,'cova-daily-2026-09-18-square.gif');await rm(hiddenPath);
   await click('[data-recap-gif-download]');
   let hiddenBytes;for(let i=0;i<300;i++){try{hiddenBytes=await readCompleteGif(hiddenPath);break;}catch{}await sleep(100);}assert(hiddenBytes);
@@ -106,10 +107,10 @@ export async function exerciseRecapGif({send,evaluate,wait,click,ready,capture,u
   for(const name of await readdir(downloads))if(name.endsWith('.gif'))await rm(join(downloads,name));
   await evaluate(`window.__holdGif=true;window.__gifRelease=null;window.Worker=class extends window.__OriginalWorker {set onmessage(fn){super.onmessage=event=>{if(event.data.blob&&window.__holdGif){window.__gifRelease=()=>fn(event)}else fn(event)}}};`);
   await click('[data-recap-gif-download]');await wait(`Boolean(window.__gifRelease)`);
-  await evaluate(`window.__connection.status.connected=false;window.__refreshConnection()`);await wait(`document.querySelector('[data-recap-preview]')&&!document.querySelector('[data-recap-preview]').alt.includes('Verified trade')`);await ready();
+  await evaluate(`window.__connection.status.connected=false;window.__refreshConnection()`);await wait(`document.querySelector('[data-recap-preview]')&&!document.querySelector('[data-recap-preview]').alt.includes('Verified')`);await ready();
   await evaluate(`window.__holdGif=false;window.__gifRelease();window.Worker=window.__OriginalWorker`);await sleep(150);
   assert.equal((await readdir(downloads)).filter(n=>n.endsWith('.gif')).length,0,'True eligibility loss prevents a delayed old worker from delivering');
-  await evaluate(`window.__connection.status.connected=true;window.__refreshConnection()`);await wait(`document.querySelector('[data-recap-preview]')?.alt.includes('Verified trade')`);await ready();
+  await evaluate(`window.__connection.status.connected=true;window.__refreshConnection()`);await wait(`document.querySelector('[data-recap-preview]')?.alt.includes('Verified')`);await ready();
 
   // Transparency and disposal 2/3 must not smear earlier frames over later ones.
   const disposal=GIFEncoder(),palette=[[20,50,120],[220,30,30],[20,200,60],[230,190,40],[0,0,0]];
