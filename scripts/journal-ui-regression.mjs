@@ -24,7 +24,7 @@ test('history and note detail disclose row evidence and preserve cent-precise so
 test('accuracy dialog risk respects source currency while default formatting stays unchanged', () => {
   const { DashboardTradeDialog } = load('src/components/DashboardTradeDialog.tsx');
   const trade = tradeFixture({pnl:100,risk:50,source:undefined});
-  const renderRisk = journalReview => renderToStaticMarkup(React.createElement(DashboardTradeDialog,{trade,onClose:()=>{},journalReview})).match(/Provided risk<\/span><strong>([^<]*)<\/strong>/)?.[1];
+  const renderRisk = journalReview => renderToStaticMarkup(React.createElement(DashboardTradeDialog,{trade,onClose:()=>{},journalReview})).match(/Planned risk<\/span><strong>([^<]*)<\/strong>/)?.[1];
   assert.equal(renderRisk(true), '50.00 (currency unknown)');
   assert.equal(renderRisk(false), '$50.00');
 });

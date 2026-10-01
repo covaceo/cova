@@ -1,4 +1,4 @@
-import { analyze, formatMoney } from "./risk";
+import { analyze, formatR, formatMoney } from "./risk";
 
 export type HoloPassportMode = "flex" | "discipline" | "private" | "coach";
 export type HoloPassportModel = {
@@ -16,8 +16,8 @@ export type HoloPassportModel = {
 };
 
 export function buildHoloPassportModel(analysis: ReturnType<typeof analyze>, rank: string, mode: HoloPassportMode, sample: boolean, username?: string | null): HoloPassportModel {
-  const held = analysis.ruleStatuses.filter(status => !status.breached).length;
-  const count = analysis.ruleStatuses.length;
+  const held = analysis.ruleStatuses.filter(status => status.evaluated && !status.breached).length;
+  const count = analysis.ruleStatuses.filter(status => status.evaluated).length;
 
 
   const markets = [...new Set(analysis.trades.map(trade => trade.market).filter(Boolean))].slice(0, 2).join(" / ");
@@ -29,11 +29,11 @@ export function buildHoloPassportModel(analysis: ReturnType<typeof analyze>, ran
     heroValue: `${analysis.totalPnl > 0 ? "+" : ""}${formatMoney(analysis.totalPnl)}`,
     heroLabel: "Reported P&L",
     support: [`${ruleSummary} · ${analysis.profitFactor.toFixed(2)} profit factor · ${flags}`],
-    provenance: `${sample ? "Sample" : "User-supplied"} data · Not account verified`, sample,
+    provenance: `${sample ? "Sample" : "User-supplied"} data · Not account verified${analysis.legacyRiskCount ? " · Older CSV risk unverified" : ""}`, sample,
   };
   if (mode === "discipline") return {
     ...model, modeLabel: "Discipline", heroValue: count ? String(analysis.score) : "—", heroLabel: "Control score",
-    support: [`${ruleSummary} · ${analysis.avgR.toFixed(2)}R average`, `${formatMoney(Math.round(analysis.maxDrawdown))} max drawdown · ${flags}`],
+    support: [`${ruleSummary} · ${formatR(analysis.avgR)} average (${analysis.riskCount}/${analysis.trades.length} rows with risk)`, `${formatMoney(Math.round(analysis.maxDrawdown))} max drawdown · ${flags}`],
   };
   if (mode === "private") return {
     ...model, modeLabel: "Ghost", identity: "Private profile", marketLine: `${analysis.tradeCount} reviewed trades`,
@@ -45,7 +45,7 @@ export function buildHoloPassportModel(analysis: ReturnType<typeof analyze>, ran
       ?? analysis.breaches[0]?.rule.name ?? "No major leak";
     return {
       ...model, modeLabel: "Coach", heroValue: count ? String(analysis.score) : "—", heroLabel: "Control score",
-      support: [`${flags} · ${analysis.profitFactor.toFixed(2)} profit factor · ${analysis.avgR.toFixed(2)}R average`, `Top warning: ${warning}`],
+      support: [`${flags} · ${analysis.profitFactor.toFixed(2)} profit factor · ${formatR(analysis.avgR)} average (${analysis.riskCount}/${analysis.trades.length} rows with risk)`, `Top warning: ${warning}`],
     };
   }
   return model;

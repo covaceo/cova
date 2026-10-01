@@ -21,7 +21,7 @@ export function appendManualTrade(trades: Trade[], draft: ManualTradeDraft, acco
   if (draft.setup.length>120 || draft.notes.length>4000) return fail('Keep setup under 120 characters and notes under 4,000.');
   const pnl=Number(draft.pnl);
   if (trades.some(t=>tradeAccountKey(t)===account && t.date===draft.date && t.market===market && t.side===draft.side && t.contracts===contracts && t.entry===entry && t.exit===exit && Math.round(t.pnl*100)===Math.round(pnl*100))) return fail('A matching trade is already saved in this account.');
-  const row:Trade={id:'manual-'+crypto.randomUUID(),date:draft.date,market,side:draft.side as Trade['side'],contracts,entry,exit,pnl,risk:draft.risk?Number(draft.risk):0,setup:draft.setup.trim(),notes:draft.notes.trim(),manual:{accountKey:account,currency:'USD',pnlBasis:'gross_before_fees'}};
+  const row:Trade={id:'manual-'+crypto.randomUUID(),date:draft.date,market,side:draft.side as Trade['side'],contracts,entry,exit,pnl,risk:draft.risk?Number(draft.risk):0,riskStatus:Number(draft.risk)>0?"provided":"missing",setup:draft.setup.trim(),notes:draft.notes.trim(),manual:{accountKey:account,currency:'USD',pnlBasis:'gross_before_fees'}};
   return {trades:[...trades,row],error:null};
 }
 export function removeManualTrade(trades: Trade[], id: string, opened: ImportPrincipal | null, current: ImportPrincipal | null, selectionCurrent: boolean): Trade[] | null {

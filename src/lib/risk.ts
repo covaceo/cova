@@ -7,7 +7,9 @@ export type Trade = {
   entry: number;
   exit: number;
   pnl: number;
+  /** Zero means unavailable, never infer planned risk from realized P&L. */
   risk: number;
+  riskStatus?: "provided" | "missing";
   setup: string;
   notes: string;
   manual?: { accountKey: string; currency: "USD"; pnlBasis: "gross_before_fees" };
@@ -40,6 +42,7 @@ export type RiskRule = {
 export type RuleStatus = {
   rule: RiskRule;
   breached: boolean;
+  evaluated: boolean;
   summary: string;
   evidence: string[];
 };
@@ -53,8 +56,9 @@ export type SessionSummary = {
   maxContracts: number;
   largestWin: number;
   largestLoss: number;
-  netR: number;
-  avgR: number;
+  netR: number | null;
+  riskCount: number;
+  avgR: number | null;
   worstCumulativePnl: number;
 };
 
@@ -151,7 +155,7 @@ export function mergeTradeLedger(existing: Trade[], incoming: Trade[]): TradeMer
     }
 
     // Notes, setup and planned risk belong to the member, not the provider.
-    const corrected = trade.source ? { ...trade, notes: existingTrade.notes, setup: existingTrade.setup, risk: existingTrade.risk } : trade;
+    const corrected = trade.source ? { ...trade, notes: existingTrade.notes, setup: existingTrade.setup, risk: existingTrade.risk, riskStatus: existingTrade.riskStatus } : trade;
     if (JSON.stringify(existingTrade) === JSON.stringify(corrected)) {
       receipt.unchanged += 1;
       continue;
@@ -265,14 +269,17 @@ export function analyze(trades: Trade[], rules: RiskRule[]) {
   const tradeCount = entryGroups.length;
   const winningTradeCount = entryGroups.filter(group => group.pnl > 0).length;
   const winRate = tradeCount ? winningTradeCount / tradeCount : 0;
+  const legacyRiskCount = sorted.filter(trade => trade.id.startsWith("csv-") && trade.riskStatus === undefined && hasPlannedRisk(trade)).length;
+  const riskCount = sorted.filter(trade => rMultiple(trade) !== null).length;
+  const missingRiskCount = sorted.filter(trade => !hasPlannedRisk(trade)).length;
   const avgR = averageR(sorted);
   const recentTrades = sorted.slice(-7);
   const recentPnl = recentTrades.reduce((sum, trade) => sum + trade.pnl, 0);
   const recentAvgR = averageR(recentTrades);
   const midpoint = Math.floor(sorted.length / 2);
-  const firstHalfAvgR = midpoint ? averageR(sorted.slice(0, midpoint)) : 0;
-  const secondHalfAvgR = sorted.length - midpoint ? averageR(sorted.slice(midpoint)) : 0;
-  const avgRTrend = sorted.length >= 12 ? secondHalfAvgR - firstHalfAvgR : 0;
+  const firstHalfAvgR = averageR(sorted.slice(0, midpoint));
+  const secondHalfAvgR = averageR(sorted.slice(midpoint));
+  const avgRTrend = sorted.length >= 12 && firstHalfAvgR !== null && secondHalfAvgR !== null ? secondHalfAvgR - firstHalfAvgR : null;
 
   let equity = 0;
   let peak = 0;
@@ -303,7 +310,8 @@ export function analyze(trades: Trade[], rules: RiskRule[]) {
 
   const ruleStatuses = rules.filter((rule) => rule.enabled).map((rule) => evaluateRule(rule, sorted, sessions, { profitFactor, avgR, worstLossStreak }));
   const breaches = ruleStatuses.filter((status) => status.breached);
-  const compliance = ruleStatuses.length ? (ruleStatuses.length - breaches.length) / ruleStatuses.length : 1;
+  const evaluatedRules = ruleStatuses.filter(status => status.evaluated);
+  const compliance = evaluatedRules.length ? (evaluatedRules.length - breaches.length) / evaluatedRules.length : 1;
   const bySetup = summarize(sorted, (trade) => trade.setup);
   const byMarket = summarize(sorted, (trade) => trade.market);
   const setupConcentration = getConcentration(bySetup, sorted.length);
@@ -311,9 +319,9 @@ export function analyze(trades: Trade[], rules: RiskRule[]) {
   const warningBreaches = breaches.filter((status) => status.rule.severity === "warning").length;
   const infoBreaches = breaches.filter((status) => status.rule.severity === "info").length;
   const worstSessionLoss = Math.max(0, ...sessions.map((session) => Math.abs(Math.min(0, session.pnl))));
-  const recentPenalty = recentAvgR < 0 ? Math.abs(recentAvgR) * 8 : 0;
-  const trendAdjustment = sorted.length >= 12 ? clamp(avgRTrend * 6, -6, 6) : 0;
-  const concentrationPenalty = setupConcentration && setupConcentration.share >= 0.45 && setupConcentration.avgR < 0 ? 4 : 0;
+  const recentPenalty = recentAvgR !== null && recentAvgR < 0 ? Math.abs(recentAvgR) * 8 : 0;
+  const trendAdjustment = avgRTrend !== null ? clamp(avgRTrend * 6, -6, 6) : 0;
+  const concentrationPenalty = setupConcentration && setupConcentration.share >= 0.45 && setupConcentration.avgR !== null && setupConcentration.avgR < 0 ? 4 : 0;
   const sessionPenalty = Math.min(10, worstSessionLoss / 700);
   const samplePenalty = getSamplePenalty(tradeCount);
   const evidenceQuality = buildEvidenceQuality(tradeCount, rules.filter((rule) => rule.enabled).length, sorted);
@@ -322,8 +330,8 @@ export function analyze(trades: Trade[], rules: RiskRule[]) {
       Math.round(
         70 +
           compliance * 20 +
-          Math.max(0, avgR) * 11 +
-          Math.max(0, recentAvgR) * 5 +
+          Math.max(0, avgR ?? 0) * 11 +
+          Math.max(0, recentAvgR ?? 0) * 5 +
           Math.min(8, Math.max(0, profitFactor - 1) * 4) -
           criticalBreaches * 10 -
           warningBreaches * 5 -
@@ -386,6 +394,9 @@ export function analyze(trades: Trade[], rules: RiskRule[]) {
     grossLoss,
     profitFactor,
     winRate,
+    riskCount,
+    missingRiskCount,
+    legacyRiskCount,
     avgR,
     avgRTrend,
     firstHalfAvgR,
@@ -418,7 +429,9 @@ function buildSessionSummaries(sorted: Trade[]): SessionSummary[] {
   return Object.entries(groupBy(sorted, (trade) => trade.date))
     .map(([date, rows]) => {
       const pnl = rows.reduce((sum, trade) => sum + trade.pnl, 0);
-      const netR = rows.reduce((sum, trade) => sum + rMultiple(trade), 0);
+      const rValues = rows.map(rMultiple).filter((value): value is number => value !== null);
+      const sumR = rValues.reduce((sum, value) => sum + value, 0);
+      const netR = rValues.length && Number.isFinite(sumR) ? sumR : null;
       let runningPnl = 0;
       let worstCumulativePnl = 0;
       for (const trade of rows) {
@@ -435,7 +448,8 @@ function buildSessionSummaries(sorted: Trade[]): SessionSummary[] {
         largestWin: Math.max(0, ...rows.map((trade) => trade.pnl)),
         largestLoss: Math.min(0, ...rows.map((trade) => trade.pnl)),
         netR,
-        avgR: rows.length ? netR / rows.length : 0,
+        riskCount: rValues.length,
+        avgR: averageR(rows),
         worstCumulativePnl,
       };
     })
@@ -456,7 +470,7 @@ function buildBehaviorFlags({
   breaches: RuleStatus[];
   bySetup: ReturnType<typeof summarize>;
   maxDrawdown: number;
-  recentAvgR: number;
+  recentAvgR: number | null;
   recentPnl: number;
   rules: RiskRule[];
   sessions: SessionSummary[];
@@ -469,20 +483,20 @@ function buildBehaviorFlags({
   const maxContracts = getRuleLimit(rules, "maxContracts", 5);
   const lossStreakLimit = getRuleLimit(rules, "maxLossStreak", 3);
   const sizeOffenders = sorted.filter((trade) => trade.contracts > maxContracts);
-  const weakestSetup = bySetup.filter((setup) => setup.count >= 3).sort((a, b) => a.avgR - b.avgR)[0];
-  const bestSetup = bySetup.filter((setup) => setup.count >= 3).sort((a, b) => b.avgR - a.avgR)[0];
+  const weakestSetup = bySetup.filter((setup) => setup.riskCount >= 3 && setup.avgR !== null).sort((a, b) => a.avgR! - b.avgR!)[0];
+  const bestSetup = bySetup.filter((setup) => setup.riskCount >= 3 && setup.avgR !== null).sort((a, b) => b.avgR! - a.avgR!)[0];
   const criticalBreach = breaches.find((status) => status.rule.severity === "critical");
   const recentDates = new Set(sorted.slice(-7).map((trade) => trade.date));
   const negativeOvertradingSession = sessions
-    .filter((session) => session.trades >= 8 && session.avgR < 0)
-    .sort((a, b) => a.avgR - b.avgR || b.trades - a.trades)[0];
+    .filter((session) => session.riskCount >= 8 && session.avgR !== null && session.avgR < 0)
+    .sort((a, b) => a.avgR! - b.avgR! || b.trades - a.trades)[0];
   const sizeUpAfterLoss = sorted.find((trade, index) => {
     const previous = sorted[index - 1];
     return Boolean(previous && previous.pnl < 0 && trade.contracts > previous.contracts && trade.pnl < 0);
   });
   const rOutlierLoss = sorted
-    .filter((trade) => rMultiple(trade) <= -2)
-    .sort((a, b) => rMultiple(a) - rMultiple(b))[0];
+    .filter((trade) => hasPlannedRisk(trade) && rMultiple(trade)! <= -2)
+    .sort((a, b) => rMultiple(a)! - rMultiple(b)!)[0];
 
   if (criticalBreach) {
     const evidence = criticalBreach.evidence.slice(0, 2);
@@ -533,7 +547,7 @@ function buildBehaviorFlags({
   }
 
   if (rOutlierLoss) {
-    const lossR = rMultiple(rOutlierLoss);
+    const lossR = rMultiple(rOutlierLoss)!;
     flags.push({
       id: "r-outlier-loss",
       label: "Large R loss",
@@ -541,12 +555,12 @@ function buildBehaviorFlags({
       summary: "One loss was large relative to planned risk. This matters even when the dollar loss does not break a hard limit.",
       evidence: [
         `${rOutlierLoss.date} ${rOutlierLoss.market}: ${lossR.toFixed(2)}R`,
-        `${formatMoney(rOutlierLoss.pnl)} loss on ${formatMoney(getTradeRisk(rOutlierLoss))} planned risk`,
+        `${formatMoney(rOutlierLoss.pnl)} loss on ${formatMoney(rOutlierLoss.risk)} planned risk`,
       ],
     });
   }
 
-  if (recentAvgR < -0.1) {
+  if (recentAvgR !== null && recentAvgR < -0.1) {
     flags.push({
       id: "recent-expectancy",
       label: "Recent edge faded",
@@ -564,12 +578,12 @@ function buildBehaviorFlags({
       summary: "One session had a high trade count and negative average R. That usually needs a tighter stop-trading rule.",
       evidence: [
         `${negativeOvertradingSession.date}: ${negativeOvertradingSession.trades} trades`,
-        `${negativeOvertradingSession.avgR.toFixed(2)}R average result, ${formatMoney(negativeOvertradingSession.pnl)}`,
+        `${formatR(negativeOvertradingSession.avgR)} average result, ${formatMoney(negativeOvertradingSession.pnl)}`,
       ],
     });
   }
 
-  if (setupConcentration && setupConcentration.share >= 0.45 && setupConcentration.count >= 8 && setupConcentration.avgR < 0.08) {
+  if (setupConcentration && setupConcentration.share >= 0.45 && setupConcentration.riskCount >= 8 && setupConcentration.avgR !== null && setupConcentration.avgR < 0.08) {
     const isNegative = setupConcentration.avgR < 0;
     flags.push({
       id: "setup-concentration",
@@ -595,13 +609,13 @@ function buildBehaviorFlags({
     });
   }
 
-  if (weakestSetup && weakestSetup.avgR < -0.15) {
+  if (weakestSetup && weakestSetup.avgR !== null && weakestSetup.avgR < -0.15) {
     flags.push({
       id: "weak-setup",
       label: `${weakestSetup.name} needs review`,
       severity: "info",
       summary: "This setup has enough imported history for its negative average result to be visible in the review.",
-      evidence: [`${weakestSetup.count} trades`, `${weakestSetup.avgR.toFixed(2)}R average result`],
+      evidence: [`${weakestSetup.riskCount}/${weakestSetup.count} rows with planned risk`, `${weakestSetup.avgR.toFixed(2)}R average result`],
     });
   }
 
@@ -611,9 +625,16 @@ function buildBehaviorFlags({
       label: `${bestSetup.name} has the strongest reviewed sample`,
       severity: "positive",
       summary: "This setup has the strongest current sample inside the trade history.",
-      evidence: [`${bestSetup.count} trades`, `${bestSetup.avgR.toFixed(2)}R average result`],
+      evidence: [`${bestSetup.riskCount}/${bestSetup.count} rows with planned risk`, `${formatR(bestSetup.avgR)} average result`],
     });
   }
+
+  const missingRiskCount = sorted.filter(trade => !hasPlannedRisk(trade)).length;
+  if (missingRiskCount) flags.unshift({
+    id: "missing-planned-risk", label: "Planned risk missing", severity: "info",
+    summary: "Rows without a positive planned-risk amount are excluded from R-based results.",
+    evidence: [`${missingRiskCount}/${sorted.length} rows have no planned risk`],
+  });
 
   if (!flags.length && sorted.length) {
     flags.push({
@@ -643,7 +664,7 @@ function buildNextSessionBrief({
   breaches: RuleStatus[];
   latestSession: SessionSummary | null;
   maxDrawdown: number;
-  recentAvgR: number;
+  recentAvgR: number | null;
   recentPnl: number;
   rules: RiskRule[];
   score: number;
@@ -669,7 +690,7 @@ function buildNextSessionBrief({
   ];
   const evidence = [
     latestSession ? `Latest session: ${formatMoney(latestSession.pnl)} across ${latestSession.trades} trade${latestSession.trades === 1 ? "" : "s"}` : "No latest session yet",
-    sorted.length ? `Recent 7-trade average: ${recentAvgR.toFixed(2)}R` : "Upload trades to calculate recent R",
+    recentAvgR !== null ? `Recent average: ${formatR(recentAvgR)} (${sorted.slice(-7).filter(hasPlannedRisk).length}/${sorted.slice(-7).length} rows with planned risk)` : "Recent R unavailable: planned risk not provided",
     `Biggest dip: ${formatMoney(-maxDrawdown)}`,
   ];
 
@@ -695,8 +716,8 @@ function buildNextSessionBrief({
     };
   }
 
-  if (hasWarning || recentAvgR < 0 || score < 70) {
-    const recentPressure = recentAvgR < 0 || hasRecentWarningBreach || behaviorFlags.some((flag) => flag.severity === "warning" && flag.id !== "critical-limit");
+  if (hasWarning || (recentAvgR !== null && recentAvgR < 0) || score < 70) {
+    const recentPressure = (recentAvgR !== null && recentAvgR < 0) || hasRecentWarningBreach || behaviorFlags.some((flag) => flag.severity === "warning" && flag.id !== "critical-limit");
     return {
       status: "caution",
       headline: recentPressure ? "Recent history contains a recurring risk pattern." : "Older rule warnings remain in the reviewed sample.",
@@ -708,6 +729,12 @@ function buildNextSessionBrief({
       evidence: [...evidence, `Recent P&L: ${formatMoney(recentPnl)}`],
     };
   }
+
+  if (sorted.some(trade => !hasPlannedRisk(trade))) return {
+    status: "caution", headline: "Planned risk is missing from part of this sample.",
+    summary: "R-based results only include rows with positive planned risk. Add the original planned-risk amounts to complete this review.",
+    watchlist: ["Missing planned risk"], guardrails, evidence,
+  };
 
   return {
     status: "ready",
@@ -734,7 +761,7 @@ function dedupeFlags(flags: BehaviorFlag[]) {
   });
 }
 
-function evaluateRule(rule: RiskRule, trades: Trade[], sessions: SessionSummary[], metrics: { profitFactor: number; avgR: number; worstLossStreak: number }): RuleStatus {
+function evaluateRule(rule: RiskRule, trades: Trade[], sessions: SessionSummary[], metrics: { profitFactor: number; avgR: number | null; worstLossStreak: number }): RuleStatus {
   let breached = false;
   let summary = "Looks within your limits.";
   let evidence: string[] = [];
@@ -770,11 +797,12 @@ function evaluateRule(rule: RiskRule, trades: Trade[], sessions: SessionSummary[
     summary = breached ? `Profit factor is below ${rule.limit}.` : `Profit factor is above ${rule.limit}.`;
   }
   if (rule.metric === "minAvgR") {
+    if (metrics.avgR === null) return { rule, breached: false, evaluated: false, summary: "Not evaluated: planned risk not provided.", evidence: ["Average R unavailable; no rows with positive planned risk."] };
     breached = metrics.avgR < rule.limit;
-    evidence = [`Average R: ${metrics.avgR.toFixed(2)}R`];
+    evidence = [`Average R: ${formatR(metrics.avgR)}`, `${trades.filter(hasPlannedRisk).length}/${trades.length} rows with planned risk`];
     summary = breached ? `Average R is below ${rule.limit}.` : `Average R is above ${rule.limit}.`;
   }
-  return { rule, breached, summary, evidence };
+  return { rule, breached, evaluated: true, summary, evidence };
 }
 
 function summarize(trades: Trade[], getKey: (trade: Trade) => string) {
@@ -787,6 +815,7 @@ function summarize(trades: Trade[], getKey: (trade: Trade) => string) {
         pnl,
         winRate: rows.filter((trade) => trade.pnl > 0).length / rows.length,
         avgR: averageR(rows),
+        riskCount: rows.filter(trade => rMultiple(trade) !== null).length,
       };
     })
     .sort((a, b) => b.count - a.count || b.pnl - a.pnl);
@@ -796,23 +825,33 @@ function getConcentration(rows: ReturnType<typeof summarize>, totalTrades: numbe
   if (!totalTrades || !rows.length) {
     return null;
   }
-  const [top] = [...rows].sort((a, b) => b.count - a.count || a.avgR - b.avgR);
+  const [top] = [...rows].sort((a, b) => b.count - a.count || (a.avgR ?? 0) - (b.avgR ?? 0));
   return {
     ...top,
     share: top.count / totalTrades,
   };
 }
 
-function averageR(trades: Trade[]) {
-  return trades.length ? trades.reduce((sum, trade) => sum + rMultiple(trade), 0) / trades.length : 0;
+/** Preserve positive legacy values; old CSVs lack provenance to distinguish genuine risk from the former fallback. */
+export function hasPlannedRisk(trade: Trade): boolean {
+  return trade.riskStatus !== "missing" && Number.isFinite(trade.risk) && trade.risk > 0;
 }
 
-function rMultiple(trade: Trade) {
-  return trade.pnl / getTradeRisk(trade);
+export function formatR(value: number | null): string {
+  return value === null ? "Not available" : `${value.toFixed(2)}R`;
 }
 
-function getTradeRisk(trade: Trade) {
-  return Number.isFinite(trade.risk) && trade.risk > 0 ? trade.risk : Math.max(1, Math.abs(trade.pnl));
+function averageR(trades: Trade[]): number | null {
+  const values = trades.map(rMultiple).filter((value): value is number => value !== null);
+  if (!values.length) return null;
+  const mean = values.reduce((sum, value) => sum + value / values.length, 0);
+  return Number.isFinite(mean) ? mean : null;
+}
+
+function rMultiple(trade: Trade): number | null {
+  if (!hasPlannedRisk(trade)) return null;
+  const value = trade.pnl / trade.risk;
+  return Number.isFinite(value) ? value : null;
 }
 
 function getSamplePenalty(count: number) {
@@ -842,10 +881,12 @@ function applyEvidenceScoreCap(score: number, evidenceQuality: EvidenceQuality) 
 }
 
 function buildEvidenceQuality(tradeCount: number, activeRuleCount: number, trades: Trade[]): EvidenceQuality {
-  const missingRiskCount = trades.filter((trade) => !Number.isFinite(trade.risk) || trade.risk <= 0).length;
+  const missingRiskCount = trades.filter((trade) => !hasPlannedRisk(trade)).length;
+  const legacyRiskCount = trades.filter(trade => trade.id.startsWith("csv-") && trade.riskStatus === undefined && hasPlannedRisk(trade)).length;
   const caveats = [
+    legacyRiskCount ? `${legacyRiskCount} older CSV row${legacyRiskCount === 1 ? "" : "s"} have unverified risk values; check the original planned risk.` : "",
     activeRuleCount ? "" : "No active risk rules are enabled.",
-    missingRiskCount ? `${missingRiskCount} trade${missingRiskCount === 1 ? "" : "s"} used inferred risk.` : "",
+    missingRiskCount ? `${missingRiskCount} row${missingRiskCount === 1 ? "" : "s"} missing planned risk; excluded from R-based results.` : "",
   ].filter(Boolean);
 
   if (!tradeCount) {
@@ -905,14 +946,14 @@ function buildScoreFactors({
   score,
   sorted,
 }: {
-  avgR: number;
-  avgRTrend: number;
+  avgR: number | null;
+  avgRTrend: number | null;
   breaches: RuleStatus[];
   compliance: number;
   evidenceQuality: EvidenceQuality;
   maxDrawdown: number;
   profitFactor: number;
-  recentAvgR: number;
+  recentAvgR: number | null;
   recentPnl: number;
   score: number;
   sorted: Trade[];
@@ -941,15 +982,15 @@ function buildScoreFactors({
     },
     {
       label: "Recent behavior",
-      impact: recentAvgR < 0 ? "negative" : recentAvgR > 0.15 ? "positive" : "neutral",
-      summary: recentAvgR < 0 ? "Recent trades are costing R." : "Recent trades are not pressuring the score.",
-      evidence: `${recentAvgR.toFixed(2)}R recent avg, ${formatMoney(recentPnl)} recent P&L`,
+      impact: recentAvgR === null ? "neutral" : recentAvgR < 0 ? "negative" : recentAvgR > 0.15 ? "positive" : "neutral",
+      summary: recentAvgR === null ? "Recent R is unavailable without planned risk." : recentAvgR < 0 ? "Recent trades are costing R." : "Recent trades are not pressuring the score.",
+      evidence: `${formatR(recentAvgR)} recent avg (${sorted.slice(-7).filter(hasPlannedRisk).length}/${sorted.slice(-7).length} rows with planned risk), ${formatMoney(recentPnl)} recent P&L`,
     },
     {
       label: "Expectancy",
-      impact: avgR > 0.1 && profitFactor >= 1.05 ? "positive" : avgR < 0 || profitFactor < 1 ? "negative" : "neutral",
+      impact: avgR !== null && avgR > 0.1 && profitFactor >= 1.05 ? "positive" : (avgR !== null && avgR < 0) || profitFactor < 1 ? "negative" : "neutral",
       summary: "Profit factor and average R show whether winners are paying for losers.",
-      evidence: `${Number.isFinite(profitFactor) ? profitFactor.toFixed(2) : "∞"} PF, ${avgR.toFixed(2)}R avg`,
+      evidence: `${Number.isFinite(profitFactor) ? profitFactor.toFixed(2) : "∞"} PF, ${formatR(avgR)} avg (${sorted.filter(hasPlannedRisk).length}/${sorted.length} rows with planned risk)`,
     },
     {
       label: "Drawdown pressure",
@@ -965,7 +1006,7 @@ function buildScoreFactors({
     },
   ];
 
-  if (sorted.length >= 12 && Math.abs(avgRTrend) >= 0.2) {
+  if (avgRTrend !== null && Math.abs(avgRTrend) >= 0.2) {
     factors.unshift({
       label: avgRTrend > 0 ? "Recent improvement" : "Recent regression",
       impact: avgRTrend > 0 ? "positive" : "negative",
@@ -985,7 +1026,7 @@ function buildScoreFactors({
     });
   }
 
-  if (score >= 85) {
+  if (score >= 85 && avgR !== null && sorted.every(hasPlannedRisk)) {
     factors.unshift({
       label: "Score support",
       impact: "positive",
@@ -1108,7 +1149,9 @@ export function parseCsvDetailed(text: string): CsvParseResult {
       return;
     }
     if (providerImport) providerTradeIds.add(sourceTradeId);
-    const risk = providerImport ? 0 : Math.max(1, parseNumber(valueFrom(record, ["risk", "plannedrisk", "initialrisk", "maxrisk", "r", "rmultiplebase", "riskamount", "plannedloss"])) || Math.abs(pnl) || 500);
+    const riskRaw = valueFrom(record, ["risk", "plannedrisk", "initialrisk", "maxrisk", "rmultiplebase", "riskamount", "plannedloss"]);
+    const parsedRisk = parsePlannedRisk(riskRaw);
+    const risk = parsedRisk ?? 0;
     const side = parseSide(valueFrom(record, ["side", "direction", "buysell", "action", "position", "tradeaction"]));
     trades.push({
       id: providerImport ? sourceTradeId : `csv-${now}-${index}`,
@@ -1120,6 +1163,7 @@ export function parseCsvDetailed(text: string): CsvParseResult {
       exit: Number.isFinite(exit) ? exit : 0,
       pnl,
       risk,
+      riskStatus: parsedRisk === null ? "missing" : "provided",
       setup: valueFrom(record, ["setup", "strategy", "playbook", "tag", "label", "tradetype", "category"]) || "Imported",
       notes: valueFrom(record, ["notes", "note", "comment", "comments", "journal", "description"]),
       ...(isRithmic
@@ -1131,6 +1175,13 @@ export function parseCsvDetailed(text: string): CsvParseResult {
   });
 
   return { trades, issues, headers: rawHeaders, rowCount: Math.max(0, lines.length - 1) };
+}
+
+function parsePlannedRisk(raw: string): number | null {
+  const normalized = raw.trim().replace(/[−–—]/g, "-").replace(/[$,\s]/g, "");
+  if (!/^\+?(?:\d+(?:\.\d+)?|\.\d+)$/.test(normalized)) return null;
+  const value = Number(normalized);
+  return Number.isFinite(value) && value > 0 && Number.isSafeInteger(Math.round(value * 100)) ? value : null;
 }
 
 export function formatMoney(value: number) {

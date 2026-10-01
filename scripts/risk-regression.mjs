@@ -194,7 +194,7 @@ const missingRiskAnalysis = analyze([
   makeTrade({ id: "mr2", pnl: -120, risk: Number.NaN }),
   makeTrade({ id: "mr3", pnl: 260, risk: 200 }),
 ], defaultRules);
-assert.ok(missingRiskAnalysis.evidenceQuality.caveats.some((caveat) => /inferred risk/i.test(caveat)), "Evidence quality should warn when Cova has to infer missing risk values.");
+assert.ok(missingRiskAnalysis.evidenceQuality.caveats.some((caveat) => /missing planned risk/i.test(caveat)), "Evidence quality should disclose missing risk instead of inferring it.");
 
 const smallLuckySample = analyze(Array.from({ length: 4 }, (_, index) => makeTrade({
   id: `small-lucky-${index}`,

@@ -30,7 +30,7 @@ import type { Trade } from "../lib/risk";
 import { PassportShareComposer } from "./PassportShareComposer";
 import { buildHoloPassportModel, type HoloPassportMode } from "../lib/passportHolo";
 import { loadPassportAppearance, type PassportAppearance } from "../lib/passportMaterials";
-import { analyze, formatMoney, formatPercent, type RiskRule } from "../lib/risk";
+import { analyze, formatR, formatMoney, formatPercent, type RiskRule } from "../lib/risk";
 import { GlassButton } from "./GlassButton";
 import { ImageAtmosphere, SectionShell } from "./LayoutShell";
 
@@ -52,7 +52,7 @@ export function RulesEngine({ analysis, entitlements, rules, setRules, go, upgra
   const rangeStep = isCountRule ? 1 : isMinimumRule ? 0.05 : 50;
   const formattedLimit = isCountRule ? rule.limit : isMinimumRule ? rule.limit.toFixed(2) : formatMoney(rule.limit);
   const locked = isMinimumRule && !entitlements.canEditAdvancedLimits;
-  const ruleState = !rule.enabled ? "off" : status?.breached ? "breach" : "inside";
+  const ruleState = !rule.enabled || status?.evaluated === false ? "off" : status?.breached ? "breach" : "inside";
   const ruleStateLabel = ruleState === "off" ? "Not checked" : ruleState === "breach" ? "Breach in history" : "Inside limit";
     return (
       <article className="oa-limit-row" key={rule.id} data-rule-id={rule.id} data-rule-state={ruleState}>
@@ -117,7 +117,7 @@ export function RulesEngine({ analysis, entitlements, rules, setRules, go, upgra
 
 export function Coach({ analysis, entitlements, go, upgradeToPro, accountControl }: { analysis: ReturnType<typeof analyze>; entitlements: WorkspaceEntitlements; go: (section: Section) => void; upgradeToPro: () => void; accountControl?: ReactNode }) {
   const primaryBreach = analysis.breaches[0];
-  const bestSetup = analysis.bySetup[0];
+  const bestSetup = analysis.bySetup.filter(setup => setup.riskCount >= 3 && setup.avgR !== null).sort((a, b) => b.avgR! - a.avgR!)[0];
   const brief = analysis.nextSessionBrief;
   const briefIcon = brief.status === "locked" ? LockKeyhole : brief.status === "ready" ? ShieldCheck : Gauge;
   const briefTone = brief.status === "locked" ? "PAUSE" : brief.status === "ready" ? "READY" : "CAUTION";
@@ -131,8 +131,8 @@ export function Coach({ analysis, entitlements, go, upgradeToPro, accountControl
           : "Compare the flagged rows with the active review threshold."
     : "No threshold breach appears in the current imported history.";
   const setupAction = bestSetup
-    ? `${bestSetup.name} is the strongest reviewed sample; compare future imports before changing the playbook.`
-    : "Upload more rows before drawing a conclusion about setup quality.";
+    ? `${bestSetup.name} has the highest average R among setups with at least three risk-provided rows; compare future imports before changing the playbook.`
+    : "Add planned-risk amounts before drawing R-based conclusions about setup quality.";
   const sessionAction = brief.status === "locked"
     ? "Current review status: a flagged rule still needs inspection."
     : brief.status === "ready"
@@ -150,10 +150,10 @@ export function Coach({ analysis, entitlements, go, upgradeToPro, accountControl
     {
       icon: ShieldCheck,
       title: "Setup review",
-      body: bestSetup ? `${bestSetup.name} has the clearest sample right now: ${bestSetup.count} trades, ${bestSetup.avgR.toFixed(2)}R average result.` : "Cova needs more imported trades before it can name a clean setup with confidence.",
+      body: bestSetup ? `${bestSetup.name} has the clearest sample right now: ${bestSetup.riskCount}/${bestSetup.count} rows with planned risk, ${formatR(bestSetup.avgR)} average result.` : "Setup R is unavailable until at least three rows in a setup have positive planned-risk amounts.",
       action: setupAction,
-      tone: analysis.breaches.length ? "CAUTION" : bestSetup && bestSetup.avgR > 0 ? "GOOD" : "CAUTION",
-      evidence: bestSetup ? [`${bestSetup.count} trades`, `${bestSetup.avgR.toFixed(2)}R average result`] : ["Upload more rows to learn which setups are working."],
+      tone: analysis.breaches.length ? "CAUTION" : bestSetup && bestSetup.avgR !== null && bestSetup.avgR > 0 ? "GOOD" : "CAUTION",
+      evidence: bestSetup ? [`${bestSetup.riskCount}/${bestSetup.count} rows with planned risk`, `${formatR(bestSetup.avgR)} average result`] : ["Planned risk is needed to calculate setup R."],
     },
     {
       icon: briefIcon,
@@ -170,6 +170,8 @@ export function Coach({ analysis, entitlements, go, upgradeToPro, accountControl
     <section className="oa-review-page oa-insights" aria-labelledby="oa-insights-title">
       <header className="oa-review-header"><div><h1 id="oa-insights-title">Insights</h1><p>A closer look at your imported trades.</p></div>{accountControl}</header>
       <div className="oa-insight-feed">
+        {analysis.legacyRiskCount > 0 && <p role="status" data-legacy-risk-caveat>{analysis.legacyRiskCount} older CSV rows have unverified risk values. Check the original planned-risk amounts before relying on R-based results.</p>}
+        {analysis.missingRiskCount > 0 && <p role="status" data-planned-risk-coverage>{analysis.missingRiskCount} of {analysis.trades.length} rows have no planned risk. R-based results use only the {analysis.riskCount} rows with planned risk; P&amp;L is unchanged.</p>}
         {visibleInsights.map((insight, index) => {
           const isWarningTone = insight.tone !== "GOOD" && insight.tone !== "READY";
           return (
@@ -310,7 +312,7 @@ function getPassportTier(analysis: ReturnType<typeof analyze>): PassportTier {
   const tradeCount = analysis.tradeCount;
   const profitable = analysis.totalPnl > 0;
   const inTheRed = analysis.totalPnl < 0;
-  const positiveExpectancy = analysis.avgR > 0 && analysis.profitFactor >= 1.05;
+  const positiveExpectancy = analysis.avgR !== null && analysis.missingRiskCount === 0 && analysis.avgR > 0 && analysis.profitFactor >= 1.05;
 
   if (
     profitable &&
@@ -319,7 +321,7 @@ function getPassportTier(analysis: ReturnType<typeof analyze>): PassportTier {
     score >= 90 &&
     analysis.compliance >= 0.9 &&
     breachCount <= 1 &&
-    analysis.avgR >= 0.3 &&
+    analysis.avgR !== null && analysis.avgR >= 0.3 &&
     analysis.profitFactor >= 1.5
   ) {
     return {
@@ -339,7 +341,7 @@ function getPassportTier(analysis: ReturnType<typeof analyze>): PassportTier {
     score >= 82 &&
     analysis.compliance >= 0.8 &&
     breachCount <= 2 &&
-    analysis.avgR >= 0.15 &&
+    analysis.avgR !== null && analysis.avgR >= 0.15 &&
     analysis.profitFactor >= 1.25
   ) {
     return {
@@ -733,7 +735,7 @@ function getPassportStats(analysis: ReturnType<typeof analyze>, mode: PassportSh
       return [
         { label: "Control score", value: `${analysis.score}`, tone: "positive" },
         { label: "Rules held", value: formatPercent(analysis.compliance), tone: analysis.compliance >= 0.75 ? "positive" : "negative" },
-        { label: "Average R", value: `${analysis.avgR.toFixed(2)}R`, tone: analysis.avgR >= 0 ? "positive" : "negative" },
+        { label: "Average R", value: `${formatR(analysis.avgR)} (${analysis.riskCount}/${analysis.trades.length} rows)`, tone: analysis.avgR === null ? "neutral" : analysis.avgR >= 0 ? "positive" : "negative" },
         { label: "Max DD", value: formatMoney(Math.round(analysis.maxDrawdown)), tone: analysis.maxDrawdown > 0 ? "neutral" : "positive" },
         { label: "Trades reviewed", value: `${analysis.tradeCount}`, tone: "neutral" },
         { label: "Breaches", value: `${analysis.breaches.length}`, tone: analysis.breaches.length ? "negative" : "positive" },
@@ -756,7 +758,7 @@ function getPassportStats(analysis: ReturnType<typeof analyze>, mode: PassportSh
         { label: "Top leak", value: getPrimaryLeak(analysis), tone: analysis.breaches.length ? "negative" : "positive" },
         { label: "Next", value: analysis.nextSessionBrief.status.toUpperCase(), tone: analysis.nextSessionBrief.status === "ready" ? "positive" : "negative" },
         { label: "Profit factor", value: analysis.profitFactor.toFixed(2), tone: analysis.profitFactor >= 1 ? "positive" : "negative" },
-        { label: "Average R", value: `${analysis.avgR.toFixed(2)}R`, tone: analysis.avgR >= 0 ? "positive" : "negative" },
+        { label: "Average R", value: `${formatR(analysis.avgR)} (${analysis.riskCount}/${analysis.trades.length} rows)`, tone: analysis.avgR === null ? "neutral" : analysis.avgR >= 0 ? "positive" : "negative" },
       ];
     }
     return [
@@ -829,11 +831,12 @@ export function Passport({ analysis, entitlements, isSampleReview, go, upgradeTo
   const shareMode = getPassportMode(shareModeId);
   const cardStats = getPassportStats(analysis, shareModeId);
   const nextTarget = getPassportNextTarget(tier, analysis);
-  const verifiedRules = analysis.ruleStatuses.filter(status => !status.breached).length;
+  const verifiedRules = analysis.ruleStatuses.filter(status => status.evaluated && !status.breached).length;
   const reviewId = `COVA-${analysis.latestDate.replace(/-/g, "").slice(2)}-${analysis.score}${verifiedRules}`;
+  const hasUncheckedRules = analysis.ruleStatuses.some(status => !status.evaluated);
   const ledgerHasFlags = analysis.breaches.length > 0;
-  const ledgerStatusCopy = isSampleReview ? "Sample review · demo data" : !analysis.ruleStatuses.length ? "Rules not checked" : ledgerHasFlags ? "Rules calculated · flags found" : "Rules calculated · no flags found";
-  const ledgerStatusClass = ledgerHasFlags || isSampleReview || !analysis.ruleStatuses.length ? "has-flags" : "is-verified";
+  const ledgerStatusCopy = isSampleReview ? "Sample review · demo data" : !analysis.ruleStatuses.length ? "Rules not checked" : hasUncheckedRules ? "Partial review · planned risk missing" : ledgerHasFlags ? "Rules calculated · flags found" : "Rules calculated · no flags found";
+  const ledgerStatusClass = ledgerHasFlags || hasUncheckedRules || isSampleReview || !analysis.ruleStatuses.length ? "has-flags" : "is-verified";
   const composerModes = useMemo<[HoloPassportMode, string][]>(() => passportShareModes.map(mode => [mode.id, mode.label]), []);
 
   useEffect(() => {
@@ -914,7 +917,7 @@ export function Passport({ analysis, entitlements, isSampleReview, go, upgradeTo
                     <div className="passport-ledger-row" key={status.rule.id}>
                       <span className="passport-ledger-index">{String(index + 1).padStart(2, "0")}</span>
                       <div><strong>{status.rule.name}</strong><small>{status.summary}</small></div>
-                      <span className={status.breached ? "is-failed" : "is-passed"}>{status.breached ? "Flagged" : "Passed"}</span>
+                      <span className={!status.evaluated ? "has-flags" : status.breached ? "is-failed" : "is-passed"}>{!status.evaluated ? "Not checked" : status.breached ? "Flagged" : "Passed"}</span>
                       <code>{friendlyRuleMetric(status.rule.metric)}</code><time>{analysis.latestDate}</time>
                     </div>
                   ))}
@@ -1108,7 +1111,7 @@ async function downloadPassportPng(analysis: ReturnType<typeof analyze>, tier: P
     : `<text x="92" y="1372" fill="${palette.accent}" font-family="Arial, sans-serif" font-size="23" font-weight="800" letter-spacing="4">${escapeSvgText(nextTarget)}</text>`;
   const exportSkin = tier.skin.toUpperCase();
   const exportHeadline = tier.headline.toUpperCase();
-  const verifiedRules = analysis.ruleStatuses.length - analysis.breaches.length;
+  const verifiedRules = analysis.ruleStatuses.filter(status => status.evaluated && !status.breached).length;
   const reviewId = `COVA-${analysis.latestDate.replace(/-/g, "").slice(2)}-${analysis.score}${verifiedRules}`;
   const diamondExportFx = isDiamondExport ? `
       <path d="M82 86 H998 L1026 114 V1386 L998 1414 H82 L54 1386 V114 Z" fill="none" stroke="${palette.accent}" stroke-opacity="0.36" stroke-width="1"/>
