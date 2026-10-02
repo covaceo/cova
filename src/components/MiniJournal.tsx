@@ -6,6 +6,7 @@ import { groupJournalEntries, type Trade, type JournalEntryGroup } from '../lib/
 import { journalSummary, moneyText } from '../lib/journalAccuracy';
 import type { DailyJournalEntry } from '../lib/dailyJournal';
 export type JournalActions = {
+  accountStorage?: boolean;
   draftKey?: string;
   read: (date: string) => string;
   readEntry?: (date: string) => DailyJournalEntry;
@@ -77,7 +78,7 @@ export function MiniJournal({ initialDate, actions, trades = [], onOpenTrade }: 
         {matches.length > shown && <button className="journal-attach-button" type="button" onClick={() => setShown(value => value + 20)}>Show more trades</button>}
       </motion.div>}
     </div>
-    <div className="mini-journal-footer"><span role="status">{status || (dirty ? 'Unsaved changes' : 'Private · saved on this browser')}</span><button className="astra-button" type="button" disabled={!actions || !dirty} onClick={() => {
+    <div className="mini-journal-footer"><span role="status">{status || (dirty ? 'Unsaved changes' : actions?.accountStorage ? 'Private · check account storage for sync status' : 'Private · saved on this browser')}</span><button className="astra-button" type="button" disabled={!actions || !dirty} onClick={() => {
       if (entry.tradeId && !linked) { setStatus('Remove the unavailable trade before saving.'); return; }
       if (actions?.save(date, entry.note, entry.tradeId)) { clearJournalDraft(draftScope(date)); setDirty(false); setStatus('Saved'); }
       else setStatus('Not saved. Reopen this account and try again.');

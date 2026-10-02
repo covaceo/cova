@@ -156,7 +156,7 @@ export function Dashboard({ noteDraftOwner, analysis, rules, go, rithmicSyncAvai
     {manualOpen && onAddManualTrade && <ManualTradeDialog accounts={manualAccounts} selected={selectedAccount} onSave={onAddManualTrade} onClose={() => setManualOpen(false)} />}
     {!hasTradeHistory && <MiniJournal initialDate={new Date().toLocaleDateString("en-CA")} actions={journalActions} trades={analysis.trades} onOpenTrade={id => { setAttachedTradeId(id); setHistoryOpen(true); }} />}
     {historyOpen && <TradeHistoryDialog attachedTradeId={attachedTradeId} trades={analysis.trades} journalReview={journalReview} onClose={() => setHistoryOpen(false)} />}
-    <DashboardTradeDialog draftOwner={noteDraftOwner} journalReview={journalReview} trade={selectedTrade} onClose={() => setSelectedTradeId(null)} onSave={noteSaveRef.current} onDelete={onDeleteManualTrade} />
+    <DashboardTradeDialog accountStorage={journalActions?.accountStorage} draftOwner={noteDraftOwner} journalReview={journalReview} trade={selectedTrade} onClose={() => setSelectedTradeId(null)} onSave={noteSaveRef.current} onDelete={onDeleteManualTrade} />
   </section>;
 }
 

@@ -1184,6 +1184,7 @@ export default function App() {
 
   const dashboardSelectionCurrent = historySelection.current.capture();
   const journalActions = {
+    accountStorage: workspaceSync.enabled && workspaceSync.phase !== "local",
     draftKey: dashboardPrincipal ? JSON.stringify([dashboardPrincipal.identity, tradeAccount]) : undefined,
     read: (date: string) => dashboardPrincipal && dashboardSelectionCurrent() && isImportPrincipalCurrent(dashboardPrincipal,getCurrentImportPrincipal()) ? readDailyJournal(dashboardPrincipal.identity,tradeAccount,date) : "",
     readEntry: (date: string) => dashboardPrincipal && dashboardSelectionCurrent() && isImportPrincipalCurrent(dashboardPrincipal,getCurrentImportPrincipal()) ? readDailyJournalEntry(dashboardPrincipal.identity,tradeAccount,date) : {note:"",tradeId:null},
