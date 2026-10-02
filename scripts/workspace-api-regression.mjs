@@ -72,8 +72,52 @@ const write = {
   deleted: false,
 };
 const auth = async () => ({ id: A, plan: "free" });
+const projectEnvironment = () => ({ WORKSPACE_SYNC_PROJECT_REF: 'aaaaaaaaaaaaaaaaaaaa', SUPABASE_URL: 'https://aaaaaaaaaaaaaaaaaaaa.supabase.co' });
 const handler = (rest, options = {}) =>
-  createWorkspaceHandler({ auth, rest, enabled: () => true, ...options });
+  createWorkspaceHandler({ auth, rest, enabled: () => true, environment: projectEnvironment, ...options });
+
+test('enabled workspace rejects missing, malformed or mismatched project binding before all upstream calls', async () => {
+  const testRef='dubfbadtuzkhrkfcvncd', productionRef='jrlunkaoghamiuzdfyov';
+  const invalid = [
+    {}, { SUPABASE_URL:`https://${testRef}.supabase.co` },
+    { WORKSPACE_SYNC_PROJECT_REF:testRef },
+    { WORKSPACE_SYNC_PROJECT_REF:productionRef, SUPABASE_URL:`https://${testRef}.supabase.co` },
+    { WORKSPACE_SYNC_PROJECT_REF:testRef, SUPABASE_URL:`https://${productionRef}.supabase.co` },
+    ...['http://','https://user:pass@'].map(prefix=>({WORKSPACE_SYNC_PROJECT_REF:testRef,SUPABASE_URL:prefix+testRef+'.supabase.co'})),
+    ...[':443', '/rest/v1', '?x=1', '#fragment', '.evil.invalid', '/..', '/%2e%2e', ' '].map(suffix=>({WORKSPACE_SYNC_PROJECT_REF:testRef,SUPABASE_URL:`https://${testRef}.supabase.co`+suffix})),
+    {WORKSPACE_SYNC_PROJECT_REF:' '+testRef,SUPABASE_URL:`https://${testRef}.supabase.co`},
+    {WORKSPACE_SYNC_PROJECT_REF:'bad/ref',SUPABASE_URL:'https://bad/ref.supabase.co'},
+    {WORKSPACE_SYNC_PROJECT_REF:testRef,VITE_SUPABASE_URL:`https://${testRef}.supabase.co`},
+  ];
+  let authCalls=0,restCalls=0,fetchCalls=0;
+  const originalFetch=globalThis.fetch;
+  globalThis.fetch=()=>{fetchCalls++;throw Error('Unexpected upstream request');};
+  try {
+    for(const environment of invalid) for(const method of ['GET','POST']) {
+      const h=createWorkspaceHandler({enabled:()=>true,environment:()=>environment,
+        auth:async()=>{authCalls++;return {id:A,plan:'free'};},rest:async()=>{restCalls++;return [];}});
+      const result=await rawRequest(h,{method,body:{owner:A,action:'consent',disclosure:'workspace-cloud-v1'}});
+      assert.equal(result.status,503);
+      assert.deepEqual(result.payload,{error:'Account storage could not complete this request.'});
+    }
+    assert.deepEqual([authCalls,restCalls,fetchCalls],[0,0,0]);
+  } finally {globalThis.fetch=originalFetch;}
+});
+
+test('matching explicit TEST and production refs permit authentication, including root slash', async () => {
+  for(const ref of ['dubfbadtuzkhrkfcvncd','jrlunkaoghamiuzdfyov']) for(const slash of ['', '/']) {
+    let calls=0;
+    const h=createWorkspaceHandler({enabled:()=>true,environment:()=>({WORKSPACE_SYNC_PROJECT_REF:ref,SUPABASE_URL:`https://${ref}.supabase.co${slash}`}),
+      auth:async()=>{calls++;throw Object.assign(Error('Synthetic auth denial'),{statusCode:401});},rest:()=>assert.fail('Storage must not run')});
+    assert.equal((await rawRequest(h)).status,401);assert.equal(calls,1);
+  }
+});
+
+test('disabled workspace requires no binding and never consults auth or storage', async () => {
+  const fail=()=>assert.fail('Disabled endpoint must not consult configuration or upstream services');
+  const h=createWorkspaceHandler({enabled:()=>false,environment:fail,auth:fail,rest:fail});
+  for(const method of ['GET','POST','PATCH'])assert.equal((await rawRequest(h,{method})).status,404);
+});
 test("disabled API cannot read or write even with a session", async () => {
   let called = false;
   const r = await request(

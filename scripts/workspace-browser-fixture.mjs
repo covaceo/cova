@@ -82,6 +82,7 @@ const rest = async (path, o) => {
 };
 const handler = createWorkspaceHandler({
   enabled: () => true,
+  environment: () => ({ WORKSPACE_SYNC_PROJECT_REF: 'aaaaaaaaaaaaaaaaaaaa', SUPABASE_URL: 'https://aaaaaaaaaaaaaaaaaaaa.supabase.co' }),
   auth: async (req) => ({
     id: String(req.headers.authorization || "").replace("Bearer qa-", ""),
     plan: "pro",

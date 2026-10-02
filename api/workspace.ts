@@ -17,6 +17,14 @@ export class WorkspaceOperationRejection extends ApiError {
     super(status, message);
   }
 }
+export function assertWorkspaceProject(env: Record<string, string | undefined>) {
+  const ref = env.WORKSPACE_SYNC_PROJECT_REF;
+  // Accept only the canonical project origin (optionally with its root slash).
+  // Reject credentials, ports, paths, queries, fragments and URL normalization.
+  if (!ref || !/^[a-z0-9]{20}$/.test(ref) ||
+      ![`https://${ref}.supabase.co`, `https://${ref}.supabase.co/`].includes(env.SUPABASE_URL || ""))
+    throw new ApiError(503, "Account storage project is not configured correctly.");
+}
 async function workspaceRest(path: string, options: any = {}) {
   const base = String(process.env.SUPABASE_URL || "").replace(/\/$/, "");
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -55,16 +63,18 @@ export function createWorkspaceHandler({
   auth = requirePolicyAcceptedUser,
   rest = workspaceRest,
   enabled = () => process.env.WORKSPACE_SYNC_ENABLED === "true",
+  environment = () => process.env,
 }: any = {}) {
   return async (req: any, res: any) => {
     res.setHeader("Cache-Control", "private, no-store");
     if (!enabled())
       return res.status(404).json({ error: "Account storage is not enabled." });
-    if (!["GET", "POST"].includes(req.method)) {
-      res.setHeader("Allow", "GET, POST");
-      return res.status(405).json({ error: "Method not allowed" });
-    }
     try {
+      assertWorkspaceProject(environment());
+      if (!["GET", "POST"].includes(req.method)) {
+        res.setHeader("Allow", "GET, POST");
+        return res.status(405).json({ error: "Method not allowed" });
+      }
       const user = await auth(req);
       if (!uuid(user.id)) throw new ApiError(401, "Sign in again.");
       let body = req.method === "GET" ? undefined : req.body;
