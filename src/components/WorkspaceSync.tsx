@@ -540,7 +540,7 @@ export function WorkspaceSyncPanel({
   };
   return (
     <section
-      className="m-4 rounded-xl border border-white/10 p-4 text-sm"
+      className="workspace-sync-panel m-4 rounded-xl border border-white/10 p-4 text-sm"
       aria-label="Account storage"
       aria-live="polite"
     >
