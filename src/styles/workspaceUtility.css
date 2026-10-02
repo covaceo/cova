@@ -26,6 +26,15 @@
   overflow-wrap: anywhere;
   scroll-margin-top: calc(6rem + env(safe-area-inset-top, 0px));
 }
+@media (max-width: 767px) {
+  .oa-dashboard-app .workspace-top-header .header-scroll-veil { display: none !important; }
+  .oa-dashboard-app .workspace-top-header .header-mobile-brand { min-height: 44px; }
+}
+.oa-dashboard-app .workspace-top-header .header-mobile-wordmark {
+  width: 6rem;
+  max-width: 30vw;
+  height: auto;
+}
 @media (max-width: 850px) {
   .workspace-sync-panel > button {
     display: block;

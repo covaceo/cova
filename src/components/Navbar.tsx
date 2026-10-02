@@ -168,7 +168,7 @@ export function Navbar({ section, go, openAuth, mobileOpen, setMobileOpen, authS
         </div>
 
         <button className="header-mobile-brand brand-lockup flex min-w-0 shrink-0 items-center md:hidden" onClick={() => go("overview")} type="button" aria-label="Go to Cova home">
-          <img src="/cova-logo-minimal-white.svg" alt="Cova" className="header-brand-mark h-10 w-10 object-contain opacity-95" />
+          <img src={usesWorkspaceChrome ? "/media/wordmark-options/cova-wordmark-option-3-sleek-cropped.png" : "/cova-logo-minimal-white.svg"} alt="Cova" className={usesWorkspaceChrome ? "header-mobile-wordmark object-contain opacity-95" : "header-brand-mark h-10 w-10 object-contain opacity-95"} />
         </button>
 
         <button
