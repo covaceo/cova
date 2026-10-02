@@ -21,7 +21,7 @@ const built = await build({
 const dir = await mkdtemp(join(tmpdir(), "cova-workspace-api-"));
 const file = join(dir, "api.mjs");
 await writeFile(file, built.output[0].code);
-const { createWorkspaceHandler, WorkspaceOperationRejection } = await import(pathToFileURL(file));
+const { createWorkspaceHandler, WorkspaceOperationRejection } = await import(pathToFileURL(process.env.COVA_WORKSPACE_RUNTIME || file));
 const A = "11111111-1111-4111-8111-111111111111",
   B = "22222222-2222-4222-8222-222222222222",
   operationId = "33333333-3333-4333-8333-333333333333";
