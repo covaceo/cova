@@ -27,13 +27,20 @@
   scroll-margin-top: calc(6rem + env(safe-area-inset-top, 0px));
 }
 @media (max-width: 767px) {
-  .oa-dashboard-app .workspace-top-header .header-scroll-veil { display: none !important; }
-  .oa-dashboard-app .workspace-top-header .header-mobile-brand { min-height: 44px; }
+  .cova-site-header .header-scroll-veil { display: none !important; }
 }
-.oa-dashboard-app .workspace-top-header .header-mobile-wordmark {
+.cova-site-header .header-mobile-brand { min-height: 44px; }
+.cova-site-header .header-mobile-wordmark {
   width: 6rem;
   max-width: 30vw;
   height: auto;
+}
+/* These existing tablet layouts also use the mobile brand and menu. */
+@media (min-width: 768px) and (max-width: 1100px) {
+  .cova-site-header.signed-in-marketing-header-shell .header-scroll-veil { display: none !important; }
+}
+@media (min-width: 768px) and (max-width: 850px) {
+  .cova-site-header.workspace-top-header .header-scroll-veil { display: none !important; }
 }
 @media (max-width: 850px) {
   .workspace-sync-panel > button {

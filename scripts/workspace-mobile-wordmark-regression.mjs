@@ -59,7 +59,7 @@ async function check(page,width,zoom,scroll=0) {
   assert(data.scrollWidth<=width);
   if(scroll===0)assert(data.panel.top>data.header.bottom,JSON.stringify({width,zoom,scroll,...data}));
  }else if(width>850)assert.equal(data.headerDisplay,'none');
- else assert.notEqual(data.veil,'none','Intermediate desktop navbar must retain its styling');
+ else assert.equal(data.veil,'none','Intermediate workspace uses the mobile header');
  receipts.push({width,zoom,scroll,...data});
  await page.screenshot({path:`${out}/header-${width}-${zoom}-${scroll}.png`});
  if(width<768){
@@ -83,7 +83,7 @@ try {
  await page.evaluate(()=>{window.scrollTo(0,0);});
  await page.getByRole('button',{name:'Go to Cova home',exact:true}).filter({visible:true}).click();
  assert.match(page.url(),/#overview/);
- assert.equal(await page.locator('.header-mobile-brand img').getAttribute('src'),'/cova-logo-minimal-white.svg');
+ assert.equal(await page.locator('.header-mobile-brand img').getAttribute('src'),'/media/wordmark-options/cova-wordmark-option-3-sleek-cropped.png');
  assert.deepEqual(errors,[]);
  await writeFile(out+'/receipt.json',JSON.stringify({passed:true,cases:receipts.length,receipts,errors,homeNavigationPassed:true},null,2));
  console.log(JSON.stringify({passed:true,cases:receipts.length,homeNavigationPassed:true},null,2));

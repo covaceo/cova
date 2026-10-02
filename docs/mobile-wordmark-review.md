@@ -1,5 +1,7 @@
 # Mobile workspace header review
 
+Historical b652265 scope; superseded by mobile-header-routes-review.md, which extends the approved treatment to every mobile header.
+
 Base: 449185a57ea691b91ba54a7c3c1239367b824ec2 (physically verified TEST storage clearance).
 
 The signed-in workspace mobile header now uses the existing Cova wordmark at public/media/wordmark-options/cova-wordmark-option-3-sleek-cropped.png. Below 768px, the connecting header veil is hidden. The independent menu button and existing navigation handlers are retained. The image is bounded at intermediate widths where existing CSS also displays the mobile brand. Marketing keeps its original mark; desktop sidebar/navigation styles are unchanged.
