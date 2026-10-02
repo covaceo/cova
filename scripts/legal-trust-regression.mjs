@@ -77,7 +77,7 @@ assert.match(packageJson, /test:legal/, "The canonical test command should run t
 const requiredSecurityFiles = [
   ["api", "_lib", "auth.js"],
   ["api", "_lib", "oauth-context.js"],
-  ["api", "connectors", "disconnect.js"],
+  ["server", "connectors", "disconnect.js"],
   ["api", "account", "delete.js"],
   ["src", "lib", "apiClient.ts"],
 ];
@@ -88,8 +88,8 @@ for (const parts of requiredSecurityFiles) {
 const sensitiveHandlers = [
   ["api", "tradovate", "connect.js"],
   ["api", "tradovate", "sync.js"],
-  ["api", "connectors", "status.js"],
-  ["api", "connectors", "disconnect.js"],
+  ["server", "connectors", "status.js"],
+  ["server", "connectors", "disconnect.js"],
   ["api", "account", "delete.js"],
 ];
 for (const parts of sensitiveHandlers) {
@@ -126,7 +126,7 @@ const dashboardBriefs = read("src", "components", "DashboardBriefs.tsx");
 const workspaceSections = read("src", "components", "WorkspaceSections.tsx");
 const authEnvironment = read("src", "lib", "authEnvironment.ts");
 const storageScope = read("src", "lib", "storageScope.ts");
-const disconnect = read("api", "connectors", "disconnect.js");
+const disconnect = read("server", "connectors", "disconnect.js");
 const vercelConfig = read("vercel.json");
 const securityTxt = read("public", ".well-known", "security.txt");
 

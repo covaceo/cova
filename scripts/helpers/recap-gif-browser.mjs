@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFile, writeFile, readdir, rm } from 'node:fs/promises';
+import { readFile, writeFile, readdir, rm, mkdtemp } from 'node:fs/promises';
 import { join } from 'node:path';
 import gifenc from 'gifenc';
 import gifuct from 'gifuct-js';
@@ -21,10 +21,11 @@ function fixture() {
 }
 // The renderer and encoder stay real. Only the OS sharing transport and the
 // external X window are intercepted; captured Files are compared byte-for-byte.
-export async function exerciseRecapShare({evaluate,wait,click,ready,downloads,expectedBytes}) {
+export async function exerciseRecapShare({send,evaluate,wait,click,ready,downloads,expectedBytes}) {
   assert.deepEqual(await evaluate(`[...document.querySelectorAll('.recap-export button')].map(b=>b.textContent.trim())`),['Download image','Share on X'],'Exactly two stable export actions');
   assert.equal(await evaluate(`Boolean(document.querySelector('[data-recap-x] svg path'))`),true,'Share on X includes the brand SVG');
   const beforeFiles=(await readdir(downloads)).sort();
+  let shareDownloads;
   const beforeStorage=await evaluate(`Object.entries(localStorage).sort(([a],[b])=>a.localeCompare(b))`);
   await evaluate(`window.__shareOriginal={canShare:Object.getOwnPropertyDescriptor(navigator,'canShare'),share:Object.getOwnPropertyDescriptor(navigator,'share'),open:window.open,setItem:Storage.prototype.setItem};window.__sharePayloads=[];window.__shareOpens=[];window.__shareWrites=[];window.__shareSupported=true;window.__shareClick=null;
     window.__shareClickListener=event=>{if(event.target.closest?.('[data-recap-x]')){window.__shareClick={trusted:event.isTrusted}}};document.addEventListener('click',window.__shareClickListener,true);
@@ -53,9 +54,13 @@ export async function exerciseRecapShare({evaluate,wait,click,ready,downloads,ex
     assert.match(await evaluate(`document.querySelector('[role=alert]')?.textContent||''`),/download.*(image|instead|manually)/i,'Device failure tells the user to download manually');
     assert.deepEqual((await readdir(downloads)).sort(),beforeFiles,'Native success, cancellation, failure and duplicate clicks never download');
     assert.deepEqual(await evaluate('window.__shareOpens'),[],'Native outcomes never open a text-only intent automatically');
+    // CDP may overwrite a previous filename instead of adding a new one.
+    // An empty per-attempt directory proves this click delivered a fresh file.
+    shareDownloads=await mkdtemp(join(downloads,'share-fallback-'));
+    await send('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:shareDownloads});
     await evaluate('window.__shareSupported=false');
     const nativeCount=await evaluate('window.__sharePayloads.length');await click('[data-recap-x]');await ready();
-    let fallbackFile,bytes;for(let i=0;i<200;i++){fallbackFile=(await readdir(downloads)).find(n=>!beforeFiles.includes(n)&&n.endsWith('.png'));if(fallbackFile){try{bytes=await readFile(join(downloads,fallbackFile));if(bytes.equals(expectedBytes))break}catch{}}await sleep(50)}
+    let fallbackFile,bytes;for(let i=0;i<200;i++){fallbackFile=(await readdir(shareDownloads)).find(n=>n.endsWith('.png'));if(fallbackFile){try{bytes=await readFile(join(shareDownloads,fallbackFile));if(bytes.equals(expectedBytes))break}catch{}}await sleep(50)}
     assert(fallbackFile,'Unsupported native file sharing downloads the current PNG still');assert.deepEqual(bytes,expectedBytes,'Text-only X fallback downloads the exact current PNG still');
     assert.equal(await evaluate('window.__sharePayloads.length'),nativeCount,'Unsupported native sharing skips navigator.share');
     const opens=await evaluate('window.__shareOpens');assert.equal(opens.length,1);const intent=new URL(opens[0][0]);assert.equal(intent.origin,'https://x.com');assert.equal(intent.pathname,'/intent/post');assert.deepEqual([...intent.searchParams.keys()],['text']);assert.equal(intent.searchParams.get('text'),await evaluate(`document.querySelector('[data-recap-preview]').alt+' covadesk.com'`));assert.equal(opens[0][1],'_blank');assert.match(opens[0][2],/noopener/);
@@ -64,8 +69,10 @@ export async function exerciseRecapShare({evaluate,wait,click,ready,downloads,ex
     assert.equal(await evaluate(`[...document.querySelectorAll('dialog button')].some(b=>/Copy caption|Share image|Download GIF|Cancel export/.test(b.textContent))`),false,'No obsolete third action or copy button');
     assert.deepEqual(await evaluate('window.__shareWrites'),[],'Sharing and download perform zero storage/ledger writes');
     assert.deepEqual(await evaluate(`Object.entries(localStorage).sort(([a],[b])=>a.localeCompare(b))`),beforeStorage,'Every stored ledger and account value remains byte-identical');
-    await rm(join(downloads,fallbackFile));
+    await rm(join(shareDownloads,fallbackFile));
   } finally {
+    await send('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:downloads});
+    if(shareDownloads)await rm(shareDownloads,{recursive:true,force:true});
     await evaluate(`for(const key of ['canShare','share']){const original=window.__shareOriginal[key];if(original)Object.defineProperty(navigator,key,original);else delete navigator[key]}window.open=window.__shareOriginal.open;Storage.prototype.setItem=window.__shareOriginal.setItem;document.removeEventListener('click',window.__shareClickListener,true)`);
   }
 }
@@ -161,7 +168,7 @@ export async function exerciseRecapGif({send,evaluate,wait,click,ready,capture,u
   for(let i=0;i<100;i++){try{await readFile(png);break;}catch{}await sleep(50);}
   const pngBytes=await readFile(png);assert.deepEqual([pngBytes.readUInt32BE(16),pngBytes.readUInt32BE(20)],[1080,1080]);
   await selectType('gif');assert.match(await evaluate(`document.querySelector('dialog').innerText`),/Share on X uses the PNG still\. Choose GIF to download the animation\./);
-  await exerciseRecapShare({evaluate,wait,click,ready,downloads,expectedBytes:pngBytes});
+  await exerciseRecapShare({send,evaluate,wait,click,ready,downloads,expectedBytes:pngBytes});
 
   for(const name of await readdir(downloads))if(name.endsWith('.gif'))await rm(join(downloads,name));
   await evaluate(`window.__holdGif=true;window.__gifRelease=null;window.Worker=class extends window.__OriginalWorker {set onmessage(fn){super.onmessage=event=>{if(event.data.blob&&window.__holdGif){window.__gifRelease=()=>fn(event)}else fn(event)}}};`);

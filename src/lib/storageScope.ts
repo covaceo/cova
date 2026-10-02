@@ -31,7 +31,9 @@ export function removeScopedStorage(baseKey: string) {
 export function removeCurrentIdentityStorage() {
   const identity = getActiveStorageIdentity();
   const suffix = `:${identity || "signed-out"}`;
-  const keys = Array.from({ length: localStorage.length }, (_value, index) => localStorage.key(index))
-    .filter((key): key is string => Boolean(key?.startsWith("cova-") && key.endsWith(suffix)));
-  keys.forEach((key) => localStorage.removeItem(key));
+  for (const storage of [localStorage, sessionStorage]) {
+    const keys = Array.from({ length: storage.length }, (_value, index) => storage.key(index))
+      .filter((key): key is string => Boolean(key?.startsWith("cova-") && key.endsWith(suffix)));
+    keys.forEach((key) => storage.removeItem(key));
+  }
 }

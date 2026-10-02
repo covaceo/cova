@@ -1,10 +1,11 @@
+import { readJournalDraft, saveJournalDraft, clearJournalDraft } from "../lib/journalDrafts";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Check, X } from "lucide-react";
 import { journalReviewEnabled, rowMoneyText } from "../lib/journalAccuracy";
 import { hasPlannedRisk, type Trade } from "../lib/risk";
 import { signedMoney } from "../lib/dashboardPresentation";
 
-type Props = { journalReview?: boolean; trade: Trade | null; onClose: () => void; onSave?: (id: string, notes: string) => boolean; onDelete?: (id:string)=>boolean };
+type Props = { accountStorage?: boolean; draftOwner?: string; journalReview?: boolean; trade: Trade | null; onClose: () => void; onSave?: (id: string, notes: string) => boolean; onDelete?: (id:string)=>boolean };
 export function trapTradeDialogTab(event: KeyboardEvent<HTMLDialogElement>) {
   if (event.key !== "Tab") return;
   const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('button:not([disabled]),textarea:not([disabled])'));
@@ -13,7 +14,8 @@ export function trapTradeDialogTab(event: KeyboardEvent<HTMLDialogElement>) {
   else if (!event.shiftKey && event.target === last) { event.preventDefault(); first?.focus(); }
 }
 
-export function DashboardTradeDialog({ trade, onClose, onSave, onDelete, journalReview = journalReviewEnabled() }: Props) {
+export function DashboardTradeDialog({ accountStorage = false, draftOwner, trade, onClose, onSave, onDelete, journalReview = journalReviewEnabled() }: Props) {
+  const draftScope = draftOwner && trade ? JSON.stringify(["trade",draftOwner,trade.id]) : undefined;
   const dialog = useRef<HTMLDialogElement>(null);
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
@@ -22,16 +24,17 @@ export function DashboardTradeDialog({ trade, onClose, onSave, onDelete, journal
     const node = dialog.current;
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const overflow = document.body.style.overflow;
-    setNotes(typeof trade.notes === "string" ? trade.notes : ""); setError("");
+    const draft = readJournalDraft<string>(draftScope);
+    setNotes(typeof draft === "string" ? draft : typeof trade.notes === "string" ? trade.notes : ""); setError("");
     node.showModal(); document.body.style.overflow = "hidden";
     node.querySelector<HTMLButtonElement>(".astra-dialog-close")?.focus({ preventScroll: true });
     return () => { node.close(); document.body.style.overflow = overflow; if (opener?.isConnected) opener.focus({ preventScroll: true }); };
-  }, [trade?.id]);
+  }, [trade?.id, draftOwner]);
   return <dialog ref={dialog} className="astra-trade-dialog" aria-labelledby="astra-trade-title" aria-modal={trade ? true : undefined} onKeyDown={trapTradeDialogTab} onCancel={event => { event.preventDefault(); onClose(); }} onClick={event => {
     if (event.target !== event.currentTarget) return;
     const bounds = event.currentTarget.getBoundingClientRect();
     if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) onClose();
   }}>
-    {trade && <><button className="astra-dialog-close" onClick={onClose} type="button" aria-label="Close trade note"><X aria-hidden="true" /></button><div className="astra-note-date">{trade.date} / {trade.manual ? 'manual record' : journalReview ? 'matched fill row' : 'completed trade'}</div><h2 id="astra-trade-title">{trade.market} · {trade.setup || "Trade review"}</h2><p>{trade.side} · {trade.contracts} {trade.contracts === 1 ? "contract" : "contracts"}</p><div className="astra-detail-metrics"><div><span>Reported P&amp;L</span><strong className={trade.pnl < 0 ? "astra-negative" : "astra-positive"}>{journalReview ? rowMoneyText(trade, trade.pnl) : signedMoney(trade.pnl, true)}</strong></div><div><span>Planned risk</span><strong>{hasPlannedRisk(trade) ? (journalReview ? rowMoneyText(trade, trade.risk) : signedMoney(trade.risk, false, false)) : "Not provided"}</strong></div></div><label htmlFor="astra-trade-note">Trade journal note</label><textarea id="astra-trade-note" rows={5} value={notes} onChange={event => setNotes(event.target.value)} readOnly={!onSave} placeholder="Add the context behind this trade…" />{error && <p role="alert">{error}</p>}{onSave && <button className="astra-button astra-save-note" type="button" onClick={() => { if (onSave(trade.id, notes)) onClose(); else setError("This account changed. Reopen the trade before saving."); }}>Save note <Check aria-hidden="true" /></button>}{trade.manual && onDelete && <button className="astra-text-link astra-delete-manual" type="button" onClick={()=>{if(!window.confirm("Remove this manual entry? Broker records are unchanged."))return;if(onDelete(trade.id))onClose();else setError("Account changed. Reopen the trade.");}}>Remove manual entry</button>}<p className="astra-note-storage">Notes stay with this account’s trade history on this browser. No changes to broker records.</p></>}
+    {trade && <><button className="astra-dialog-close" onClick={onClose} type="button" aria-label="Close trade note"><X aria-hidden="true" /></button><div className="astra-note-date">{trade.date} / {trade.manual ? 'manual record' : journalReview ? 'matched fill row' : 'completed trade'}</div><h2 id="astra-trade-title">{trade.market} · {trade.setup || "Trade review"}</h2><p>{trade.side} · {trade.contracts} {trade.contracts === 1 ? "contract" : "contracts"}</p><div className="astra-detail-metrics"><div><span>Reported P&amp;L</span><strong className={trade.pnl < 0 ? "astra-negative" : "astra-positive"}>{journalReview ? rowMoneyText(trade, trade.pnl) : signedMoney(trade.pnl, true)}</strong></div><div><span>Planned risk</span><strong>{hasPlannedRisk(trade) ? (journalReview ? rowMoneyText(trade, trade.risk) : signedMoney(trade.risk, false, false)) : "Not provided"}</strong></div></div><label htmlFor="astra-trade-note">Trade journal note</label><textarea id="astra-trade-note" rows={5} value={notes} onChange={event => { setNotes(event.target.value); if (!saveJournalDraft(draftScope,event.target.value)) setError("Draft is not backed up. Keep this page open."); }} readOnly={!onSave} placeholder="Add the context behind this trade…" />{error && <p role="alert">{error}</p>}{onSave && <button className="astra-button astra-save-note" type="button" onClick={() => { if (onSave(trade.id, notes)) { clearJournalDraft(draftScope); onClose(); } else setError("Not saved. Account storage may be busy or unavailable. Your draft is kept; retry after reviewing account storage."); }}>Save note <Check aria-hidden="true" /></button>}{trade.manual && onDelete && <button className="astra-text-link astra-delete-manual" type="button" onClick={()=>{if(!window.confirm("Remove this manual entry? Broker records are unchanged."))return;if(onDelete(trade.id))onClose();else setError("Account changed. Reopen the trade.");}}>Remove manual entry</button>}<p className="astra-note-storage">{accountStorage ? 'Check account storage for sync status. Unsaved drafts stay on this browser.' : 'Notes stay with this account’s trade history on this browser.'} No changes to broker records.</p></>}
   </dialog>;
 }

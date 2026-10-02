@@ -1,3 +1,4 @@
+import {readWorkspaceAux,saveWorkspaceAux} from './workspaceAux';
 import { validJournalDate } from './manualTrades';
 import type { Trade } from './risk';
 import { tradeAccountKey } from './tradovateHistory';
@@ -17,6 +18,7 @@ function normalize(value: unknown): DailyJournalEntry {
 }
 export function readDailyJournalEntry(owner: string, account: string, date: string): DailyJournalEntry {
   if (!owner || !account || !validJournalDate(date)) return empty();
+  const aux=readWorkspaceAux(owner);if(aux)return normalize(aux.notes[account]?.[date]);
   try { return normalize(JSON.parse(localStorage.getItem(key(owner, account)) || '{}')?.[date]); } catch { return empty(); }
 }
 export function readDailyJournal(owner: string, account: string, date: string): string {
@@ -25,6 +27,7 @@ export function readDailyJournal(owner: string, account: string, date: string): 
 export function saveDailyJournal(owner: string, account: string, date: string, note: string, tradeId?: string | null): boolean {
   if (!owner || !account || !validJournalDate(date) || note.length > 2000 || (tradeId != null && (!tradeId.trim() || tradeId.length > 240))) return false;
   try {
+    const aux=readWorkspaceAux(owner);if(aux){const notes=aux.notes[account]||={};const linkedId=tradeId===undefined?normalize(notes[date]).tradeId:tradeId;if(note.trim()||linkedId)notes[date]={note,tradeId:linkedId};else delete notes[date];saveWorkspaceAux(owner,aux);return true;}
     const raw = JSON.parse(localStorage.getItem(key(owner, account)) || '{}');
     const notes = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
     const linkedId = tradeId === undefined ? normalize(notes[date]).tradeId : tradeId;

@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "build": "node scripts/build-passport-runtime.mjs && tsc -b && vite build",
+    "build": "node scripts/build-passport-runtime.mjs && node --test scripts/production-packaging-regression.mjs && node scripts/build-server-runtimes.mjs --check && tsc -b && vite build",
+    "build:server": "node scripts/build-passport-runtime.mjs && node scripts/build-server-runtimes.mjs",
+    "test:production-packaging": "node --test scripts/production-packaging-regression.mjs",
     "preview": "vite preview --host 127.0.0.1",
     "test:calendar": "node --test scripts/trading-calendar-regression.mjs && npm run build && node scripts/trading-calendar-browser-regression.mjs",
     "test:journal-accuracy": "node --test scripts/desk-journal-manual-regression.mjs scripts/manual-trades-regression.mjs scripts/daily-journal-regression.mjs scripts/trade-averages-regression.mjs scripts/account-names-regression.mjs scripts/journal-accuracy-regression.mjs scripts/journal-ui-regression.mjs",
@@ -14,7 +16,7 @@
     "test:all-accounts": "node --test scripts/all-accounts-regression.mjs scripts/equity-color-regression.mjs && npm run build && node scripts/all-accounts-browser-regression.mjs",
     "test:passport-progress": "node --test scripts/passport-progress-regression.mjs scripts/workspace-utility-release-regression.mjs && node scripts/passport-progress-evidence-regression.mjs && node scripts/passport-progress-database-regression.mjs && node scripts/passport-progress-api-regression.mjs && node scripts/build-passport-runtime.mjs --check && node scripts/passport-node-runtime-regression.mjs",
     "test:billing": "node --test scripts/billing-regression.mjs scripts/billing-live-regression.mjs && node scripts/billing-api-regression.mjs && node scripts/billing-ui-regression.mjs && node scripts/billing-browser-regression.mjs && node scripts/billing-browser-regression.mjs --live",
-    "test": "npm run test:billing && npm run test:calendar && npm run test:all-accounts && npm run test:passport-progress && npm run test:journal-accuracy && npm run test:journal-browser && npm run test:visual-continuity && npm run test:passport-integration && npm run test:astra-dashboard && npm run test:risk && npm run test:ui-content && npm run test:dashboard-shell && npm run test:dashboard-oa && npm run test:native-cursor && npm run test:legal && npm run test:auth && npm run test:classic-auth && npm run test:recovery-callback-browser && npm run test:api-security && npm run test:tradovate-capability && npm run test:tradovate-history && npm run test:rithmic && npm run test:rithmic-ui && npm run test:import-guard && npm run test:auth-email-requested-browser && npm run test:browser-release && npm run test:threeui-landing && npm run test:features-showcase && npm run test:resources-quickstart && npm run test:community-discord && npm run test:features-showcase-browser && npm run test:homepage-story && npm run test:homepage-story-browser && npm run test:site-polish && npm run test:site-polish-browser",
+    "test": "npm run test:workspace && npm run test:billing && npm run test:calendar && npm run test:all-accounts && npm run test:passport-progress && npm run test:journal-accuracy && npm run test:journal-browser && npm run test:visual-continuity && npm run test:passport-integration && npm run test:astra-dashboard && npm run test:risk && npm run test:ui-content && npm run test:dashboard-shell && npm run test:dashboard-oa && npm run test:native-cursor && npm run test:legal && npm run test:auth && npm run test:classic-auth && npm run test:recovery-callback-browser && npm run test:api-security && npm run test:tradovate-capability && npm run test:tradovate-history && npm run test:rithmic && npm run test:rithmic-ui && npm run test:import-guard && npm run test:auth-email-requested-browser && npm run test:browser-release && npm run test:threeui-landing && npm run test:features-showcase && npm run test:resources-quickstart && npm run test:community-discord && npm run test:features-showcase-browser && npm run test:homepage-story && npm run test:homepage-story-browser && npm run test:site-polish && npm run test:site-polish-browser",
     "test:recap-gif": "node --test scripts/recap-background-regression.mjs && node scripts/recap-gif-browser-regression.mjs",
     "test:recap": "node --test scripts/session-recap-regression.mjs scripts/session-recap-fees-regression.mjs scripts/recap-hot-streak-regression.mjs scripts/recap-entry-grouping-regression.mjs scripts/recap-aesthetic-regression.mjs scripts/recap-verification-regression.mjs && node scripts/session-recap-browser-regression.mjs && npm run test:recap-gif",
     "pretest": "npm run test:recap && node scripts/disclosure-link-regression.mjs && node scripts/vendor-compliance-regression.mjs && npm run test:profile",
@@ -55,7 +57,10 @@
     "test:passport-integration": "node --test scripts/passport-integration-preservation-regression.mjs scripts/passport-workspace-regression.mjs scripts/dashboard-preview-export-regression.mjs scripts/passport-holo-regression.mjs scripts/passport-etched-regression.mjs scripts/passport-share-actions-regression.mjs scripts/passport-share-export-regression.mjs scripts/passport-square-export-regression.mjs",
     "test:astra-dashboard": "node --test scripts/equity-range-baseline-regression.mjs scripts/equity-history-regression.mjs scripts/equity-color-regression.mjs scripts/equity-smoothing-regression.mjs scripts/astra-dashboard-regression.mjs scripts/astra-workspace-shell-regression.mjs scripts/astra-workspace-layout-regression.mjs scripts/astra-workspace-content-regression.mjs && node scripts/net-curve-browser-regression.mjs && node scripts/equity-color-browser-regression.mjs && node scripts/approved-dashboard-preservation.mjs && node scripts/approved-dashboard-browser-regression.mjs && npm run build && node scripts/desk-journal-browser-regression.mjs",
     "test:site-polish": "node --test scripts/site-motion-polish-regression.mjs scripts/public-polish-regression.mjs && node scripts/auth-connection-visual-regression.mjs --source",
-    "test:site-polish-browser": "npm run build && node scripts/public-polish-browser-regression.mjs && node scripts/auth-connection-visual-regression.mjs"
+    "test:site-polish-browser": "npm run build && node scripts/public-polish-browser-regression.mjs && node scripts/auth-connection-visual-regression.mjs",
+    "test:workspace": "node --test scripts/workspace-model-regression.mjs scripts/workspace-candidate-regression.mjs scripts/workspace-api-regression.mjs scripts/workspace-database-regression.mjs scripts/workspace-hydration-regression.mjs scripts/workspace-production-sql-regression.mjs scripts/workspace-conflict-sql-regression.mjs",
+    "test:workspace-browser:fixture": "node scripts/workspace-browser-fixture.mjs",
+    "test:workspace-browser": "node scripts/workspace-browser-regression.mjs"
   },
   "dependencies": {
     "@fontsource-variable/bricolage-grotesque": "^5.3.0",
@@ -89,6 +94,7 @@
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react": "^6.0.3",
     "autoprefixer": "^10.4.20",
+    "playwright": "1.63.0",
     "postcss": "^8.5.23",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.2",

@@ -1,3 +1,4 @@
+import { readWorkspaceAux, saveWorkspaceAux } from './workspaceAux';
 export type AccountNames = Record<string, string>;
 export const ACCOUNT_NAMES_EVENT = "cova:account-names";
 const storageKey = (owner: string) => `cova-account-names-v1:${encodeURIComponent(owner.trim().toLowerCase())}`;
@@ -8,6 +9,8 @@ const validName = (name: unknown): name is string => typeof name === "string" &&
 export function readAccountNames(owner: string): AccountNames {
   const names: AccountNames = {};
   if (!owner) return names;
+  const aux = readWorkspaceAux(owner);
+  if (aux) { for (const [key,name] of Object.entries(aux.names)) if (validKey(key) && validName(name)) names[key] = name; return names; }
   // Recover already-imported names without another provider request or ledger rewrite.
   try {
     for (let index = 0; index < sessionStorage.length; index++) {
@@ -41,7 +44,7 @@ export function rememberAccountNames(owner: string, entries: AccountNames) {
   if (!owner) return;
   const names = readAccountNames(owner);
   for (const [key, name] of Object.entries(entries)) if (validKey(key) && validName(name)) names[key] = name;
-  try { localStorage.setItem(storageKey(owner), JSON.stringify(names)); } catch { /* Display metadata must not fail an import. */ }
+  try { const aux = readWorkspaceAux(owner); if (aux) { if (JSON.stringify(aux.names) !== JSON.stringify(names)) { aux.names = names; saveWorkspaceAux(owner, aux); } } else localStorage.setItem(storageKey(owner), JSON.stringify(names)); } catch { /* Display metadata must not fail an import. */ }
   window.dispatchEvent(new Event(ACCOUNT_NAMES_EVENT));
 }
 

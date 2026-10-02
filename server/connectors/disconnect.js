@@ -1,6 +1,6 @@
-import { requireAuthenticatedUser, sendApiError } from "../_lib/auth.js";
-import { clearCookie } from "../_lib/cookies.js";
-import { deleteBrokerConnectionsForProvider, deleteBrokerConnectionsForUser } from "../_lib/supabase.js";
+import { requireAuthenticatedUser, sendApiError } from "../../api/_lib/auth.js";
+import { clearCookie } from "../../api/_lib/cookies.js";
+import { deleteBrokerConnectionsForProvider, deleteBrokerConnectionsForUser } from "../../api/_lib/supabase.js";
 
 const providers = {
   projectx: { cookie: "cova_projectx_connection", label: "TopstepX" },

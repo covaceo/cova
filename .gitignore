@@ -16,3 +16,5 @@ tmp/
 # Local agent plans, screenshots, concepts, and visual QA artifacts.
 .hermes/
 sketches/
+scripts/.workspace-fixture.tsx
+supabase/.temp/

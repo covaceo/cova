@@ -69,7 +69,7 @@ export function Navbar({ section, go, openAuth, mobileOpen, setMobileOpen, authS
   return (
     <motion.header
       data-section={section}
-      className={`fixed left-0 right-0 top-0 z-50 px-4 pb-3 pt-6 md:px-8 ${usesWorkspaceChrome ? "workspace-top-header" : ""} ${authSession && !usesWorkspaceChrome ? "signed-in-marketing-header-shell" : ""}`}
+      className={`cova-site-header fixed left-0 right-0 top-0 z-50 px-4 pb-3 pt-6 md:px-8 ${usesWorkspaceChrome ? "workspace-top-header" : ""} ${authSession && !usesWorkspaceChrome ? "signed-in-marketing-header-shell" : ""}`}
       initial={{ opacity: 0, y: -24 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
@@ -168,7 +168,7 @@ export function Navbar({ section, go, openAuth, mobileOpen, setMobileOpen, authS
         </div>
 
         <button className="header-mobile-brand brand-lockup flex min-w-0 shrink-0 items-center md:hidden" onClick={() => go("overview")} type="button" aria-label="Go to Cova home">
-          <img src="/cova-logo-minimal-white.svg" alt="Cova" className="header-brand-mark h-10 w-10 object-contain opacity-95" />
+          <img src="/media/wordmark-options/cova-wordmark-option-3-sleek-cropped.png" alt="Cova" className="header-mobile-wordmark object-contain opacity-95" />
         </button>
 
         <button

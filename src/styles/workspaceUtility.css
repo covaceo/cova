@@ -22,3 +22,40 @@
 @media(min-width:1024px) and (max-width:1199px){.oa-dashboard-app .oa-dashboard-shell .workspace-sidebar{width:240px!important}.oa-dashboard-app .oa-dashboard-shell .workspace-content{margin-left:240px!important}}
 @media(max-width:1100px){.passport-utility-layout{grid-template-columns:minmax(0,1fr) 240px;gap:18px}.passport-utility-controls{padding:19px}}
 @media(max-width:760px){.passport-utility-layout{grid-template-columns:1fr}.passport-utility .passport-workspace-stage{min-height:0;padding:10px 0}.passport-utility-controls{padding:22px}.passport-utility .passport-identity{display:grid;grid-template-columns:48px minmax(0,1fr);column-gap:12px;row-gap:8px}.passport-utility .passport-avatar{width:48px;height:48px;grid-row:1/3}.passport-utility .passport-identity-name{grid-column:2;grid-row:1}.passport-utility .passport-identity h2{font-size:22px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.passport-utility .passport-current-rank{grid-column:2;grid-row:2;margin-left:0}.oa-dashboard-app .accounts-platform{grid-template-columns:minmax(0,1fr) auto;padding:21px 18px;gap:12px}.oa-dashboard-app .accounts-platform .accounts-section-heading>h3{grid-column:1/-1}.oa-dashboard-app .accounts-platform>p{grid-column:1/-1;grid-row:2;margin:0}.oa-dashboard-app .accounts-platform .accounts-section-heading>span{grid-column:1;grid-row:3;justify-self:start}.oa-dashboard-app .accounts-platform .accounts-actions{grid-column:2;grid-row:3;flex-wrap:wrap}.broker-brand{gap:8px}.broker-brand .tradovate-wordmark{width:91px}.broker-brand .ninjatrader-wordmark{width:116px}}
+.workspace-sync-panel {
+  overflow-wrap: anywhere;
+  scroll-margin-top: calc(6rem + env(safe-area-inset-top, 0px));
+}
+@media (max-width: 767px) {
+  .cova-site-header .header-scroll-veil { display: none !important; }
+}
+.cova-site-header .header-mobile-brand { min-height: 44px; }
+.cova-site-header .header-mobile-wordmark {
+  width: 6rem;
+  max-width: 30vw;
+  height: auto;
+}
+/* These existing tablet layouts also use the mobile brand and menu. */
+@media (min-width: 768px) and (max-width: 1100px) {
+  .cova-site-header.signed-in-marketing-header-shell .header-scroll-veil { display: none !important; }
+}
+@media (min-width: 768px) and (max-width: 850px) {
+  .cova-site-header.workspace-top-header .header-scroll-veil { display: none !important; }
+}
+@media (max-width: 850px) {
+  .workspace-sync-panel > button {
+    display: block;
+    width: 100%;
+    min-height: 44px;
+    margin-top: 0.5rem;
+    white-space: normal;
+    scroll-margin-top: calc(6rem + env(safe-area-inset-top, 0px));
+  }
+  /* The storage panel precedes Dashboard, so it owns mobile nav clearance. */
+  .oa-dashboard-shell[data-workspace-section="dashboard"] .workspace-content > .workspace-sync-panel {
+    margin-top: calc(6rem + env(safe-area-inset-top, 0px));
+  }
+  .oa-dashboard-shell[data-workspace-section="dashboard"] .workspace-sync-panel + div > .astra-dashboard[data-dashboard-visual] {
+    padding-top: 1.5rem !important;
+  }
+}
