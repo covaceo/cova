@@ -299,7 +299,7 @@ for(const [width,height,mobile] of [[1440,1000,false],[1280,720,false],[390,844,
   await choose(account);await waitFor(`document.querySelector('[data-dashboard-trade-count]')?.dataset.dashboardTradeCount==='${count}' && document.querySelector('.astra-chart-main')?.dataset.equityHistory==='${history}'`);
   assert.equal(await evaluate("document.querySelector('[data-astra-stat=pnl] .astra-stat-value').textContent"),amount);
   assert.equal(await evaluate("document.querySelector('[data-astra-stat=pnl] .astra-stat-label').textContent"),'Gross P&L');
-  assert.deepEqual(await evaluate("[...document.querySelectorAll('select[aria-label=\"Trade account\"] option')].map(n=>n.value)"),['all','Tradovate:71','Tradovate:72']);
+  assert.deepEqual(await evaluate("[...document.querySelectorAll('select[aria-label=\"Trade account\"] option')].map(n=>n.value)"),['all','Tradovate:71','Tradovate:72','local']);
   assert.doesNotMatch(await evaluate("document.querySelector('.astra-chart-svg').textContent"),/Apr|May/);
  }
  for(const [label,colors] of [['Latest session',['#4f7dff','#e57c89']],['Last 7 days',['#4f7dff','#e57c89','#52c79a','#52c79a']],['All trades',['#4f7dff','#e57c89','#52c79a','#52c79a']]]){

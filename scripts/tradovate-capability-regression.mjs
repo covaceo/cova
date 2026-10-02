@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import connectorStatus from "../api/connectors/status.js";
+import connectorStatus from "../server/connectors/status.js";
 import { tradovateEnvironmentReady } from "../api/_lib/tradovate-capability.js";
 
-const statusSource = await readFile(new URL("../api/connectors/status.js", import.meta.url), "utf8");
+const statusSource = await readFile(new URL("../server/connectors/status.js", import.meta.url), "utf8");
 const connectSource = await readFile(new URL("../api/tradovate/connect.js", import.meta.url), "utf8");
 const importDeskSource = await readFile(new URL("../src/components/ImportDesk.tsx", import.meta.url), "utf8");
 const importPanelsSource = await readFile(new URL("../src/components/ImportPanels.tsx", import.meta.url), "utf8");
@@ -40,7 +40,7 @@ test("the environment template names every Tradovate capability dependency", () 
 });
 
 test("Tradovate status fails closed without hiding a retained owner connection", () => {
-  assert.match(statusSource, /import \{ tradovateEnvironmentReady \} from "\.\.\/_lib\/tradovate-capability\.js"/);
+  assert.match(statusSource, /import \{ tradovateEnvironmentReady \} from "\.\.\/\.\.\/api\/_lib\/tradovate-capability\.js"/);
   assert.match(statusSource, /const available = tradovateEnvironmentReady\(\)/);
   assert.match(statusSource, /available,[\s\S]*connected: !reconnectRequired[\s\S]*configuration-unavailable/);
   assert.match(statusSource, /available,[\s\S]*connected: false[\s\S]*unavailable/);

@@ -39,9 +39,11 @@ function token(name) {
   }
   return tokens.get(name);
 }
-function routeTree(section, signedIn) {
+function routeTree(section, signedIn, syncOverrides = {}) {
   const values = {
     React, Set, section, isSignedIn: signedIn,
+    workspaceSync: { hasWorkspace: true, allowEdit: true, canPublishPlan: true, enabled: false, ...syncOverrides },
+    dashboardPrincipal: { identity: 'account-a' },
     isProtectedSection: (value) => privateRoutes.includes(value),
     authSession: signedIn ? { userId: 'account-a', email: 'a@example.test', plan: 'free' } : null,
     brokerStatus: { provider: 'Rithmic', status: 'imported' },
@@ -84,6 +86,19 @@ test('all private sections immediately reconcile one stable shell outside exit r
   }
 });
 
+test('workspace loading and edit locks preserve the shell while withholding unsafe actions', () => {
+  for (const section of privateRoutes) {
+    const unloaded = walk(routeTree(section, true, { hasWorkspace: false }));
+    assert.equal(unloaded.filter(node => node.name === 'WorkspaceShell').length, 1);
+    assert.equal(unloaded.filter(node => node.name === 'WorkspaceSyncPanel').length, 1);
+    assert.equal(unloaded.filter(node => routeComponents.includes(node.name)).length, 0);
+  }
+  const locked = walk(routeTree('dashboard', true, { allowEdit: false }));
+  const dashboard = locked.find(node => node.name === 'Dashboard');
+  assert.ok(dashboard.ancestors.some(node => node.element.props.inert === '' && node.element.props['aria-busy'] === true));
+  assert.equal(walk(routeTree('passport', true, { canPublishPlan: false })).filter(node => node.name === 'Passport').length, 0);
+});
+
 test('marketing retains the original wait-mode RouteFrames', () => {
   for (const section of publicRoutes) {
     const tree = walk(routeTree(section, true));
@@ -97,8 +112,8 @@ test('marketing retains the original wait-mode RouteFrames', () => {
 
 test('route props preserve behavior with owner-approved history account isolation and reset', () => {
   const expected = {
-    Dashboard: 'key={`${authSession?.userId || authSession?.email}:${tradeAccount}`} analysis={analysis} rules={rules} go={go} onSaveTradeNote={saveTradeNote} journalActions={journalActions} onAddManualTrade={addManualTrade} onDeleteManualTrade={deleteManualTrade} manualAccounts={[...new Set([...tradeAccounts,"local"])]} selectedAccount={tradeAccount} rithmicSyncAvailable={brokerStatus?.provider === "Rithmic" && brokerStatus.status === "imported"}',
-    ImportDesk: 'key={authSession?.userId || authSession?.email} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} entitlements={entitlements} importCsv={importCsv} prepareImportCsv={prepareImportCsv} openFirmOAuth={openFirmOAuth} status={status} reset={() => { const demoTrades = entitlements.plan === "free" ? sampleTrades.slice(0, entitlements.maxStoredTrades) : sampleTrades; tradesRef.current = demoTrades; setTrades(demoTrades); selectTradeAccount("local"); setRules(defaultRules); clearBrokerStatus(); window.dispatchEvent(new CustomEvent("cova:broker-status")); setStatus("Demo trades restored."); announce("Demo trades restored.", "success"); }} upgradeToPro={upgradeToPro}',
+    Dashboard: 'noteDraftOwner={dashboardPrincipal?.identity} key={`${authSession?.userId || authSession?.email}:${tradeAccount}`} analysis={analysis} rules={rules} go={go} onSaveTradeNote={saveTradeNote} journalActions={journalActions} onConfirmManualNet={confirmManualNetRows} onAddManualTrade={addManualTrade} onDeleteManualTrade={deleteManualTrade} manualAccounts={[...new Set([...tradeAccounts,"local"])]} selectedAccount={tradeAccount} rithmicSyncAvailable={brokerStatus?.provider === "Rithmic" && brokerStatus.status === "imported"}',
+    ImportDesk: 'key={authSession?.userId || authSession?.email} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} entitlements={entitlements} importCsv={importCsv} prepareImportCsv={prepareImportCsv} openFirmOAuth={openFirmOAuth} status={status} reset={() => { if (workspaceSync.enabled) { announce("Keep sample trades separate from your saved account workspace.", "info"); return; } const demoTrades = entitlements.plan === "free" ? sampleTrades.slice(0, entitlements.maxStoredTrades) : sampleTrades; tradesRef.current = demoTrades; setTrades(demoTrades); selectTradeAccount("local"); setRules(defaultRules); clearBrokerStatus(); window.dispatchEvent(new CustomEvent("cova:broker-status")); setStatus("Demo trades restored."); announce("Demo trades restored.", "success"); }} upgradeToPro={upgradeToPro}',
     OAuthConnectPage: 'firmId={oauthFirmId} onApprove={completeFirmOAuth} onCancel={cancelFirmOAuth}',
     RulesEngine: 'analysis={analysis} entitlements={entitlements} rules={rules} setRules={setRules} go={go} upgradeToPro={upgradeToPro}',
     Coach: 'analysis={analysis} entitlements={entitlements} go={go} upgradeToPro={upgradeToPro}',
@@ -112,7 +127,7 @@ test('route props preserve behavior with owner-approved history account isolatio
     for (const node of elements) {
       let actual = node.attributes.getText(app) + ' ';
       if (['Dashboard','RulesEngine','Coach'].includes(name)) {
-        const visualSlot = 'accountControl={tradeAccounts.some(account => account !== "local") ? <div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} value={tradeAccount} onChange={selectTradeAccount} /></div> : undefined} ';
+        const visualSlot = name === 'Dashboard' ? 'accountControl={ <div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={[...new Set([...tradeAccounts,"local"])]} value={tradeAccount} onChange={selectTradeAccount} /></div>} ' : 'accountControl={tradeAccounts.some(account => account !== "local") ? <div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} value={tradeAccount} onChange={selectTradeAccount} /></div> : undefined} ';
         assert.ok(actual.includes(visualSlot),'Visual header reuses the exact owner-bound selector and existing onChange');
         actual = actual.replace(visualSlot,'').trim();
       }

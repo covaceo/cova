@@ -1,13 +1,11 @@
+import { workspaceBrowserOptions, workspaceEvidence } from "./workspace-browser-support.mjs";
 // Run workspace-browser-fixture.mjs first. All traffic stays on localhost.
 import { chromium } from "playwright";
 import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
-const out = "/workspace/cova-source-recovery/browser-evidence";
+const out = workspaceEvidence("browser");
 await mkdir(out, { recursive: true });
-const browser = await chromium.launch({
-  executablePath: "/usr/bin/chromium",
-  args: ["--no-sandbox"],
-});
+const browser = await chromium.launch(workspaceBrowserOptions);
 const contexts = [];
 const errors = [];
 const receipts = [];

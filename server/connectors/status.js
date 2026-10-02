@@ -1,11 +1,11 @@
-import { requireAuthenticatedUser, sendApiError } from "../_lib/auth.js";
-import { clearCookie, parseCookies, serializeCookie } from "../_lib/cookies.js";
-import { tradovateEnvironmentReady } from "../_lib/tradovate-capability.js";
+import { requireAuthenticatedUser, sendApiError } from "../../api/_lib/auth.js";
+import { clearCookie, parseCookies, serializeCookie } from "../../api/_lib/cookies.js";
+import { tradovateEnvironmentReady } from "../../api/_lib/tradovate-capability.js";
 import {
   connectionExpiryIsInvalid,
   getTradovateLinkForUser,
   listBrokerConnectionsForUser,
-} from "../_lib/supabase.js";
+} from "../../api/_lib/supabase.js";
 
 function requestedProvider(req) {
   const value = Array.isArray(req.query?.provider) ? req.query.provider[0] : req.query?.provider;

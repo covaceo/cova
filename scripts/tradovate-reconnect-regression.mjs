@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import connectorStatus from '../api/connectors/status.js';
+import connectorStatus from '../server/connectors/status.js';
 import { getTradovateConnection, getTradovateConnectionForUser } from '../api/_lib/supabase.js';
 
 const environment = {

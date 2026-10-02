@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';import {existsSync} from 'node:fs';import {build} from 'vite';import {pathToFileURL} from 'node:url';import {join} from 'node:path';import {mkdtemp,rm} from 'node:fs/promises';import {tmpdir} from 'node:os';
-assert.ok(existsSync('api/passport.ts'),'Authenticated progression endpoint is required');
+assert.ok(existsSync('server/passport.ts'),'Authenticated progression endpoint is required');
 const dir=await mkdtemp(join(tmpdir(),'cova-progress-api-'));
-try{await build({configFile:false,logLevel:'error',ssr:{noExternal:['stripe']},build:{ssr:'api/passport.ts',outDir:dir,emptyOutDir:false,target:'node22',rollupOptions:{output:{entryFileNames:'api.mjs'}}}});const {createPassportHandler}=await import(pathToFileURL(join(dir,'api.mjs')).href);let calls=0;
+try{await build({configFile:false,logLevel:'error',ssr:{noExternal:['stripe']},build:{ssr:'server/passport.ts',outDir:dir,emptyOutDir:false,target:'node22',rollupOptions:{output:{entryFileNames:'api.mjs'}}}});const {createPassportHandler}=await import(pathToFileURL(join(dir,'api.mjs')).href);let calls=0;
  const handle=createPassportHandler({auth:async()=>({id:'owner-a'}),rest:async()=>{calls++;return {total_xp:0,receipts:[]}}});
  const invoke=async(method,body,url='/api/passport')=>{let code,value;const res={setHeader(){},status(c){code=c;return this},json(v){value=v;return this}};await handle({method,body,url,headers:{}},res);return {code,value}};
  assert.equal((await invoke('GET',undefined,'/api/passport?owner=owner-b')).code,409);assert.equal(calls,0);

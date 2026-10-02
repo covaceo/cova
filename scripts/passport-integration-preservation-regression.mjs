@@ -24,15 +24,15 @@ const protectedFiles = {
   "api/account/delete.js": "ce29310010dd78d292c9e14cff7a3f384916b8c682ba900b30223dd736fa116e",
   "api/auth/consent.js": "c71b5ae6fd461be78ecadddc0fca2459a1f5a91c3ca1fd1e25b940035013f76c",
   "api/auth/logout.js": "4d60687ec3912727183867eb9567507f0c8c0f2a91db2e6698b0e1050ca24691",
-  "api/connectors/disconnect.js": "721760440d17b9923adda92953aa55a6c81f3a1c58919991d28b83e9c6ed42df",
-  "api/connectors/status.js": "5dc390ee1274643aa46b59f64721be70105e798b0c3b55ac2cd965ddca633238",
+  "server/connectors/disconnect.js": "721760440d17b9923adda92953aa55a6c81f3a1c58919991d28b83e9c6ed42df",
+  "server/connectors/status.js": "5dc390ee1274643aa46b59f64721be70105e798b0c3b55ac2cd965ddca633238",
   "api/rithmic/status.js": "590a8f2db751e5cfc39e2fbd81c715ce93ffc95c63b3da9c11a35de65245092e",
   "api/rithmic/sync.js": "58f4b709f75568a526874cefa503adf572bc2dda7c6026905b7aeb7caa9fa8a3",
   "api/tradovate/callback.js": "6a1a6dee6f9da219d9e33eac713db6d90d22bd5bfb540f2fb28ba75125229a0b",
   "api/tradovate/connect.js": "0e32e6d9d728c0a1ee42a6b8c6edd44ee159d6c89ad7c064cd1c1502475e267d",
   // Owner-approved recent-history mode reuses owner lookup, limiter and deadline; legacy sync remains.
   "api/tradovate/sync.js": "c7452c268a2c4f579c2de7b384c591d98c1e54d49f52139dcca6d5594e2a371f",
-  "package-lock.json": "4e9a565164d83552f1eaf651ee1fd956d0691ae62345f267962223b9655a8535",
+  "package-lock.json": "99bef2e4c115b3adc0ae09519513c518ea0a1d089cffef43478cd3756f3e0f0e",
   "public/.well-known/security.txt": "c944f837cb8c32091a4aba3afdea372afa7ffbd058ab24b5d6fbfc285e3490d9",
   "public/cova-logo-minimal-black.svg": "539ead98bec67d21afe240ea2ff60aba7e3f9e988b4d1742e0de953f01a6f6dd",
   "public/cova-logo-minimal-white.svg": "3cab047eb026b8c3160fdab46218c0aa82978681ec9d60ec2e0116317178cbab",
@@ -54,18 +54,18 @@ const protectedFiles = {
   // Approved OA review headers reuse the exact owner-bound selector; route-prop parity remains enforced.
   // All-accounts bug fix filters synthetic rows from the selector as well as the review; ledger/auth untouched.
   // Approved journal isolation removes only the Passport journal prop; auth and ledger logic stay unchanged.
-  "src/App.tsx": "e52e7ec8ddce4a815b778bb59d49bc1d6d7e83ab61eee134d509dc69cf780c0e",
+  "src/App.tsx": "7c09a3d8cce4d14c0b11f6a57119f219d7aa5ab9f3adbb54b2f8ad10dcb01f3c",
   "src/components/AstraEquityCurve.tsx": "41af4ca602a699399b73f2594a21cde26f5ac54f4022bf32bf34f52a5acbc27b",
-  "src/components/DashboardTradeDialog.tsx": "5425bcaaabce7c99ee925b577d3c2324c4c41cd9bcb9b1c849871a712c7ec730",
+  "src/components/DashboardTradeDialog.tsx": "43ded14cebab010cac25a816e007e80873cbbd608401c75739c18e125d488fdc",
   // Owner-approved recap action, source CTA/averages and standalone fee-label removal; financial logic remains locked by approved-dashboard-preservation.
-  "src/components/DashboardView.tsx": "c33ba1f88c6d8e431ffdefdc0c17ad03ba4e93867390d6cf8aa6496b8558b7ff",
+  "src/components/DashboardView.tsx": "388666534989ba6d2d7b586596565730eac76aa84f3f2f6112293ef60088437a",
   // Owner-approved Passport book icon, duplicate rail copy removal and Settings-to-Accounts entry; shell handlers remain intact.
   "src/components/WorkspaceShell.tsx": "be3056fd874d6f624421a17d177b1f0ee71c52d2213632c86410c1ec44d15758",
   // Owner-approved left hero overline removal only; all dashboard CSS remains unchanged.
   "src/index.css": "e124ef2202d6a2eb61be19faa302b94132d1d4e0ba788774cc33749019ae55e4",
   // Retain UTC ordering while preserving legacy same-day input order and member annotations.
-    "src/lib/risk.ts": "56dc6981baa1a5bbacb10acc487cca6881443388087ebca124363966517fc2b7",
-  "src/lib/storageScope.ts": "3cd9c57c38bb10e9f7b61776f00422ab9590bdebd1d0e458eba5a33cc676e183",
+    "src/lib/risk.ts": "330e7feffe6caeadac5d80aca3269440e6a60d2987bb7fece522f5582450ec69",
+  "src/lib/storageScope.ts": "7fc8dac806a656d320dd2c658ca45d979207aa66f003b729cfb4a758f27573b4",
   "src/styles/astraDashboard.css": "43ad6ebafdf5d6e8d49213daf01ffb9f142d7f02ef9a63e1c9cba9c947447350",
   "supabase/migrations/20260807010000_auth_policy_acceptances.sql": "0cf48fb5788748c426e686bf1a0c67975da1faf812a73f63a3e444e86b99cec4",
   "supabase/migrations/20260807020000_unique_broker_provider_connections.sql": "5a9b4956fb5b1a6ddf99767b633160ff0826771b6fc1db526b0acf3250594ac3",
@@ -94,7 +94,7 @@ const protectedFiles = {
   "src/components/PassportHoloCard.tsx": "aba6bb8294044f0dd37b7573a7aceb5219ce6d608e350470133216adef59eb07",
   "src/lib/passportEngraving.ts": "f434163673b3dbc8c84be759b025927f5340dd95329fc903d1d7463c4e566f82",
   // Owner-approved username binding; Ghost privacy and all financial outputs retain executable coverage.
-  "src/lib/passportHolo.ts": "1ad2c4d851283a66ed5487834f73e272e995a170fda47431048bc252e31603c2",
+  "src/lib/passportHolo.ts": "c29e510a2a139c21974cf81a2c934715d2b4e13697540557c5ed0a084b0af9af",
   "src/lib/passportHoloExport.ts": "3b2a42ba41b829702e6d2aa83171cfccc4f07441a4f2645b8f28f83795d339da",
   "src/lib/passportMaterials.ts": "1d84c8f36205c468dd4007d7aaaebd745dc41cb7dd534931302072ff0bc1903c",
   "src/lib/passportOptics.ts": "04ce7bdf59de25713e1df7e047b290835c87e4ee4ee9fbff001fcf2f6856ab10",
@@ -112,7 +112,9 @@ const protectedFiles = {
 function protectedDigest(path, bytes) {
  const content = /\.(?:css|js|json|md|mjs|sql|svg|ts|tsx|txt)$/.test(path)
   ? bytes.toString('utf8').replace(/\r\n/g, '\n') : bytes;
- return createHash('sha256').update(content).digest('hex');
+ const relocated = /^server\/connectors\/(?:status|disconnect)\.js$/.test(path)
+  ? content.replaceAll('../../api/_lib/', '../_lib/') : content;
+ return createHash('sha256').update(relocated).digest('hex');
 }
 test('integration preserves protected content across Git text line endings and exact binary assets', () => {
  for (const [path,expected] of Object.entries(protectedFiles)) {

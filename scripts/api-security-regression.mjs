@@ -5,7 +5,7 @@ import { createOAuthContext, verifyOAuthContext } from "../api/_lib/oauth-contex
 import { getAppOrigin, getTradovateRedirectUri } from "../api/_lib/urls.js";
 import { encryptSecret } from "../api/_lib/encryption.js";
 import { getBrokerConnection, getTradovateConnection, getTradovateConnectionForUser, saveBrokerConnection, saveTradovateConnection } from "../api/_lib/supabase.js";
-import disconnectConnector from "../api/connectors/disconnect.js";
+import disconnectConnector from "../server/connectors/disconnect.js";
 import logout from "../api/auth/logout.js";
 import deleteAccount from "../api/account/delete.js";
 import tradovateConnect from "../api/tradovate/connect.js";

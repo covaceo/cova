@@ -3,8 +3,8 @@ import {
   ApiError,
   requirePolicyAcceptedUser,
   sendApiError,
-} from "./_lib/auth.js";
-import { supabaseServiceHeaders } from "./_lib/supabase.js";
+} from "../api/_lib/auth.js";
+import { supabaseServiceHeaders } from "../api/_lib/supabase.js";
 import {
   assertRecords,
   assertWrites,

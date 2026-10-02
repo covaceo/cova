@@ -12,7 +12,7 @@ const built = await build({
   logLevel: "error",
   ssr: { noExternal: true },
   build: {
-    ssr: "api/workspace.ts",
+    ssr: "server/workspace.ts",
     target: "node22",
     write: false,
     rollupOptions: { output: { format: "es", inlineDynamicImports: true } },

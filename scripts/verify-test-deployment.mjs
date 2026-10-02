@@ -9,7 +9,7 @@ assert(process.argv[2], 'Supply the staging directory after vercel build');
 const stage = resolve(process.argv[2]);
 const output = join(stage, '.vercel/output');
 const json = async file => JSON.parse(await readFile(file, 'utf8'));
-const entries = await readdir(join(output, 'functions'), { recursive: true });
+const entries = (await readdir(join(output, 'functions'), { recursive: true })).map(file => file.replaceAll('\\', '/'));
 const configs = entries.filter(file => file.endsWith('/.vc-config.json')).sort();
 assert.equal(configs.length, 12);
 const handlers = new Map();
@@ -48,7 +48,7 @@ const invoke = async (handler, req) => {
 const packed = handlers.get('api/connectors/[action]').module.default;
 let comparisons = 0;
 for (const [action, path] of [['status', '/api/connectors/status'], ['disconnect', '/api/connectors/disconnect'], ['status', '/api/tradovate/status']]) {
-  const original = (await import(pathToFileURL(join(root, 'api/connectors', action + '.js')))).default;
+  const original = (await import(pathToFileURL(join(root, 'server/connectors', action + '.js')))).default;
   for (const method of ['GET', 'POST', 'PATCH']) {
     const req = { method, url: path + '?action=untrusted', headers: {}, query: { action: 'untrusted', provider: path.includes('tradovate') ? 'tradovate' : '' }, body: {} };
     assert.deepEqual(await invoke(packed, req), await invoke(original, req));

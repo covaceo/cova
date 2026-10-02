@@ -51,4 +51,22 @@ test('production proposal resets PG17+ MAINTAIN/default grants and preserves own
   await assert.rejects(db.exec('select * from workspace_records'),/permission denied/);
   await db.exec('reset role');
 });
+test('emergency pause revokes only workspace writes and retains every record, SELECT and RLS', async () => {
+  const tables=['workspace_settings','workspace_records','workspace_operations'];
+  const before={};
+  for(const table of tables) before[table]=(await db.query(`select to_jsonb(t) as row from public.${table} t order by to_jsonb(t)::text`)).rows;
+  await db.exec(`begin;
+    revoke execute on function public.cova_apply_workspace(uuid,uuid,text,jsonb,integer,jsonb) from service_role;
+    revoke execute on function public.cova_apply_workspace_plan(uuid,uuid,text,jsonb,integer,jsonb) from service_role;
+    revoke insert,update,delete on public.workspace_settings,public.workspace_records,public.workspace_operations from service_role;
+    commit;`);
+  for(const table of tables) {
+    assert.deepEqual((await db.query(`select to_jsonb(t) as row from public.${table} t order by to_jsonb(t)::text`)).rows,before[table]);
+    assert.equal((await db.query('select relrowsecurity as enabled from pg_class where oid=$1::regclass',['public.'+table])).rows[0].enabled,true);
+    for(const privilege of ['SELECT','INSERT','UPDATE','DELETE'])
+      assert.equal((await db.query('select has_table_privilege($1,$2,$3) as allowed',['service_role','public.'+table,privilege])).rows[0].allowed,privilege==='SELECT');
+  }
+  for(const name of ['cova_apply_workspace','cova_apply_workspace_plan'])
+    assert.equal((await db.query('select has_function_privilege($1,$2,$3) as allowed',['service_role',`public.${name}(uuid,uuid,text,jsonb,integer,jsonb)`,'EXECUTE'])).rows[0].allowed,false);
+});
 test.after(()=>db.close());

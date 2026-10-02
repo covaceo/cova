@@ -7,14 +7,14 @@ import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 const baseline = {
   "files": {
-    "src/lib/risk.ts": "56dc6981baa1a5bbacb10acc487cca6881443388087ebca124363966517fc2b7",
-    "src/lib/brokerCash.ts": "c594ec3b82be49a6b1e68629792ad6e8cfbd5bde168b4c50bf6fe5659b8b9fa6",
+    "src/lib/risk.ts": "330e7feffe6caeadac5d80aca3269440e6a60d2987bb7fece522f5582450ec69",
+    "src/lib/brokerCash.ts": "dc7b83e11df191494b9df8fc7f747cc0a325182bb5cdff8411c8b2cadfe9fbf5",
     "src/lib/journalAccuracy.ts": "7a05f8373f469f1944bf9577c51a30237cbfb8bf2ceb7484f085b4988cd179d6",
-    "src/lib/storageScope.ts": "3cd9c57c38bb10e9f7b61776f00422ab9590bdebd1d0e458eba5a33cc676e183",
-    "src/lib/accountNames.ts": "e056578556c6ac10faeee8ed5a47b08a2b91b9327be0dd3216906db0cdc30501",
+    "src/lib/storageScope.ts": "7fc8dac806a656d320dd2c658ca45d979207aa66f003b729cfb4a758f27573b4",
+    "src/lib/accountNames.ts": "e7f201f76eea68d126cf0b9feb44915d044b5a54a0bc6b5fa61c6e93eedcca70",
     "src/lib/dashboardPresentation.ts": "7923ce5a87c1eea620fe2956345d03820791ec4d5700ec07f84eb9779b36a4ef",
     "src/lib/dashboardReviewState.ts": "9e1693082021edf780c6c78dc659e9170a627817a81120e1d9997b7f68cd789f",
-    "src/components/DashboardTradeDialog.tsx": "5425bcaaabce7c99ee925b577d3c2324c4c41cd9bcb9b1c849871a712c7ec730",
+    "src/components/DashboardTradeDialog.tsx": "43ded14cebab010cac25a816e007e80873cbbd608401c75739c18e125d488fdc",
     "src/components/TradeAccountSelect.tsx": "a2bb1e76714dbf41633c145b5d61d6f5468d2b11166097bbdf9633d9d8cc8678",
     // Reconnect work changes only the expiry comment in this handler; sync behavior stays exact.
     "api/tradovate/sync.js": "c7452c268a2c4f579c2de7b384c591d98c1e54d49f52139dcca6d5594e2a371f",

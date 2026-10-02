@@ -9,7 +9,7 @@ const built = await build({
   configFile: false,
   logLevel: "error",
   ssr: { noExternal: true },
-  build: { ssr: "api/workspace.ts", target: "node22", write: false },
+  build: { ssr: "server/workspace.ts", target: "node22", write: false },
 });
 const dir = mkdtempSync(join(tmpdir(), "cova-sync-browser-"));
 writeFileSync(join(dir, "api.mjs"), built.output[0].code);

@@ -306,10 +306,10 @@ test("connector APIs reject authenticated users without current server-owned ass
     ]) {
       assert.match(read(...path), /requirePolicyAcceptedUser/);
     }
-    const disconnectSource = read("api", "connectors", "disconnect.js");
+    const disconnectSource = read("server", "connectors", "disconnect.js");
     assert.match(disconnectSource, /requireAuthenticatedUser/);
     assert.doesNotMatch(disconnectSource, /requirePolicyAcceptedUser/);
-    const connectorStatusSource = read("api", "connectors", "status.js");
+    const connectorStatusSource = read("server", "connectors", "status.js");
     assert.match(connectorStatusSource, /requireAuthenticatedUser/);
     assert.match(connectorStatusSource, /listBrokerConnectionsForUser/);
     assert.match(connectorStatusSource, /sendTradovateStatus/);
@@ -340,7 +340,7 @@ test("restricted connector discovery is owner-scoped and never returns credentia
     throw new Error(`unexpected status call ${requestUrl}`);
   };
   try {
-    const { default: handler } = await import(`../api/connectors/status.js?test=${Date.now()}`);
+    const { default: handler } = await import(`../server/connectors/status.js?test=${Date.now()}`);
     const response = responseHarness();
     await handler({ method: "GET", headers: { authorization: "Bearer owner-token" } }, response);
     assert.equal(response.statusCode, 200);
@@ -389,7 +389,7 @@ test("provider status routes share one authenticated function within the Hobby d
     throw new Error(`unexpected consolidated status call ${requestUrl}`);
   };
   try {
-    const { default: handler } = await import(`../api/connectors/status.js?provider-test=${Date.now()}`);
+    const { default: handler } = await import(`../server/connectors/status.js?provider-test=${Date.now()}`);
     const response = responseHarness();
     await handler({
       method: "GET",
@@ -449,7 +449,7 @@ test("Tradovate status recovers the authenticated owner's durable connection whe
     throw new Error(`unexpected recovered status call ${requestUrl}`);
   };
   try {
-    const { default: handler } = await import(`../api/connectors/status.js?cookie-recovery=${Date.now()}`);
+    const { default: handler } = await import(`../server/connectors/status.js?cookie-recovery=${Date.now()}`);
     const response = responseHarness();
     await handler({
       method: "GET",
@@ -502,7 +502,7 @@ test("Tradovate status keeps a retained owner connection revocable while provide
     throw new Error(`unexpected unavailable status call ${requestUrl}`);
   };
   try {
-    const { default: handler } = await import(`../api/connectors/status.js?unavailable-retained=${Date.now()}`);
+    const { default: handler } = await import(`../server/connectors/status.js?unavailable-retained=${Date.now()}`);
     const response = responseHarness();
     await handler({
       method: "GET",
@@ -938,7 +938,7 @@ test("account deletion pins the validated identity and bearer across the request
 
 test("provider reconnect is unique per owner and disconnect deletes every owner-provider credential", () => {
   const storage = read("api", "_lib", "supabase.js");
-  const disconnect = read("api", "connectors", "disconnect.js");
+  const disconnect = read("server", "connectors", "disconnect.js");
   const migration = read("supabase", "migrations", "20260807020000_unique_broker_provider_connections.sql");
   assert.match(storage, /on_conflict["']?,\s*["']user_id,provider["']/);
   assert.match(storage, /resolution=merge-duplicates,return=representation/);
@@ -967,7 +967,7 @@ test("provider disconnect removes owner-provider credentials even without a brow
     throw new Error(`unexpected disconnect call ${url}`);
   };
   try {
-    const { default: handler } = await import(`../api/connectors/disconnect.js?provider-delete=${Date.now()}`);
+    const { default: handler } = await import(`../server/connectors/disconnect.js?provider-delete=${Date.now()}`);
     const response = responseHarness();
     await handler({ method: "POST", headers: { authorization: "Bearer owner-token" }, body: { provider: "projectx" } }, response);
     assert.equal(response.statusCode, 200);

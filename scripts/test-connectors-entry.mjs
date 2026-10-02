@@ -1,6 +1,6 @@
-// TEST packaging only: keep each existing handler's authentication and method checks.
-import status from '../api/connectors/status.js';
-import disconnect from '../api/connectors/disconnect.js';
+// Shared deployment packaging: keep each existing handler's authentication and method checks.
+import status from '../server/connectors/status.js';
+import disconnect from '../server/connectors/disconnect.js';
 
 export default function handler(req, res) {
   const path = new URL(req.url || '/', 'https://local.invalid').pathname;

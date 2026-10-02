@@ -1,9 +1,10 @@
+import { workspaceBrowserOptions, workspaceEvidence } from "./workspace-browser-support.mjs";
 // Actual App/Dashboard/MiniJournal with synthetic auth and local workspace API.
 import {chromium} from 'playwright';
 import assert from 'node:assert/strict';
 import {writeFile,mkdir} from 'node:fs/promises';
-const out='/workspace/cova-source-recovery/same-profile-draft-evidence';await mkdir(out,{recursive:true});
-const browser=await chromium.launch({executablePath:'/usr/bin/chromium',args:['--no-sandbox']});
+const out=workspaceEvidence('same-profile-draft');await mkdir(out,{recursive:true});
+const browser=await chromium.launch(workspaceBrowserOptions);
 const context=await browser.newContext({viewport:{width:1440,height:1000}});
 const owner=crypto.randomUUID();
 await context.addInitScript(owner=>{

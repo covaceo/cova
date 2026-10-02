@@ -1,10 +1,11 @@
+import { workspaceBrowserOptions, workspaceEvidence } from "./workspace-browser-support.mjs";
 // Actual App layout against disposable local fixture. Never touches hosted user notes.
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 import { mkdir,writeFile } from 'node:fs/promises';
-const out=process.env.COVA_MOBILE_EVIDENCE || '/workspace/cova-source-recovery/mobile-header-all-routes/evidence';
+const out=process.env.COVA_MOBILE_EVIDENCE || workspaceEvidence('mobile-header-routes');
 await mkdir(out,{recursive:true});
-const browser=await chromium.launch({executablePath:'/usr/bin/chromium',args:['--no-sandbox']});
+const browser=await chromium.launch(workspaceBrowserOptions);
 const receipts=[],errors=[];
 
 async function makePage(seed) {

@@ -1,4 +1,18 @@
-# Isolated TEST deployment packaging
+# Deployment packaging
+
+## Durable connected-source packaging
+
+The release integration keeps the reviewed handler implementations in `server/` and commits three generated native entrypoints in `api/`. `npm run build:server` regenerates them; the normal build rejects stale generated files before building the client. This makes the connected source tree directly deployable with twelve API functions, without disabling Git deployment or relying on build-time API discovery order.
+
+The only executable-source changes are import paths required by relocation. Runtime differences from the reviewed staged bundles are their generated banner and source-region comments. Connector pathname dispatch, billing raw-body handling, security headers and Rithmic timeouts stay unchanged. `vercel.json` is unchanged.
+
+`node scripts/prepare-test-deployment.mjs /absolute/new-stage` now copies a clean committed tree after checking native runtime freshness and the exact entrypoint inventory. It does not transform handlers or copy environment files, project bindings or Supabase CLI cache. It rejects existing targets and targets inside the checkout on Windows and POSIX.
+
+`node scripts/verify-test-deployment.mjs STAGE` still verifies official emitted Node24 functions, configuration and handler behavior. A credential-free local build is not suitable for production prebuilt upload. Production must be a hosted source build with its existing production secrets, the same-source flags-off rollback candidate, verified additive SQL, and flags-on candidate promotion described in `HANDOFF.md`.
+
+## Historical TEST packaging evidence
+
+The following records the original staging-only implementation before the durable integration above. Its transformation commands are superseded by the current clean-copy script. It is retained as provenance, not a current release authorization.
 
 The failed Preview `dpl_G184eseceZt4fvKgSTvSDHXJH1ni` exceeded Hobby's 12-function limit with 13 API source entrypoints. Its server compiler also reported TS2307/2580 (Node types) and TS2835 (extensionless shared TypeScript imports). The frontend build did not detect these server diagnostics.
 
