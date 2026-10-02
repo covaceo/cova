@@ -18,6 +18,7 @@ test('production proposal resets PG17+ MAINTAIN/default grants and preserves own
     'The old three-privilege revoke must leave MAINTAIN granted in this fixture');
   await db.exec('drop table public.privilege_probe');
   await db.exec(readFileSync(new URL('../docs/workspace-production-proposal.sql',import.meta.url),'utf8'));
+  await db.exec(readFileSync(new URL('../docs/workspace-conflict-errors.sql',import.meta.url),'utf8'));
   for(const name of ['workspace_settings','workspace_records','workspace_operations']) {
     const acl=await db.query(`select x.privilege_type as privilege from pg_class c
       cross join lateral aclexplode(c.relacl) x where c.oid=$1::regclass

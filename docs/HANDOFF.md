@@ -1,5 +1,7 @@
 # Cova account-sync handoff
 
+> Historical handoff snapshot. Durable source packaging is now implemented; see `docs/test-deployment-packaging.md`. The original SQL below must be followed by `docs/workspace-conflict-errors.sql` before enabling sync. That follow-up preserves records, policies, security and ACLs, including an existing write pause. It changes only deliberate conflict SQLSTATEs from retryable `40001` to non-retrying `PT409`. Production verification must exercise a stale write over hosted HTTP, not only direct SQL: the original direct-SQL tests missed Hasql retry behavior. Do not reapply the original CREATE TABLE transaction to an already migrated database.
+
 Reviewed application source: `5786a3d3d359c5e254d15892726b5896f839dfaf`.
 Reviewed tree: `7c34157552cf25b06d16ddcc2f576b5337f1d799`.
 The commit following that source adds this document only. No application changes are introduced by the handoff.
