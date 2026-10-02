@@ -176,7 +176,7 @@ try{
  // Exercise the two actions with the real selected PNG and a stubbed OS transport.
  await click('dialog button','Feed');await ready();
  const selectedPng=Buffer.from(await evaluate(`(async()=>{const blob=await(await fetch(document.querySelector('[data-recap-preview]').src)).blob();return await new Promise(resolve=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result.split(',')[1]);reader.readAsDataURL(blob)})})()`),'base64');
- await exerciseRecapShare({evaluate,wait,click,ready,downloads,expectedBytes:selectedPng});
+ await exerciseRecapShare({send,evaluate,wait,click,ready,downloads,expectedBytes:selectedPng});
  // A result from a dismissed or changed selection cannot write stale share status.
  const beforeStaleSharing=(await readdir(downloads)).sort();
  await evaluate(`Object.defineProperty(navigator,'canShare',{configurable:true,value:()=>true});Object.defineProperty(navigator,'share',{configurable:true,value:()=>new Promise((resolve,reject)=>window.__rejectStaleShare=()=>reject(new DOMException('old selection','NotAllowedError')))})`);
