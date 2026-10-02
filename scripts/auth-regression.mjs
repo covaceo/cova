@@ -613,7 +613,7 @@ test("account deletion removes every Cova record scoped to the current browser i
     setItem(key, value) { records.set(key, String(value)); },
   };
   const module = { exports: {} };
-  runInNewContext(compiled, { exports: module.exports, localStorage, module });
+  runInNewContext(compiled, { exports: module.exports, localStorage, sessionStorage: { length: 0, key: () => null, removeItem() {} }, module });
   const storageScope = module.exports;
 
   storageScope.setActiveStorageIdentity("member@example.com");

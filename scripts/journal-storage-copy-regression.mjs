@@ -32,6 +32,8 @@ for (const accountStorage of [undefined, false, true]) {
 
 test('restored unsaved draft does not imply a completed account save', () => {
   const previous = globalThis.localStorage;
+  const previousSession = globalThis.sessionStorage;
+  globalThis.sessionStorage = { getItem: () => null, setItem() {} };
   globalThis.localStorage = { getItem: () => JSON.stringify({ note: 'Synthetic unsaved draft', tradeId: null }) };
   try {
     const markup = renderToStaticMarkup(React.createElement(MiniJournal, {
@@ -41,5 +43,5 @@ test('restored unsaved draft does not imply a completed account save', () => {
     assert.match(markup, /Synthetic unsaved draft/);
     assert.match(markup, /Unsaved changes/);
     assert.doesNotMatch(markup, /Saved to your account|Private · saved/);
-  } finally { globalThis.localStorage = previous; }
+  } finally { globalThis.localStorage = previous; globalThis.sessionStorage = previousSession; }
 });
