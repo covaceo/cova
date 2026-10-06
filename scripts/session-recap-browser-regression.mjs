@@ -112,7 +112,8 @@ try{
  await revoke(`window.__delayConnection=false;window.__connection.user.id='wrong-owner'`);
  await evaluate(`window.__releaseConnection();delete window.__releaseConnection`);await sleep(100);assert.equal(await badge(),false);
  // Owner-approved manual records get the SAME visible badge, without a false API provenance claim.
- await evaluate(`window.__connection={user:{...window.__originalConnection.user,email:'LINO@COVADESK.COM'},status:null};window.__trades(window.__rows.map((r,i)=>({...r,id:'manual-'+i,source:undefined,manual:{accountKey:'Tradovate:7',currency:'USD',pnlBasis:'gross_before_fees'}})))`);
+ await evaluate(`window.__connection={user:{...window.__originalConnection.user,email:'LINO@COVADESK.COM'},status:null};window.__trades(window.__rows.map((r,i)=>({...r,id:'manual-'+i,source:undefined,manual:{accountKey:'Tradovate:7',currency:'USD',pnlBasis:'gross_before_fees'}})))`); // Same-account refresh keeps the composer open.
+ await key('Escape',27);
  await wait(`!document.querySelector('dialog[open]')`);await click('button','Share recap');await wait(`document.querySelector('[data-recap-preview]')?.alt.includes('Verified')`);await ready();
  assert.match(await evaluate(`document.querySelector('.recap-details').textContent`),/owner-approved account/);assert.match(await evaluate(`document.querySelector('[data-recap-preview]').alt`),/Reported gross P&L/);
  await exportPreview('owner-approved-manual');
