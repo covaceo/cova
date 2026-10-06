@@ -372,7 +372,8 @@ async function auditDarkDashboard(label) {
       local,
       marker: document.querySelector('.dashboard-workspace')?.dataset.astraDashboard,
       bodyBackground: getComputedStyle(document.body).backgroundColor,
-      shellBackground: getComputedStyle(document.querySelector('.dashboard-workspace')).backgroundColor,
+      shellBackground: getComputedStyle(document.querySelector('.dashboard-workspace').closest('.oa-dashboard-shell')).backgroundColor,
+      dashboardBackground: getComputedStyle(document.querySelector('.dashboard-workspace')).backgroundColor,
       chartStroke: getComputedStyle(document.querySelector('.astra-chart-svg .astra-curve')).stroke,
       primaryBackground: parse(getComputedStyle(document.querySelector('.dashboard-summary-primary')).backgroundColor),
       primaryColor: getComputedStyle(document.querySelector('.dashboard-summary-primary')).color,
@@ -387,7 +388,8 @@ async function auditDarkDashboard(label) {
   assert.deepEqual(audit.light, [], `${label} must not contain light card surfaces`);
   for (const check of audit.contrastChecks) assert.ok(check.ratio >= 4.5, `${label} ${check.selector} contrast ${check.ratio.toFixed(2)} must meet WCAG AA`);
   assert.equal(audit.bodyBackground, "rgb(8, 9, 12)");
-  assert.equal(audit.shellBackground, "rgb(9, 15, 21)", "Owner-selected matte Risk Desk surface");
+  assert.equal(audit.shellBackground, "rgb(15, 15, 15)", "Approved shared matte workspace surface");
+  assert.equal(audit.dashboardBackground, "rgba(0, 0, 0, 0)", "Risk Desk shares the shell instead of nesting another page slab");
   assert.equal(audit.chartStroke, "rgb(79, 125, 255)");
   assert.ok(Math.abs(audit.primaryBackground.a - .07)<.001 && Math.abs(audit.primaryBackground.r-224)<.01 && Math.abs(audit.primaryBackground.g-232)<.01 && Math.abs(audit.primaryBackground.b-245)<.01, "OA action uses the approved 7% polar ink surface");
   assert.equal(audit.primaryColor, "rgb(224, 232, 245)");

@@ -1,0 +1,94 @@
+/* Presentation only. One inherited progress value keeps the rail and gutter together. */
+@media (min-width: 851px) {
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .workspace-sidebar-motion {
+    inset: 12px auto 12px 12px !important;
+    width: calc(72px + (var(--sidebar-expanded-width, 240px) - 72px) * var(--sidebar-progress, 1)) !important;
+    height: calc(100dvh - 24px) !important;
+    padding: 18px 12px 12px !important;
+    border: 1px solid #ffffff12 !important;
+    border-radius: 12px !important;
+    background: #161616 !important;
+    background-color: #161616 !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+  }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .workspace-content {
+    margin-left: calc(96px + (var(--sidebar-expanded-width, 240px) - 72px) * var(--sidebar-progress, 1)) !important;
+  }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .workspace-sidebar-brand {
+    min-height: 38px;
+    padding: 0 10px !important;
+    margin: 0 0 14px !important;
+    flex-shrink: 0;
+  }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .workspace-brand-button {
+    display: flex; align-items: center; width: 104px !important; height: 38px;
+  }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .workspace-brand-mark { display: none; }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] :is(.workspace-sidebar-toggle, .workspace-sidebar-search-open) {
+    display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+    width: 100%; height: 40px; padding: 10px 12px; margin: 0 0 8px;
+    border: 0; border-radius: 6px; background: transparent; color: #bdbdbd;
+    font: 400 13px/1.5 Inter, Arial, sans-serif; text-align: left;
+  }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] :is(.workspace-sidebar-toggle, .workspace-sidebar-search-open) svg { width: 20px; height: 20px; flex: none; stroke-width: 1.5; }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] :is(.workspace-sidebar-toggle, .workspace-sidebar-search-open):hover { background: #ffffff08; color: #ededed; }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .workspace-sidebar-search {
+    display: grid; min-height: 40px; margin: 0 0 12px !important; padding: 8px 12px !important;
+    border: 1px solid #ffffff14 !important; border-radius: 6px !important; background: transparent !important;
+  }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .workspace-sidebar-search input { width: 100%; font-size: 13px !important; }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .astra-rail-account {
+    display: flex; min-height: 56px; margin: 0 0 20px; padding: 8px 12px; gap: 12px;
+    border: 1px solid #ffffff12; border-radius: 6px; background: transparent;
+  }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .astra-rail-account > svg { width: 20px; height: 20px; flex: none; }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .astra-rail-account > svg:last-child { width: 14px; }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .workspace-sidebar-nav { flex: 1 1 auto; min-width: 0; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] :is(.workspace-sidebar-group, .workspace-sidebar-group-links, .workspace-sidebar-link) { min-width: 0; width: 100%; }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .workspace-sidebar-copy { max-width: calc(156px * var(--sidebar-progress, 1)); }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state="collapsed"] .workspace-sidebar-link { gap: 0 !important; }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state="collapsed"] .workspace-sidebar-nav { scrollbar-width: none; }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .workspace-sidebar-group { margin: 0 0 18px !important; }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .workspace-sidebar-group + .workspace-sidebar-group { margin-top: 0; padding-top: 12px; border-top: 1px solid #ffffff0d; }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .workspace-sidebar-group-label {
+    height: 18px; padding: 0 12px !important; margin: 0 0 6px !important;
+    font: 400 11px/18px Inter, Arial, sans-serif !important; text-transform: none !important; letter-spacing: 0 !important; color: #999999 !important;
+  }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .workspace-sidebar-link {
+    display: flex; min-height: 42px !important; padding: 10px 12px !important; gap: 12px !important;
+    border-radius: 6px !important; color: #bdbdbd !important;
+  }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .workspace-sidebar-icon { flex: none; width: 20px !important; height: 20px !important; }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .oa-workspace-nav-highlight { border-radius: 6px; background: #ffffff08; border-color: #ffffff0d; }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .workspace-sidebar-link-active { color: #ededed !important; }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] :is(.workspace-sidebar-copy, .astra-rail-account-copy, .workspace-sidebar-group-label, .workspace-risk-status-copy > span, .cova-profile-trigger > span:nth-child(2)) {
+    min-width: 0; overflow: hidden; white-space: nowrap;
+    opacity: var(--sidebar-progress, 1);
+    transform: translateX(calc(-4px * (1 - var(--sidebar-progress, 1))));
+  }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .workspace-sidebar-copy { font-size: 13px !important; }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .workspace-risk-status {
+    min-height: 36px; flex-shrink: 0; margin: 0 0 8px !important; padding: 6px 10px !important;
+  }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .workspace-account-menu { flex-shrink: 0; padding: 8px 0 0 !important; border-top-color: #ffffff14 !important; overflow: visible !important; }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .cova-profile-trigger { min-height: 48px; padding: 5px; }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .cova-profile-popup { min-width: 204px; background: #1b1b1b; border-radius: 10px; }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state="collapsed"] .workspace-sidebar-brand { padding: 0 !important; }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state="collapsed"] .workspace-brand-button { width: 46px !important; justify-content: center; }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state="collapsed"] .workspace-brand-wordmark { display: none; }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state="collapsed"] .workspace-brand-mark { display: block; width: 28px; height: 28px; }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state="collapsed"] .astra-rail-account { min-height: 42px; border-color: transparent; }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state="collapsed"] :is(.astra-rail-account-copy, .astra-rail-account > svg:last-child, .cova-profile-trigger > span:nth-child(2), .cova-profile-trigger > svg, .workspace-risk-status-copy) { display: none; }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state="collapsed"] .workspace-risk-status { justify-content: center; padding-inline: 0 !important; }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state="collapsed"] .workspace-sidebar-group-label { visibility: hidden; }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state="collapsed"] .cova-profile-trigger { justify-content: center; }
+}
+@media (min-width: 851px) and (max-width: 1050px) {
+  /* Keep the existing dashboard readable at the desktop breakpoint. */
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] { --sidebar-expanded-width: 180px; }
+}
+@media (max-width: 850px) {
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .workspace-sidebar-motion { display: none !important; }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .workspace-content { margin-left: 0 !important; }
+}

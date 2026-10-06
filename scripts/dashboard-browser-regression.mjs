@@ -577,7 +577,7 @@ async function shortHeight(width, height) {
   assert.equal(state.headerVisible, false, `${width}px must not overlap a collapsed header with the rail`);
   assert.equal(state.contentClearsRail, true, `${width}px dashboard content must clear the fixed rail`);
   assert.deepEqual(state.buttons.map(button => button.label), ["Set username"], "Profile menu must remain reachable; Settings/delete and sign-out are exercised in profile and OA interaction regressions");
-  assert.deepEqual(state.rail, { top: 0, bottom: height });
+  assert.deepEqual(state.rail, { top: 12, bottom: height - 12 }, "Approved workspace chrome uses the same 12px outer frame as Risk Desk");
   assert.equal(state.account.shrink, "0");
   assert.ok(state.account.bottom <= height + 0.5, `${height}px account menu must stay inside the rail`);
   for (const button of state.buttons) {

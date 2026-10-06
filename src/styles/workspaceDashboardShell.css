@@ -1,0 +1,44 @@
+/* Shared protected-workspace shell. Keep each tab's modules, controls,
+   responsive inner gutters, Passport artwork and the approved rail intact. */
+@media (min-width: 851px) {
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .workspace-content {
+    padding-top: 12px !important;
+    padding-bottom: 12px !important;
+  }
+
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .astra-dashboard[data-dashboard-visual="reference"] {
+    min-height: calc(100dvh - 24px);
+  }
+
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .astra-workspace-page {
+    min-height: calc(100dvh - 24px);
+  }
+}
+.oa-dashboard-app:has(.oa-dashboard-shell[data-sidebar-state]) {
+  background: #0f0f0f !important;
+}
+
+.oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] {
+  background: #0f0f0f !important;
+}
+
+.oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .workspace-content {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .astra-dashboard[data-dashboard-visual="reference"] {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .astra-workspace-page {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
