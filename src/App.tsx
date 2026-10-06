@@ -2,6 +2,7 @@ import { useAccountNames } from './lib/useAccountNames';
 import { saveManualAccountName } from './lib/accountNames';
 import { newManualAccountKey } from './lib/manualAccountKeys';
 import { ManualAccountManager } from './components/ManualAccountManager';
+import { prepareAccountRemoval, commitAccountRemoval, recoverAccountRemoval, type AccountRemovalPreview } from './lib/accountRemoval';
 import { isManualAccountKey } from './lib/manualAccountKeys';
 import { useWorkspaceSync, WorkspaceSyncPanel } from './components/WorkspaceSync';
 import { persistTradingLedger, recordRecapIngestion } from './lib/recapVerification';
@@ -179,7 +180,7 @@ export default function App() {
   const proCheckoutAvailable = isBillingEnabled() || Boolean(getProCheckoutUrl()) || isDemoPreviewEnabled();
   const visibleTrades = useMemo(() => filterTradeAccount(trades, tradeAccount), [trades, tradeAccount]);
   const accountNames = useAccountNames(toImportPrincipalIdentity(authSession));
-  const tradeAccounts = useMemo(() => [...new Set([...filterTradeAccount(trades, "all").map(tradeAccountKey), ...Object.keys(accountNames).filter(isManualAccountKey)])], [trades, accountNames]);
+  const tradeAccounts = useMemo(() => [...new Set([...filterTradeAccount(trades, "all").map(tradeAccountKey), ...Object.keys(accountNames)])], [trades, accountNames]);
   const analysis = useMemo(() => analyze(visibleTrades, rules), [visibleTrades, rules]);
   const visibleRiskScore = visibleTrades.length ? analysis.score : null;
   const hasSampleTrades = visibleTrades.some((trade) => trade.id.startsWith("demo-"));
@@ -1210,6 +1211,24 @@ export default function App() {
     if (!isImportPrincipalCurrent(dashboardPrincipal, principal) || (key !== 'local' && !tradeAccounts.includes(key))) return "Your account changed. Reopen Accounts.";
     return saveManualAccountName(principal!.identity, key, name) ? null : "Use a unique account name and check that browser storage is available.";
   }
+  function prepareRemoveAccount(key: string) {
+    const principal = getCurrentImportPrincipal();
+    if (!isImportPrincipalCurrent(dashboardPrincipal, principal)) return null;
+    const preview = prepareAccountRemoval(principal!.identity, key, tradesRef.current, [...new Set([...tradeAccounts, "local"])]);
+    return preview ? { ...preview, principal: principal! } : null;
+  }
+  function removeTradingAccount(preview: AccountRemovalPreview) {
+    const principal = getCurrentImportPrincipal();
+    if (!isImportPrincipalCurrent(preview.principal || null, principal)) return "Your account changed or storage is busy. Reopen Accounts after saving finishes.";
+    if (!window.dispatchEvent(new Event('cova:before-account-change', { cancelable: true }))) return "Keep or discard your open draft first.";
+    const result = commitAccountRemoval(principal!.identity, preview, tradesRef.current, rules, tradeAccount);
+    if (result.error) return result.error;
+    historySelection.current.change();
+    window.dispatchEvent(new Event('cova:history-selection'));
+    tradesRef.current = result.trades; setTrades(result.trades); setTradeAccount(result.selection);
+    announce("Account history removed from Cova.", "success");
+    return null;
+  }
   function addManualTrade(draft: ManualTradeDraft, account: string) {
     const result = appendManualTrade(tradesRef.current,draft,account,entitlements.maxStoredTrades,dashboardPrincipal,getCurrentImportPrincipal(),dashboardSelectionCurrent(),tradeAccounts);
     if (result.error) return result.error;
@@ -1401,7 +1420,7 @@ export default function App() {
                 </div>
               )}
               {section === "dashboard" && <Dashboard noteDraftOwner={dashboardPrincipal?.identity} key={`${authSession?.userId || authSession?.email}:${tradeAccount}`} analysis={analysis} rules={rules} go={go} accountControl={ <div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={[...new Set([...tradeAccounts,"local"])]} value={tradeAccount} onChange={selectTradeAccount} /></div>} onSaveTradeNote={saveTradeNote} journalActions={journalActions} onConfirmManualNet={confirmManualNetRows} onAddManualTrade={addManualTrade} onDeleteManualTrade={deleteManualTrade} manualAccounts={[...new Set([...tradeAccounts,"local"])]} selectedAccount={tradeAccount} rithmicSyncAvailable={brokerStatus?.provider === "Rithmic" && brokerStatus.status === "imported"} />}
-              {section === "import" && <ImportDesk accountManager={<ManualAccountManager accounts={[...new Set([...tradeAccounts,"local"])]} names={accountNames} onCreate={createManualAccount} onRename={renameManualAccount} onOpen={account => { selectTradeAccount(account); go("dashboard"); }} />} key={authSession?.userId || authSession?.email} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} entitlements={entitlements} importCsv={importCsv} prepareImportCsv={prepareImportCsv} openFirmOAuth={openFirmOAuth} status={status} reset={() => { if (workspaceSync.enabled) { announce("Keep sample trades separate from your saved account workspace.", "info"); return; } const demoTrades = entitlements.plan === "free" ? sampleTrades.slice(0, entitlements.maxStoredTrades) : sampleTrades; tradesRef.current = demoTrades; setTrades(demoTrades); selectTradeAccount("local"); setRules(defaultRules); clearBrokerStatus(); window.dispatchEvent(new CustomEvent("cova:broker-status")); setStatus("Demo trades restored."); announce("Demo trades restored.", "success"); }} upgradeToPro={upgradeToPro} />}
+              {section === "import" && <ImportDesk accountManager={<ManualAccountManager accounts={[...new Set([...tradeAccounts,"local"])]} names={accountNames} onCreate={createManualAccount} onRename={renameManualAccount} onPrepareRemove={prepareRemoveAccount} onRemove={removeTradingAccount} onOpen={account => { selectTradeAccount(account); go("dashboard"); }} />} key={authSession?.userId || authSession?.email} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} entitlements={entitlements} importCsv={importCsv} prepareImportCsv={prepareImportCsv} openFirmOAuth={openFirmOAuth} status={status} reset={() => { if (workspaceSync.enabled) { announce("Keep sample trades separate from your saved account workspace.", "info"); return; } const demoTrades = entitlements.plan === "free" ? sampleTrades.slice(0, entitlements.maxStoredTrades) : sampleTrades; tradesRef.current = demoTrades; setTrades(demoTrades); selectTradeAccount("local"); setRules(defaultRules); clearBrokerStatus(); window.dispatchEvent(new CustomEvent("cova:broker-status")); setStatus("Demo trades restored."); announce("Demo trades restored.", "success"); }} upgradeToPro={upgradeToPro} />}
               {section === "oauth" && <OAuthConnectPage firmId={oauthFirmId} onApprove={completeFirmOAuth} onCancel={cancelFirmOAuth} />}
               {section === "rules" && <RulesEngine analysis={analysis} entitlements={entitlements} rules={rules} setRules={setRules} go={go} upgradeToPro={upgradeToPro} accountControl={tradeAccounts.some(account => account !== "local") ? <div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} value={tradeAccount} onChange={selectTradeAccount} /></div> : undefined} />}
               {section === "coach" && <Coach analysis={analysis} entitlements={entitlements} go={go} upgradeToPro={upgradeToPro} accountControl={tradeAccounts.some(account => account !== "local") ? <div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} value={tradeAccount} onChange={selectTradeAccount} /></div> : undefined} />}
@@ -1592,6 +1611,8 @@ function readAuthIntent(): { email?: string; mode?: AuthMode; returnSection?: Se
 
 function loadState(): { trades: Trade[]; rules: RiskRule[]; tradeAccount?: string } | null {
   try {
+    const owner = toImportPrincipalIdentity(loadAuthSession());
+    if (owner) recoverAccountRemoval(owner);
     const parsed = JSON.parse(localStorage.getItem(scopedStorageKey(STORAGE_KEY)) ?? "null");
     if (parsed?.trades && parsed?.rules) {
       return {

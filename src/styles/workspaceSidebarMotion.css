@@ -33,6 +33,22 @@
   }
   .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] :is(.workspace-sidebar-toggle, .workspace-sidebar-search-open) svg { width: 20px; height: 20px; flex: none; stroke-width: 1.5; }
   .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] :is(.workspace-sidebar-toggle, .workspace-sidebar-search-open):hover { background: #ffffff08; color: #ededed; }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .workspace-sidebar-toggle {
+    position: absolute; top: 24px; right: -12px; z-index: 3;
+    width: 32px; height: 32px; min-height: 32px; padding: 5px; margin: 0;
+    justify-content: center; gap: 0; border: 1px solid #ffffff26;
+    border-radius: 5px; background: #202020; color: #ededed;
+    opacity: 0; pointer-events: none; transition: opacity 120ms ease, background 120ms ease;
+  }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .workspace-sidebar-toggle svg { width: 20px; height: 20px; stroke-width: 2; }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .workspace-sidebar-motion:hover .workspace-sidebar-toggle,
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .workspace-sidebar-toggle:focus-visible {
+    opacity: 1; pointer-events: auto;
+  }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .workspace-sidebar-toggle:hover { background: #292929; }
+  .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .workspace-sidebar-toggle:focus-visible { outline: 2px solid #88adff; outline-offset: 3px; }
+  @media (hover: none) { .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .workspace-sidebar-toggle { opacity: 1; pointer-events: auto; } }
+  @media (prefers-reduced-motion: reduce) { .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .workspace-sidebar-toggle { transition: none; } }
   .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .workspace-sidebar-search {
     display: grid; min-height: 40px; margin: 0 0 12px !important; padding: 8px 12px !important;
     border: 1px solid #ffffff14 !important; border-radius: 6px !important; background: transparent !important;

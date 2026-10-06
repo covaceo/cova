@@ -1,4 +1,4 @@
-import { Activity, ArrowUpRight, BarChart3, ChevronRight, FileUp, Gauge, Search, BookUser, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { Activity, ArrowUpRight, BarChart3, ChevronRight, FileUp, Gauge, Search, BookUser, ArrowLeft, ArrowRight } from "lucide-react";
 import { WorkspaceNavIcon } from "./WorkspaceNavIcon";
 import { ProfileMenu } from "./UserProfile";
 import { motion, useReducedMotion } from "motion/react";
@@ -95,8 +95,7 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
           </button>
         </div>
         <button className="workspace-sidebar-toggle" type="button" aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!collapsed} aria-controls="cova-workspace-sidebar" title={collapsed ? "Expand sidebar" : "Collapse sidebar"} onClick={() => setCollapsed(value => !value)}>
-          {collapsed ? <PanelLeftOpen aria-hidden="true" /> : <PanelLeftClose aria-hidden="true" />}
-          <span className="workspace-sidebar-copy">Collapse sidebar</span>
+          {collapsed ? <ArrowRight aria-hidden="true" /> : <ArrowLeft aria-hidden="true" />}
         </button>
         {collapsed ? <button className="workspace-sidebar-search-open" type="button" aria-label="Search workspace" title="Search workspace" onClick={() => { focusSearch.current = true; setCollapsed(false); }}><Search aria-hidden="true" /></button> : <label className="workspace-sidebar-search">
           <Search aria-hidden="true" className="h-4 w-4" />
