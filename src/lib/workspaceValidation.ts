@@ -1,5 +1,6 @@
 // New boundary validation. Cloud rows are data, never broker authorization proof.
 import type { Trade, RiskRule } from "./risk";
+import { isManualAccountKey } from "./manualAccountKeys";
 import { tradeAccountKey } from "./tradovateHistory";
 import type {
   WorkspaceValue,
@@ -26,6 +27,7 @@ const exact = (x: Record<string, any>, keys: string[]) =>
 export const account = (x: unknown): x is string =>
   text(x, 240, 1) &&
   (x === "local" ||
+    isManualAccountKey(x) ||
     x === "all" ||
     /^Tradovate:[1-9]\d{0,15}$/.test(x) ||
     /^Rithmic:[A-Za-z0-9_-]{20,64}:[^\x00-\x1f]{1,128}$/.test(x));

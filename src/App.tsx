@@ -1,3 +1,8 @@
+import { useAccountNames } from './lib/useAccountNames';
+import { saveManualAccountName } from './lib/accountNames';
+import { newManualAccountKey } from './lib/manualAccountKeys';
+import { ManualAccountManager } from './components/ManualAccountManager';
+import { isManualAccountKey } from './lib/manualAccountKeys';
 import { useWorkspaceSync, WorkspaceSyncPanel } from './components/WorkspaceSync';
 import { persistTradingLedger, recordRecapIngestion } from './lib/recapVerification';
 import { AnimatePresence, motion } from "motion/react";
@@ -173,12 +178,13 @@ export default function App() {
   const entitlements = planEntitlements[authSession?.plan ?? "free"];
   const proCheckoutAvailable = isBillingEnabled() || Boolean(getProCheckoutUrl()) || isDemoPreviewEnabled();
   const visibleTrades = useMemo(() => filterTradeAccount(trades, tradeAccount), [trades, tradeAccount]);
-  const tradeAccounts = useMemo(() => [...new Set(filterTradeAccount(trades, "all").map(tradeAccountKey))], [trades]);
+  const accountNames = useAccountNames(toImportPrincipalIdentity(authSession));
+  const tradeAccounts = useMemo(() => [...new Set([...filterTradeAccount(trades, "all").map(tradeAccountKey), ...Object.keys(accountNames).filter(isManualAccountKey)])], [trades, accountNames]);
   const analysis = useMemo(() => analyze(visibleTrades, rules), [visibleTrades, rules]);
   const visibleRiskScore = visibleTrades.length ? analysis.score : null;
   const hasSampleTrades = visibleTrades.some((trade) => trade.id.startsWith("demo-"));
   const isSampleReview = hasSampleTrades;
-  const brokerLabel = getAccountSourceLabel(visibleTrades, brokerStatus);
+  const brokerLabel = getAccountSourceLabel(visibleTrades, tradeAccount === "local" || isManualAccountKey(tradeAccount) ? null : brokerStatus);
   const dashboardPrincipal: ImportPrincipal | null = authSession ? {
     identity: toImportPrincipalIdentity(authSession),
     authGeneration: authGenerationRef.current,
@@ -1190,8 +1196,22 @@ export default function App() {
     readEntry: (date: string) => dashboardPrincipal && dashboardSelectionCurrent() && isImportPrincipalCurrent(dashboardPrincipal,getCurrentImportPrincipal()) ? readDailyJournalEntry(dashboardPrincipal.identity,tradeAccount,date) : {note:"",tradeId:null},
     save: (date: string, note: string, tradeId?: string | null) => Boolean(dashboardPrincipal && dashboardSelectionCurrent() && isImportPrincipalCurrent(dashboardPrincipal,getCurrentImportPrincipal()) && canAttachJournalTrade(tradesRef.current,tradeAccount,tradeId) && saveDailyJournal(dashboardPrincipal.identity,tradeAccount,date,note,tradeId)),
   };
+  function createManualAccount(name: string) {
+    const principal = getCurrentImportPrincipal();
+    if (!isImportPrincipalCurrent(dashboardPrincipal, principal)) return "Your account changed. Reopen Accounts.";
+    if (!window.dispatchEvent(new Event('cova:before-account-change', { cancelable: true }))) return "Keep or discard your open draft first.";
+    const key = newManualAccountKey();
+    if (!saveManualAccountName(principal!.identity, key, name)) return "Use a unique account name and check that browser storage is available.";
+    historySelection.current.change(); setTradeAccount(key); window.dispatchEvent(new Event('cova:history-selection')); go('dashboard');
+    return null;
+  }
+  function renameManualAccount(key: string, name: string) {
+    const principal = getCurrentImportPrincipal();
+    if (!isImportPrincipalCurrent(dashboardPrincipal, principal) || (key !== 'local' && !tradeAccounts.includes(key))) return "Your account changed. Reopen Accounts.";
+    return saveManualAccountName(principal!.identity, key, name) ? null : "Use a unique account name and check that browser storage is available.";
+  }
   function addManualTrade(draft: ManualTradeDraft, account: string) {
-    const result = appendManualTrade(tradesRef.current,draft,account,entitlements.maxStoredTrades,dashboardPrincipal,getCurrentImportPrincipal(),dashboardSelectionCurrent());
+    const result = appendManualTrade(tradesRef.current,draft,account,entitlements.maxStoredTrades,dashboardPrincipal,getCurrentImportPrincipal(),dashboardSelectionCurrent(),tradeAccounts);
     if (result.error) return result.error;
     try { localStorage.setItem(scopedStorageKey(STORAGE_KEY),JSON.stringify({trades:result.trades,rules,tradeAccount:account})); }
     catch { return "Could not save on this browser. Free storage and try again."; }
@@ -1381,7 +1401,7 @@ export default function App() {
                 </div>
               )}
               {section === "dashboard" && <Dashboard noteDraftOwner={dashboardPrincipal?.identity} key={`${authSession?.userId || authSession?.email}:${tradeAccount}`} analysis={analysis} rules={rules} go={go} accountControl={ <div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={[...new Set([...tradeAccounts,"local"])]} value={tradeAccount} onChange={selectTradeAccount} /></div>} onSaveTradeNote={saveTradeNote} journalActions={journalActions} onConfirmManualNet={confirmManualNetRows} onAddManualTrade={addManualTrade} onDeleteManualTrade={deleteManualTrade} manualAccounts={[...new Set([...tradeAccounts,"local"])]} selectedAccount={tradeAccount} rithmicSyncAvailable={brokerStatus?.provider === "Rithmic" && brokerStatus.status === "imported"} />}
-              {section === "import" && <ImportDesk key={authSession?.userId || authSession?.email} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} entitlements={entitlements} importCsv={importCsv} prepareImportCsv={prepareImportCsv} openFirmOAuth={openFirmOAuth} status={status} reset={() => { if (workspaceSync.enabled) { announce("Keep sample trades separate from your saved account workspace.", "info"); return; } const demoTrades = entitlements.plan === "free" ? sampleTrades.slice(0, entitlements.maxStoredTrades) : sampleTrades; tradesRef.current = demoTrades; setTrades(demoTrades); selectTradeAccount("local"); setRules(defaultRules); clearBrokerStatus(); window.dispatchEvent(new CustomEvent("cova:broker-status")); setStatus("Demo trades restored."); announce("Demo trades restored.", "success"); }} upgradeToPro={upgradeToPro} />}
+              {section === "import" && <ImportDesk accountManager={<ManualAccountManager accounts={[...new Set([...tradeAccounts,"local"])]} names={accountNames} onCreate={createManualAccount} onRename={renameManualAccount} onOpen={account => { selectTradeAccount(account); go("dashboard"); }} />} key={authSession?.userId || authSession?.email} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} entitlements={entitlements} importCsv={importCsv} prepareImportCsv={prepareImportCsv} openFirmOAuth={openFirmOAuth} status={status} reset={() => { if (workspaceSync.enabled) { announce("Keep sample trades separate from your saved account workspace.", "info"); return; } const demoTrades = entitlements.plan === "free" ? sampleTrades.slice(0, entitlements.maxStoredTrades) : sampleTrades; tradesRef.current = demoTrades; setTrades(demoTrades); selectTradeAccount("local"); setRules(defaultRules); clearBrokerStatus(); window.dispatchEvent(new CustomEvent("cova:broker-status")); setStatus("Demo trades restored."); announce("Demo trades restored.", "success"); }} upgradeToPro={upgradeToPro} />}
               {section === "oauth" && <OAuthConnectPage firmId={oauthFirmId} onApprove={completeFirmOAuth} onCancel={cancelFirmOAuth} />}
               {section === "rules" && <RulesEngine analysis={analysis} entitlements={entitlements} rules={rules} setRules={setRules} go={go} upgradeToPro={upgradeToPro} accountControl={tradeAccounts.some(account => account !== "local") ? <div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} value={tradeAccount} onChange={selectTradeAccount} /></div> : undefined} />}
               {section === "coach" && <Coach analysis={analysis} entitlements={entitlements} go={go} upgradeToPro={upgradeToPro} accountControl={tradeAccounts.some(account => account !== "local") ? <div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} value={tradeAccount} onChange={selectTradeAccount} /></div> : undefined} />}

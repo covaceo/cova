@@ -1,15 +1,16 @@
 import { useEffect,useRef,useState } from 'react';
 import { X } from 'lucide-react';
+import { accountDisplayName, readAccountNames } from '../lib/accountNames';
 import type { ManualTradeDraft } from '../lib/manualTrades';
 export type AddManualTrade=(draft:ManualTradeDraft,account:string)=>string|null;
-export function ManualTradeDialog({accounts,selected,onSave,onClose}:{accounts:string[];selected:string;onSave:AddManualTrade;onClose:()=>void}) {
+export function ManualTradeDialog({accounts,selected,onSave,onClose,owner=""}:{owner?:string;accounts:string[];selected:string;onSave:AddManualTrade;onClose:()=>void}) {
  const ref=useRef<HTMLDialogElement>(null);const save=useRef(onSave);
  const [account,setAccount]=useState(selected==='all'?(accounts.length===1?accounts[0]:''):selected);const [error,setError]=useState('');
  useEffect(()=>{const d=ref.current!;const opener=document.activeElement as HTMLElement|null;const overflow=document.body.style.overflow;d.showModal();document.body.style.overflow='hidden';return()=>{d.close();document.body.style.overflow=overflow;opener?.isConnected&&opener.focus();};},[]);
  return <dialog ref={ref} className="astra-trade-dialog manual-trade-dialog" aria-labelledby="manual-trade-title" onCancel={e=>{e.preventDefault();onClose();}}>
  <button className="astra-dialog-close" type="button" onClick={onClose} aria-label="Close Add trade"><X aria-hidden="true"/></button><h2 id="manual-trade-title">Add trade</h2><p>Manual record · USD · never sent to your broker.</p>
  <form onSubmit={e=>{e.preventDefault();const data=new FormData(e.currentTarget);const draft=Object.fromEntries(['date','market','side','contracts','entry','exit','pnl','risk','setup','notes'].map(k=>[k,String(data.get(k)||'')])) as ManualTradeDraft;const message=save.current(draft,account);if(message)setError(message);else onClose();}}>
- <label>Account<select aria-label="Manual trade account" required value={account} onChange={e=>setAccount(e.target.value)}><option value="" disabled>Choose account</option>{accounts.map(a=><option key={a} value={a}>{a==='local'?'Manual / CSV trades':a}</option>)}</select></label>
+ <label>Account<select aria-label="Manual trade account" required value={account} onChange={e=>setAccount(e.target.value)}><option value="" disabled>Choose account</option>{accounts.map(a=><option key={a} value={a}>{accountDisplayName(a,readAccountNames(owner))}</option>)}</select></label>
  <div className="manual-trade-fields">
  <label>Date<input name="date" type="date" required/></label><label>Symbol<input name="market" placeholder="MNQ" maxLength={20} required/></label>
  <label>Side<select name="side"><option>Long</option><option>Short</option></select></label><label>Quantity<input name="contracts" type="number" min="1" max="100000" step="1" required/></label>

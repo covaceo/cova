@@ -41,5 +41,5 @@ test('names never replace stable selection keys and invalid/missing metadata sta
   assert.equal(accountDisplayName('Tradovate:71',{}),'Account 71');
   assert.equal(accountDisplayName('Rithmic:'+'a'.repeat(32)+':A-1',{}),'A-1');
   assert.equal(accountDisplayName('all',{}),'All accounts');
-  assert.equal(accountDisplayName('local',{}),'CSV / local history');
+  assert.equal(accountDisplayName('local',{}),'Manual account');
 });

@@ -538,6 +538,10 @@ function sendApiError(res, error, fallbackMessage) {
 	const message = statusCode >= 500 ? fallbackMessage : error?.message || fallbackMessage;
 	return res.status(statusCode).json({ error: message });
 }
+//#endregion
+//#region src/lib/manualAccountKeys.ts
+/** Identity only, never broker authorization or currency evidence. */
+var isManualAccountKey = (key) => /^Manual:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(key);
 [
 	[
 		"2026-04-17",
@@ -866,7 +870,7 @@ var object = (x) => !!x && typeof x === "object" && !Array.isArray(x) && Object.
 var text = (x, max, min = 0) => typeof x === "string" && x.length >= min && x.length <= max;
 var finite = (x) => typeof x === "number" && Number.isFinite(x) && Math.abs(x) <= 0x5af3107a4000;
 var exact = (x, keys) => Object.keys(x).every((k) => keys.includes(k));
-var account = (x) => text(x, 240, 1) && (x === "local" || x === "all" || /^Tradovate:[1-9]\d{0,15}$/.test(x) || /^Rithmic:[A-Za-z0-9_-]{20,64}:[^\x00-\x1f]{1,128}$/.test(x));
+var account = (x) => text(x, 240, 1) && (x === "local" || isManualAccountKey(x) || x === "all" || /^Tradovate:[1-9]\d{0,15}$/.test(x) || /^Rithmic:[A-Za-z0-9_-]{20,64}:[^\x00-\x1f]{1,128}$/.test(x));
 var date = (x) => typeof x === "string" && /^20\d\d-\d\d-\d\d$/.test(x) && Number.isFinite(Date.parse(x + "T00:00:00Z")) && (/* @__PURE__ */ new Date(x + "T00:00:00Z")).toISOString().slice(0, 10) === x;
 function validTrade(t) {
 	if (!object(t) || !exact(t, [

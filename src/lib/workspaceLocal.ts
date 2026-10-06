@@ -1,4 +1,5 @@
 import { readWorkspaceAux, workspaceAuxKey } from './workspaceAux';
+import { account as validAccount } from './workspaceValidation';
 import type { RiskRule, Trade } from './risk';
 import { tradeAccountKey } from './tradovateHistory';
 import { verifyBrokerCash, brokerCashFingerprint } from './brokerCash';
@@ -217,9 +218,7 @@ export async function collectWorkspaceLocal(
           typeof name === 'string' &&
           name.trim() &&
           name.length <= 128 &&
-          /^(Tradovate:[1-9]\d{0,15}|Rithmic:[A-Za-z0-9_-]{20,64}:[^\x00-\x1f]{1,128})$/.test(
-            account,
-          )
+          validAccount(account) && account !== 'all' && !/[\x00-\x1f\x7f]/.test(name)
         )
           rows.push({
             kind: 'account',

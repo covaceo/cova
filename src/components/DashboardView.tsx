@@ -153,7 +153,7 @@ export function Dashboard({ noteDraftOwner, analysis, rules, go, rithmicSyncAvai
     </>}
     <TradingCalendar key={selectedAccount} trades={analysis.trades} />
     <footer className="astra-dashboard-footer"><span>Retrospective review only. No live brokerage execution.</span></footer>
-    {manualOpen && onAddManualTrade && <ManualTradeDialog accounts={manualAccounts} selected={selectedAccount} onSave={onAddManualTrade} onClose={() => setManualOpen(false)} />}
+    {manualOpen && onAddManualTrade && <ManualTradeDialog owner={noteDraftOwner} accounts={manualAccounts} selected={selectedAccount} onSave={onAddManualTrade} onClose={() => setManualOpen(false)} />}
     {!hasTradeHistory && <MiniJournal initialDate={new Date().toLocaleDateString("en-CA")} actions={journalActions} trades={analysis.trades} onOpenTrade={id => { setAttachedTradeId(id); setHistoryOpen(true); }} />}
     {historyOpen && <TradeHistoryDialog attachedTradeId={attachedTradeId} trades={analysis.trades} journalReview={journalReview} onClose={() => setHistoryOpen(false)} />}
     <DashboardTradeDialog accountStorage={journalActions?.accountStorage} draftOwner={noteDraftOwner} journalReview={journalReview} trade={selectedTrade} onClose={() => setSelectedTradeId(null)} onSave={noteSaveRef.current} onDelete={onDeleteManualTrade} />
