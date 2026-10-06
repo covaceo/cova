@@ -1,8 +1,9 @@
-import { readWorkspaceAux, saveWorkspaceAux } from './workspaceAux';
+import { readWorkspaceAux, saveWorkspaceAux, WORKSPACE_LOCAL_EVENT } from './workspaceAux';
+import { isManualAccountKey } from './manualAccountKeys';
 export type AccountNames = Record<string, string>;
 export const ACCOUNT_NAMES_EVENT = "cova:account-names";
 const storageKey = (owner: string) => `cova-account-names-v1:${encodeURIComponent(owner.trim().toLowerCase())}`;
-const validKey = (key: string) => /^Tradovate:[1-9]\d{0,15}$/.test(key) || /^Rithmic:[A-Za-z0-9_-]{20,64}:[^\x00-\x1f]{1,128}$/.test(key);
+const validKey = (key: string) => key === "local" || isManualAccountKey(key) || /^Tradovate:[1-9]\d{0,15}$/.test(key) || /^Rithmic:[A-Za-z0-9_-]{20,64}:[^\x00-\x1f]{1,128}$/.test(key);
 const validName = (name: unknown): name is string => typeof name === "string" && Boolean(name.trim()) && name.length <= 128 && !/[\x00-\x1f\x7f]/.test(name);
 
 // Display metadata only. Stable provider keys still control ledger/account selection.
@@ -50,9 +51,27 @@ export function rememberAccountNames(owner: string, entries: AccountNames) {
 
 export function accountDisplayName(key: string, names: AccountNames): string {
   if (key === "all") return "All accounts";
-  if (key === "local") return "CSV / local history";
   if (validKey(key) && validName(names[key])) return names[key];
+  if (key === "local" || isManualAccountKey(key)) return "Manual account";
   if (key.startsWith("Rithmic:")) return key.split(":").slice(2).join(":") || "Rithmic account";
   if (key.startsWith("Tradovate:")) return `Account ${key.slice("Tradovate:".length)}`;
   return "Account name unavailable";
+}
+
+/** Explicit manual-account edit; unlike provider metadata, storage failures must reach the form. */
+export function saveManualAccountName(owner: string, key: string, input: string): boolean {
+  const name = input.trim();
+  if (!owner || !(key === "local" || isManualAccountKey(key)) || !validName(name)) return false;
+  const names = readAccountNames(owner);
+  if (Object.entries(names).some(([other, value]) => other !== key && value.toLowerCase() === name.toLowerCase())) return false;
+  names[key] = name;
+  try {
+    const aux = readWorkspaceAux(owner);
+    const target = aux ? undefined : storageKey(owner);
+    if (aux) { aux.names = names; saveWorkspaceAux(owner, aux); }
+    else { localStorage.setItem(target!, JSON.stringify(names)); window.dispatchEvent(new Event(WORKSPACE_LOCAL_EVENT)); }
+    if (readAccountNames(owner)[key] !== name) return false;
+  } catch { return false; }
+  window.dispatchEvent(new Event(ACCOUNT_NAMES_EVENT));
+  return true;
 }

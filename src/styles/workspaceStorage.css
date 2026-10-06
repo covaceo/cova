@@ -62,3 +62,10 @@
 .oa-dashboard-app .workspace-storage-required p { font-size: 14px; line-height: 1.65; margin-bottom: 20px; }
 .oa-dashboard-app .workspace-storage-required button { min-height: 44px; padding: 12px 18px; margin: 8px 8px 0 0; border: 1px solid #ffffff1a; border-radius: 9px; background: #edf2f9; color: #10141b; font: 500 14px/1.35 Inter, Arial, sans-serif; cursor: pointer; }
 .oa-dashboard-app .workspace-storage-required button:focus-visible { outline: 2px solid #88adff; outline-offset: 4px; }
+
+.oa-dashboard-app .workspace-sync-panel.workspace-sync-compact { display: block; min-height: 0; margin: 4px 24px 8px; padding: 0; border: 0; border-radius: 0; background: transparent; }
+.workspace-sync-compact summary { width: fit-content; min-height: 36px; padding: 8px 0; color: #aab4c3; font: 400 13px/1.5 Inter, Arial, sans-serif; cursor: pointer; }
+.workspace-sync-compact details[open] { max-width: 640px; padding-bottom: 12px; }
+.workspace-sync-compact details > p { margin: 8px 0 14px; font-size: 14px; line-height: 1.6; }
+.workspace-sync-compact button { min-height: 44px; padding: 10px 16px; border: 1px solid #ffffff1a; border-radius: 8px; background: #ffffff08; color: #d8dfeb; font: 500 14px/1.4 Inter, Arial, sans-serif; cursor: pointer; }
+@media(max-width:850px) { .oa-dashboard-app .workspace-sync-panel.workspace-sync-compact { margin: 4px 16px 8px; } }

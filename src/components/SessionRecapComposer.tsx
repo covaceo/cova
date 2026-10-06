@@ -5,6 +5,7 @@ import { recapVerificationCurrent, recapVerificationKey } from '../lib/recapVeri
 import { Download, ImagePlus, Share2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Trade } from '../lib/risk';
+import { tradeAccountKey } from '../lib/tradovateHistory';
 import { readBrokerCashEvidence } from '../lib/brokerCash';
 import { buildSessionRecaps, recapExportError, recapFeeLine, recapHeadlineCents, recapMoney, type RecapBackground } from '../lib/sessionRecap';
 import { prepareRecapPhoto, recapBackgrounds, recapFormats, renderSessionRecap, type RecapFormat } from '../lib/sessionRecapImage';
@@ -15,7 +16,7 @@ import type { PreparedRecapGif } from '../lib/recapGif';
 
 export function SessionRecapAction({ trades, selectedAccount = 'local', onConfirmManualNet }: { trades: readonly Trade[]; selectedAccount?: string; onConfirmManualNet?: ConfirmManualNet }) {
   const profile = useRecapProfile();
-  const accounts = [...new Set(trades.map(t => t.source?.provider === 'Tradovate' ? `Tradovate:${t.source.accountId}` : t.source?.provider === 'Rithmic' ? `Rithmic:${t.source.accountId}:${t.source.accountKey}` : 'local'))].sort();
+  const accounts = [...new Set(trades.map(tradeAccountKey))].sort();
   const scope = JSON.stringify([profile.owner, selectedAccount, accounts]);
   const [openScope, setOpenScope] = useState<string | null>(null);
   const trigger = useRef<HTMLButtonElement>(null);

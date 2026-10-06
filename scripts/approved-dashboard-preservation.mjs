@@ -11,11 +11,11 @@ const baseline = {
     "src/lib/brokerCash.ts": "dc7b83e11df191494b9df8fc7f747cc0a325182bb5cdff8411c8b2cadfe9fbf5",
     "src/lib/journalAccuracy.ts": "7a05f8373f469f1944bf9577c51a30237cbfb8bf2ceb7484f085b4988cd179d6",
     "src/lib/storageScope.ts": "7fc8dac806a656d320dd2c658ca45d979207aa66f003b729cfb4a758f27573b4",
-    "src/lib/accountNames.ts": "e7f201f76eea68d126cf0b9feb44915d044b5a54a0bc6b5fa61c6e93eedcca70",
+    "src/lib/accountNames.ts": "1b0e1e1a55a580255e5472da4383d63ef7d70dde37d712744b94d8db2a430da1",
     "src/lib/dashboardPresentation.ts": "7923ce5a87c1eea620fe2956345d03820791ec4d5700ec07f84eb9779b36a4ef",
     "src/lib/dashboardReviewState.ts": "9e1693082021edf780c6c78dc659e9170a627817a81120e1d9997b7f68cd789f",
     "src/components/DashboardTradeDialog.tsx": "43ded14cebab010cac25a816e007e80873cbbd608401c75739c18e125d488fdc",
-    "src/components/TradeAccountSelect.tsx": "a2bb1e76714dbf41633c145b5d61d6f5468d2b11166097bbdf9633d9d8cc8678",
+    "src/components/TradeAccountSelect.tsx": "7db73608c5b0cf31d6af44272fd78f55ef012b786c01f9dd086f2bb8055a21df",
     // Reconnect work changes only the expiry comment in this handler; sync behavior stays exact.
     "api/tradovate/sync.js": "c7452c268a2c4f579c2de7b384c591d98c1e54d49f52139dcca6d5594e2a371f",
     "api/_lib/tradovate-cash.js": "6493e133366096b6c775bac2e5d5d62aeab4f099d25887abfaa3aae86c7535ff"

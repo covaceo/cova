@@ -1,6 +1,6 @@
 import { recordRecapSync } from '../lib/recapVerification';
 import { saveBrokerCash } from '../lib/brokerCash';
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { rememberAccountNames, readAccountNames, accountDisplayName } from "../lib/accountNames";
 import { parseCsvDetailed, type Trade, type TradeMergeResult } from "../lib/risk";
 import { type PropFirmId } from "../lib/propFirms";
@@ -80,11 +80,11 @@ function brokerStatusFromTradovate(data: TradovateStatusResponse): BrokerStatus 
   };
 }
 
-export function ImportDesk({ entitlements, importCsv, prepareImportCsv, openFirmOAuth, status, reset, upgradeToPro, owner="", accounts=[] }: { owner?: string; accounts?: string[]; entitlements: ImportEntitlements; importCsv: ImportCommit; prepareImportCsv: PrepareImportCsv; openFirmOAuth: (firm: PropFirmId) => void; status: string; reset: () => void; upgradeToPro: () => void }) {
+export function ImportDesk({ entitlements, importCsv, prepareImportCsv, openFirmOAuth, status, reset, upgradeToPro, owner="", accounts=[], accountManager }: { accountManager?: ReactNode; owner?: string; accounts?: string[]; entitlements: ImportEntitlements; importCsv: ImportCommit; prepareImportCsv: PrepareImportCsv; openFirmOAuth: (firm: PropFirmId) => void; status: string; reset: () => void; upgradeToPro: () => void }) {
 
   const csvDialog=useRef<HTMLDialogElement>(null);
   const displayNames=readAccountNames(owner);
-  const accountLabels={tradovate:accounts.filter(k=>k.startsWith("Tradovate:")).map(k=>accountDisplayName(k,displayNames)),rithmic:accounts.filter(k=>k.startsWith("Rithmic:")).map(k=>accountDisplayName(k,displayNames))};
+  const accountLabels={local:accountDisplayName("local",displayNames),tradovate:accounts.filter(k=>k.startsWith("Tradovate:")).map(k=>accountDisplayName(k,displayNames)),rithmic:accounts.filter(k=>k.startsWith("Rithmic:")).map(k=>accountDisplayName(k,displayNames))};
   const [text, setText] = useState("");
   const [mode, setMode] = useState<ImportMode>("append");
   const [dragActive, setDragActive] = useState(false);
@@ -514,6 +514,7 @@ export function ImportDesk({ entitlements, importCsv, prepareImportCsv, openFirm
 
     >
       <div className="accounts-page">
+        {accountManager}
         <BrokerConnectPanel
           accountLabels={accountLabels}
           onOpenCsv={()=>csvDialog.current?.showModal()}

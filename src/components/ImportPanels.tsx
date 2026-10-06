@@ -52,7 +52,7 @@ export function CsvExportGuide(_props: { selectedFirmId: PropFirmId; setSelected
 }
 
 export function BrokerConnectPanel({ brokerBusy, brokerNotice, brokerStatus, canRedirectToTradovate, checkTradovateStatus, disconnectBroker, entitlements, rithmicAvailable, rithmicBusy, rithmicStatusChecked, selectedFirmId, setSelectedFirmId, tradovateAvailable, tradovateStatusChecked, setBrokerNotice, startTradovateConnect, syncBusy, syncRithmic, syncTradovate, upgradeToPro, accountLabels={}, onOpenCsv }: {
-  accountLabels?: {tradovate?:string[];rithmic?:string[]}; onOpenCsv?: () => void;
+  accountLabels?: {local?:string;tradovate?:string[];rithmic?:string[]}; onOpenCsv?: () => void;
   brokerBusy: boolean; brokerNotice: string; brokerStatus: BrokerStatus | null;
   canRedirectToTradovate: () => boolean; checkTradovateStatus: () => void; disconnectBroker: () => Promise<void> | void;
   entitlements: ImportEntitlements; openFirmOAuth: (firm: PropFirmId) => void;
@@ -78,7 +78,7 @@ export function BrokerConnectPanel({ brokerBusy, brokerNotice, brokerStatus, can
   }
   function connectRithmic(){if(!rithmicStatusChecked||!rithmicAvailable||!entitlements.canUseDirectSync||busy)return;picker.current?.close();setBrokerNotice("");setSelectedFirmId("rithmic");}
   return <section className="accounts-connections" aria-label="Trading platforms">
-    <div className="accounts-add-heading"><button className="accounts-button accounts-button-primary" type="button" aria-haspopup="dialog" onClick={()=>picker.current?.showModal()}>Add account</button></div>
+    <div className="accounts-add-heading"><button className="accounts-button accounts-button-primary" type="button" aria-haspopup="dialog" onClick={()=>picker.current?.showModal()}>Connect platform</button></div>
     <div className="accounts-platforms">
       <article className="accounts-panel accounts-platform" data-platform="tradovate" data-broker-lifecycle>
         <div className="accounts-section-heading"><h3><BrokerBrand provider="tradovate"/></h3><span className="accounts-connection-status">{!tradovateStatusChecked?"Checking…":!tradovateAvailable?"Sync unavailable":reconnectRequired?"Reconnect to sync":connected?"Connected":"Not connected"}</span></div>
@@ -100,9 +100,9 @@ export function BrokerConnectPanel({ brokerBusy, brokerNotice, brokerStatus, can
           {rithmicStatusChecked&&!rithmicAvailable&&<button className="accounts-button" type="button" onClick={useCsv} data-rithmic-unavailable>Use CSV</button>}
         </div>
       </article>
-      <article className="accounts-panel accounts-platform accounts-csv-row"><div className="accounts-section-heading"><h3>CSV upload</h3><span>File import</span></div><p>CSV / local history</p><div className="accounts-actions"><button className="accounts-button" type="button" onClick={useCsv}>Import CSV</button></div></article>
+      <article className="accounts-panel accounts-platform accounts-csv-row"><div className="accounts-section-heading"><h3>CSV upload</h3><span>File import</span></div><p>{accountLabels.local || "Manual account"}</p><div className="accounts-actions"><button className="accounts-button" type="button" onClick={useCsv}>Import CSV</button></div></article>
     </div>
-    <dialog ref={picker} className="utility-dialog" aria-labelledby="account-picker-title"><div className="utility-dialog-heading"><h3 id="account-picker-title">Add account</h3><button aria-label="Close account picker" type="button" onClick={()=>picker.current?.close()}>×</button></div><div className="utility-picker">
+    <dialog ref={picker} className="utility-dialog" aria-labelledby="account-picker-title"><div className="utility-dialog-heading"><h3 id="account-picker-title">Connect platform</h3><button aria-label="Close account picker" type="button" onClick={()=>picker.current?.close()}>×</button></div><div className="utility-picker">
       <button type="button" disabled={busy||!tradovateStatusChecked||!tradovateAvailable} onClick={()=>{if(!entitlements.canUseDirectSync){picker.current?.close();upgradeToPro()}else if(ready)connect();else useCsv()}}><BrokerBrand provider="tradovate"/></button>
       <button type="button" disabled={busy||!rithmicStatusChecked||!rithmicAvailable} onClick={()=>{if(!entitlements.canUseDirectSync){picker.current?.close();upgradeToPro()}else if(rithmicAvailable)connectRithmic();else useCsv()}}><BrokerBrand provider="rithmic"/></button>
       <button type="button" onClick={useCsv}>CSV upload</button>

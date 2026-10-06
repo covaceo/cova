@@ -102,7 +102,7 @@ assert.match(dashboard, /getTradeSourceLabel\(scopedAnalysis\.trades\)/, "dashbo
 assert.match(dashboard, /aria-label=\{`Review source: \$\{sourceLabel\}`\}/, "selected-review provenance must remain explicitly labeled independently of account state");
 assert.match(dashboard, /const hasRithmicTrades = analysis\.trades\.some/, "Rithmic resync and required attribution must remain discoverable when provider rows sit outside the selected review range");
 assert.doesNotMatch(dashboard, /brokerStatus/, "connected account state must not overwrite selected-range provenance");
-assert.match(app, /getAccountSourceLabel\(visibleTrades, brokerStatus\)/, "workspace account identity uses the selected account's connection/source label");
+assert.match(app, /getAccountSourceLabel\(visibleTrades, tradeAccount === "local" \|\| isManualAccountKey\(tradeAccount\) \? null : brokerStatus\)/, "manual accounts never borrow a different platform connection label");
 assert.doesNotMatch(app, /"CSV trade review"|"Sample \+ CSV review"|"Sample funded review"/, "App must not retain a second drifting source-label classifier");
 assert.match(sourceLabel, /export function getAccountSourceLabel[\s\S]*?if \(brokerStatus\?\.connected\) return `\$\{brokerStatus\.provider\} linked`;/, "the account subtitle may truthfully prioritize an active read-only connection");
 assert.match(sourceLabel, /export function getTradeSourceLabel\(trades: Trade\[\]\)/, "selected review provenance must be independent of global connection state");

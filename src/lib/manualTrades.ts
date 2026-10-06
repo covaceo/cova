@@ -1,12 +1,13 @@
 import type { Trade } from './risk';
+import { isManualAccountKey } from './manualAccountKeys';
 import { tradeAccountKey } from './tradovateHistory';
 import { isImportPrincipalCurrent, type ImportPrincipal } from './importGuard';
 export type ManualTradeDraft = { date: string; market: string; side: string; contracts: string; entry: string; exit: string; pnl: string; risk: string; setup: string; notes: string };
 export function validJournalDate(value: string) { return /^20\d{2}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value+'T00:00:00Z')) && new Date(value+'T00:00:00Z').toISOString().slice(0,10) === value; }
-export function appendManualTrade(trades: Trade[], draft: ManualTradeDraft, account: string, max: number, opened: ImportPrincipal | null, current: ImportPrincipal | null, selectionCurrent: boolean): { trades: Trade[]; error: string | null } {
+export function appendManualTrade(trades: Trade[], draft: ManualTradeDraft, account: string, max: number, opened: ImportPrincipal | null, current: ImportPrincipal | null, selectionCurrent: boolean, knownAccounts: readonly string[] = []): { trades: Trade[]; error: string | null } {
   const fail = (error: string) => ({ trades, error });
   if (!selectionCurrent || !isImportPrincipalCurrent(opened,current)) return fail('Account changed. Reopen Add trade.');
-  if (account !== 'local' && !trades.some(t=>tradeAccountKey(t)===account)) return fail('Choose an existing account.');
+  if (account !== 'local' && !trades.some(t=>tradeAccountKey(t)===account) && !(isManualAccountKey(account) && knownAccounts.includes(account))) return fail('Choose an existing account.');
   if (trades.length >= max) return fail('Your plan’s stored-trade limit is reached.');
   if (trades.some(t=>tradeAccountKey(t)===account && t.source?.provider==='Rithmic' && t.source.currency!=='USD')) return fail('Manual entry currently supports USD accounts only.');
   if (!validJournalDate(draft.date)) return fail('Enter a valid trade date.');
