@@ -370,6 +370,7 @@ async function auditDarkDashboard(label) {
       light,
       contrastChecks,
       local,
+      sidebarArrow: (() => { const rail=document.querySelector('.workspace-sidebar'),button=rail?.querySelector('.workspace-sidebar-toggle'),nav=rail?.querySelector('.workspace-sidebar-nav'); if(!rail||!button||!visible(rail))return null; const r=rail.getBoundingClientRect(),b=button.getBoundingClientRect();return {width:b.width,height:b.height,edgeExtension:b.right-r.right,navOverflow:nav.scrollWidth-nav.clientWidth}; })(),
       marker: document.querySelector('.dashboard-workspace')?.dataset.astraDashboard,
       bodyBackground: getComputedStyle(document.body).backgroundColor,
       shellBackground: getComputedStyle(document.querySelector('.dashboard-workspace').closest('.oa-dashboard-shell')).backgroundColor,
@@ -396,7 +397,12 @@ async function auditDarkDashboard(label) {
   assert.ok(audit.positiveColors.length > 0, `${label} must expose at least one positive/healthy state`);
   assert.ok(audit.positiveColors.every((color) => color === "rgb(111, 150, 255)"), `${label} positive/healthy states must use cobalt instead of green: ${audit.positiveColors.join(", ")}`);
   for (const item of audit.local) {
-    assert.equal(item.deltaX, 0, `${label} ${item.selector} must not overflow horizontally`);
+    if (item.selector === '.workspace-sidebar' && audit.sidebarArrow) {
+      assert.equal(item.deltaX, 12, 'Only the approved edge arrow may extend the rail');
+      assert.equal(audit.sidebarArrow.width, 32); assert.equal(audit.sidebarArrow.height, 32);
+      assert(audit.sidebarArrow.edgeExtension >= 10 && audit.sidebarArrow.edgeExtension <= 12, 'Boxed arrow straddles only the sidebar edge');
+      assert.equal(audit.sidebarArrow.navOverflow, 0, 'Navigation remains fully inside the sidebar');
+    } else assert.equal(item.deltaX, 0, `${label} ${item.selector} must not overflow horizontally`);
     assert.ok(item.deltaY <= 1 || item.intentionalScroll, `${label} ${item.selector} must not clip vertically outside its explicit scroll owner`);
   }
   return audit;

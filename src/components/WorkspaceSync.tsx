@@ -35,6 +35,7 @@ import {
   finishWorkspaceBatches,
 } from "../lib/workspaceBatches";
 import { assertValue } from "../lib/workspaceValidation";
+import { accountWasRemoved, recoverAccountRemoval } from "../lib/accountRemoval";
 const localKey = (owner: string) =>
   "cova-workspace-mode-v2:" + encodeURIComponent(owner);
 const ledgerKey = (owner: string) =>
@@ -64,6 +65,7 @@ export function useWorkspaceSync(
     consented = useRef(false),
     busy = useRef(false),
     applied = useRef(false);
+  const localRemovalStale = useRef(false);
   const enabledRef = useRef(enabled);
   enabledRef.current = enabled;
   const phaseRef = useRef(phase);
@@ -121,6 +123,7 @@ export function useWorkspaceSync(
     setError("");
     try {
       await lock(o, async () => {
+        recoverAccountRemoval(o);
         const recovered = recoverWorkspaceHydration(o);
         if (recovered) {
           state.current.trades = recovered.trades;
@@ -226,6 +229,7 @@ export function useWorkspaceSync(
   }
   useEffect(() => {
     readyOwner.current = undefined;
+    localRemovalStale.current = false;
     baseline.current = [];
     consented.current = false;
     setPreview(null);
@@ -236,6 +240,9 @@ export function useWorkspaceSync(
       return;
     }
     if (localStorage.getItem(localKey(owner)) === "local") {
+      try { recoverAccountRemoval(owner); } catch (err) {
+        setError(err instanceof Error ? err.message : "Account removal recovery failed."); setPhase("error"); return;
+      }
       epoch.current++;
       readyOwner.current = owner;
       setPhase("local");
@@ -253,8 +260,9 @@ export function useWorkspaceSync(
       if (
         owner &&
         ev.key?.endsWith(":" + encodeURIComponent(owner)) &&
-        phaseRef.current !== "local"
-      ) {
+        (phaseRef.current !== "local" || ev.key.startsWith("cova-account-removal-recovery-v1:") || ev.key.startsWith("cova-account-removed-v1:"))
+              ) {
+        if (phaseRef.current === "local") localRemovalStale.current = true;
         epoch.current++;
         phaseRef.current = "error";
         // Retain mounted same-owner editors and drafts; commits are blocked by phase.
@@ -300,7 +308,7 @@ export function useWorkspaceSync(
             const values = [
               ...local.records,
               ...baseline.current.filter(
-                (r) => r.kind === "broker_cash" && !r.deletedAt,
+                (r) => r.kind === "broker_cash" && !r.deletedAt && !accountWasRemoved(o, r.accountId),
               ),
             ];
             const preview = workspacePreview(values, baseline.current);
@@ -460,6 +468,7 @@ export function useWorkspaceSync(
   }
   const browserOnly = () => {
     if (!owner || busy.current) return;
+    if (localRemovalStale.current) { setError("Account history was removed in another tab. Reload this page to use the updated browser copy."); return; }
     epoch.current++;
     localStorage.setItem(localKey(owner), "local");
     readyOwner.current = owner;
@@ -482,7 +491,7 @@ export function useWorkspaceSync(
           new Event("cova:before-account-change", { cancelable: true }),
         )
       )
-        return load();
+        return localRemovalStale.current ? window.location.reload() : load();
     },
     canEditNow: () => !enabledRef.current ||
       (!busy.current && readyOwner.current === state.current.owner &&

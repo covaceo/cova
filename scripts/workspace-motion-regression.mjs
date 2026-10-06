@@ -132,7 +132,7 @@ test('route props preserve behavior with owner-approved history account isolatio
         actual = actual.replace(visualSlot,'').trim();
       }
       if (name === 'ImportDesk') {
-        const manualSlot = 'accountManager={<ManualAccountManager accounts={[...new Set([...tradeAccounts,"local"])]} names={accountNames} onCreate={createManualAccount} onRename={renameManualAccount} onOpen={account => { selectTradeAccount(account); go("dashboard"); }} />} ';
+        const manualSlot = 'accountManager={<ManualAccountManager accounts={[...new Set([...tradeAccounts,"local"])]} names={accountNames} onCreate={createManualAccount} onRename={renameManualAccount} onPrepareRemove={prepareRemoveAccount} onRemove={removeTradingAccount} onOpen={account => { selectTradeAccount(account); go("dashboard"); }} />} ';
         assert.ok(actual.includes(manualSlot), 'Approved manual account slot keeps names, stable keys and guarded App callbacks');
         actual = actual.replace(manualSlot, '');
       }

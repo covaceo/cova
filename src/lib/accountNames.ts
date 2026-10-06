@@ -1,5 +1,6 @@
 import { readWorkspaceAux, saveWorkspaceAux, WORKSPACE_LOCAL_EVENT } from './workspaceAux';
 import { isManualAccountKey } from './manualAccountKeys';
+import { accountWasRemoved } from './accountRemoval';
 export type AccountNames = Record<string, string>;
 export const ACCOUNT_NAMES_EVENT = "cova:account-names";
 const storageKey = (owner: string) => `cova-account-names-v1:${encodeURIComponent(owner.trim().toLowerCase())}`;
@@ -25,7 +26,7 @@ export function readAccountNames(owner: string): AccountNames {
       if (!Array.isArray(summary.accounts) || summary.accounts.length > 256) continue;
       for (const item of summary.accounts) {
         const accountKey = `Tradovate:${item?.account?.id}`;
-        if (validKey(accountKey) && validName(item?.account?.name)) names[accountKey] = item.account.name;
+        if (validKey(accountKey) && validName(item?.account?.name) && !accountWasRemoved(owner, accountKey)) names[accountKey] = item.account.name;
       }
     }
   } catch { /* Missing or invalid cache is not account-name evidence. */ }
