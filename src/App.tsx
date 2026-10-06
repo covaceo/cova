@@ -1385,6 +1385,14 @@ export default function App() {
               {section === "oauth" && <OAuthConnectPage firmId={oauthFirmId} onApprove={completeFirmOAuth} onCancel={cancelFirmOAuth} />}
               {section === "rules" && <RulesEngine analysis={analysis} entitlements={entitlements} rules={rules} setRules={setRules} go={go} upgradeToPro={upgradeToPro} accountControl={tradeAccounts.some(account => account !== "local") ? <div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} value={tradeAccount} onChange={selectTradeAccount} /></div> : undefined} />}
               {section === "coach" && <Coach analysis={analysis} entitlements={entitlements} go={go} upgradeToPro={upgradeToPro} accountControl={tradeAccounts.some(account => account !== "local") ? <div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} value={tradeAccount} onChange={selectTradeAccount} /></div> : undefined} />}
+              {section === "passport" && !workspaceSync.canPublishPlan && (
+                <section className="workspace-storage-required" aria-labelledby="passport-storage-title">
+                  <h1 id="passport-storage-title">Account storage is needed for Passport</h1>
+                  <p>Your Risk Desk still works in browser-only mode. Review account storage to use your saved Passport.</p>
+                  <button type="button" onClick={() => void workspaceSync.reload()}>Review account storage</button>
+                  <button type="button" onClick={() => go("dashboard")}>Back to Risk Desk</button>
+                </section>
+              )}
               {section === "passport" && workspaceSync.canPublishPlan && <Passport key={`${authSession?.userId || authSession?.email}:${tradeAccount}`} analysis={analysis} entitlements={entitlements} isSampleReview={isSampleReview} go={go} upgradeToPro={upgradeToPro} ownerId={authSession?.userId} trades={visibleTrades} rules={rules} accountControl={<div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts.length?tradeAccounts:["local"]} value={tradeAccount} onChange={selectTradeAccount}/></div>}/>}
               </div>}
             </WorkspaceShell>

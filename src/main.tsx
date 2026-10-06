@@ -55,8 +55,11 @@ import "./styles/publicPassportExample.css";
 import "./styles/siteInteractionPolish.css";
 import "./styles/deskJournal.css";
 import "./styles/workspaceUtility.css";
+import "./styles/workspaceStorage.css";
 import "./styles/passportProgress.css";
 import "./styles/tradingCalendar.css";
+import "./styles/workspaceDashboardShell.css";
+import "./styles/workspaceSidebarMotion.css";
 
 if (navigator.platform.startsWith("Win")) {
   document.documentElement.classList.add("cova-platform-windows");

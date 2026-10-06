@@ -1,8 +1,8 @@
-import { Activity, ArrowUpRight, BarChart3, ChevronRight, FileUp, Gauge, Search, BookUser } from "lucide-react";
+import { Activity, ArrowUpRight, BarChart3, ChevronRight, FileUp, Gauge, Search, BookUser, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { WorkspaceNavIcon } from "./WorkspaceNavIcon";
 import { ProfileMenu } from "./UserProfile";
 import { motion, useReducedMotion } from "motion/react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { isWorkspaceNavActive, type Section } from "../lib/appRoutes";
 import { SiteFooter } from "./PlanSections";
 
@@ -48,6 +48,20 @@ type WorkspaceShellProps = {
 
 export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go, riskScore, section, signOut }: WorkspaceShellProps) {
   const reducedMotion = useReducedMotion();
+  const [collapsed, setCollapsed] = useState(() => {
+    try { return window.localStorage.getItem("cova-workspace-sidebar-collapsed-v1") === "true"; }
+    catch { return false; }
+  });
+  const searchInput = useRef<HTMLInputElement>(null);
+  const focusSearch = useRef(false);
+  useEffect(() => {
+    try { window.localStorage.setItem("cova-workspace-sidebar-collapsed-v1", String(collapsed)); }
+    catch { /* The rail still works when browser storage is unavailable. */ }
+    if (!collapsed && focusSearch.current) {
+      searchInput.current?.focus();
+      focusSearch.current = false;
+    }
+  }, [collapsed]);
   const [search, setSearch] = useState("");
   const [focusSource, setFocusSource] = useState<"pointer" | "keyboard">("keyboard");
   useEffect(() => {
@@ -59,7 +73,7 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
     return () => document.removeEventListener("keydown", keyboard, true);
   }, []);
   const filteredGroups = useMemo(() => {
-    const query = search.trim().toLowerCase();
+    const query = collapsed ? "" : search.trim().toLowerCase();
     if (!query) return workspaceNavGroups;
     return workspaceNavGroups
       .map((group) => ({
@@ -67,33 +81,36 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
         items: group.items.filter((item) => `${group.label} ${item.label}`.toLowerCase().includes(query)),
       }))
       .filter((group) => group.items.length > 0);
-  }, [search]);
-  const showAccounts = !search.trim() || "accounts tradovate ninjatrader rithmic csv".includes(search.trim().toLowerCase());
+  }, [search, collapsed]);
+  const showAccounts = collapsed || !search.trim() || "accounts tradovate ninjatrader rithmic csv".includes(search.trim().toLowerCase());
   const riskScoreLabel = typeof riskScore === "number" && Number.isFinite(riskScore) ? String(riskScore) : "--";
 
   return (
-    <div className="workspace-shell operator-workspace oa-dashboard-shell" data-workspace-section={section} data-focus-source={focusSource} onPointerDownCapture={() => setFocusSource("pointer")}>
-      <aside className="workspace-sidebar" aria-label="Cova workspace navigation">
+    <motion.div className="workspace-shell operator-workspace oa-dashboard-shell" data-sidebar-state={collapsed ? "collapsed" : "expanded"} initial={false} animate={{ "--sidebar-progress": collapsed ? 0 : 1 }} transition={reducedMotion ? { duration: 0 } : { type: "spring", stiffness: 550, damping: 40 }} data-workspace-section={section} data-focus-source={focusSource} onPointerDownCapture={() => setFocusSource("pointer")}>
+      <aside className="workspace-sidebar workspace-sidebar-motion" id="cova-workspace-sidebar" aria-label="Cova workspace navigation">
         <div className="workspace-sidebar-brand">
           <button className="workspace-brand-button" onClick={() => go("overview")} type="button" aria-label="Go to Cova home">
-            <img src="/media/wordmark-options/cova-wordmark-option-3-sleek-cropped.png" alt="Cova" />
+            <img className="workspace-brand-wordmark" src="/media/wordmark-options/cova-wordmark-option-3-sleek-cropped.png" alt="Cova" />
+            <img className="workspace-brand-mark" src="/cova-logo-minimal-white.svg" alt="" aria-hidden="true" />
           </button>
         </div>
-
-
-
-        <label className="workspace-sidebar-search">
+        <button className="workspace-sidebar-toggle" type="button" aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!collapsed} aria-controls="cova-workspace-sidebar" title={collapsed ? "Expand sidebar" : "Collapse sidebar"} onClick={() => setCollapsed(value => !value)}>
+          {collapsed ? <PanelLeftOpen aria-hidden="true" /> : <PanelLeftClose aria-hidden="true" />}
+          <span className="workspace-sidebar-copy">Collapse sidebar</span>
+        </button>
+        {collapsed ? <button className="workspace-sidebar-search-open" type="button" aria-label="Search workspace" title="Search workspace" onClick={() => { focusSearch.current = true; setCollapsed(false); }}><Search aria-hidden="true" /></button> : <label className="workspace-sidebar-search">
           <Search aria-hidden="true" className="h-4 w-4" />
           <input
+            ref={searchInput}
             aria-label="Search workspace"
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search"
             type="search"
             value={search}
           />
-        </label>
+        </label>}
 
-        {showAccounts && <button className="astra-rail-account" aria-current={isWorkspaceNavActive(section, "import") ? "page" : undefined} onClick={() => go("import")} type="button"><WorkspaceNavIcon section="import" /><span className="astra-rail-account-copy"><strong>Accounts</strong><small>{brokerLabel}</small></span><ChevronRight aria-hidden="true" /></button>}
+        {showAccounts && <button className="astra-rail-account" aria-label="Accounts" title={`Accounts: ${brokerLabel}`} aria-current={isWorkspaceNavActive(section, "import") ? "page" : undefined} onClick={() => go("import")} type="button"><WorkspaceNavIcon section="import" /><span className="astra-rail-account-copy"><strong>Accounts</strong><small>{brokerLabel}</small></span><ChevronRight aria-hidden="true" /></button>}
 
         <nav className="workspace-sidebar-nav">
           {filteredGroups.map((group) => (
@@ -109,6 +126,8 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
                       key={item.id}
                       onClick={() => go(item.id)}
                       type="button"
+                      aria-label={item.label}
+                      title={item.label}
                       aria-current={active ? "page" : undefined}
                     >
                       {active && (
@@ -132,7 +151,7 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
 
 
         <div className="workspace-risk-status" aria-label={`Cova risk score ${riskScoreLabel === "--" ? "not available" : riskScoreLabel}`}>
-          <span className="workspace-risk-status-copy"><Activity aria-hidden="true" className="h-4 w-4" />Risk status</span>
+          <span className="workspace-risk-status-copy"><Activity aria-hidden="true" className="h-4 w-4" /><span>Risk status</span></span>
           <strong>{riskScoreLabel}</strong>
         </div>
 
@@ -160,6 +179,6 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
         )}
         <SiteFooter go={go} />
       </motion.div>
-    </div>
+    </motion.div>
   );
 }

@@ -182,7 +182,10 @@ test('section content alone enters at 8px over 200ms without opacity or exit; re
       assert.deepEqual(content.props.animate, { y: 0 });
       assert.equal(content.props.exit, undefined, 'no outgoing private frame');
       assert.deepEqual(content.props.transition, { duration: reduced ? 0 : 0.2, ease: 'easeOut' });
-      assert.equal(captures.filter(({ props }) => props.className === 'workspace-shell operator-workspace oa-dashboard-shell' || props.className === 'workspace-sidebar').length, 0, 'fixed chrome is outside all transforms');
+      const chrome = captures.find(({ props }) => props.className === 'workspace-shell operator-workspace oa-dashboard-shell');
+      assert.equal(chrome.props.initial, false, 'chrome has no entrance motion');
+      assert.deepEqual(chrome.props.animate, { '--sidebar-progress': 1 }, 'chrome animates only rail/gutter progress, never a transform');
+      assert.deepEqual(chrome.props.transition, reduced ? {duration:0} : {type:'spring',stiffness:550,damping:40});
       const highlight = captures.find(({ props }) => props.className === 'oa-workspace-nav-highlight');
       if (section === 'import' || section === 'oauth') assert.equal(highlight, undefined, 'Linking uses the separate Accounts utility');
       else {

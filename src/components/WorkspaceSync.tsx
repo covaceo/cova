@@ -541,10 +541,18 @@ export function WorkspaceSyncPanel({
   return (
     <section
       className="workspace-sync-panel m-4 rounded-xl border border-white/10 p-4 text-sm"
+      data-workspace-storage-setup={!sync.hasWorkspace || undefined}
+      data-storage-phase={sync.phase}
       aria-label="Account storage"
       aria-live="polite"
     >
-      <p>{labels[sync.phase]}</p>
+      {!sync.hasWorkspace && (
+        <header className="workspace-sync-heading">
+          <h1>Open your workspace</h1>
+          <p>Choose where to keep your trading data to open Risk Desk.</p>
+        </header>
+      )}
+      <p className="workspace-sync-status">{labels[sync.phase]}</p>
       {sync.error && (
         <p role="alert">
           {sync.error} Your browser copy and backups are retained.
@@ -592,6 +600,7 @@ export function WorkspaceSyncPanel({
             </details>
           ))}
           <button
+            type="button"
             className="button primary"
             onClick={() => {
               if (
@@ -606,6 +615,7 @@ export function WorkspaceSyncPanel({
             Back up and copy browser changes
           </button>
           <button
+            type="button"
             className="button quiet"
             onClick={() => {
               if (
@@ -621,12 +631,12 @@ export function WorkspaceSyncPanel({
         </>
       )}
       {["error", "saved", "local"].includes(sync.phase) && (
-        <button className="button quiet" onClick={() => void sync.reload()}>
+        <button type="button" className="button quiet" onClick={() => void sync.reload()}>
           Reload account and review
         </button>
       )}
       {["review", "error"].includes(sync.phase) && (
-        <button className="button quiet" onClick={sync.browserOnly}>
+        <button type="button" className="button quiet" onClick={sync.browserOnly}>
           Keep browser only
         </button>
       )}
