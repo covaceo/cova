@@ -59,6 +59,7 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
     catch { /* The rail still works when browser storage is unavailable. */ }
   }, [collapsed]);
   const [search, setSearch] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
   const [focusSource, setFocusSource] = useState<"pointer" | "keyboard">("keyboard");
   useEffect(() => {
     // Listen outside the shell too, so the first Tab into the workspace is visible.
@@ -90,10 +91,10 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
             <img className="workspace-brand-mark" src="/cova-logo-minimal-white.svg" alt="" aria-hidden="true" />
           </button>
         </div>
-        <button className="workspace-sidebar-toggle" type="button" aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!collapsed} aria-controls="cova-workspace-sidebar" title={collapsed ? "Expand sidebar" : "Collapse sidebar"} onClick={() => setCollapsed(value => !value)}>
+        <button className="workspace-sidebar-toggle" type="button" aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!collapsed} aria-controls="cova-workspace-sidebar" title={collapsed ? "Expand sidebar" : "Collapse sidebar"} onClick={() => { if (!collapsed) { setSearchOpen(false); setSearch(""); } setCollapsed(value => !value); }}>
           {collapsed ? <ArrowRight aria-hidden="true" /> : <ArrowLeft aria-hidden="true" />}
         </button>
-        <GooeyInput value={search} onValueChange={setSearch} placeholder="Search" collapsedWidth={collapsed ? 40 : 164} expandedWidth={152} onOpenChange={open => { if (open) setCollapsed(false); else setSearch(""); }} className="cova-gooey-search" classNames={{trigger:"cova-gooey-search-surface",input:"cova-gooey-search-input",bubbleSurface:"cova-gooey-search-bubble"}} />
+        <GooeyInput open={searchOpen} value={search} onValueChange={setSearch} placeholder="Search" collapsedWidth={collapsed ? 40 : 164} expandedWidth={152} onOpenChange={open => { setSearchOpen(open); if (open) setCollapsed(false); else setSearch(""); }} className="cova-gooey-search" classNames={{trigger:"cova-gooey-search-surface",input:"cova-gooey-search-input",bubbleSurface:"cova-gooey-search-bubble"}} />
 
         {showAccounts && <button className="astra-rail-account" aria-label="Accounts" title={`Accounts: ${brokerLabel}`} aria-current={isWorkspaceNavActive(section, "import") ? "page" : undefined} onClick={() => go("import")} type="button"><WorkspaceNavIcon section="import" /><span className="astra-rail-account-copy"><strong>Accounts</strong><small>{brokerLabel}</small></span><ChevronRight aria-hidden="true" /></button>}
 
