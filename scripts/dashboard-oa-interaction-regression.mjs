@@ -318,7 +318,7 @@ async function auditDarkDashboard(label) {
     };
     const light = [...shell.querySelectorAll('*')].filter(visible).flatMap(node => {
       const plate=node.closest('.cova-gooey-plates');
-      if(plate){if(plate.getAttribute('aria-hidden')!=='true'||getComputedStyle(plate).pointerEvents!=='none'||Number(getComputedStyle(plate).opacity)>.12||plate.querySelector('button,input,a,span'))throw new Error('Goo geometry must remain inert, translucent and text-free');return [];}
+      if(plate){if(plate.getAttribute('aria-hidden')!=='true'||getComputedStyle(plate).pointerEvents!=='none'||(Number(getComputedStyle(plate).opacity)>.12&&!plate.closest('.cova-gooey-sidebar'))||plate.querySelector('button,input,a,span'))throw new Error('Goo geometry must remain inert, translucent and text-free');return [];}
       const color=effectiveBackground(node);
       if(Math.min(color.r,color.g,color.b)<190)return [];
       return [{tag:node.tagName,className:node.className?.baseVal||node.className||'',background:color}];

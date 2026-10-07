@@ -280,14 +280,14 @@ async function desktopVisualState() {
     const active = document.querySelector('.workspace-sidebar-link-active');
     const rect = active.getBoundingClientRect();
     const style = getComputedStyle(active);
-    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2, background: style.backgroundColor, border: style.borderColor };
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2, background: getComputedStyle(document.querySelector('.cova-gooey-sidebar .cova-gooey-plate')).backgroundColor, border: style.borderColor };
   })()`);
   await cdp.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: base.x, y: base.y });
   await sleep(220);
   const hovered = await evaluate(`(() => {
     const active = document.querySelector('.workspace-sidebar-link-active');
     const style = getComputedStyle(active);
-    return { background: style.backgroundColor, border: style.borderColor };
+    return { background: getComputedStyle(document.querySelector('.cova-gooey-sidebar .cova-gooey-plate')).backgroundColor, border: style.borderColor };
   })()`);
   assert.equal(base.background, "rgb(22, 42, 71)", "Astra selected rail must use the approved filled dark-blue surface");
     assert.equal(hovered.background, base.background, "Astra selected fill must survive active+hovered");
@@ -311,11 +311,11 @@ async function desktopVisualState() {
   assert.equal(focus.outlineStyle, "solid");
   assert.equal(focus.outlineWidth, "2px");
   assert.equal(focus.outlineColor, "rgb(111, 150, 255)", "Astra rail focus must retain the approved cobalt outline");
-  assert.equal(await evaluate("getComputedStyle(document.querySelector('.workspace-sidebar-link-active')).backgroundColor"), "rgb(22, 42, 71)", "Keyboard focus must preserve the selected dark-blue fill");
+  assert.equal(await evaluate("getComputedStyle(document.querySelector('.cova-gooey-sidebar .cova-gooey-plate')).backgroundColor"), "rgb(22, 42, 71)", "Keyboard focus must preserve the selected dark-blue fill");
 
   await auditMicrocopy();
   await cdp.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: "reduce" }] });
-  const reduced = await evaluate(`(() => { const node = document.querySelector('.workspace-sidebar-link-active'); const style = getComputedStyle(node); return { background: style.backgroundColor, animation: style.animationName, transition: style.transitionDuration }; })()`);
+  const reduced = await evaluate(`(() => { const node = document.querySelector('.workspace-sidebar-link-active'); const style = getComputedStyle(node); return { background: getComputedStyle(document.querySelector('.cova-gooey-sidebar .cova-gooey-plate')).backgroundColor, animation: style.animationName, transition: style.transitionDuration }; })()`);
   assert.deepEqual(reduced, { background: "rgb(22, 42, 71)", animation: "none", transition: "0s" }, "Reduced motion must preserve Astra selected state without animation");
   await cdp.send("Emulation.setEmulatedMedia", { features: [] });
   const reviewCopy = await evaluate("document.querySelector('.dashboard-workspace').innerText");

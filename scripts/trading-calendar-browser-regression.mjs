@@ -1,3 +1,4 @@
+import {chooseAccountCDP} from './helpers/account-picker-cdp.mjs';
 import assert from "node:assert/strict";
 import { execFile, spawn } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -298,7 +299,7 @@ for(const [width,height,mobile] of [[1440,1000,false],[1280,800,false],[900,800,
  assert.equal(await evaluate(`document.querySelector('${dateSelector('2026-09-02')}').dataset.calendarState`),'loss');
  assert.equal(await evaluate(`document.querySelector('${dateSelector('2026-09-03')} .calendar-pnl-full').textContent`),'$0.00');
  assert.equal(await evaluate(`document.querySelector('${dateSelector('2026-09-05')} .calendar-pnl')`),null);
- const choose=async value=>{await evaluate(`(()=>{const s=document.querySelector('select[aria-label="Trade account"]');s.value=${JSON.stringify(value)};s.dispatchEvent(new Event('change',{bubbles:true}));})()`);await waitFor(`document.querySelector('select[aria-label="Trade account"]').value===${JSON.stringify(value)}`)};
+ const choose=async value => chooseAccountCDP({evaluate,send:cdp.send.bind(cdp),wait:waitFor},value);
  for(const [account,amount]of [['all','−$100.00'],['Tradovate:72','−$450.25'],['Tradovate:71','+$350.25']]){await choose(account);await waitFor(`document.querySelector('${dateSelector('2026-09-01')} .calendar-pnl-full')?.textContent===${JSON.stringify(amount)}`)}
  await evaluate("document.querySelector('.trading-calendar').scrollIntoView({block:'center',behavior:'instant'})");
  const first=await evaluate(`getComputedStyle(document.querySelector('${dateSelector('2026-09-01')}')).backgroundColor`),loss=await evaluate(`getComputedStyle(document.querySelector('${dateSelector('2026-09-02')}')).backgroundColor`),idle=await evaluate(`getComputedStyle(document.querySelector('${dateSelector('2026-09-05')}')).backgroundColor`);assert.notEqual(first,loss);assert.notEqual(first,idle);assert.notEqual(loss,idle);

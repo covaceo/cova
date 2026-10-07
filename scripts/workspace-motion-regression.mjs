@@ -117,7 +117,7 @@ test('route props preserve behavior with owner-approved history account isolatio
     OAuthConnectPage: 'firmId={oauthFirmId} onApprove={completeFirmOAuth} onCancel={cancelFirmOAuth}',
     RulesEngine: 'analysis={analysis} entitlements={entitlements} rules={rules} setRules={setRules} go={go} upgradeToPro={upgradeToPro}',
     Coach: 'analysis={analysis} entitlements={entitlements} go={go} upgradeToPro={upgradeToPro}',
-    Passport: 'key={`${authSession?.userId || authSession?.email}:${tradeAccount}`} analysis={analysis} entitlements={entitlements} isSampleReview={isSampleReview} go={go} upgradeToPro={upgradeToPro} ownerId={authSession?.userId} trades={visibleTrades} rules={rules} accountControl={<div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts.length?tradeAccounts:["local"]} value={tradeAccount} onChange={selectTradeAccount}/></div>}',
+    Passport: 'key={`${authSession?.userId || authSession?.email}:${tradeAccount}`} analysis={analysis} entitlements={entitlements} isSampleReview={isSampleReview} go={go} upgradeToPro={upgradeToPro} ownerId={authSession?.userId} trades={visibleTrades} rules={rules} accountControl={<div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={accountMenuAccounts} value={tradeAccount} onChange={selectTradeAccount}/></div>}',
     WorkspaceShell: 'brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={visibleRiskScore} section={section} signOut={signOut}',
     AuthGate: 'devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={openAuth} onDevPreview={signInAsDevPreview}',
   };
@@ -127,12 +127,12 @@ test('route props preserve behavior with owner-approved history account isolatio
     for (const node of elements) {
       let actual = node.attributes.getText(app) + ' ';
       if (['Dashboard','RulesEngine','Coach'].includes(name)) {
-        const visualSlot = name === 'Dashboard' ? 'accountControl={ <div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={[...new Set([...tradeAccounts,"local"])]} value={tradeAccount} onChange={selectTradeAccount} /></div>} ' : 'accountControl={tradeAccounts.some(account => account !== "local") ? <div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} value={tradeAccount} onChange={selectTradeAccount} /></div> : undefined} ';
+        const visualSlot = name === 'Dashboard' ? 'accountControl={ <div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={accountMenuAccounts} value={tradeAccount} onChange={selectTradeAccount} /></div>} ' : 'accountControl={tradeAccounts.some(account => account !== "local") ? <div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={accountMenuAccounts} value={tradeAccount} onChange={selectTradeAccount} /></div> : undefined} ';
         assert.ok(actual.includes(visualSlot),'Visual header reuses the exact owner-bound selector and existing onChange');
         actual = actual.replace(visualSlot,'').trim();
       }
       if (name === 'ImportDesk') {
-        const manualSlot = 'accountManager={<ManualAccountManager accounts={[...new Set([...tradeAccounts,"local"])].filter(account => account !== "local" || trades.some(trade => tradeAccountKey(trade) === "local") || Boolean(accountNames.local && accountNames.local !== "Manual account"))} names={accountNames} onCreate={createManualAccount} onRename={renameManualAccount} onPrepareRemove={prepareRemoveAccount} onRemove={removeTradingAccount} onOpen={account => { selectTradeAccount(account); go("dashboard"); }} />} ';
+        const manualSlot = 'accountManager={<ManualAccountManager accounts={accountMenuAccounts} names={accountNames} onCreate={createManualAccount} onRename={renameManualAccount} onPrepareRemove={prepareRemoveAccount} onRemove={removeTradingAccount} onOpen={account => { selectTradeAccount(account); go("dashboard"); }} />} ';
         assert.ok(actual.includes(manualSlot), 'Approved manual account slot keeps names, stable keys and guarded App callbacks');
         actual = actual.replace(manualSlot, '');
       }

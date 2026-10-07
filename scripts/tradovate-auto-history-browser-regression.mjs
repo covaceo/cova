@@ -1,3 +1,4 @@
+import {chooseAccountCDP} from './helpers/account-picker-cdp.mjs';
 // Owned-browser integration proof. Synthetic auth/provider responses only, no live APIs.
 import assert from 'node:assert/strict';
 import { spawn, execFileSync } from 'node:child_process';
@@ -58,7 +59,7 @@ const {default:App}=await import('/src/App.tsx');createRoot(document.getElementB
 let server,chrome,ws;const failures=[];const receipts=[];
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 try{
-server=await createServer({envDir:profile,logLevel:'error',server:{host:'127.0.0.1',port:0},plugins:[{name:'history-browser-fixture',resolveId(id){if(id==='/__history.tsx')return id;},load(id){if(id==='/__history.tsx')return entry;},configureServer(vite){vite.middlewares.use(async(req,res,next)=>{if(!req.url?.startsWith('/__history.html'))return next();res.setHeader('Content-Type','text/html');res.end(await vite.transformIndexHtml(req.url,'<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="data:,"></head><body><div id="root"></div><script type="module" src="/__history.tsx"></script></body></html>'));});}}]});
+server=await createServer({envDir:profile,logLevel:'error',server:{host:'127.0.0.1',port:0},plugins:[{name:'history-browser-fixture',enforce:'pre',transform(code,id){if(!id.endsWith('/src/App.tsx'))return;code=code.split(String.fromCharCode(13,10)).join(String.fromCharCode(10));const nl=String.fromCharCode(10),needle='  return ('+nl+'    <BillingProvider';assert(code.includes(needle),'Actual App controller injection anchor must exist');return{code:code.replace(needle,'  Object.assign(window, {__historySelectAccount: selectTradeAccount});'+nl+needle),map:null}},resolveId(id){if(id==='/__history.tsx')return id;},load(id){if(id==='/__history.tsx')return entry;},configureServer(vite){vite.middlewares.use(async(req,res,next)=>{if(!req.url?.startsWith('/__history.html'))return next();res.setHeader('Content-Type','text/html');res.end(await vite.transformIndexHtml(req.url,'<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="data:,"></head><body><div id="root"></div><script type="module" src="/__history.tsx"></script></body></html>'));});}}]});
 await server.listen();const port=server.httpServer.address().port;
 chrome=spawn(process.env.CHROME_PATH||'C:/Program Files/Google/Chrome/Application/chrome.exe',['--headless=new','--no-first-run','--no-default-browser-check','--remote-debugging-port=0',`--user-data-dir=${profile}`,'about:blank'],{stdio:'ignore'});
 let debugPort;for(let i=0;i<150;i++){try{debugPort=Number((await readFile(join(profile,'DevToolsActivePort'),'utf8')).split('\n')[0]);break;}catch{}await sleep(100);}assert(debugPort,'Owned Chrome readiness');
@@ -67,7 +68,7 @@ ws.addEventListener('message',e=>{const m=JSON.parse(String(e.data));if(m.id){co
 const send=(method,params={})=>new Promise((resolve,reject)=>{const id=++sequence;pending.set(id,{resolve,reject});ws.send(JSON.stringify({id,method,params}));});
 const evaluate=async(expression)=>{const r=await send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw new Error(r.exceptionDetails.text);return r.result?.value;};
 const wait=async(expression)=>{for(let i=0;i<200;i++){if(await evaluate(expression))return;await sleep(100);}throw new Error('Browser assertion timed out: '+expression+'; '+await evaluate('JSON.stringify({auth:JSON.parse(localStorage.getItem("cova-auth-session-v1")||"null"),switchError:window.__switchError,body:document.body.innerText.slice(0,1600)})'));};
-const select=async(label,value)=>{await evaluate(`{const s=document.querySelector(${JSON.stringify(`[aria-label="${label}"]`)});s.value=${JSON.stringify(value)};s.dispatchEvent(new Event('change',{bubbles:true}));}`);await sleep(50);};
+const select=async(label,value)=>{if(label==='Trade account')return chooseAccountCDP({evaluate,send,wait},value);await evaluate(`{const s=document.querySelector(${JSON.stringify(`[aria-label="${label}"]`)});s.value=${JSON.stringify(value)};s.dispatchEvent(new Event('change',{bubbles:true}));}`);await sleep(50);};
 const load=async()=>{await evaluate('[...document.querySelectorAll("button")].find(b=>b.textContent.trim()==="Load history").click()');};
 const imported=async()=>{await evaluate('location.hash="import"');await wait(`Boolean(document.querySelector('[aria-label="History account"]'))`);await sleep(100);};
 const screenshot=async(name)=>{await wait("document.fonts.status==='loaded'");await sleep(350);await writeFile(join(output,name+'.png'),Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));};
@@ -82,10 +83,10 @@ await writeFile(join(output,mobile?'mobile-initial.png':'desktop-initial.png'),B
 if(process.argv.includes('--baseline')){receipts.push({mobile,baseline:true});continue;}
 await wait('JSON.parse(localStorage.getItem("cova-react-risk-os-v2:history-owner")||"{}").trades?.length===3');
 await wait('location.hash==="#dashboard"');
-assert.equal(await evaluate(`document.querySelector('[aria-label="Trade account"]')?.value`),'Tradovate:71');
-assert.equal(await evaluate(`document.querySelector('[aria-label="Trade account"]').selectedOptions[0].textContent`),'Synthetic 71','Use the broker account name, not the internal account key');
-assert.equal(await evaluate(`document.querySelector('[aria-label="Trade account"]').closest('label').parentElement.querySelectorAll('p').length`),0,'Account switcher has no explanatory paragraphs underneath');
-if(mobile) assert.equal(await evaluate(`document.querySelector('[aria-label="Trade account"]').closest('label').getBoundingClientRect().top >= 80`),true,'Mobile account label must clear the fixed navigation header');
+assert.equal(await evaluate(`document.querySelector('[data-account-value]').getAttribute('data-account-value')`),'Tradovate:71');
+assert.equal(await evaluate(`document.querySelector('[aria-label="Trade account"]').closest('[data-component=watermelon-dropdown-menu-10]').querySelector('.cova-account-menu-selection').textContent`),'Synthetic 71','Use the broker account name, not the internal account key');
+assert.equal(await evaluate(`document.querySelector('[aria-label="Trade account"]').closest('[data-component=watermelon-dropdown-menu-10]').parentElement.querySelectorAll('p').length`),0,'Account switcher has no explanatory paragraphs underneath');
+if(mobile) assert.equal(await evaluate(`document.querySelector('[aria-label="Trade account"]').closest('[data-component=watermelon-dropdown-menu-10]').getBoundingClientRect().top >= 80`),true,'Mobile account label must clear the fixed navigation header');
 assert.equal(await evaluate('JSON.parse(localStorage.getItem("cova-react-risk-os-v2:history-owner")).trades.find(t=>t.id==="older-synthetic").notes'),'Preserve older note');
 assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth'),true);
 assert.deepEqual(await evaluate('[innerWidth,document.documentElement.clientWidth,Math.round(visualViewport.width)]'),mobile?[390,390,390]:[1440,1440,1440]);
@@ -103,12 +104,13 @@ for(const [account,amount] of [['71','+$10.79'],['72','+$9.58'],['71','+$10.79']
   // Profile backend is intentionally unavailable in this integration fixture.
   await evaluate(`document.querySelector('#recap-show-identity').click()`);
   await wait(`document.querySelector('[data-recap-preview]')?.complete && !document.querySelector('[data-recap-download]')?.disabled`);
-  const result=await evaluate(`({account:document.querySelector('[aria-label="Trade account"]').value,alt:document.querySelector('[data-recap-preview]').alt,src:document.querySelector('[data-recap-preview]').src})`);
+  const result=await evaluate(`({account:document.querySelector('[data-account-value]').getAttribute('data-account-value'),alt:document.querySelector('[data-recap-preview]').alt,src:document.querySelector('[data-recap-preview]').src})`);
   assert(result.alt.includes(amount+' after fees'),JSON.stringify(result));
   recapResults.push(result);
   await screenshot((mobile?'mobile':'desktop')+'-recap-'+account);
   // Switching even while a composer is open must discard the old export.
-  await select('Trade account','Tradovate:'+(account==='71'?'72':'71'));
+  // A native modal makes background controls inert. Simulate an external scope update through the actual App callback, not a fake click behind its dialog.
+  await evaluate(`window.__historySelectAccount(${JSON.stringify('Tradovate:'+(account==='71'?'72':'71'))})`);
   await wait(`!document.querySelector('dialog[open]')`);
 }
 assert.equal(new Set(recapResults.map(r=>r.src)).size,3,'Each account opening creates a fresh artifact');
@@ -140,10 +142,10 @@ await evaluate(`document.querySelector('.astra-data-details summary').click()`);
 assert.match(await evaluate(`document.querySelector('[data-cash-coverage]').innerText`),/Funding excluded/);
 await evaluate(`document.querySelector('.astra-data-details summary').click()`);
 await select('Trade account','Tradovate:72');
-assert.equal(await evaluate(`document.querySelector('[aria-label="Trade account"]').selectedOptions[0].textContent`),'Synthetic 72');
+assert.equal(await evaluate(`document.querySelector('[aria-label="Trade account"]').closest('[data-component=watermelon-dropdown-menu-10]').querySelector('.cova-account-menu-selection').textContent`),'Synthetic 72');
 assert.match(await evaluate(`document.querySelector('[data-astra-stat="pnl"]').innerText`),/\+\$9\.58/);
 await select('Trade account','all');
-assert.equal(await evaluate(`document.querySelector('[aria-label="Trade account"]').selectedOptions[0].textContent`),'All accounts');
+assert.equal(await evaluate(`document.querySelector('[aria-label="Trade account"]').closest('[data-component=watermelon-dropdown-menu-10]').querySelector('.cova-account-menu-selection').textContent`),'All accounts');
 await select('Trade account','Tradovate:71');
 receipts.push({mobile,imported:3,selected:'Tradovate:71',olderNotePreserved:true,overflow:false,calls:await evaluate('window.__historyCalls.length')});
 await evaluate('document.querySelector(".astra-recent-trades .astra-text-link").click()');
@@ -175,8 +177,8 @@ if(!mobile){
  await evaluate('window.__fixtureDelay=true;window.__fixtureCorrection=true;[...document.querySelectorAll("button")].find(b=>b.textContent.trim()==="Load history").click()');
  await wait('typeof window.__releaseHistory==="function"');
  await evaluate('location.hash="dashboard"');await wait("Boolean(document.querySelector('[aria-label=\"Trade account\"]'))");
- await evaluate(`{const s=document.querySelector('[aria-label="Trade account"]');s.value='Tradovate:72';s.dispatchEvent(new Event('change',{bubbles:true}));}`);
- await wait(`document.querySelector('[aria-label="Trade account"]').value==='Tradovate:72'`);
+ await chooseAccountCDP({evaluate,send,wait},"Tradovate:72");
+ await wait(`document.querySelector('[data-account-value]').getAttribute('data-account-value')==='Tradovate:72'`);
  await evaluate('window.__releaseHistory();window.__fixtureDelay=false');await sleep(300);
  assert.deepEqual(await evaluate('JSON.parse(localStorage.getItem("cova-react-risk-os-v2:history-owner")).trades'),JSON.parse(before).trades,'selection change rejects pending provider correction');
  receipts[receipts.length-1].selectionRace=true;
@@ -204,7 +206,7 @@ if(!mobile){
  receipts[receipts.length-1].manualRetry=true;
  const beforeReload=await evaluate('performance.timeOrigin');
  await send('Page.reload');await wait(`performance.timeOrigin!==${beforeReload} && Boolean(document.querySelector(".astra-source-label")) && Boolean(document.querySelector('[aria-label="Trade account"]'))`);
- assert.equal(await evaluate(`document.querySelector('[aria-label="Trade account"]').value`),'Tradovate:72');
+ assert.equal(await evaluate(`document.querySelector('[data-account-value]').getAttribute('data-account-value')`),'Tradovate:72');
  await imported();assert.equal(await evaluate('window.__historyCalls.length'),0,'reload retains completed scope and inventory');
  assert.equal(await evaluate(`document.querySelector('[aria-label="History account"]').options.length`),3);
  // Connection-change and sign-out races must reject even a transport ignoring abort.
@@ -220,7 +222,7 @@ if(!mobile){
  receipts[receipts.length-1].connectionRace=true;receipts[receipts.length-1].signoutRace=true;
 } else {
  await imported();await evaluate(`{const t=document.querySelector('textarea[aria-label="CSV text"]');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(t,'date,market,side,contracts,entry,exit,pnl,risk,setup,notes\\n2026-05-06,NQ,Long,1,18900,18915,300,250,Opening range,Synthetic browser fixture');t.dispatchEvent(new Event('input',{bubbles:true}));}`);await wait(`!document.querySelector('[data-csv-import] .accounts-button-primary').disabled`);await evaluate(`[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Review trades').click()`);await wait('location.hash==="#dashboard"');
- assert.equal(await evaluate(`document.querySelector('[aria-label="Trade account"]').value`),'local','CSV restores local source selection');
+ assert.equal(await evaluate(`document.querySelector('[data-account-value]').getAttribute('data-account-value')`),'local','CSV restores local source selection');
  await imported();await evaluate(`[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Reset demo').click()`);await sleep(100);
  assert.equal(await evaluate('JSON.parse(localStorage.getItem("cova-react-risk-os-v2:history-owner")).tradeAccount'),'local','demo reset does not leave empty provider filter');
 }
@@ -228,11 +230,11 @@ if(!mobile){
 // The selector also works for a Rithmic-only ledger, without exposing its opaque account key.
 await evaluate(`{const key='a'.repeat(32), ledger=JSON.parse(localStorage.getItem('cova-react-risk-os-v2:history-owner'));ledger.trades=[{...ledger.trades[0],id:'rithmic-synthetic',source:{provider:'Rithmic',accountKey:key,accountId:'A-1',currency:'USD'}}];ledger.tradeAccount='Rithmic:'+key+':A-1';localStorage.setItem('cova-react-risk-os-v2:history-owner',JSON.stringify(ledger));location.hash='dashboard';}`);
 const rithmicReload=await evaluate('performance.timeOrigin');await send('Page.reload');await wait(`performance.timeOrigin!==${rithmicReload} && Boolean(document.querySelector('.astra-source-label'))`);
-assert.equal(await evaluate(`document.querySelector('[aria-label="Trade account"]')?.selectedOptions[0].textContent`),'A-1','Rithmic-only accounts must expose the switcher with their readable account ID');
+assert.equal(await evaluate(`document.querySelector('[aria-label="Trade account"]')?.closest('[data-component=watermelon-dropdown-menu-10]').querySelector('.cova-account-menu-selection').textContent`),'A-1','Rithmic-only accounts must expose the switcher with their readable account ID');
 receipts.push({rithmicOnly:true});
 await evaluate(`(async()=>{const {rememberAccountNames}=await import('/src/lib/accountNames.ts');rememberAccountNames('history-owner',{['Rithmic:'+'a'.repeat(32)+':A-1']:'Funded Alpha'});for(const key of Object.keys(sessionStorage))if(key.startsWith('cova-history-summary:'))sessionStorage.removeItem(key);})()`);
 const namesReload=await evaluate('performance.timeOrigin');await send('Page.reload');await wait(`performance.timeOrigin!==${namesReload} && Boolean(document.querySelector('[aria-label="Trade account"]'))`);
-assert.equal(await evaluate(`document.querySelector('[aria-label="Trade account"]').selectedOptions[0].textContent`),'Funded Alpha');
+assert.equal(await evaluate(`document.querySelector('[aria-label="Trade account"]').closest('[data-component=watermelon-dropdown-menu-10]').querySelector('.cova-account-menu-selection').textContent`),'Funded Alpha');
 receipts.push({persistentNames:true});
 await evaluate('localStorage.clear();sessionStorage.clear()');
 await send('Page.navigate',{url:`http://127.0.0.1:${port}/__history.html?disconnected=1&broker=tradovate&brokerStatus=connected#import`});

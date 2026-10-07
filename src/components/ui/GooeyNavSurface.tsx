@@ -9,7 +9,7 @@ export function GooeyNavSurface({ children, active, className = "" }: { children
  const [box, setBox] = useState<Box | null>(null), [tail, setTail] = useState<Box | null>(null); const previous = useRef<Box | null>(null);
  useLayoutEffect(() => {
   const el = host.current; if (!el) return;
-  const measure = () => { const target = [...el.querySelectorAll<HTMLElement>("[data-gooey-key]")].find(e => e.dataset.gooeyKey === active); if (!target) { setBox(null); return; }
+  const measure = () => { const target = [...el.querySelectorAll<HTMLElement>("[data-gooey-key]")].find(e => e.dataset.gooeyKey === active); if (!target) { previous.current = null; setTail(null); setBox(null); return; }
    const r = target.getBoundingClientRect(), h = el.getBoundingClientRect();
    const next = { x: r.x-h.x, y:r.y-h.y, width:r.width, height:r.height };
    if (previous.current && Object.keys(next).every(k=>previous.current![k as keyof Box]===next[k as keyof Box])) return;
