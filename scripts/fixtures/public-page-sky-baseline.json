@@ -1,0 +1,21 @@
+{
+  "appLF": "7f32823b4abbe6966fa219a029c1e07e53b2f9a284511e5773beef84712601c0",
+  "layoutLF": "c8d90f50268cedc2082dd40828a69d9ca3e6e29e8c4bb50c74bbb2b91998cd08",
+  "protected": {
+    "src/components/MarketingHero.tsx": "28dce34613075921d61443ba3e06d3bddefba87b7ba6590e2ae0fe4a85479da7",
+    "src/components/Navbar.tsx": "ae1479cdd697c8df502e8363dd85a91e336a4f5194fb2de8765b76fdab609851",
+    "src/components/WorkspaceShell.tsx": "13013bf99d1848b16df453b3b2baa6a1f2b9438cbc6241e8069f2bc9e2418f08",
+    "src/components/WorkspaceSections.tsx": "572520751489507755f8bec5be958f4aa5285df9c1aef6d051393a413e9296ff",
+    "src/components/FeaturesShowcasePage.tsx": "e25425f2eeb315808aa6a6a23cb9456a752c72d10d4c13daaf6202cfb63720ee",
+    "src/components/MarketingPages.tsx": "5a4c31fda783f3d73a661b77c817c6faa484e92a6632b454fe198b8feee5eefd",
+    "src/components/ResourcesQuickStartPage.tsx": "548c4f33322de092dd0a55b4bcfb277986c21555f7c1ea46932f90118956ca2e",
+    "src/components/CommunityDiscordPage.tsx": "b0dbe5bf4d67249d79861587b45ed514b742ac75c2a77dc5d8033c372edcb41d",
+    "src/components/PlanSections.tsx": "850d268f4c4d8f9f1c446305a7f19816ade2330154e7476d1dbf522a3a4fe88b",
+    "src/components/landing/LandingStarfield.tsx": "f4c2ec45d710dee1088172f3173e3217effbaa4240837f2c30b721798e94d8f9",
+    "src/components/landing/HomeLanding.tsx": "e9fd3879ce3b0bd613c2f0142dc971bb737c20b44c83e1cef3505b6e03f2b749",
+    "src/styles/landingContinuity.css": "462d86e72eaa4595c621e4c54deddd685353cd6b2c74d2715c7bacab9b0b3741",
+    "src/styles/featuresShowcase.css": "ff887410f00feab9435832db5bc0db9a0db6eb43765b7a73910d0a8c3d7aabec",
+    "src/styles/resourcesQuickStart.css": "1fe0168536c0bca01ef8f9f46ea6e4ae4af8129772a289f71f16e2197000a06b",
+    "src/styles/communityDiscordPage.css": "ba84254e770807b7ccb4f3786404020807a4afbe253c5ce3d5972aae16b716b3"
+  }
+}

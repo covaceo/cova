@@ -1,0 +1,41 @@
+/* Approved editorial testimonial chapter. Exact review copy is owned by Hero. */
+.cova-home-landing .market-reaction-band.cova-trader-reviews {
+ display:grid!important; grid-template-columns:minmax(0,.92fr) minmax(0,1fr); align-items:center; gap:clamp(56px,7vw,104px); max-width:1160px; margin:0 auto!important; width:100%; scroll-margin-top:110px;
+}
+.cova-trader-reviews-heading { min-width:0; }
+.cova-home-landing .cova-trader-reviews-heading h2 {
+ margin:0; max-width:440px; color:#f3f4f7; font:450 clamp(44px,4.5vw,66px)/1.09 "Inter Tight Variable","Inter Tight",Inter,sans-serif; letter-spacing:-.045em; text-wrap:balance;
+}
+.cova-home-landing .cova-trader-reviews .market-reaction-strip {
+ display:grid!important; grid-template-columns:minmax(0,1fr)!important; gap:16px; padding:0!important; margin:0!important; border:0!important; background:none!important; min-width:0;
+}
+.cova-home-landing .cova-trader-reviews .market-reaction-item {
+ position:relative; margin:0; min-width:0; padding:26px 28px!important; border:1px solid #24262b!important; border-radius:20px; background:#101114!important; box-shadow:0 8px 24px rgb(0 0 0 / .1); transition:transform .22s ease,border-color .22s ease;
+}
+.cova-home-landing .cova-trader-reviews .market-reaction-item p { margin:0; color:#e1e3e8!important; font-size:18px!important; line-height:1.58!important; font-weight:400; }
+.cova-home-landing .cova-trader-reviews .market-reaction-item footer { display:flex; align-items:center; justify-content:space-between; gap:20px; margin-top:24px!important; padding:0; border:0; }
+.cova-trader-review-person { display:flex; align-items:center; gap:13px; min-width:0; }
+.cova-trader-review-person img { display:block; flex:0 0 48px; width:48px; height:48px; border-radius:50%; object-fit:cover; border:1px solid #35373d; }
+.cova-home-landing .cova-trader-reviews .market-reaction-item strong { font-size:15px!important; color:#eef0f4!important; font-weight:500; text-transform:none; }
+.cova-home-landing .cova-trader-reviews .market-reaction-rating { display:flex; align-items:center; gap:8px; flex:0 0 auto; font-family:Inter,Arial,sans-serif; color:#a8c0ff!important; font-size:13px; }
+.cova-trader-reviews .market-reaction-rating > span { letter-spacing:1px; }
+.cova-trader-reviews .market-reaction-rating small { font-size:12px; }
+@media(hover:hover) and (pointer:fine) { .cova-home-landing .cova-trader-reviews .market-reaction-item:hover { transform:translateY(-2px); border-color:#3b404a!important; } }
+@media(max-width:900px) {
+ .cova-home-landing .market-reaction-band.cova-trader-reviews { grid-template-columns:minmax(0,1fr); gap:34px; }
+ .cova-home-landing .cova-trader-reviews-heading h2 { max-width:650px; font-size:clamp(42px,6.5vw,56px); }
+}
+@media(max-width:760px) {
+ .cova-home-landing .cova-trader-reviews .market-reaction-item { padding:23px 22px!important; border-radius:18px; }
+ .cova-home-landing .cova-trader-reviews .market-reaction-item + .market-reaction-item { padding-top:23px!important; border:1px solid #24262b!important; }
+ .cova-home-landing .cova-trader-reviews .market-reaction-item p { font-size:17px!important; }
+ .cova-home-landing .cova-trader-reviews .market-reaction-item footer { gap:12px; }
+ .cova-trader-reviews .market-reaction-rating { gap:6px; }
+}
+@media(max-width:360px) {
+ .cova-home-landing .cova-trader-reviews .market-reaction-item { padding:22px 18px!important; }
+ .cova-trader-review-person { gap:10px; }
+ .cova-home-landing .cova-trader-reviews .market-reaction-item strong { font-size:14px!important; }
+ .cova-home-landing .cova-trader-reviews .market-reaction-rating { flex-direction:column; align-items:flex-end; gap:3px; }
+}
+@media(prefers-reduced-motion:reduce) { .cova-home-landing .cova-trader-reviews .market-reaction-item { transition:none; transform:none!important; } }

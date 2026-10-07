@@ -14,7 +14,8 @@ import type { LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CovaDarkGlassSecondaryAction } from "./CovaDarkGlassSecondaryAction";
 import { CovaLiquidMetalSignupButton } from "./CovaLiquidMetalSignupButton";
-import { CovaRibbonField } from "./CovaRibbonField";
+import "../styles/covaSpaceHero.css";
+import { TraderTestimonials } from "./landing/TraderTestimonials";
 
 export type MarketingSection = "dashboard" | "import";
 export type MarketingAuthMode = "signup";
@@ -110,6 +111,7 @@ function clampNumber(value: number, min: number, max: number) {
 
 
 export function Hero({ go, openAuth, isSignedIn }: HeroProps) {
+  const reducedMotion = usePrefersReducedMotion();
   const followerReviews = [
     {
       name: "Marcus R.",
@@ -128,37 +130,39 @@ export function Hero({ go, openAuth, isSignedIn }: HeroProps) {
     },
   ];
 
+
   function scrollHowItWorks() {
-    document.querySelector(".story-strip-simple")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    document.querySelector('[data-feature="risk-desk"]')?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "start" });
   }
 
   return (
-    <section
-      className="market-hero market-hero-threeui relative flex min-h-[100dvh] overflow-hidden px-5 md:px-10 lg:px-[3.1rem]"
-    >
-      <CovaRibbonField className="market-hero-ribbon" brightness={0.92} opacity={0.94} pointerAmount={0.72} smoothing={0.035} speed={0.78} />
-      <div className="absolute inset-0 z-[1] bg-[linear-gradient(90deg,rgba(3,5,11,0.99)_0%,rgba(3,5,11,0.78)_34%,rgba(3,5,11,0.12)_72%,rgba(3,5,11,0.42)_100%)]" />
-      <div className="market-hero-grid absolute inset-0 z-[2]" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-[-1px] z-[5] h-64 bg-[linear-gradient(180deg,rgba(0,0,0,0)_0%,rgba(0,0,0,0.72)_62%,#000_100%)]" />
-
-      <div className="market-hero-layout relative z-10 grid gap-10 md:grid-cols-[0.76fr_1.24fr]">
+    <>
+      <section className="cova-space-hero" aria-labelledby="cova-space-title">
         <motion.div
-          className="market-hero-copy"
-          initial={{ opacity: 0, y: 24, filter: "blur(10px)" }}
-          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+          className="cova-space-image"
+          initial={reducedMotion ? false : { scale: 1.035 }}
+          animate={{ scale: 1 }}
+          transition={{ duration: 1.8, ease: [0.22, 1, 0.36, 1] }}
+          aria-hidden="true"
+        >
+          <img src="/media/cova-orbital-hero-v1.png" width={1672} height={941} alt="" loading="eager" decoding="async" draggable={false} />
+        </motion.div>
+        <div className="cova-space-shade" aria-hidden="true" />
+        <motion.div
+          className="cova-space-copy"
+          initial={reducedMotion ? false : { y: 16 }}
+          animate={{ y: 0 }}
           transition={{ duration: 0.82, ease: [0.16, 1, 0.3, 1] }}
         >
-          <h1 className="market-hero-title mt-0 text-[4.35rem] font-semibold leading-[0.92] text-white md:text-[4.95rem] lg:text-[5.45rem]">
-            See the <span className="market-hero-signal">patterns</span><br />
-            <span className="market-hero-editorial">behind your risk.</span>
+          <h1 id="cova-space-title" className="cova-space-title">
+            <span>See the patterns</span>
+            <span>behind your risk.</span>
           </h1>
-
-          <p className="market-hero-subline mt-7 font-body text-lg font-light leading-relaxed text-white/72 md:text-xl">
+          <p className="cova-space-subline">
             Cova turns imported trade history into retrospective summaries of behavior, performance, and rule adherence.
           </p>
-
-          <div className="market-hero-actions mt-8 flex flex-wrap items-center gap-5" data-auth-state={isSignedIn ? "signed-in" : "signed-out"}>
-            <span className="hero-primary-cta-wrap">
+          <div className="cova-space-actions" data-auth-state={isSignedIn ? "signed-in" : "signed-out"}>
+            <span className="cova-space-primary">
               {isSignedIn ? (
                 <CovaLiquidMetalSignupButton text="Open dashboard" onClick={() => go("dashboard")} />
               ) : (
@@ -171,41 +175,17 @@ export function Hero({ go, openAuth, isSignedIn }: HeroProps) {
               onClick={isSignedIn ? () => go("import") : scrollHowItWorks}
             />
           </div>
-          <p className="market-hero-proof mt-5 font-body text-sm text-white/48">
-            <span /> {isSignedIn ? "Dashboard ready" : "No credit card required."}
-          </p>
-
+          <p className="cova-space-trust">{isSignedIn ? "Dashboard ready" : "No credit card required."}</p>
         </motion.div>
-
-        <HeroMobileDossier />
-        <MarketingDashboardProof revealStats={isSignedIn} />
-
-        <motion.div
-          className="market-reaction-band hidden xl:block"
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.74, delay: 0.38, ease: [0.16, 1, 0.3, 1] }}
-        >
-          <div className="market-reaction-heading">
-            <span>What people are saying</span>
-          </div>
-          <div className="market-reaction-strip">
-            {followerReviews.map(({ name, quote, rating }) => (
-              <blockquote className="market-reaction-item" key={name}>
-                <p>“{quote}”</p>
-                <footer>
-                  <strong>{name}</strong>
-                  <span className="market-reaction-rating" role="img" aria-label={`${rating} out of 5 stars`}>
-                    <span aria-hidden="true">{"★".repeat(rating)}</span>
-                    <small aria-hidden="true">{rating}/5</small>
-                  </span>
-                </footer>
-              </blockquote>
-            ))}
-          </div>
-        </motion.div>
-      </div>
-    </section>
+      </section>
+      <section className="cova-space-proof market-hero-threeui" aria-label="Cova product preview and trader reviews">
+        <div className="cova-space-proof-inner">
+          <HeroMobileDossier />
+          <MarketingDashboardProof revealStats={isSignedIn} />
+          <TraderTestimonials reviews={followerReviews} />
+        </div>
+      </section>
+    </>
   );
 }
 

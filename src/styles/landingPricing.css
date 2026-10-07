@@ -1,0 +1,198 @@
+.cova-minimal-pricing {
+  position: relative;
+  isolation: isolate;
+  font-family: "Inter", Arial, sans-serif;
+  color: #fafafa;
+  scroll-margin-top: 110px;
+}
+.cova-home-landing .pricing-showcase.cova-minimal-pricing {
+  padding: 88px 32px 96px !important;
+  background: transparent !important;
+}
+.cova-minimal-pricing .minimal-pricing-header {
+  max-width: 680px;
+  margin: 0 auto 72px;
+  text-align: center;
+}
+.cova-minimal-pricing .minimal-pricing-header h2 {
+  margin: 0;
+  color: #fafafa;
+  font-family: "Inter", Arial, sans-serif;
+  font-size: 36px;
+  font-weight: 700;
+  line-height: 1.16;
+  letter-spacing: -.025em;
+  text-wrap: balance;
+}
+.cova-minimal-pricing .minimal-pricing-header p {
+  max-width: 510px;
+  margin: 18px auto 0;
+  color: #b8b8bc;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+  text-wrap: balance;
+}
+.cova-minimal-pricing .minimal-pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: stretch;
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+}
+.cova-minimal-pricing .minimal-plan {
+  position: relative;
+  min-width: 0;
+  padding: 30px 28px 34px;
+  border: 1px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.cova-minimal-pricing .minimal-plan-pro {
+  border: 1px dashed #363638;
+  background: #171717;
+}
+.cova-minimal-pricing .minimal-plan-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 24px;
+}
+.cova-minimal-pricing .minimal-plan-heading h3 {
+  margin: 0;
+  color: #fafafa;
+  font-family: "Inter", Arial, sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 24px;
+  letter-spacing: -.015em;
+}
+.cova-minimal-pricing .minimal-plan-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  max-width: 100%;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #fafafa;
+  color: #141414;
+  font-size: 11px;
+  line-height: 18px;
+  font-weight: 500;
+}
+.cova-minimal-pricing .minimal-plan-description {
+  min-height: 42px;
+  margin: 12px 0 0;
+  color: #b8b8bc;
+  font-size: 14px;
+  line-height: 21px;
+}
+.cova-minimal-pricing .minimal-plan-price-block { margin-top: 28px; }
+.cova-minimal-pricing .minimal-plan-price {
+  margin: 0;
+  color: #fafafa;
+  font-family: "Inter", Arial, sans-serif;
+  font-size: 36px;
+  font-weight: 500;
+  line-height: 40px;
+  letter-spacing: -.035em;
+  font-variant-numeric: tabular-nums;
+}
+.cova-minimal-pricing .minimal-plan-period {
+  margin: 6px 0 0;
+  color: #b8b8bc;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+}
+.cova-minimal-pricing .minimal-plan-action {
+  display: flex;
+  width: 100%;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  margin: 42px 0 0;
+  padding: 9px 12px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: #202020;
+  color: #fafafa;
+  font-family: "Inter", Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  text-align: center;
+  text-transform: none;
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+.cova-minimal-pricing .minimal-plan-pro .minimal-plan-action { background: #fafafa; color: #141414; }
+.cova-minimal-pricing .minimal-plan-action:hover { background: #303030; border-color: #4c4c4f; }
+.cova-minimal-pricing .minimal-plan-pro .minimal-plan-action:hover { background: #e4e4e7; border-color: #fafafa; }
+.cova-minimal-pricing .minimal-plan-status { cursor: default; }
+.cova-minimal-pricing .minimal-plan-feature-body { margin-top: 36px; }
+.cova-minimal-pricing .minimal-plan-features,
+.cova-minimal-pricing .minimal-plan-boundaries ul { display: flex; flex-direction: column; gap: 20px; padding: 0; margin: 0; list-style: none; }
+.cova-minimal-pricing .minimal-plan-features li { display: flex; align-items: flex-start; gap: 9px; color: #b8b8bc; font-size: 14px; line-height: 20px; }
+.cova-minimal-pricing .minimal-plan-check { display: grid; place-items: center; flex: 0 0 16px; width: 16px; height: 16px; margin-top: 2px; border-radius: 50%; background: #48484a; color: #fafafa; }
+.cova-minimal-pricing .minimal-plan-check svg { width: 11px; height: 11px; stroke-width: 2.5; }
+.cova-minimal-pricing .minimal-plan-features-additional .minimal-plan-check { background: #4d7cff; }
+.cova-minimal-pricing .minimal-plan-plus-divider { display: flex; align-items: center; gap: 0; margin: 28px 0; color: #c4c4c7; }
+.cova-minimal-pricing .minimal-plan-plus-divider span { height: 1px; flex: 1; background: #353537; }
+.cova-minimal-pricing .minimal-plan-plus-divider svg { flex: 0 0 20px; width: 20px; height: 20px; padding: 3px; background: #29292b; border-radius: 50%; stroke-width: 2; }
+.cova-minimal-pricing .minimal-plan-boundaries { margin-top: 28px; }
+.cova-minimal-pricing .minimal-plan-boundaries summary { display: flex; width: 100%; min-height: 40px; justify-content: space-between; align-items: center; gap: 12px; color: #b8b8bc; font-size: 14px; line-height: 20px; cursor: pointer; list-style: none; }
+.cova-minimal-pricing .minimal-plan-boundaries summary::-webkit-details-marker { display: none; }
+.cova-minimal-pricing .minimal-plan-boundaries summary svg { width: 14px; height: 14px; flex: 0 0 14px; transition: transform 160ms ease; }
+.cova-minimal-pricing .minimal-plan-boundaries[open] summary svg { transform: rotate(180deg); }
+.cova-minimal-pricing .minimal-plan-boundaries ul { gap: 12px; margin-top: 12px; }
+.cova-minimal-pricing .minimal-plan-boundaries li { display: flex; align-items: flex-start; gap: 9px; color: #b8b8bc; font-size: 14px; line-height: 20px; }
+.cova-minimal-pricing .minimal-plan-boundaries li svg { width: 14px; height: 14px; margin-top: 3px; flex: 0 0 14px; color: #a1a1aa; }
+.cova-minimal-pricing .minimal-plan-secondary { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; margin-top: 10px; padding: 5px 0; border: 0; background: transparent; color: #c4c4c7; font-family: "Inter", Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 20px; text-transform: none; cursor: pointer; transition: color 160ms ease; }
+.cova-minimal-pricing .minimal-plan-secondary svg { width: 14px; height: 14px; }
+.cova-minimal-pricing .minimal-plan-secondary:hover { color: #fafafa; }
+.cova-minimal-pricing :is(button, summary):focus-visible { outline: 2px solid #7298ff; outline-offset: 4px; }
+@media (min-width: 701px) and (max-width: 840px) {
+  .cova-minimal-pricing .minimal-plan-description { min-height: 63px; }
+}
+@media (max-width: 700px) {
+  .cova-home-landing .pricing-showcase.cova-minimal-pricing { padding: 64px 24px 72px !important; }
+  .cova-minimal-pricing .minimal-pricing-header { margin-bottom: 42px; }
+  .cova-minimal-pricing .minimal-pricing-header h2 { font-size: 30px; line-height: 1.2; }
+  .cova-minimal-pricing .minimal-pricing-header p { font-size: 14px; line-height: 21px; margin-top: 16px; }
+  .cova-minimal-pricing .minimal-pricing-grid { grid-template-columns: minmax(0, 1fr); max-width: 400px; gap: 28px; }
+  .cova-minimal-pricing .minimal-plan { padding: 26px 22px 28px; }
+  .cova-minimal-pricing .minimal-plan-description { min-height: 0; }
+  .cova-minimal-pricing .minimal-plan-action { margin-top: 32px; }
+}
+@media (max-width: 360px) {
+  .cova-home-landing .pricing-showcase.cova-minimal-pricing { padding-right: 16px !important; padding-left: 16px !important; }
+  .cova-minimal-pricing .minimal-plan { padding-right: 20px; padding-left: 20px; }
+  .cova-minimal-pricing .minimal-pricing-header h2 { font-size: 28px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cova-minimal-pricing :is(button, summary svg) { transition: none; }
+}
+
+/* Dotted glow is confined to Pro and cannot intercept any action. */
+.cova-minimal-pricing .minimal-plan-pro { isolation: isolate; overflow: hidden; border-radius: 18px; }
+.cova-minimal-pricing .minimal-pro-glow {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  mask-image: radial-gradient(ellipse at 68% 34%, #000 12%, rgba(0,0,0,.8) 48%, transparent 92%);
+  -webkit-mask-image: radial-gradient(ellipse at 68% 34%, #000 12%, rgba(0,0,0,.8) 48%, transparent 92%);
+}
+.cova-minimal-pricing .minimal-pro-glow canvas { display: block; width: 100%; height: 100%; }
+.cova-minimal-pricing .minimal-plan-pro > :not(.minimal-pro-glow) { position: relative; z-index: 1; }
+@media (max-width: 767px) {
+  .cova-minimal-pricing .minimal-plan-action,
+  .cova-minimal-pricing .minimal-plan-secondary { min-height: 44px; }
+}

@@ -1,0 +1,54 @@
+[
+  {
+    "id": "free",
+    "name": "Free",
+    "price": "$0",
+    "priceNote": [
+      "limited",
+      "account"
+    ],
+    "badge": "Limited",
+    "index": "DEMO / 01",
+    "description": "For testing Cova with a small sample before committing to a review workflow.",
+    "included": [
+      "1 workspace",
+      "25 stored trades total",
+      "Up to 25 trades per import",
+      "1 current Risk Passport view",
+      "2 current insight notes",
+      "Starter risk limits"
+    ],
+    "notIncluded": [
+      "Advanced limit editing",
+      "Passport image export",
+      "Direct account sync"
+    ]
+  },
+  {
+    "id": "pro",
+    "name": "Cova Pro",
+    "price": "$29",
+    "priceNote": [
+      "month",
+      "founding price"
+    ],
+    "badge": "Active trader",
+    "index": "COVA / 02",
+    "description": "For funded traders who want deeper reviews, export tools, and configurable limits.",
+    "included": [
+      "Unlimited trade imports",
+      "Unlimited reviewed trades",
+      "Unlimited Passport image exports",
+      "Full editable risk limits",
+      "Full three-part insight brief",
+      "Direct sync access when configured"
+    ],
+    "notIncluded": [
+      "No trade signals",
+      "No auto-trading",
+      "No brokerage order execution",
+      "No payout guarantee",
+      "No financial advice"
+    ]
+  }
+]

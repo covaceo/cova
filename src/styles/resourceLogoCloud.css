@@ -1,0 +1,67 @@
+/* Only the requested homepage provider section. Full Resources-page styles stay intact. */
+.cova-home-landing .cova-provider-resources[data-resource-logo-cloud] {
+  background: transparent !important;
+  border: 0 !important;
+  padding: 35px 40px 55px !important;
+  scroll-margin-top: 110px;
+}
+.cova-home-landing [data-resource-logo-cloud] .cova-provider-inner { max-width: 1160px; }
+.cova-home-landing .cova-provider-resources[data-resource-logo-cloud] h2 {
+  font-family: inherit !important;
+  font-size: 20px !important;
+  font-weight: 450 !important;
+  line-height: 1.5;
+  letter-spacing: -.015em;
+  color: #c7d0de !important;
+  text-wrap: balance;
+}
+.cova-home-landing [data-resource-logo-cloud] .cova-provider-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 40px;
+  max-width: 560px;
+  margin: 28px auto 12px;
+}
+.cova-home-landing [data-resource-logo-cloud] .cova-provider-grid article {
+  grid-template-rows: 80px 21px;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none;
+  border-radius: 0;
+}
+.cova-home-landing [data-resource-logo-cloud] .cova-provider-logo {
+  width: 100%;
+  height: 80px;
+  min-height: 80px;
+  padding: 20px;
+  background: transparent;
+}
+.cova-home-landing [data-resource-logo-cloud] .cova-provider-logo img {
+  width: min(160px, 100%);
+  height: auto;
+  object-fit: contain;
+}
+.cova-home-landing [data-resource-logo-cloud] .cova-provider-logo:focus-visible {
+  opacity: 1 !important;
+  filter: none !important;
+  transform: none !important;
+}
+.cova-home-landing [data-resource-logo-cloud] .cova-provider-details { font-size: 14px; }
+.cova-home-landing [data-resource-logo-cloud] .cova-provider-trademark {
+  margin-top: 16px;
+  max-width: 960px;
+  color: #9ca9bf !important;
+  font-size: 14px;
+  line-height: 1.6;
+}
+@media (max-width: 760px) {
+  .cova-home-landing .cova-provider-resources[data-resource-logo-cloud] { padding: 28px 20px 45px !important; }
+  .cova-home-landing [data-resource-logo-cloud] .cova-provider-grid { gap: 16px; margin-top: 20px; }
+  .cova-home-landing [data-resource-logo-cloud] .cova-provider-logo { padding: 20px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cova-home-landing [data-resource-logo-cloud] .cova-provider-logo {
+    opacity: 1 !important;
+    filter: none !important;
+    transform: none !important;
+  }
+}

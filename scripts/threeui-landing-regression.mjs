@@ -44,19 +44,19 @@ const [packageJson, app, hero, intro, ribbon, shaders, liquidButton, liquidSourc
 ]);
 
 assert.match(packageJson, /"test":\s*"[^"]*test:threeui-landing/, "Aggregate test must include the ThreeUI landing contract.");
-assert.match(packageJson, /"test:threeui-landing":\s*"node scripts\/threeui-landing-regression\.mjs"/);
+assert.match(packageJson, /"test:threeui-landing":\s*"node scripts\/threeui-landing-regression\.mjs && node --test scripts\/space-hero-regression\.mjs"/);
 assert.equal(intro, "", "The rejected site intro component must be deleted.");
 assert.doesNotMatch(app, /CovaSiteIntro|shouldShowCovaSiteIntro|siteIntroActive|setSiteIntroActive/, "The App shell must not retain rejected intro state or auth deferral.");
 assert.doesNotMatch(css, /\.cova-site-intro/, "The rejected intro must leave no dead styling.");
-assert.match(hero, /import \{ CovaRibbonField \} from "\.\/CovaRibbonField";/);
+assert.match(hero, /import "\.\.\/styles\/covaSpaceHero\.css";/);
 assert.match(hero, /import \{ CovaLiquidMetalSignupButton \} from "\.\/CovaLiquidMetalSignupButton";/);
 assert.match(hero, /market-hero-threeui/);
 assert.doesNotMatch(hero, /market-hero-eyebrow|Review what keeps happening|HeroProofPreview/, "Ship only approved left cleanup, never the rejected right preview.");
-assert.match(hero, /market-hero-title mt-0/);
+assert.match(hero, /id="cova-space-title"/);
 assert.match(hero, /<HeroMobileDossier \/>/);
 assert.match(hero, /<MarketingDashboardProof revealStats=\{isSignedIn\} \/>/);
 for (const style of [css, indexCss, await read('src/styles/operatorDossierRevamp.css'), await read('src/styles/cobaltMarket.css')]) assert.doesNotMatch(style, /market-hero-eyebrow/, 'Retired left overline leaves no dead CSS');
-assert.match(hero, /<CovaRibbonField/);
+assert.doesNotMatch(hero, /<CovaRibbonField/, "The approved orbital image replaces the ribbon only in the home hero.");
 assert.equal((hero.match(/<CovaLiquidMetalSignupButton/g) ?? []).length, 2, "The hero must render Liquid Metal for signed-out and signed-in primary states only.");
 assert.match(hero, /<CovaLiquidMetalSignupButton[\s\S]*text="Open dashboard"[\s\S]*onClick=\{\(\) => go\("dashboard"\)\}/, "Signed-in Liquid Metal must open the real dashboard.");
 assert.match(hero, /<CovaLiquidMetalSignupButton[\s\S]*text="Sign up"[\s\S]*onClick=\{\(\) => openAuth\("signup"\)\}/, "Signed-out Liquid Metal must open the real signup sheet.");
@@ -120,7 +120,7 @@ assert.doesNotMatch(vercelConfig, /frame-src 'none'/, "Deployment CSP must not b
 const liquidScriptBodies = [...liquidSource.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].map((match) => match[1]);
 assert.equal(liquidScriptBodies.length, 2, "Liquid Metal CSP must bind both reviewed inline scripts.");
 for (const scriptBody of liquidScriptBodies) {
-  const browserNormalizedBody = scriptBody.replace(/\r\n?/g, "\n");
+  const browserNormalizedBody = scriptBody.split(String.fromCharCode(13,10)).join(String.fromCharCode(10));
   const hash = createHash("sha256").update(browserNormalizedBody).digest("base64");
   assert.match(vercelConfig, new RegExp(`'sha256-${hash.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}'`), "Deployment CSP must allow only the exact reviewed Liquid Metal inline script body.");
 }
@@ -201,7 +201,7 @@ const brandOrbEngine = (brandOrbSourceScripts[brandOrbSourceScripts.length - 1] 
     "if (document.visibilityState !== \"hidden\" && !window.__BRAND_ORB_PAUSED)",
   );
 for (const scriptBody of [brandOrbsControls, brandOrbEngine]) {
-  const browserNormalizedBody = scriptBody.replace(/\r\n?/g, "\n");
+  const browserNormalizedBody = scriptBody.split(String.fromCharCode(13,10)).join(String.fromCharCode(10));
   const hash = createHash("sha256").update(browserNormalizedBody).digest("base64");
   assert.match(vercelConfig, new RegExp(`'sha256-${hash.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}'`), "Deployment CSP must allow only the exact reviewed Brand Orbs script bodies.");
 }

@@ -200,55 +200,21 @@ async function openDashboard(width, height) {
 async function pricingColorState(width, height) {
   await setViewport(width, height);
   await cdp.send("Page.navigate", { url: `${origin}/?pricingColor=${width}x${height}-${Date.now()}#pricing` });
-  await waitFor("document.querySelector('.plan-card-pro') && document.querySelector('.plan-card-pro .plan-primary-action')", 30_000);
+  await waitFor("document.querySelector('[data-minimal-plan=pro] .minimal-plan-action')", 30_000);
   await sleep(250);
-  assert.equal(await evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth"), 0, `${width}x${height} pricing must not overflow horizontally`);
-
-  const state = await evaluate(`(() => {
-    const read = (selector) => {
-      const node = document.querySelector(selector);
-      const style = getComputedStyle(node);
-      return { background: style.backgroundColor, backgroundImage: style.backgroundImage, border: style.borderColor, color: style.color };
-    };
-    return {
-      card: read('.plan-card-pro'),
-      action: read('.plan-card-pro .plan-primary-action'),
-      badge: read('.plan-card-pro .plan-card-badge'),
-      freeBadge: read('.plan-card-free .plan-card-badge'),
-      recommendation: read('.plan-card-pro .plan-recommendation-tab'),
-      feature: read('.plan-card-pro .plan-feature-icon-pro'),
-    };
-  })()`);
-
-  assert.equal(state.card.border, "rgba(79, 125, 255, 0.3)", `${width}px Pro card must use the Cobalt Market border`);
-  assert.match(state.card.backgroundImage, /rgba\(79, 125, 255, 0\.14\)/, `${width}px Pro card must use a restrained cobalt material glow`);
-  assert.doesNotMatch(JSON.stringify(state), /(?:168, 239, 211|185, 245, 223|172, 109, 65|239, 184, 141)/, `${width}px pricing must not retain mint or copper chrome`);
-  assert.deepEqual(state.action, {
-    background: "rgb(79, 125, 255)",
-    backgroundImage: "none",
-    border: "rgba(111, 150, 255, 0.72)",
-    color: "rgb(7, 10, 18)",
-  });
-  assert.deepEqual(state.recommendation, {
-    background: "rgb(79, 125, 255)",
-    backgroundImage: "none",
-    border: "rgba(111, 150, 255, 0.7)",
-    color: "rgb(7, 10, 18)",
-  });
-  assert.equal(state.badge.color, "rgb(111, 150, 255)");
-  assert.equal(state.freeBadge.color, "rgb(170, 180, 189)");
-  assert.deepEqual(state.feature, {
-    background: "rgba(79, 125, 255, 0.08)",
-    backgroundImage: "none",
-    border: "rgba(79, 125, 255, 0.34)",
-    color: "rgb(111, 150, 255)",
-  });
+  assert.equal(await evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth"),0,`${width}x${height} pricing must not overflow horizontally`);
+  const state=await evaluate(`(()=>{const read=sel=>{const s=getComputedStyle(document.querySelector(sel));return{background:s.backgroundColor,backgroundImage:s.backgroundImage,border:s.borderColor,color:s.color}};return{card:read('[data-minimal-plan=pro]'),action:read('[data-minimal-plan=pro] .minimal-plan-action'),freeAction:read('[data-minimal-plan=free] .minimal-plan-action'),glowPointer:getComputedStyle(document.querySelector('[data-minimal-plan=pro] [data-pro-dotted-glow]')).pointerEvents,freeText:document.querySelector('[data-minimal-plan=free]').textContent,proText:document.querySelector('[data-minimal-plan=pro]').textContent}})()`);
+  assert.equal(state.card.background,'rgb(23, 23, 23)');assert.equal(state.card.border,'rgb(54, 54, 56)');
+  assert.equal(state.action.background,'rgb(250, 250, 250)');assert.equal(state.action.color,'rgb(20, 20, 20)');
+  assert.equal(state.freeAction.background,'rgb(32, 32, 32)');assert.equal(state.glowPointer,'none');
+  assert(state.freeText.includes('25 stored trades total'));assert(state.proText.includes('$29'));
+  assert.doesNotMatch(JSON.stringify(state),/(?:168, 239, 211|185, 245, 223|172, 109, 65|239, 184, 141)/,'Approved pricing must not retain mint or copper chrome');
 
   await evaluate("document.activeElement?.blur()");
   let actionFocused = false;
   for (let step = 0; step < 20; step += 1) {
     await press("Tab");
-    actionFocused = await evaluate("document.activeElement?.matches('.plan-card-pro .plan-primary-action')");
+    actionFocused = await evaluate("document.activeElement?.matches('[data-minimal-plan=pro] .minimal-plan-action')");
     if (actionFocused) break;
   }
   assert.equal(actionFocused, true, `${width}px keyboard order must reach the pricing action`);
@@ -326,7 +292,14 @@ async function desktopVisualState() {
   assert.equal(base.background, "rgb(22, 42, 71)", "Astra selected rail must use the approved filled dark-blue surface");
     assert.equal(hovered.background, base.background, "Astra selected fill must survive active+hovered");
 
-  await evaluate("document.querySelector('.workspace-sidebar-search input').focus()");
+  await waitFor("Boolean(document.querySelector('[data-gooey-input] button'))");
+  const searchPoint=await evaluate(`(()=>{const n=document.querySelector('[data-gooey-input] button'),r=n.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2;return{x,y,hit:n.contains(document.elementFromPoint(x,y))}})()`);
+  assert.equal(searchPoint.hit,true,'Actual closed gooey search trigger must receive the trusted click');
+  await cdp.send('Input.dispatchMouseEvent',{type:'mouseMoved',x:searchPoint.x,y:searchPoint.y});
+  await cdp.send('Input.dispatchMouseEvent',{type:'mousePressed',button:'left',clickCount:1,x:searchPoint.x,y:searchPoint.y});
+  await cdp.send('Input.dispatchMouseEvent',{type:'mouseReleased',button:'left',clickCount:1,x:searchPoint.x,y:searchPoint.y});
+  await waitFor("Boolean(document.querySelector('[data-gooey-input] input'))");
+  await evaluate("document.querySelector('[data-gooey-input] input').focus()");
   await press("Tab");
   const focus = await evaluate(`(() => {
     const active = document.activeElement;

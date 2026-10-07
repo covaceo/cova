@@ -97,10 +97,10 @@ window.__sync=sync;window.__rows=trades;window.__rules=rules;window.__setNote=no
 return <><WorkspaceSyncPanel sync={sync}/><fieldset disabled={!sync.allowEdit}><select aria-label='Trade account' value={account} onChange={e=>{if(window.dispatchEvent(new Event('cova:before-account-change',{cancelable:true})))setAccount(e.target.value);}}><option value='all'>All accounts</option><option value='local'>CSV / local history</option></select><button onClick={()=>setTrades(t=>[...t,{id:'manual-'+crypto.randomUUID(),date:'2026-10-01',market:'ES',side:'Long',contracts:1,entry:100,exit:101,pnl:25,risk:0,riskStatus:'missing',setup:'',notes:'Trade A',manual:{accountKey:'local',currency:'USD',pnlBasis:'reported_net'}}])}>Add synthetic trade</button><button onClick={()=>setRules(r=>r.map(x=>x.metric==='maxDailyLoss'?{...x,limit:1250}:x))}>Set loss limit</button><MiniJournal key={owner+account} initialDate='2026-10-01' trades={trades} actions={{draftKey:JSON.stringify([owner,account]),read:date=>readDailyJournalEntry(owner,account,date).note,readEntry:date=>readDailyJournalEntry(owner,account,date),save:(date,n,id)=>saveDailyJournal(owner,account,date,n,id)}}/></fieldset><output id='rows'>{JSON.stringify(trades)}</output><output id='phase'>{sync.phase}</output></>};createRoot(document.getElementById('root')).render(<App/>);`;
 writeFileSync("scripts/.workspace-fixture.tsx", entry);
 const server = await createServer({
-  cacheDir: "node_modules/.vite-workspace-browser",
+  cacheDir: `node_modules/.vite-workspace-browser-${process.env.COVA_WORKSPACE_FIXTURE_PORT || "4179"}`,
   configFile: false,
   define: { "import.meta.env.VITE_WORKSPACE_SYNC_ENABLED": '"true"' },
-  server: { host: "127.0.0.1", port: 4179, strictPort: true },
+  server: { host: "127.0.0.1", port: Number(process.env.COVA_WORKSPACE_FIXTURE_PORT || 4179), strictPort: true },
   plugins: [
     {
       name: "local-workspace-fixture",
@@ -146,4 +146,4 @@ export const getSupabaseClient=()=>({auth:{getSession:async()=>({data:{session:w
   ],
 });
 await server.listen();
-console.log("LOCAL_WORKSPACE_FIXTURE http://127.0.0.1:4179/__workspace");
+console.log(`LOCAL_WORKSPACE_FIXTURE http://127.0.0.1:${process.env.COVA_WORKSPACE_FIXTURE_PORT || 4179}/__workspace`);

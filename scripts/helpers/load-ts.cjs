@@ -11,6 +11,7 @@ module.exports = function loadSource(path) {
     module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX,
   } }).outputText;
   const localRequire = name => {
+    if (name.endsWith('.css')) return {};
     if (!name.startsWith('.')) return require(name);
     const base = resolve(dirname(path), name);
     const candidate = [base, `${base}.ts`, `${base}.tsx`].find(existsSync);

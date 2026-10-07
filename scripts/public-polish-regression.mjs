@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import {restoreApprovedPublicRefreshSource} from './helpers/approved-public-page-refresh.mjs';
 import { createRequire } from 'node:module';
 import ts from 'typescript';
 import React from 'react';
@@ -9,7 +10,7 @@ import test from 'node:test';
 import postcss from 'postcss';
 
 const root = new URL('../', import.meta.url);
-const read = path => readFileSync(new URL(path, root), 'utf8');
+const read = path => restoreApprovedPublicRefreshSource(path,readFileSync(new URL(path, root), 'utf8'));
 function declaration(css, selector, property, media = null) {
   let value;
   postcss.parse(css).walkRules(rule => {

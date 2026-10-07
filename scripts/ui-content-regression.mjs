@@ -170,7 +170,8 @@ assert.match(storyStrip, /PassportHoloCard/, "Homepage proof must use the actual
 assert.match(`${storyStrip}\n${read("src/components/PublicPassportExampleCard.tsx")}`, /Sample data · Not account verified/, "Homepage example must retain truthful data provenance.");
 assert.match(storyStrip, /Diamond rank shown for illustration/, "The marketing example must not imply an earned Diamond account.");
 assert.match(marketingHero, /HeroMobileDossier/, "Homepage should render a dedicated mobile risk-review proof instead of shrinking the desktop mockup.");
-assert.match(marketingHero, /What people are saying/i, "Homepage should retain the permissioned customer review rail.");
+assert.match(marketingHero, /TraderTestimonials/, "Homepage must mount the approved permissioned review component.");
+assert.match(read("src", "components", "landing", "TraderTestimonials.tsx"), /What people are saying/i, "The mounted review component must retain the approved heading.");
 assert.match(marketingHero, /Marcus R\.[\s\S]*Daniel C\.[\s\S]*Jasmine B\./, "Permissioned reviews should retain the supplied names.");
 assert.match(marketingHero, /Cova showed me patterns in my trading I never noticed before\. My risk management has improved a lot\./, "Marcus's permissioned quote should remain exact.");
 assert.match(marketingHero, /It’s more than a trade tracker\. Cova helps me understand why I keep making the same mistakes\./, "Daniel's permissioned quote should remain exact.");

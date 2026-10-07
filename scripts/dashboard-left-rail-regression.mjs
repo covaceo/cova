@@ -28,8 +28,8 @@ assert.match(dashboardPreviewCss, /@media \(max-width: 1023px\)[\s\S]*?\.workspa
 for (const label of ["Review", "Discipline", "Proof"]) {
   assert.match(workspace, new RegExp(`label: \\"${label}\\"`), `workspace rail must include the ${label} group`);
 }
-assert.match(workspace, /workspace-sidebar-search/, "workspace rail must expose the approved compact search control");
-assert.match(workspace, /aria-label="Search workspace"/, "workspace search must have an accessible name");
+assert.match(workspace, /<GooeyInput/, "workspace rail must expose the approved compact search control");
+assert.match(read("src/components/ui/gooey-input.tsx"), /aria-label=\{placeholder === "Search" \? "Search workspace"/, "workspace search must have an accessible name");
 assert.match(workspace, /workspace-risk-status/, "account risk must render as a compact rail status row");
 assert.doesNotMatch(workspace, /workspace-risk-card/, "the oversized account-risk sidebar card must be removed");
 assert.match(workspace, /workspace-account-menu/, "account identity and account actions must remain pinned in a dedicated bottom area");

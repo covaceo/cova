@@ -22,7 +22,7 @@ test('compact preference retains named navigation, active route, risk score, and
     const html=render();
     assert.match(html,/data-sidebar-state="collapsed"/);
     assert.match(html,/aria-label="Expand sidebar"[^>]*aria-expanded="false"/);
-    assert.match(html,/aria-label="Search workspace"[^>]*title="Search workspace"/);
+    assert.match(html,/aria-label="Search workspace"[^>]*aria-expanded="false"/);
     assert.doesNotMatch(html,/<input[^>]*aria-label="Search workspace"/,'compact search cannot leave an invisible focusable input');
     for(const label of ['Risk Desk','Limits','Insights','Passport','Accounts']) assert.ok(html.includes(`aria-label="${label}"`),label);
     assert.equal((html.match(/aria-current="page"/g)||[]).length,1);

@@ -1,0 +1,1649 @@
+import { useAccountNames } from './lib/useAccountNames';
+import { saveManualAccountName } from './lib/accountNames';
+import { newManualAccountKey } from './lib/manualAccountKeys';
+import { ManualAccountManager } from './components/ManualAccountManager';
+import { prepareAccountRemoval, commitAccountRemoval, recoverAccountRemoval, type AccountRemovalPreview } from './lib/accountRemoval';
+import { isManualAccountKey } from './lib/manualAccountKeys';
+import { useWorkspaceSync, WorkspaceSyncPanel } from './components/WorkspaceSync';
+import { persistTradingLedger, recordRecapIngestion } from './lib/recapVerification';
+import { AnimatePresence, motion } from "motion/react";
+import { TradeAccountSelect } from "./components/TradeAccountSelect";
+import {
+  ArrowUpRight,
+  BadgeCheck,
+  Check,
+  Download,
+  FileUp,
+  Fingerprint,
+  Gauge,
+  LockKeyhole,
+  Mail,
+  Upload,
+} from "lucide-react";
+import { type FormEvent, type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import type { Session as SupabaseSession } from "@supabase/supabase-js";
+import {
+  analyze,
+  defaultRules,
+  formatMoney,
+  formatPercent,
+  mergeTradeLedger,
+  parseCsv,
+  RiskRule,
+  sampleTrades,
+  Trade,
+} from "./lib/risk";
+import {
+  consumeSupabasePasswordRecoveryCallback,
+  consumeSupabasePasswordRecoveryEvent,
+  getSupabaseAuthSessionId,
+  getSupabaseClient,
+  getSupabaseUserPlan,
+  hasMismatchedSupabasePasswordRecoveryCallback,
+  hasSupabasePasswordRecoveryCallbackMarker,
+  isSupabaseAuthCallback,
+  lockSupabaseLocally,
+  signOutSupabase,
+  updateSupabasePassword,
+  verifySupabaseRecoveryIdentity,
+} from "./lib/supabaseClient";
+
+import { Hero } from "./components/MarketingHero";
+import { CsvExplainer } from "./components/CsvExplainer";
+import { StoryStrip } from "./components/StoryStrip";
+import { GlassButton } from "./components/GlassButton";
+import { CtaFooter, PlanStrip, SiteFooter } from "./components/PlanSections";
+import { RiskDisclosureFooter, RiskDisclosuresPage } from "./components/RiskDisclosureFooter";
+import { ProviderResources } from "./components/ProviderResources";
+import "./styles/vendorCompliance.css";
+import { RouteFrame } from "./components/LayoutShell";
+import { AuthGate, AuthSheet } from "./components/AuthPanels";
+import { CommunityPage, FeaturesPage, PricingPage, ResourcesPage } from "./components/MarketingPages";
+import { PrivacyPage, SecurityPage, TermsPage } from "./components/LegalPages";
+
+import { Coach, Passport, RulesEngine } from "./components/WorkspaceSections";
+import { Dashboard } from "./components/DashboardView";
+import { ImportDesk } from "./components/ImportDesk";
+import { PassportPlanSync } from "./components/PassportProgress";
+import { Navbar } from "./components/Navbar";
+import { OAuthConnectPage } from "./components/OAuthConnectPage";
+import { Toast } from "./components/Toast";
+import { WorkspaceShell } from "./components/WorkspaceShell";
+import { BillingProvider, openBilling } from "./components/Billing";
+import { UserProfileProvider } from "./components/UserProfile";
+import { getHostedLogoutUrl, isDemoPreviewEnabled } from "./lib/authEnvironment";
+import { CURRENT_PRIVACY_VERSION, CURRENT_TERMS_VERSION } from "./lib/legal";
+import { isImportPrincipalCurrent, toImportPrincipalIdentity, type ImportPrincipal } from "./lib/importGuard";
+import { saveDashboardTradeNote } from "./lib/dashboardTradeNotes";
+import { persistManualNetConfirmation } from "./lib/manualNetConfirmation";
+import { appendManualTrade, confirmManualNet, removeManualTrade, type ManualTradeDraft } from "./lib/manualTrades";
+import { readDailyJournal, readDailyJournalEntry, saveDailyJournal, canAttachJournalTrade } from "./lib/dailyJournal";
+import { BROKER_STATUS_KEY, brokerMessageForStatus, clearBrokerStatus, readBrokerStatus, writeBrokerStatus, type BrokerStatus } from "./lib/brokerStatus";
+
+import { buildFirmConnectUrl, canRedirectToFirmProvider, csvExportGuides, getFirmProviderHost, getPropFirm, type PropFirmId } from "./lib/propFirms";
+import { isProtectedSection, sections, useHashSection, type Section } from "./lib/appRoutes";
+import { clearActiveStorageIdentity, removeCurrentIdentityStorage, scopedStorageKey, setActiveStorageIdentity } from "./lib/storageScope";
+import { getAccountSourceLabel } from "./lib/tradeSourceLabel";
+import { filterTradeAccount, HistorySelectionEpoch, tradeAccountKey } from "./lib/tradovateHistory";
+
+const STORAGE_KEY = "cova-react-risk-os-v2";
+const AUTH_SESSION_KEY = "cova-auth-session-v1";
+const AUTH_INTENT_KEY = "cova-auth-intent-v1";
+const OAUTH_FIRM_KEY = "cova-oauth-firm-v1";
+const DEV_PREVIEW_EMAIL = "dev@cova.local";
+type AuthMode = "login" | "signup";
+type ImportMode = "append" | "replace" | "merge";
+type ToastTone = "info" | "success" | "warning";
+type ToastState = { message: string; tone?: ToastTone } | null;
+
+type PlanTier = "free" | "pro";
+type Entitlements = {
+  canEditAdvancedLimits: boolean;
+  canExportPassport: boolean;
+  canUseDirectSync: boolean;
+  insightLimit: number;
+  maxStoredTrades: number;
+  maxTradesPerImport: number;
+  plan: PlanTier;
+};
+type AuthSession = {
+  email: string;
+  mode: AuthMode;
+  plan: PlanTier;
+  signedInAt: string;
+  source: "local-preview" | "hosted" | "supabase";
+  subscriptionStatus?: "active" | "preview" | "none";
+  userId?: string;
+  providerSessionId?: string;
+};
+
+const planEntitlements: Record<PlanTier, Entitlements> = {
+  free: {
+    canEditAdvancedLimits: false,
+    canExportPassport: false,
+    canUseDirectSync: false,
+    insightLimit: 2,
+    maxStoredTrades: 25,
+    maxTradesPerImport: 25,
+    plan: "free",
+  },
+  pro: {
+    canEditAdvancedLimits: true,
+    canExportPassport: true,
+    canUseDirectSync: true,
+    insightLimit: Number.POSITIVE_INFINITY,
+    maxStoredTrades: Number.POSITIVE_INFINITY,
+    maxTradesPerImport: Number.POSITIVE_INFINITY,
+    plan: "pro",
+  },
+};
+
+export default function App() {
+  const [section, setSection] = useHashSection();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<AuthMode | null>(null);
+  const [authSession, setAuthSession] = useState<AuthSession | null>(() => loadAuthSession());
+  const authSessionRef = useRef(authSession);
+  const [oauthFirmId, setOauthFirmId] = useState<PropFirmId>(() => readOAuthFirmId() ?? "tradovate");
+  const [toast, setToast] = useState<ToastState>(null);
+  const [status, setStatus] = useState("Trade history ready.");
+  const [brokerStatus, setBrokerStatus] = useState<BrokerStatus | null>(() => readBrokerStatus());
+  const [trades, setTrades] = useState<Trade[]>(() => {
+    const savedSession = loadAuthSession();
+    return savedSession ? initialTradesForSession(loadState()?.trades, savedSession.source) : [];
+  });
+  const tradesRef = useRef(trades);
+  const [tradeAccount, setTradeAccount] = useState(() => loadState()?.tradeAccount || "all");
+  const historySelection = useRef(new HistorySelectionEpoch());
+  function selectTradeAccount(account: string) {
+    if (!window.dispatchEvent(new Event('cova:before-account-change', { cancelable: true }))) return;
+    historySelection.current.change();
+    setTradeAccount(account);
+    window.dispatchEvent(new Event("cova:history-selection"));
+  }
+  const [rules, setRules] = useState<RiskRule[]>(() => loadAuthSession() ? loadState()?.rules ?? defaultRules : defaultRules);
+  const [pendingSupabaseSession, setPendingSupabaseSession] = useState<SupabaseSession | null>(null);
+  const [passwordRecoverySession, setPasswordRecoverySession] = useState<SupabaseSession | null>(null);
+  const authGenerationRef = useRef(0);
+  const identitySwitchGenerationRef = useRef(0);
+  const activeProviderUserIdRef = useRef<string | null>(null);
+  const pendingPolicyUserIdRef = useRef<string | null>(null);
+  const passwordRecoveryUserIdRef = useRef<string | null>(null);
+  const passwordRecoverySessionIdRef = useRef<string | null>(null);
+  const providerSessionRef = useRef<SupabaseSession | null>(null);
+  const providerSessionsBlockedRef = useRef(false);
+  const authCeremonyActiveRef = useRef(false);
+  const providerAuthAttemptIdRef = useRef(0);
+  const validatedAccessTokenRef = useRef("");
+  const isSignedIn = Boolean(authSession);
+  const entitlements = planEntitlements[authSession?.plan ?? "free"];
+  const proCheckoutAvailable = isBillingEnabled() || Boolean(getProCheckoutUrl()) || isDemoPreviewEnabled();
+  const visibleTrades = useMemo(() => filterTradeAccount(trades, tradeAccount), [trades, tradeAccount]);
+  const accountNames = useAccountNames(toImportPrincipalIdentity(authSession));
+  const tradeAccounts = useMemo(() => [...new Set([...filterTradeAccount(trades, "all").map(tradeAccountKey), ...Object.keys(accountNames)])], [trades, accountNames]);
+  const analysis = useMemo(() => analyze(visibleTrades, rules), [visibleTrades, rules]);
+  const visibleRiskScore = visibleTrades.length ? analysis.score : null;
+  const hasSampleTrades = visibleTrades.some((trade) => trade.id.startsWith("demo-"));
+  const isSampleReview = hasSampleTrades;
+  const brokerLabel = getAccountSourceLabel(visibleTrades, tradeAccount === "local" || isManualAccountKey(tradeAccount) ? null : brokerStatus);
+  const dashboardPrincipal: ImportPrincipal | null = authSession ? {
+    identity: toImportPrincipalIdentity(authSession),
+    authGeneration: authGenerationRef.current,
+    identityGeneration: identitySwitchGenerationRef.current,
+  } : null;
+
+  useLayoutEffect(() => {
+    authSessionRef.current = authSession;
+  }, [authSession]);
+
+  useEffect(() => {
+    tradesRef.current = trades;
+  }, [trades]);
+
+  const workspaceSync = useWorkspaceSync(authSession?.source === 'supabase' ? authSession.userId : undefined, trades, rules, (nextTrades, nextRules) => {
+    tradesRef.current = nextTrades;
+    setTrades(nextTrades);
+    setRules(nextRules);
+  });
+
+  const currentLedgerFields = useRef({ rules, tradeAccount });
+  currentLedgerFields.current = { rules, tradeAccount };
+
+  useEffect(() => {
+    if (isSignedIn && workspaceSync.allowEdit) {
+      if (!persistTradingLedger(scopedStorageKey(STORAGE_KEY), JSON.stringify({ trades, rules, tradeAccount }))) {
+        setStatus("Browser storage is full or unavailable. Recent changes could not be saved. Export your trades before leaving.");
+      }
+    }
+  }, [authSession?.email, authSession?.userId, isSignedIn, trades, rules, tradeAccount, workspaceSync.allowEdit]);
+
+  useEffect(() => {
+    const refreshBrokerStatus = () => setBrokerStatus(readBrokerStatus());
+    window.addEventListener("cova:broker-status", refreshBrokerStatus);
+    window.addEventListener("storage", refreshBrokerStatus);
+    refreshBrokerStatus();
+    return () => {
+      window.removeEventListener("cova:broker-status", refreshBrokerStatus);
+      window.removeEventListener("storage", refreshBrokerStatus);
+    };
+  }, []);
+
+  useEffect(() => {
+    const client = getSupabaseClient();
+    if (!client) {
+      return;
+    }
+
+    let mounted = true;
+    const initialAuthGeneration = authGenerationRef.current;
+    client.auth.getSession().then(({ data }) => {
+      const session = data.session;
+      if (!mounted || initialAuthGeneration !== authGenerationRef.current || providerSessionsBlockedRef.current) {
+        return;
+      }
+      if (!session?.user?.email) {
+        invalidateProviderSession();
+        lockWorkspace(false);
+        return;
+      }
+      if (
+        passwordRecoveryUserIdRef.current === session.user.id
+        && passwordRecoverySessionIdRef.current === getSupabaseAuthSessionId(session.access_token)
+      ) {
+        authGenerationRef.current += 1;
+        providerSessionRef.current = session;
+        validatedAccessTokenRef.current = "";
+        setPasswordRecoverySession(session);
+        return;
+      }
+      if (rejectMismatchedPasswordRecoverySession(session)) {
+        return;
+      }
+
+      if (consumeSupabasePasswordRecoveryCallback(session.access_token)) {
+        beginPasswordRecovery(session);
+        return;
+      }
+      if (rejectUnprovenSupabaseSession(session)) {
+        return;
+      }
+      startSupabaseValidation(session);
+    }).catch(() => {
+      if (!mounted || initialAuthGeneration !== authGenerationRef.current || providerSessionsBlockedRef.current) return;
+      invalidateProviderSession();
+      handleSupabaseAuthFailure();
+    });
+
+    const { data } = client.auth.onAuthStateChange((event, session) => {
+      if (!session?.user?.email) {
+        if (event === "SIGNED_OUT") {
+          providerSessionsBlockedRef.current = true;
+          passwordRecoveryUserIdRef.current = null;
+          passwordRecoverySessionIdRef.current = null;
+          setPasswordRecoverySession(null);
+        }
+        invalidateProviderSession();
+        lockWorkspace(event === "SIGNED_OUT");
+        return;
+      }
+      if (providerSessionsBlockedRef.current) {
+        return;
+      }
+      if (
+        passwordRecoveryUserIdRef.current === session.user.id
+        && passwordRecoverySessionIdRef.current === getSupabaseAuthSessionId(session.access_token)
+      ) {
+        authGenerationRef.current += 1;
+        providerSessionRef.current = session;
+        validatedAccessTokenRef.current = "";
+        setPasswordRecoverySession(session);
+        return;
+      }
+      if (rejectMismatchedPasswordRecoverySession(session)) {
+        return;
+      }
+
+      if (consumeSupabasePasswordRecoveryEvent(event, session.access_token)) {
+        beginPasswordRecovery(session);
+        return;
+      }
+      const sameKnownUser = activeProviderUserIdRef.current === session.user.id || pendingPolicyUserIdRef.current === session.user.id;
+      if ((event === "TOKEN_REFRESHED" || event === "USER_UPDATED" || event === "SIGNED_IN") && sameKnownUser) {
+        adoptSupabaseSession(session);
+        return;
+      }
+      if (rejectUnprovenSupabaseSession(session)) {
+        return;
+      }
+      prepareSupabaseIdentity(session);
+      window.setTimeout(() => {
+        if (mounted) {
+          startSupabaseValidation(session);
+        }
+      }, 0);
+    });
+
+    return () => {
+      mounted = false;
+      data.subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isDemoPreviewEnabled()) {
+      return;
+    }
+    const params = new URLSearchParams(window.location.search);
+    const authStatus = params.get("covaAuthStatus") || params.get("authStatus");
+    if (authStatus !== "authenticated" && authStatus !== "signed-in") {
+      return;
+    }
+
+    const intent = readAuthIntent();
+    window.history.replaceState(null, "", `${window.location.pathname}${window.location.hash || "#dashboard"}`);
+    completeAuth(intent?.email ?? "", intent?.mode ?? "login", "hosted", "free");
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const broker = params.get("broker");
+    const brokerStatus = params.get("brokerStatus");
+
+    if (broker !== "tradovate" || !brokerStatus) {
+      return;
+    }
+
+    // The callback query is navigation only. ImportDesk independently verifies the owner-bound connection.
+    const message = brokerStatus === "connected" ? "Checking the Tradovate connection before loading recent history." : brokerMessageForStatus(brokerStatus);
+    setStatus(message);
+    announce(message, "info");
+    window.history.replaceState(null, "", `${window.location.pathname}#import`);
+    setSection("import");
+  }, []);
+
+  useEffect(() => {
+    const selector = ".liquid-glass, .liquid-glass-strong";
+    const clamp = (value: number) => Math.max(0, Math.min(100, value));
+    const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
+    if (coarsePointer) {
+      return;
+    }
+
+    let activeGlassSurface: HTMLElement | null = null;
+    let pendingGlassPointer: { clientX: number; clientY: number; surface: HTMLElement } | null = null;
+    let glassFrame: number | null = null;
+    let lastGlassUpdate = 0;
+
+    function applyGlassLight() {
+      glassFrame = null;
+      if (!pendingGlassPointer) {
+        return;
+      }
+      const surface = pendingGlassPointer.surface;
+      const rect = surface.getBoundingClientRect();
+      if (!rect.width || !rect.height) {
+        return;
+      }
+      const x = clamp(((pendingGlassPointer.clientX - rect.left) / rect.width) * 100);
+      const y = clamp(((pendingGlassPointer.clientY - rect.top) / rect.height) * 100);
+      surface.style.setProperty("--glass-x", `${x.toFixed(1)}%`);
+      surface.style.setProperty("--glass-y", `${y.toFixed(1)}%`);
+    }
+
+    function findGlassSurface(target: EventTarget | null) {
+      return target instanceof Element ? target.closest<HTMLElement>(selector) : null;
+    }
+
+    function trackGlassSurface(event: PointerEvent) {
+      activeGlassSurface = findGlassSurface(event.target);
+    }
+
+    function updateGlassLight(event: PointerEvent) {
+      if (!activeGlassSurface) {
+        return;
+      }
+      if (event.timeStamp - lastGlassUpdate < 34) {
+        return;
+      }
+      lastGlassUpdate = event.timeStamp;
+      pendingGlassPointer = { clientX: event.clientX, clientY: event.clientY, surface: activeGlassSurface };
+      if (glassFrame === null) {
+        glassFrame = window.requestAnimationFrame(applyGlassLight);
+      }
+    }
+
+    function clearGlassLight(event: PointerEvent) {
+      if (!activeGlassSurface) {
+        return;
+      }
+      if (event.relatedTarget instanceof Node && activeGlassSurface.contains(event.relatedTarget)) {
+        return;
+      }
+      activeGlassSurface.style.removeProperty("--glass-x");
+      activeGlassSurface.style.removeProperty("--glass-y");
+      activeGlassSurface = null;
+      pendingGlassPointer = null;
+    }
+
+    window.addEventListener("pointerover", trackGlassSurface, { passive: true });
+    window.addEventListener("pointermove", updateGlassLight, { passive: true });
+    window.addEventListener("pointerout", clearGlassLight, { passive: true });
+    return () => {
+      if (glassFrame !== null) {
+        window.cancelAnimationFrame(glassFrame);
+      }
+      window.removeEventListener("pointerover", trackGlassSurface);
+      window.removeEventListener("pointermove", updateGlassLight);
+      window.removeEventListener("pointerout", clearGlassLight);
+    };
+  }, []);
+
+  function go(next: Section) {
+    if (next !== section && !window.dispatchEvent(new Event("cova:before-account-change", {cancelable:true}))) return;
+    setMobileOpen(false);
+    setSection(next);
+  }
+
+  const openAuth = useCallback((mode: AuthMode) => {
+    setAuthMode(mode);
+  }, []);
+
+  function startProviderAuthAttempt() {
+    invalidateProviderSession();
+    providerSessionsBlockedRef.current = false;
+    authCeremonyActiveRef.current = true;
+    providerAuthAttemptIdRef.current += 1;
+    return providerAuthAttemptIdRef.current;
+  }
+
+  function abortProviderAuthAttempt(attemptId: number) {
+    if (attemptId !== providerAuthAttemptIdRef.current) return;
+    providerAuthAttemptIdRef.current += 1;
+    authCeremonyActiveRef.current = false;
+    providerSessionsBlockedRef.current = true;
+    invalidateProviderSession();
+  }
+
+  function isProviderAuthSessionCurrent(session: SupabaseSession, attemptId: number) {
+    const accepted = providerSessionRef.current;
+    return (
+      attemptId === providerAuthAttemptIdRef.current &&
+      !providerSessionsBlockedRef.current &&
+      (authCeremonyActiveRef.current || accepted?.access_token === session.access_token)
+    );
+  }
+
+  async function discardResolvedAuthSession(session: SupabaseSession) {
+    const client = getSupabaseClient();
+    if (!client) {
+      lockSupabaseLocally();
+      return;
+    }
+
+    let matchesLateSession = false;
+    try {
+      const { data } = await client.auth.getSession();
+      if (data.session?.access_token !== session.access_token) return;
+      matchesLateSession = true;
+      authCeremonyActiveRef.current = false;
+      providerSessionsBlockedRef.current = true;
+      invalidateProviderSession();
+      lockSupabaseLocally();
+      await Promise.race([
+        client.auth.signOut({ scope: "local" }),
+        new Promise((resolve) => window.setTimeout(resolve, 3_000)),
+      ]);
+    } finally {
+      if (matchesLateSession) lockSupabaseLocally();
+    }
+  }
+
+  function completeAuth(email: string, mode: AuthMode, source: AuthSession["source"] = "local-preview", planOverride?: PlanTier, userId?: string) {
+    const savedSession = loadAuthSession();
+    const authIntent = readAuthIntent();
+    const emailAddress = email.trim() || "preview@cova.local";
+    const plan = planOverride ?? savedSession?.plan ?? "free";
+    const session: AuthSession = {
+      email: emailAddress,
+      mode,
+      plan,
+      source,
+      signedInAt: new Date().toISOString(),
+      subscriptionStatus: plan === "pro" ? "active" : "none",
+      userId,
+      providerSessionId: source === "supabase" ? getSupabaseAuthSessionId(providerSessionRef.current?.access_token || "") || undefined : undefined,
+    };
+    setActiveStorageIdentity(userId || emailAddress);
+    const saved = loadState();
+    authCeremonyActiveRef.current = false;
+    activeProviderUserIdRef.current = source === "supabase" ? userId || null : null;
+    pendingPolicyUserIdRef.current = null;
+    passwordRecoveryUserIdRef.current = null;
+    passwordRecoverySessionIdRef.current = null;
+    setAuthSession(session);
+    setPendingSupabaseSession(null);
+    setPasswordRecoverySession(null);
+    setBrokerStatus(readBrokerStatus());
+    localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
+    localStorage.removeItem(AUTH_INTENT_KEY);
+    setTrades(initialTradesForSession(saved?.trades, source));
+    setTradeAccount(saved?.tradeAccount || "all");
+    setRules(saved?.rules ?? defaultRules);
+    setStatus("Signed in. Account stats are unlocked.");
+    setAuthMode(null);
+    announce("Signed in. Account stats are unlocked.", "success");
+    const returnSection = authIntent?.returnSection;
+    if (returnSection && isProtectedSection(returnSection)) {
+      setSection(returnSection);
+    } else if (isProtectedSection(section)) {
+      setSection(section);
+    } else {
+      setSection("dashboard");
+    }
+  }
+
+  function invalidateProviderSession() {
+    authGenerationRef.current += 1;
+    providerSessionRef.current = null;
+    validatedAccessTokenRef.current = "";
+  }
+
+  function isCurrentSupabaseTask(session: SupabaseSession, generation: number) {
+    const current = providerSessionRef.current;
+    return (
+      authGenerationRef.current === generation &&
+      current?.access_token === session.access_token &&
+      current?.user.id === session.user.id
+    );
+  }
+
+  function hasDeletionIdentityContinuity(userId: string, identityGeneration: number) {
+    const currentUserId = providerSessionRef.current?.user.id;
+    return (
+      identitySwitchGenerationRef.current === identityGeneration &&
+      (!currentUserId || currentUserId === userId)
+    );
+  }
+
+  function adoptSupabaseSession(session: SupabaseSession) {
+    authGenerationRef.current += 1;
+    providerSessionRef.current = session;
+    validatedAccessTokenRef.current = session.access_token;
+    if (pendingPolicyUserIdRef.current === session.user.id) {
+      setPendingSupabaseSession(session);
+    }
+    if (activeProviderUserIdRef.current === session.user.id && session.user.email) {
+      setAuthSession((current) => current?.source === "supabase" && current.userId === session.user.id
+        ? { ...current, email: session.user.email || current.email, plan: normalizePlan(getSupabaseUserPlan(session.user)) }
+        : current);
+    }
+  }
+
+  function prepareSupabaseIdentity(session: SupabaseSession) {
+    const knownUserId = activeProviderUserIdRef.current || pendingPolicyUserIdRef.current || passwordRecoveryUserIdRef.current;
+    const switchingIdentity = Boolean(knownUserId && knownUserId !== session.user.id);
+    if (switchingIdentity) {
+      identitySwitchGenerationRef.current += 1;
+      authGenerationRef.current += 1;
+      providerAuthAttemptIdRef.current += 1;
+      authCeremonyActiveRef.current = false;
+      providerSessionRef.current = null;
+      validatedAccessTokenRef.current = "";
+      hideWorkspaceForAuthCheck();
+      activeProviderUserIdRef.current = null;
+      pendingPolicyUserIdRef.current = null;
+      passwordRecoveryUserIdRef.current = null;
+      setPendingSupabaseSession(null);
+      setPasswordRecoverySession(null);
+      setAuthMode(null);
+    }
+  }
+
+  function hasOrdinarySupabaseAuthAuthority(session: SupabaseSession) {
+    if (authCeremonyActiveRef.current) return true;
+    if (isSupabaseAuthCallback(session.access_token)) return true;
+    try {
+      const saved = JSON.parse(localStorage.getItem(AUTH_SESSION_KEY) || "null") as Partial<AuthSession> | null;
+      const providerSessionId = getSupabaseAuthSessionId(session.access_token);
+      return (
+        saved?.source === "supabase"
+        && saved.userId === session.user.id
+        && Boolean(providerSessionId)
+        && saved.providerSessionId === providerSessionId
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  function clearOrdinarySupabaseAuthAuthority() {
+    if (typeof localStorage === "undefined") return false;
+    try {
+      localStorage.removeItem(AUTH_SESSION_KEY);
+      localStorage.removeItem(AUTH_INTENT_KEY);
+      return localStorage.getItem(AUTH_SESSION_KEY) === null && localStorage.getItem(AUTH_INTENT_KEY) === null;
+    } catch {
+      return false;
+    }
+  }
+
+  function rejectUnprovenSupabaseSession(session: SupabaseSession) {
+    if (hasOrdinarySupabaseAuthAuthority(session)) return false;
+    lockSupabaseLocally();
+    lockWorkspace(false);
+    window.history.replaceState(null, "", window.location.pathname);
+    window.setTimeout(() => {
+      void discardResolvedAuthSession(session).catch(() => lockSupabaseLocally());
+    }, 0);
+    return true;
+  }
+
+  function rejectMismatchedPasswordRecoverySession(session: SupabaseSession) {
+    const callbackMismatch = hasMismatchedSupabasePasswordRecoveryCallback(session.access_token);
+    const sessionId = getSupabaseAuthSessionId(session.access_token);
+    const activeRecoveryMismatch = Boolean(
+      passwordRecoveryUserIdRef.current
+      && (
+        passwordRecoveryUserIdRef.current !== session.user.id
+        || !sessionId
+        || passwordRecoverySessionIdRef.current !== sessionId
+      )
+    );
+    if (!callbackMismatch && !activeRecoveryMismatch) {
+      return false;
+    }
+    lockSupabaseLocally();
+    lockWorkspace(false);
+    window.history.replaceState(null, "", window.location.pathname);
+    announce("This password reset session changed. Request a new reset link.", "warning");
+    window.setTimeout(() => {
+      void discardResolvedAuthSession(session).catch(() => lockSupabaseLocally());
+    }, 0);
+    return true;
+  }
+
+  function beginPasswordRecovery(session: SupabaseSession) {
+    if (!clearOrdinarySupabaseAuthAuthority()) {
+      lockSupabaseLocally();
+      lockWorkspace(false);
+      window.history.replaceState(null, "", window.location.pathname);
+      announce("This password reset session could not be secured. Request a new reset link.", "warning");
+      window.setTimeout(() => {
+        void discardResolvedAuthSession(session).catch(() => lockSupabaseLocally());
+      }, 0);
+      return;
+    }
+    const recoverySessionId = getSupabaseAuthSessionId(session.access_token);
+    if (!recoverySessionId) {
+      lockSupabaseLocally();
+      lockWorkspace(false);
+      window.history.replaceState(null, "", window.location.pathname);
+      announce("This password reset session could not be secured. Request a new reset link.", "warning");
+      window.setTimeout(() => {
+        void discardResolvedAuthSession(session).catch(() => lockSupabaseLocally());
+      }, 0);
+      return;
+    }
+    authCeremonyActiveRef.current = true;
+    prepareSupabaseIdentity(session);
+    authGenerationRef.current += 1;
+    providerSessionRef.current = session;
+    validatedAccessTokenRef.current = "";
+    activeProviderUserIdRef.current = null;
+    pendingPolicyUserIdRef.current = null;
+    passwordRecoveryUserIdRef.current = session.user.id;
+    passwordRecoverySessionIdRef.current = recoverySessionId;
+    setPendingSupabaseSession(null);
+    setPasswordRecoverySession(session);
+    hideWorkspaceForAuthCheck();
+    setAuthMode("login");
+  }
+
+  function isCurrentPasswordRecoveryTask(session: SupabaseSession, generation: number, identityGeneration: number) {
+    const current = providerSessionRef.current;
+    return (
+      !providerSessionsBlockedRef.current &&
+      authGenerationRef.current === generation &&
+      identitySwitchGenerationRef.current === identityGeneration &&
+      passwordRecoveryUserIdRef.current === session.user.id &&
+      passwordRecoverySessionIdRef.current === getSupabaseAuthSessionId(session.access_token) &&
+      current?.user.id === session.user.id &&
+      current.access_token === session.access_token
+    );
+  }
+
+  async function updatePendingPassword(password: string) {
+    const session = providerSessionRef.current;
+    if (!session?.access_token || !session.user.email || passwordRecoveryUserIdRef.current !== session.user.id) {
+      throw new Error("This password reset session expired. Request a new reset link.");
+    }
+    const generation = authGenerationRef.current;
+    const identityGeneration = identitySwitchGenerationRef.current;
+    const verified = await verifySupabaseRecoveryIdentity(session.access_token, session.user.id);
+    if (verified.error) throw verified.error;
+    if (!isCurrentPasswordRecoveryTask(session, generation, identityGeneration)) {
+      throw new Error("This password reset session changed. Request a new reset link.");
+    }
+    const updated = await updateSupabasePassword(password, session.access_token, session.user.id);
+    if (updated.error) throw updated.error;
+    if (!isCurrentPasswordRecoveryTask(session, generation, identityGeneration)) {
+      throw new Error("This password reset session changed. Sign in with your new password.");
+    }
+  }
+
+  function finishPasswordRecovery() {
+    const session = providerSessionRef.current || passwordRecoverySession;
+    if (!session?.user?.email || passwordRecoveryUserIdRef.current !== session.user.id) {
+      announce("This password reset session expired. Request a new reset link.", "warning");
+      return;
+    }
+    passwordRecoveryUserIdRef.current = null;
+    passwordRecoverySessionIdRef.current = null;
+    setPasswordRecoverySession(null);
+    window.history.replaceState(null, "", window.location.pathname);
+    authCeremonyActiveRef.current = true;
+    startSupabaseValidation(session);
+  }
+
+  function startSupabaseValidation(session: SupabaseSession) {
+    if (providerSessionsBlockedRef.current) {
+      return;
+    }
+    prepareSupabaseIdentity(session);
+    const current = providerSessionRef.current;
+    if (current?.access_token !== session.access_token || current.user.id !== session.user.id) {
+      authGenerationRef.current += 1;
+      providerSessionRef.current = session;
+      validatedAccessTokenRef.current = "";
+    }
+    const generation = authGenerationRef.current;
+    void completeSupabaseAuth(session, generation).catch(() => {
+      if (isCurrentSupabaseTask(session, generation)) {
+        validatedAccessTokenRef.current = "";
+        handleSupabaseAuthFailure();
+      }
+    });
+  }
+
+  async function completeSupabaseAuth(session: SupabaseSession, generation: number) {
+    const accessToken = session.access_token;
+    const user = session.user;
+    if (!accessToken || !user.email || validatedAccessTokenRef.current === accessToken) {
+      return;
+    }
+    validatedAccessTokenRef.current = accessToken;
+
+    try {
+      const consent = await fetchPolicyAcceptance(accessToken, "GET");
+      if (!isCurrentSupabaseTask(session, generation)) {
+        return;
+      }
+      if (!consent.accepted) {
+        hideWorkspaceForAuthCheck();
+        pendingPolicyUserIdRef.current = user.id;
+        setPendingSupabaseSession(session);
+        setAuthMode("signup");
+        announce("Confirm the current Terms and Privacy Policy to finish account setup.", "warning");
+        return;
+      }
+
+      pendingPolicyUserIdRef.current = null;
+      setPendingSupabaseSession(null);
+      const authIntent = readAuthIntent();
+      completeAuth(user.email, authIntent?.mode ?? "login", "supabase", normalizePlan(getSupabaseUserPlan(user)), user.id);
+    } catch (error) {
+      if (isCurrentSupabaseTask(session, generation)) {
+        validatedAccessTokenRef.current = "";
+      }
+      throw error;
+    }
+  }
+
+  async function acceptPendingPolicies() {
+    const session = pendingSupabaseSession;
+    if (!session?.access_token || !session.user.email) {
+      throw new Error("The verified member session expired. Sign in again.");
+    }
+    const generation = authGenerationRef.current;
+    if (!isCurrentSupabaseTask(session, generation)) {
+      throw new Error("The verified member session changed. Sign in again.");
+    }
+    const consent = await fetchPolicyAcceptance(session.access_token, "POST");
+    if (!isCurrentSupabaseTask(session, generation) || !consent.accepted) {
+      throw new Error("Cova could not record policy acceptance.");
+    }
+    pendingPolicyUserIdRef.current = null;
+    setPendingSupabaseSession(null);
+    validatedAccessTokenRef.current = session.access_token;
+    const authIntent = readAuthIntent();
+    completeAuth(session.user.email, authIntent?.mode ?? "signup", "supabase", normalizePlan(getSupabaseUserPlan(session.user)), session.user.id);
+  }
+
+  async function closeAuthSheet() {
+    if (pendingSupabaseSession || passwordRecoverySession || authCeremonyActiveRef.current || hasSupabasePasswordRecoveryCallbackMarker()) {
+      passwordRecoveryUserIdRef.current = null;
+      setPasswordRecoverySession(null);
+      lockSupabaseLocally();
+      lockWorkspace(false);
+      const result = await signOutSupabase();
+      if (result.error) {
+        announce("Signed out on this device. Server session revocation could not be confirmed.", "warning");
+      }
+      return;
+    }
+    setAuthMode(null);
+  }
+
+  async function inspectPendingProviders() {
+    const session = pendingSupabaseSession;
+    if (!session?.access_token) {
+      throw new Error("The verified member session expired. Sign in again.");
+    }
+    const generation = authGenerationRef.current;
+    if (!isCurrentSupabaseTask(session, generation)) {
+      throw new Error("The verified member session changed. Sign in again.");
+    }
+    const response = await fetch("/api/connectors/status", {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+      signal: AbortSignal.timeout(5_000),
+    }).catch(() => null);
+    const payload = response ? await response.json().catch(() => ({})) as { providers?: Array<{ provider?: string }> } : {};
+    if (!isCurrentSupabaseTask(session, generation) || !response?.ok || !Array.isArray(payload.providers)) {
+      throw new Error("Cova could not inspect saved provider credentials.");
+    }
+    const connected = [...new Set(payload.providers.map((provider) => String(provider.provider || "").trim()).filter(Boolean))];
+    announce(connected.length ? `Saved provider credentials: ${connected.join(", ")}.` : "No saved provider credentials were found.", "info");
+  }
+
+  async function disconnectPendingProviders() {
+    const session = pendingSupabaseSession;
+    if (!session?.access_token) {
+      throw new Error("The verified member session expired. Sign in again.");
+    }
+    const generation = authGenerationRef.current;
+    if (!isCurrentSupabaseTask(session, generation)) {
+      throw new Error("The verified member session changed. Sign in again.");
+    }
+    const response = await fetch("/api/connectors/disconnect", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ provider: "all" }),
+      signal: AbortSignal.timeout(5_000),
+    }).catch(() => null);
+    if (!isCurrentSupabaseTask(session, generation) || !response?.ok) {
+      throw new Error("Cova could not confirm provider credential deletion.");
+    }
+    announce("Saved provider credentials were disconnected.", "success");
+  }
+
+  async function deletePendingAccount() {
+    const session = pendingSupabaseSession;
+    if (!session?.access_token || !session.user.id) {
+      throw new Error("The verified member session expired. Sign in again.");
+    }
+    const confirmed = window.confirm("Permanently delete this Cova account, stored connector tokens, and this account's Cova data on this device? This cannot be undone.");
+    if (!confirmed) {
+      return;
+    }
+    const deletionIdentityGeneration = identitySwitchGenerationRef.current;
+    authGenerationRef.current += 1;
+    const response = await fetch("/api/account/delete", {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${session.access_token}` },
+      signal: AbortSignal.timeout(10_000),
+    }).catch(() => null);
+    const data = response ? await response.json().catch(() => ({})) as { deleted?: boolean; error?: string } : {};
+    if (!response?.ok || !data.deleted) {
+      throw new Error(data.error || "Account deletion could not be completed.");
+    }
+    if (!hasDeletionIdentityContinuity(session.user.id, deletionIdentityGeneration)) {
+      announce("Account deleted. The browser identity changed, so its local data was left untouched.", "warning");
+      return;
+    }
+    setActiveStorageIdentity(session.user.id);
+    const deviceCleanupConfirmed = tryPurgeCurrentAccountDeviceData();
+    lockSupabaseLocally();
+    lockWorkspace(false);
+    await settleWithin(signOutSupabase(), 5_000).catch(() => undefined);
+    announce(deviceCleanupConfirmed ? "Your Cova account and connector records were deleted." : "Account deleted. Browser storage cleanup could not be fully confirmed.", deviceCleanupConfirmed ? "success" : "warning");
+  }
+
+  function handleSupabaseAuthFailure() {
+    hideWorkspaceForAuthCheck();
+    announce("Account verification is temporarily unavailable. Reload to retry.", "warning");
+  }
+
+  function hideWorkspaceForAuthCheck() {
+    setAuthSession(null);
+    setBrokerStatus(null);
+    setMobileOpen(false);
+    setTrades([]);
+    setRules(defaultRules);
+    setStatus("Account verification pending.");
+    if (isProtectedSection(section)) {
+      setSection("overview");
+    }
+  }
+
+  function purgeCurrentAccountDeviceData() {
+    removeCurrentIdentityStorage();
+    localStorage.removeItem("cova-dashboard-focus-v1");
+    localStorage.removeItem("cova-dashboard-range-v1");
+  }
+
+  function tryPurgeCurrentAccountDeviceData() {
+    try {
+      purgeCurrentAccountDeviceData();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function lockWorkspace(announceChange = true) {
+    providerSessionsBlockedRef.current = true;
+    authCeremonyActiveRef.current = false;
+    providerAuthAttemptIdRef.current += 1;
+    invalidateProviderSession();
+    activeProviderUserIdRef.current = null;
+    pendingPolicyUserIdRef.current = null;
+    passwordRecoveryUserIdRef.current = null;
+    passwordRecoverySessionIdRef.current = null;
+    try {
+      localStorage.removeItem(AUTH_SESSION_KEY);
+      localStorage.removeItem(AUTH_INTENT_KEY);
+      localStorage.removeItem(OAUTH_FIRM_KEY);
+      clearActiveStorageIdentity();
+    } catch {
+      // State is still locked below when browser storage is unavailable.
+    }
+    setAuthSession(null);
+    setPendingSupabaseSession(null);
+    setPasswordRecoverySession(null);
+    setBrokerStatus(null);
+    setAuthMode(null);
+    setMobileOpen(false);
+    setTrades([]);
+    setRules(defaultRules);
+    setStatus("Signed out. Account stats are hidden.");
+    if (announceChange) {
+      announce("Signed out. Account stats are hidden.", "info");
+    }
+    if (isProtectedSection(section)) {
+      setSection("overview");
+    }
+  }
+
+  async function signOut() {
+    const source = authSession?.source;
+    const accessToken = providerSessionRef.current?.access_token || pendingSupabaseSession?.access_token || "";
+    lockSupabaseLocally();
+    lockWorkspace(true);
+
+    let cleanupFailed = false;
+    if (source !== "local-preview") {
+      if (accessToken) {
+        const response = await fetch("/api/connectors/disconnect", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ provider: "all" }),
+          signal: AbortSignal.timeout(5_000),
+        }).catch(() => null);
+        cleanupFailed ||= !response?.ok;
+      } else {
+        cleanupFailed = true;
+      }
+    }
+
+    const signOutResult = await settleWithin(signOutSupabase(), 5_000).catch(() => ({ error: new Error("Sign-out timed out.") }));
+    cleanupFailed ||= Boolean(signOutResult.error);
+    const logoutUrl = getHostedLogoutUrl();
+    if (logoutUrl) {
+      const response = await fetch(logoutUrl, {
+        method: "POST",
+        credentials: "include",
+        signal: AbortSignal.timeout(5_000),
+      }).catch(() => null);
+      cleanupFailed ||= !response?.ok;
+    }
+    if (cleanupFailed) {
+      announce("Signed out locally. Remote session or connector cleanup could not be fully confirmed.", "warning");
+    }
+  }
+
+  async function deleteAccount() {
+    if (!authSession) {
+      return;
+    }
+    const deletingUserId = authSession.userId;
+    const deletionSession = providerSessionRef.current;
+    const confirmed = window.confirm("Permanently delete your Cova account, stored connector tokens, and this device's Cova data? This cannot be undone.");
+    if (!confirmed) {
+      return;
+    }
+
+    if (authSession.source === "local-preview") {
+      const deviceCleanupConfirmed = tryPurgeCurrentAccountDeviceData();
+      await signOut();
+      announce(deviceCleanupConfirmed ? "Demo account data was removed from this device." : "Demo account closed. Browser storage cleanup could not be fully confirmed.", deviceCleanupConfirmed ? "success" : "warning");
+      return;
+    }
+
+    if (
+      !deletingUserId ||
+      !deletionSession?.access_token ||
+      deletionSession.user.id !== deletingUserId ||
+      validatedAccessTokenRef.current !== deletionSession.access_token
+    ) {
+      hideWorkspaceForAuthCheck();
+      announce("The verified account changed. Reload before trying account deletion again.", "warning");
+      return;
+    }
+
+    const deletionIdentityGeneration = identitySwitchGenerationRef.current;
+    authGenerationRef.current += 1;
+
+    try {
+      const response = await fetch("/api/account/delete", {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${deletionSession.access_token}` },
+        signal: AbortSignal.timeout(10_000),
+      });
+      const data = await response.json() as { deleted?: boolean; error?: string };
+      if (!response.ok || !data.deleted) {
+        throw new Error(data.error || "Account deletion could not be completed.");
+      }
+      if (!hasDeletionIdentityContinuity(deletingUserId, deletionIdentityGeneration)) {
+        announce("Account deleted. The browser identity changed, so its local data was left untouched.", "warning");
+        return;
+      }
+      setActiveStorageIdentity(deletingUserId);
+      const deviceCleanupConfirmed = tryPurgeCurrentAccountDeviceData();
+      lockSupabaseLocally();
+      lockWorkspace(false);
+      const remoteCleanup = await settleWithin(signOutSupabase(), 5_000).catch(() => ({ error: new Error("Sign-out timed out.") }));
+      const cleanupConfirmed = deviceCleanupConfirmed && !remoteCleanup.error;
+      announce(cleanupConfirmed ? "Your Cova account and connector records were deleted." : "Account deleted. Browser or remote session cleanup could not be fully confirmed.", cleanupConfirmed ? "success" : "warning");
+    } catch (error) {
+      announce(error instanceof Error ? error.message : "Account deletion could not be completed.", "warning");
+    }
+  }
+
+  function signInAsDevPreview() {
+    if (!isDemoPreviewEnabled()) {
+      openAuth("login");
+      return;
+    }
+    completeAuth(DEV_PREVIEW_EMAIL, "login", "local-preview", "pro");
+  }
+
+  function upgradeToPro() {
+    if (isBillingEnabled()) {
+      if (authSession?.source !== "supabase") { openAuth("signup"); return; }
+      openBilling(); return;
+    }
+    const checkoutUrl = getProCheckoutUrl();
+    if (!checkoutUrl && !isDemoPreviewEnabled()) {
+      announce("Pro checkout is not open yet. Keep using Free while billing is prepared.", "warning");
+      return;
+    }
+
+    if (!authSession) {
+      openAuth("signup");
+      announce("Create a free account first, then choose Pro.", "info");
+      return;
+    }
+
+    if (checkoutUrl) {
+      window.location.assign(checkoutUrl);
+      return;
+    }
+
+    if (isDemoPreviewEnabled()) {
+      const nextSession: AuthSession = {
+        ...authSession,
+        plan: "pro",
+        subscriptionStatus: "preview",
+      };
+      setAuthSession(nextSession);
+      localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(nextSession));
+      announce("Pro preview unlocked locally.", "success");
+      return;
+    }
+
+    announce("Pro checkout is not configured yet. Keep using the free preview for now.", "warning");
+  }
+
+  function openFirmOAuth(firmId: PropFirmId) {
+    if (firmId === "topstepx") {
+      localStorage.removeItem(OAUTH_FIRM_KEY);
+      setStatus("TopstepX is available through CSV import only.");
+      announce("TopstepX is CSV-only. Upload an export from Trade History.", "info");
+      go("import");
+      return;
+    }
+    if (!entitlements.canUseDirectSync) {
+      setStatus("Direct account sync is a Pro feature. CSV import remains available on Free.");
+      announce("Direct account sync is a Pro feature. Use CSV import or review Pro.", "warning");
+      go("pricing");
+      return;
+    }
+    const firm = getPropFirm(firmId);
+    setOauthFirmId(firm.id);
+    localStorage.setItem(OAUTH_FIRM_KEY, firm.id);
+    setStatus(`Opening ${firm.name} read-only sign-in.`);
+    announce(`Opening ${firm.name} read-only sign-in.`, "info");
+    go("oauth");
+  }
+
+  function completeFirmOAuth(firmId: PropFirmId) {
+    if (firmId === "topstepx") {
+      localStorage.removeItem(OAUTH_FIRM_KEY);
+      setStatus("TopstepX is available through CSV import only.");
+      announce("TopstepX direct linking is unavailable. Use CSV import.", "warning");
+      go("import");
+      return;
+    }
+    const firm = getPropFirm(firmId);
+    const nextStatus: BrokerStatus = {
+      provider: firm.name,
+      status: "connected",
+      connected: true,
+      connectionId: `dev-${firm.id}-${Date.now()}`,
+      message: `${firm.name} linked in read-only preview. Dashboard is now showing the account source Cova will review.`,
+      updatedAt: new Date().toISOString(),
+    };
+    localStorage.setItem(BROKER_STATUS_KEY, JSON.stringify(nextStatus));
+    setBrokerStatus(nextStatus);
+    window.dispatchEvent(new CustomEvent("cova:broker-status"));
+    setStatus(nextStatus.message);
+    announce(`${firm.name} connected read-only.`, "success");
+    go("dashboard");
+  }
+
+  function cancelFirmOAuth() {
+    announce("Connection cancelled. You can still upload a trade export.", "info");
+    go("import");
+  }
+
+  function announce(message: string, tone: ToastTone = "info") {
+    setToast({ message, tone });
+    window.setTimeout(() => setToast((current) => current?.message === message ? null : current), 2800);
+  }
+
+  function getCurrentImportPrincipal(): ImportPrincipal | null {
+    if (!workspaceSync.canEditNow()) return null;
+    const session = authSessionRef.current;
+    const identity = toImportPrincipalIdentity(session);
+    if (!identity) return null;
+    return {
+      authGeneration: authGenerationRef.current,
+      identity,
+      identityGeneration: identitySwitchGenerationRef.current,
+    };
+  }
+
+  const dashboardSelectionCurrent = historySelection.current.capture();
+  const journalActions = {
+    accountStorage: workspaceSync.enabled && workspaceSync.phase !== "local",
+    draftKey: dashboardPrincipal ? JSON.stringify([dashboardPrincipal.identity, tradeAccount]) : undefined,
+    read: (date: string) => dashboardPrincipal && dashboardSelectionCurrent() && isImportPrincipalCurrent(dashboardPrincipal,getCurrentImportPrincipal()) ? readDailyJournal(dashboardPrincipal.identity,tradeAccount,date) : "",
+    readEntry: (date: string) => dashboardPrincipal && dashboardSelectionCurrent() && isImportPrincipalCurrent(dashboardPrincipal,getCurrentImportPrincipal()) ? readDailyJournalEntry(dashboardPrincipal.identity,tradeAccount,date) : {note:"",tradeId:null},
+    save: (date: string, note: string, tradeId?: string | null) => Boolean(dashboardPrincipal && dashboardSelectionCurrent() && isImportPrincipalCurrent(dashboardPrincipal,getCurrentImportPrincipal()) && canAttachJournalTrade(tradesRef.current,tradeAccount,tradeId) && saveDailyJournal(dashboardPrincipal.identity,tradeAccount,date,note,tradeId)),
+  };
+  function createManualAccount(name: string) {
+    const principal = getCurrentImportPrincipal();
+    if (!isImportPrincipalCurrent(dashboardPrincipal, principal)) return "Your account changed. Reopen Accounts.";
+    if (!window.dispatchEvent(new Event('cova:before-account-change', { cancelable: true }))) return "Keep or discard your open draft first.";
+    const key = newManualAccountKey();
+    if (!saveManualAccountName(principal!.identity, key, name)) return "Use a unique account name and check that browser storage is available.";
+    historySelection.current.change(); setTradeAccount(key); window.dispatchEvent(new Event('cova:history-selection')); go('dashboard');
+    return null;
+  }
+  function renameManualAccount(key: string, name: string) {
+    const principal = getCurrentImportPrincipal();
+    if (!isImportPrincipalCurrent(dashboardPrincipal, principal) || (key !== 'local' && !tradeAccounts.includes(key))) return "Your account changed. Reopen Accounts.";
+    return saveManualAccountName(principal!.identity, key, name) ? null : "Use a unique account name and check that browser storage is available.";
+  }
+  function prepareRemoveAccount(key: string) {
+    const principal = getCurrentImportPrincipal();
+    if (!isImportPrincipalCurrent(dashboardPrincipal, principal)) return null;
+    const preview = prepareAccountRemoval(principal!.identity, key, tradesRef.current, [...new Set([...tradeAccounts, "local"])]);
+    return preview ? { ...preview, principal: principal! } : null;
+  }
+  function removeTradingAccount(preview: AccountRemovalPreview) {
+    const principal = getCurrentImportPrincipal();
+    if (!isImportPrincipalCurrent(preview.principal || null, principal)) return "Your account changed or storage is busy. Reopen Accounts after saving finishes.";
+    if (!window.dispatchEvent(new Event('cova:before-account-change', { cancelable: true }))) return "Keep or discard your open draft first.";
+    const result = commitAccountRemoval(principal!.identity, preview, tradesRef.current, rules, tradeAccount);
+    if (result.error) return result.error;
+    historySelection.current.change();
+    window.dispatchEvent(new Event('cova:history-selection'));
+    tradesRef.current = result.trades; setTrades(result.trades); setTradeAccount(result.selection);
+    announce("Account history removed from Cova.", "success");
+    return null;
+  }
+  function addManualTrade(draft: ManualTradeDraft, account: string) {
+    const result = appendManualTrade(tradesRef.current,draft,account,entitlements.maxStoredTrades,dashboardPrincipal,getCurrentImportPrincipal(),dashboardSelectionCurrent(),tradeAccounts);
+    if (result.error) return result.error;
+    try { localStorage.setItem(scopedStorageKey(STORAGE_KEY),JSON.stringify({trades:result.trades,rules,tradeAccount:account})); }
+    catch { return "Could not save on this browser. Free storage and try again."; }
+    tradesRef.current=result.trades;setTrades(result.trades);selectTradeAccount(account);
+    announce("Manual trade saved. Broker records are unchanged.","success");return null;
+  }
+  function confirmManualNetRows(expectedRows: readonly Trade[], account: string) {
+    if (account !== tradeAccount) return "Account changed. Reopen the recap.";
+    const result = confirmManualNet(tradesRef.current, expectedRows, account, dashboardPrincipal, getCurrentImportPrincipal(), dashboardSelectionCurrent());
+    if (result.error) return result.error;
+    const error = persistManualNetConfirmation(dashboardPrincipal?.identity || "", account, expectedRows, scopedStorageKey(STORAGE_KEY));
+    if (error) return error;
+    announce("Selected manual amounts confirmed as net. Amounts are unchanged.", "success");
+    return null;
+  }
+  function deleteManualTrade(id: string) {
+    const next=removeManualTrade(tradesRef.current,id,dashboardPrincipal,getCurrentImportPrincipal(),dashboardSelectionCurrent());
+    if (!next) return false;
+    try { localStorage.setItem(scopedStorageKey(STORAGE_KEY),JSON.stringify({trades:next,rules,tradeAccount})); } catch { return false; }
+    tradesRef.current=next;setTrades(next);announce("Manual entry removed.","success");return true;
+  }
+
+  function saveTradeNote(id: string, notes: string) {
+    const nextTrades = saveDashboardTradeNote(tradesRef.current, id, notes, dashboardPrincipal, getCurrentImportPrincipal());
+    if (!nextTrades) return false;
+    const key = scopedStorageKey(STORAGE_KEY);
+    const ledger = JSON.stringify({ trades: nextTrades, ...currentLedgerFields.current });
+    let persisted = false;
+    try { persisted = persistTradingLedger(key, ledger) && localStorage.getItem(key) === ledger; } catch { /* Draft remains recoverable. */ }
+    if (!persisted) {
+      announce("Trade note not saved. Keep the draft and free browser storage.", "warning");
+      return false;
+    }
+    tradesRef.current = nextTrades;
+    setTrades(nextTrades);
+    announce("Trade note saved to this account on this browser.", "success");
+    return true;
+  }
+
+  function prepareImportCsv() {
+    const principalAtStart = getCurrentImportPrincipal();
+    if (!principalAtStart) return null;
+    const selectionCurrent = historySelection.current.capture();
+    const isCurrent = () => selectionCurrent() && isImportPrincipalCurrent(principalAtStart, getCurrentImportPrincipal());
+    return {
+      isCurrent,
+      commit: (text: string, mode: ImportMode = "append") => {
+        if (!isCurrent()) {
+          announce("Import canceled because the active Cova account changed.", "warning");
+          return null;
+        }
+        return importCsv(text, mode);
+      },
+      commitBroker: (text: string) => {
+        if (!isCurrent()) return null;
+        return importCsv(text, "merge", "broker");
+      },
+      scopeKey: principalAtStart.identity,
+      commitHistory: (text: string, accountId: string, coverage: string) => {
+        if (!isCurrent() || authSessionRef.current?.plan !== "pro") return null;
+        const receipt = importCsv(text, "merge", "broker");
+        if (receipt) {
+          selectTradeAccount(`Tradovate:${accountId}`);
+          setStatus(`${receipt.added} new, ${receipt.corrected} corrected, ${receipt.unchanged} unchanged. ${coverage}`);
+        }
+        return receipt;
+      },
+    };
+  }
+
+  function importCsv(text: string, mode: ImportMode = "append", origin: "csv" | "broker" = "csv") {
+    if (!isSignedIn) {
+      openAuth("login");
+      announce("Sign in before importing trades.", "warning");
+      return null;
+    }
+    const imported = parseCsv(text);
+    if (!imported.length) {
+      setStatus("No valid trade rows found.");
+      announce("No valid trade rows found.", "warning");
+      return null;
+    }
+    const currentTrades = tradesRef.current;
+    const existingCount = mode === "replace" ? 0 : currentTrades.length;
+    const slots = Number.isFinite(entitlements.maxStoredTrades) ? Math.max(0, entitlements.maxStoredTrades - existingCount) : imported.length;
+    const importLimit = Number.isFinite(entitlements.maxTradesPerImport) ? entitlements.maxTradesPerImport : imported.length;
+    const allowedCount = Math.min(imported.length, slots, importLimit);
+
+    if (allowedCount <= 0) {
+      announce(`Free accounts hold ${entitlements.maxStoredTrades} trades. Upgrade to keep adding history.`, "warning");
+      setStatus("Free trade limit reached.");
+      return null;
+    }
+
+    const acceptedTrades = imported.slice(0, allowedCount);
+    const mergeResult = mode === "merge" ? mergeTradeLedger(currentTrades, acceptedTrades) : null;
+    const nextTrades = mode === "replace" ? acceptedTrades : mergeResult?.trades ?? [...currentTrades, ...acceptedTrades];
+    const sources = [...new Set(acceptedTrades.map(tradeAccountKey))];
+    const nextAccount = sources.length === 1 ? sources[0] : "all";
+    // Commit the ledger before optional provenance or any in-memory success state.
+    if (!persistTradingLedger(scopedStorageKey(STORAGE_KEY), JSON.stringify({ trades: nextTrades, rules, tradeAccount: nextAccount }))) {
+      setStatus("Import was not saved: browser storage is full or unavailable. Existing trade history is unchanged.");
+      announce("Import could not be saved. Free browser storage and try again.", "warning");
+      return null;
+    }
+    tradesRef.current = nextTrades;
+    setTrades(nextTrades);
+    recordRecapIngestion(toImportPrincipalIdentity(authSessionRef.current), acceptedTrades, origin);
+    selectTradeAccount(nextAccount);
+    if (mode === "replace" && brokerStatus?.mode === "ephemeral") {
+      clearBrokerStatus();
+      setBrokerStatus(null);
+    }
+
+    const limited = acceptedTrades.length < imported.length;
+    const receipt = mergeResult?.receipt ?? { added: acceptedTrades.length, corrected: 0, unchanged: 0 };
+    const resultLabel = mode === "merge"
+      ? `${receipt.added} new, ${receipt.corrected} corrected, ${receipt.unchanged} unchanged`
+      : `${acceptedTrades.length} trade${acceptedTrades.length === 1 ? "" : "s"}${limited ? " for the free preview" : ""}`;
+    setStatus(`${mode === "replace" ? "Replaced trade history with" : mode === "merge" ? "Synced" : "Imported"} ${resultLabel}.`);
+    announce(limited ? `Free preview imported ${acceptedTrades.length}/${imported.length} rows.` : mode === "merge" ? `History sync: ${resultLabel}.` : `${mode === "replace" ? "Trade history replaced" : "Trades imported"}: ${acceptedTrades.length} row${acceptedTrades.length === 1 ? "" : "s"}.`, limited ? "warning" : "success");
+    go("dashboard");
+    return receipt;
+  }
+
+  function openPassport() {
+    if (!isSignedIn) {
+      go("passport");
+      openAuth("login");
+      announce("Sign in to open your Risk Passport.", "info");
+      return;
+    }
+    go("passport");
+  }
+
+  return (
+    <BillingProvider enabled={isBillingEnabled()} key={authSession?.userId || "signed-out"} ownerId={authSession?.source === "supabase" ? authSession.userId : undefined} onPlan={(owner, plan) => { if(authSessionRef.current?.userId === owner) setAuthSession(current => current?.userId === owner ? {...current, plan, subscriptionStatus:plan === "pro" ? "active" : "none"} : current); }}>
+    <UserProfileProvider userId={isSignedIn && authSession?.source === "supabase" ? authSession.userId : undefined} email={authSession?.email}>
+    <div className={`min-h-screen bg-black text-white ${isProtectedSection(section) ? "oa-dashboard-app" : ""}`}>
+      <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_70%_20%,rgba(255,255,255,0.055),transparent_30%),linear-gradient(180deg,#000,rgba(1,9,6,0.94))]" />
+      <div className="pointer-events-none fixed inset-0 z-0 bg-grid opacity-70" />
+
+      <Navbar
+        section={section}
+        go={go}
+        openAuth={openAuth}
+        mobileOpen={mobileOpen}
+        setMobileOpen={setMobileOpen}
+        authSession={authSession}
+        riskScore={visibleRiskScore}
+        signOut={signOut}
+        deleteAccount={deleteAccount}
+      />
+      <AuthSheet
+        authIntentKey={AUTH_INTENT_KEY}
+        mode={authMode}
+        setMode={openAuth}
+        close={() => { void closeAuthSheet(); }}
+        onAuthenticated={completeAuth}
+        onAuthAttemptAborted={abortProviderAuthAttempt}
+        onAuthSessionIsCurrent={isProviderAuthSessionCurrent}
+        onAuthAttemptStarted={startProviderAuthAttempt}
+        onDeleteRestrictedAccount={deletePendingAccount}
+        onDevPreview={signInAsDevPreview}
+        onDiscardAuthSession={discardResolvedAuthSession}
+        onDisconnectProviders={disconnectPendingProviders}
+        onInspectProviders={inspectPendingProviders}
+        onPasswordRecovered={finishPasswordRecovery}
+        onPolicyAccepted={acceptPendingPolicies}
+        onUpdatePassword={updatePendingPassword}
+        passwordRecovery={Boolean(passwordRecoverySession)}
+        pendingPolicyConfirmation={Boolean(pendingSupabaseSession)}
+      />
+      <Toast toast={toast} />
+      {isSignedIn&&authSession?.userId&&workspaceSync.canPublishPlan&&<PassportPlanSync key={authSession.userId} owner={authSession.userId} rules={rules}/>}
+
+      <main className="relative z-10">
+        {isProtectedSection(section) ? (
+          isSignedIn ? (
+            <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={visibleRiskScore} section={section} signOut={signOut}>
+              <WorkspaceSyncPanel sync={workspaceSync} />
+              {workspaceSync.hasWorkspace && <div {...(!workspaceSync.allowEdit ? { inert: '' } as any : {})} aria-busy={!workspaceSync.allowEdit}>
+              {tradeAccounts.some(account => account !== "local") && section !== "oauth" && section !== "dashboard" && section !== "rules" && section !== "coach" && section !== "passport" && section !== "import" && (
+                <div className="mx-4 mt-24 sm:mx-6 lg:mt-4" data-account-switcher>
+                  <TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} value={tradeAccount} onChange={selectTradeAccount} />
+
+                </div>
+              )}
+              {section === "dashboard" && <Dashboard noteDraftOwner={dashboardPrincipal?.identity} key={`${authSession?.userId || authSession?.email}:${tradeAccount}`} analysis={analysis} rules={rules} go={go} accountControl={ <div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={[...new Set([...tradeAccounts,"local"])]} value={tradeAccount} onChange={selectTradeAccount} /></div>} onSaveTradeNote={saveTradeNote} journalActions={journalActions} onConfirmManualNet={confirmManualNetRows} onAddManualTrade={addManualTrade} onDeleteManualTrade={deleteManualTrade} manualAccounts={[...new Set([...tradeAccounts,"local"])]} selectedAccount={tradeAccount} rithmicSyncAvailable={brokerStatus?.provider === "Rithmic" && brokerStatus.status === "imported"} />}
+              {section === "import" && <ImportDesk accountManager={<ManualAccountManager accounts={[...new Set([...tradeAccounts,"local"])]} names={accountNames} onCreate={createManualAccount} onRename={renameManualAccount} onPrepareRemove={prepareRemoveAccount} onRemove={removeTradingAccount} onOpen={account => { selectTradeAccount(account); go("dashboard"); }} />} key={authSession?.userId || authSession?.email} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} entitlements={entitlements} importCsv={importCsv} prepareImportCsv={prepareImportCsv} openFirmOAuth={openFirmOAuth} status={status} reset={() => { if (workspaceSync.enabled) { announce("Keep sample trades separate from your saved account workspace.", "info"); return; } const demoTrades = entitlements.plan === "free" ? sampleTrades.slice(0, entitlements.maxStoredTrades) : sampleTrades; tradesRef.current = demoTrades; setTrades(demoTrades); selectTradeAccount("local"); setRules(defaultRules); clearBrokerStatus(); window.dispatchEvent(new CustomEvent("cova:broker-status")); setStatus("Demo trades restored."); announce("Demo trades restored.", "success"); }} upgradeToPro={upgradeToPro} />}
+              {section === "oauth" && <OAuthConnectPage firmId={oauthFirmId} onApprove={completeFirmOAuth} onCancel={cancelFirmOAuth} />}
+              {section === "rules" && <RulesEngine analysis={analysis} entitlements={entitlements} rules={rules} setRules={setRules} go={go} upgradeToPro={upgradeToPro} accountControl={tradeAccounts.some(account => account !== "local") ? <div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} value={tradeAccount} onChange={selectTradeAccount} /></div> : undefined} />}
+              {section === "coach" && <Coach analysis={analysis} entitlements={entitlements} go={go} upgradeToPro={upgradeToPro} accountControl={tradeAccounts.some(account => account !== "local") ? <div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} value={tradeAccount} onChange={selectTradeAccount} /></div> : undefined} />}
+              {section === "passport" && !workspaceSync.canPublishPlan && (
+                <section className="workspace-storage-required" aria-labelledby="passport-storage-title">
+                  <h1 id="passport-storage-title">Account storage is needed for Passport</h1>
+                  <p>Your Risk Desk still works in browser-only mode. Review account storage to use your saved Passport.</p>
+                  <button type="button" onClick={() => void workspaceSync.reload()}>Review account storage</button>
+                  <button type="button" onClick={() => go("dashboard")}>Back to Risk Desk</button>
+                </section>
+              )}
+              {section === "passport" && workspaceSync.canPublishPlan && <Passport key={`${authSession?.userId || authSession?.email}:${tradeAccount}`} analysis={analysis} entitlements={entitlements} isSampleReview={isSampleReview} go={go} upgradeToPro={upgradeToPro} ownerId={authSession?.userId} trades={visibleTrades} rules={rules} accountControl={<div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts.length?tradeAccounts:["local"]} value={tradeAccount} onChange={selectTradeAccount}/></div>}/>}
+              </div>}
+            </WorkspaceShell>
+          ) : <AuthGate devPreviewEmail={DEV_PREVIEW_EMAIL} openAuth={openAuth} onDevPreview={signInAsDevPreview} />
+        ) : (
+          <AnimatePresence mode="wait">
+          {section === "overview" && (
+            <RouteFrame key="overview">
+              <Hero go={go} openAuth={openAuth} isSignedIn={isSignedIn} />
+              <StoryStrip />
+              <PlanStrip currentPlan={authSession?.plan ?? null} go={go} openAuth={openAuth} proCheckoutAvailable={proCheckoutAvailable} upgradeToPro={upgradeToPro} />
+              <ProviderResources compact />
+              <CtaFooter go={go} isSignedIn={isSignedIn} openAuth={openAuth} openPassport={openPassport} />
+            </RouteFrame>
+          )}
+          {section === "features" && (
+            <RouteFrame key="features">
+              <FeaturesPage go={go} openAuth={openAuth} isSignedIn={isSignedIn} />
+            </RouteFrame>
+          )}
+          {section === "pricing" && (
+            <RouteFrame key="pricing">
+              <PricingPage currentPlan={authSession?.plan ?? null} go={go} openAuth={openAuth} proCheckoutAvailable={proCheckoutAvailable} upgradeToPro={upgradeToPro} />
+            </RouteFrame>
+          )}
+          {section === "resources" && (
+            <RouteFrame key="resources">
+              <ResourcesPage go={go} openAuth={openAuth} />
+              <ProviderResources />
+            </RouteFrame>
+          )}
+          {section === "community" && (
+            <RouteFrame key="community">
+              <CommunityPage go={go} />
+            </RouteFrame>
+          )}
+          {section === "privacy" && (
+            <RouteFrame key="privacy">
+              <PrivacyPage go={go} />
+            </RouteFrame>
+          )}
+          {section === "terms" && (
+            <RouteFrame key="terms">
+              <TermsPage go={go} />
+            </RouteFrame>
+          )}
+          {section === "security" && (
+            <RouteFrame key="security">
+              <SecurityPage go={go} />
+            </RouteFrame>
+          )}
+          {section === "disclosures" && (
+            <RouteFrame key="disclosures">
+              <RiskDisclosuresPage />
+            </RouteFrame>
+          )}
+          </AnimatePresence>
+        )}
+        {!(isProtectedSection(section) && isSignedIn) && (section === "disclosures" ? <RiskDisclosureFooter /> : <SiteFooter go={go} />)}
+      </main>
+    </div>
+    </UserProfileProvider>
+    </BillingProvider>
+  );
+}
+
+type PolicyAcceptanceStatus = {
+  accepted: boolean;
+  privacyVersion: string;
+  termsVersion: string;
+};
+
+async function fetchPolicyAcceptance(accessToken: string, method: "GET" | "POST"): Promise<PolicyAcceptanceStatus> {
+  const response = await fetch("/api/auth/consent", {
+    method,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      ...(method === "POST" ? { "Content-Type": "application/json" } : {}),
+    },
+    body: method === "POST" ? JSON.stringify({ termsVersion: CURRENT_TERMS_VERSION, privacyVersion: CURRENT_PRIVACY_VERSION }) : undefined,
+    credentials: "include",
+  });
+  const payload = await response.json().catch(() => ({})) as Partial<PolicyAcceptanceStatus> & { error?: string };
+  if (!response.ok || typeof payload.accepted !== "boolean") {
+    throw new Error(payload.error || "Cova could not verify policy acceptance.");
+  }
+  return {
+    accepted: payload.accepted,
+    privacyVersion: String(payload.privacyVersion || ""),
+    termsVersion: String(payload.termsVersion || ""),
+  };
+}
+
+async function settleWithin<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_resolve, reject) => {
+      window.setTimeout(() => reject(new Error("Operation timed out.")), timeoutMs);
+    }),
+  ]);
+}
+
+function isBillingEnabled() {
+  const env = ((import.meta as unknown as { env?: Record<string, string | undefined> }).env ?? {});
+  return env.VITE_COVA_BILLING_ENABLED === "true";
+}
+
+function getProCheckoutUrl() {
+  const env = ((import.meta as unknown as { env?: Record<string, string | undefined> }).env ?? {});
+  return env.VITE_STRIPE_PRO_PAYMENT_LINK || env.VITE_STRIPE_CHECKOUT_URL || "";
+}
+
+function initialTradesForSession(savedTrades: Trade[] | undefined, source: AuthSession["source"]) {
+  return savedTrades ?? (source === "local-preview" ? sampleTrades : []);
+}
+
+function loadAuthSession(): AuthSession | null {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(AUTH_SESSION_KEY) ?? "null");
+    if (typeof parsed?.email === "string" && typeof parsed?.signedInAt === "string") {
+      const source = parsed.source === "supabase" ? "supabase" : parsed.source === "hosted" ? "hosted" : "local-preview";
+      if (source !== "local-preview" || !isDemoPreviewEnabled()) {
+        return null;
+      }
+      const userId = typeof parsed.userId === "string" ? parsed.userId : undefined;
+      setActiveStorageIdentity(userId || parsed.email);
+      return {
+        email: parsed.email,
+        mode: parsed.mode === "signup" ? "signup" : "login",
+        plan: normalizePlan(parsed.plan),
+        signedInAt: parsed.signedInAt,
+        source,
+        subscriptionStatus: parsed.subscriptionStatus === "active" || parsed.subscriptionStatus === "preview" ? parsed.subscriptionStatus : "none",
+        userId,
+        providerSessionId: typeof parsed.providerSessionId === "string" ? parsed.providerSessionId : undefined,
+      };
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function readOAuthFirmId(): PropFirmId | null {
+  try {
+    const saved = localStorage.getItem(OAUTH_FIRM_KEY);
+    return saved === "tradovate" ? "tradovate" : null;
+  } catch {
+    return null;
+  }
+}
+
+function normalizePlan(value: unknown): PlanTier {
+  return value === "pro" ? "pro" : "free";
+}
+
+function readAuthIntent(): { email?: string; mode?: AuthMode; returnSection?: Section } | null {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(AUTH_INTENT_KEY) ?? "null");
+    const savedAt = typeof parsed?.savedAt === "string" ? Date.parse(parsed.savedAt) : 0;
+    if (savedAt && Date.now() - savedAt > 1000 * 60 * 30) {
+      localStorage.removeItem(AUTH_INTENT_KEY);
+      return null;
+    }
+    const returnTo = typeof parsed?.returnTo === "string" ? parsed.returnTo : "";
+    const returnHash = returnTo.includes("#") ? returnTo.slice(returnTo.lastIndexOf("#") + 1) : "";
+    const returnSection = sections.includes(returnHash as Section) ? returnHash as Section : undefined;
+    return {
+      email: typeof parsed?.email === "string" ? parsed.email : "",
+      mode: parsed?.mode === "signup" ? "signup" : "login",
+      returnSection,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function loadState(): { trades: Trade[]; rules: RiskRule[]; tradeAccount?: string } | null {
+  try {
+    const owner = toImportPrincipalIdentity(loadAuthSession());
+    if (owner) recoverAccountRemoval(owner);
+    const parsed = JSON.parse(localStorage.getItem(scopedStorageKey(STORAGE_KEY)) ?? "null");
+    if (parsed?.trades && parsed?.rules) {
+      return {
+        trades: parsed.trades,
+        rules: normalizeSavedRules(parsed.rules),
+        tradeAccount: typeof parsed.tradeAccount === "string" ? parsed.tradeAccount : "all",
+      };
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+
+function normalizeSavedRules(rules: RiskRule[]) {
+  const legacyDefaultLimits = new Map([
+    ["daily-loss", 1500],
+    ["trade-loss", 650],
+    ["size", 5],
+    ["streak", 3],
+    ["profit-factor", 1.25],
+    ["average-r", 0.2],
+  ]);
+  const isLegacyDefault = rules.every((rule) => legacyDefaultLimits.get(rule.id) === rule.limit);
+  if (isLegacyDefault) {
+    return defaultRules;
+  }
+  const currentRules = new Map(defaultRules.map((rule) => [rule.id, rule]));
+  return rules.map((rule) => {
+    const current = currentRules.get(rule.id);
+    return current ? { ...current, limit: rule.limit, enabled: rule.enabled } : rule;
+  });
+}

@@ -1,3 +1,6 @@
+import { LandingStarfield } from "./landing/LandingStarfield";
+import "../styles/landingContinuity.css";
+import "../styles/publicPageSky.css";
 import { motion, useReducedMotion } from "motion/react";
 import type { ReactNode } from "react";
 
@@ -70,15 +73,18 @@ export function ImageAtmosphere({ src, align = "center", opacity = "opacity-[0.4
   );
 }
 
-export function RouteFrame({ children }: { children: ReactNode }) {
+export function RouteFrame({ children, sky = false }: { children: ReactNode; sky?: boolean }) {
   const reduceMotion = useReducedMotion();
   return (
     <motion.div
       data-route-frame
+      data-public-page-sky={sky || undefined}
+      className={sky ? "cova-public-page-sky" : undefined}
       initial={reduceMotion ? false : { y: 8 }}
       animate={{ y: 0 }}
       transition={{ duration: reduceMotion ? 0 : 0.18, ease: [0.16, 1, 0.3, 1] }}
     >
+      {sky && <LandingStarfield />}
       {children}
     </motion.div>
   );

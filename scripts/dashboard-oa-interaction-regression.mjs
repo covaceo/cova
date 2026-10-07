@@ -317,6 +317,8 @@ async function auditDarkDashboard(label) {
       return layers.reverse().reduce((bg,layer)=>composite(layer,bg),{r:255,g:255,b:255,a:1});
     };
     const light = [...shell.querySelectorAll('*')].filter(visible).flatMap(node => {
+      const plate=node.closest('.cova-gooey-plates');
+      if(plate){if(plate.getAttribute('aria-hidden')!=='true'||getComputedStyle(plate).pointerEvents!=='none'||Number(getComputedStyle(plate).opacity)>.12||plate.querySelector('button,input,a,span'))throw new Error('Goo geometry must remain inert, translucent and text-free');return [];}
       const color=effectiveBackground(node);
       if(Math.min(color.r,color.g,color.b)<190)return [];
       return [{tag:node.tagName,className:node.className?.baseVal||node.className||'',background:color}];
@@ -494,9 +496,9 @@ async function desktopInteractions() {
   await auditDarkDashboard("desktop");
 
   const inventory = await evaluate(`(() => [...document.querySelectorAll('button, input')].filter((node) => {
-    const style = getComputedStyle(node); const rect = node.getBoundingClientRect();
-    return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
-  }).map((node) => node.tagName === 'INPUT' ? node.getAttribute('aria-label') : node.matches('.astra-rail-account') ? node.querySelector('strong').textContent.trim() : node.textContent.trim()))()`);
+      const style = getComputedStyle(node); const rect = node.getBoundingClientRect();
+      return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+    }).flatMap((node) => [node.getAttribute('aria-label'), node.tagName === 'INPUT' ? null : node.textContent.trim()].filter(Boolean)))()`);
   for (const expected of ["Search workspace", "Risk Desk", "Accounts", "Limits", "Insights", "Passport", "Latest session", "Last 7 days", "All trades", "Import trades", "Add trade", "Review details", "Attach trade", "Save note", "Journal date", "Set username"]) {
     assert.ok(inventory.includes(expected) || inventory.some((item) => item.startsWith(expected)), `Desktop control inventory must include ${expected}`);
   }
@@ -504,7 +506,8 @@ async function desktopInteractions() {
   await reviewRanges();
   await detailsContract("desktop");
 
-  await evaluate("document.querySelector('.workspace-sidebar-search input').focus(); true");
+  await clickSelector('[data-gooey-input] button');
+  await evaluate("document.querySelector('[data-gooey-input] input').focus(); true");
   await cdp.send("Input.insertText", { text: "limits" });
   await waitFor("[...document.querySelectorAll('.workspace-sidebar-link')].filter((node) => getComputedStyle(node).display !== 'none').length === 1");
   await press("Tab");
@@ -516,7 +519,7 @@ async function desktopInteractions() {
   await goBack("#dashboard");
   await goForward("#rules");
   await goBack("#dashboard");
-  await evaluate("document.querySelector('.workspace-sidebar-search input').focus(); document.querySelector('.workspace-sidebar-search input').select(); true");
+  await evaluate("document.querySelector('[data-gooey-input] input').focus(); document.querySelector('[data-gooey-input] input').select(); true");
   await press("Backspace", "Backspace");
   await waitFor("document.querySelectorAll('.workspace-sidebar-link').length === 4");
 

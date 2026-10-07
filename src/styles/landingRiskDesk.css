@@ -1,0 +1,143 @@
+/* First feature only. Live Cova instruments over an independent orbital background plate. */
+.cova-home-landing section.cova-landing-product.cova-risk-feature{display:grid;grid-template-columns:minmax(300px,.72fr) minmax(0,1.65fr);gap:70px;width:100%;max-width:1536px;margin:0 auto;padding:82px 52px 100px!important;align-items:center;background:none!important;border:0!important;}
+.cova-risk-copy{min-width:0;}
+.cova-home-landing .cova-risk-feature #landing-product-title{font-size:clamp(42px,3.65vw,61px);line-height:1.08;letter-spacing:-.049em;font-weight:450;max-width:460px;margin:0;color:#f4f6fb;}
+.cova-risk-intro{margin:25px 0 0!important;font-size:18px!important;line-height:1.6!important;color:#adb7c9!important;max-width:370px;}
+.cova-risk-actions{display:flex;align-items:center;gap:20px;margin-top:29px;flex-wrap:wrap;}
+.cova-risk-feature button{font-family:inherit;cursor:pointer;}
+.cova-risk-primary{display:inline-flex;gap:12px;align-items:center;min-height:46px;padding:0 18px;border:1px solid #f4f6fb;border-radius:9px;background:#f4f6fb;color:#0a0e16;font-size:15px;font-weight:550;transition:background .18s;}
+.cova-risk-primary:hover{background:#dfe7fb;}
+.cova-risk-secondary{display:inline-flex;gap:9px;align-items:center;min-height:44px;padding:0;background:none;border:0;color:#c4d3f1;font-size:15px;}
+.cova-risk-secondary:hover{color:#fff;}
+.cova-risk-feature button:focus-visible,.cova-risk-feature input:focus-visible,.cova-risk-feature textarea:focus-visible,.cova-risk-feature svg[tabindex]:focus-visible{outline:2px solid #89a9ff;outline-offset:4px;}
+.cova-risk-chapters{margin-top:46px;}
+.cova-risk-chapter{border-top:1px solid #27303c;}
+.cova-risk-chapter:last-child{border-bottom:1px solid #27303c;}
+.cova-risk-chapter h3{margin:0;font-size:18px;font-weight:480;letter-spacing:-.015em;}
+.cova-risk-chapter h3 button{display:flex;align-items:center;gap:15px;width:100%;min-height:74px;padding:20px 0;background:none;border:0;color:#b1bac9;text-align:left;font:inherit;}
+.cova-risk-chapter h3 button>svg{margin-left:auto;flex-shrink:0;transition:transform .2s;color:#a0acc2;}
+.cova-risk-chapter[data-active="true"] h3 button{color:#f2f5fb;}
+.cova-risk-chapter[data-active="true"] h3 button>svg{transform:rotate(180deg);color:#8faeff;}
+.cova-risk-chapter-number{font-size:12px;font-weight:500;letter-spacing:.04em;color:#6f83a9;}
+.cova-risk-chapter[data-active="true"] .cova-risk-chapter-number{color:#a6bfff;}
+.cova-risk-chapter-body{overflow:hidden;padding-left:30px;}
+.cova-risk-chapter-body p{margin:0 0 17px;color:#aeb9cb;font-size:16px;line-height:1.6;max-width:340px;}
+.cova-risk-chapter-body>button{display:inline-flex;align-items:center;gap:9px;margin-bottom:23px;background:none;border:0;padding:0;color:#b4caff;font-size:14px;min-height:30px;}
+.cova-risk-stage{min-width:0;}
+.cova-risk-scene{position:relative;isolation:isolate;min-height:680px;display:flex;align-items:center;border-radius:22px;overflow:hidden;padding:70px 34px 65px;background:#060b15;}
+.cova-risk-orbit,.cova-risk-orbit-shade{position:absolute;inset:0;width:100%;height:100%;z-index:-1;pointer-events:none;}
+.cova-risk-orbit{object-fit:cover;object-position:50% 60%;}
+.cova-risk-orbit-shade{background:linear-gradient(180deg,rgba(3,7,14,.1),transparent 55%,rgba(4,8,17,.25));}
+.cova-risk-instrument{scroll-margin-top:108px;width:100%;min-width:0;position:relative;border:1px solid #ffffff12;border-radius:12px;background:#0f0f0f;box-shadow:0 20px 60px -24px #000;overflow:visible;}
+.cova-risk-disclosure{margin:14px 16px 0!important;color:#929fb4!important;font-size:12px!important;line-height:1.55!important;max-width:650px;}
+.cova-risk-demo{--cova-demo-canvas:#0f0f0f;--cova-demo-rail:#161616;--cova-demo-ink:#f0f3fa;--cova-demo-muted:#a4b1c5;--cova-demo-edge:rgba(125,148,180,.12);--cova-demo-fill:rgba(12,17,28,.28);position:relative;color:var(--cova-demo-ink);font-family:Inter,Arial,sans-serif;font-size:13px;letter-spacing:normal;}
+.cova-demo-topbar{height:51px;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 23px;border-bottom:1px solid #ffffff0d;background:var(--cova-demo-rail);border-radius:12px 12px 0 0;}
+.cova-demo-brand{display:flex;align-items:center;gap:20px;}
+.cova-demo-brand img{width:67px;height:auto;max-height:24px;object-fit:contain;}
+.cova-demo-brand>span{font-size:13px;color:#adb8cc;padding-left:18px;border-left:1px solid #334053;}
+.cova-demo-sample{padding:5px 0;border:0;color:#a4b1c5;font-size:11px;white-space:nowrap;background:none;}
+.cova-demo-tabs{display:flex;gap:26px;align-items:center;height:46px;border-bottom:1px solid #ffffff0d;padding:0 23px;}
+.cova-demo-tabs button{display:inline-flex;align-items:center;gap:7px;height:100%;position:relative;background:none;border:0;color:#8e9cb5;padding:0;font-size:12px;}
+.cova-demo-tabs button[aria-current="page"]{color:#e7edf9;}
+.cova-demo-tabs button[aria-current="page"]:after{content:"";position:absolute;height:2px;bottom:-1px;left:0;right:0;background:#6f92ed;}
+.cova-demo-body{padding:22px 23px 16px;min-height:460px;}
+.cova-demo-result-heading{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:20px;align-items:end;padding:18px 20px;border:1px solid var(--cova-demo-edge);border-radius:5px;background:var(--cova-demo-fill);}
+.cova-demo-label{display:block;color:#e0e8f5;font-size:12px;margin-bottom:9px;}
+.cova-demo-result-heading>div>strong{display:block;font-size:40px;line-height:1.12;font-weight:600;letter-spacing:-.035em;font-variant-numeric:tabular-nums;}
+.cova-demo-secondary-stats{display:flex;gap:30px;padding-bottom:3px;}
+.cova-demo-secondary-stats span{display:block;font-size:11px;color:#9ba8bf;margin-bottom:9px;}
+.cova-demo-secondary-stats strong{display:block;font-size:23px;line-height:1.12;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums;}
+.cova-risk-demo .is-negative{color:#e5a5ae;}
+.cova-demo-chart-heading{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-top:24px;}
+.cova-risk-demo h4{margin:0!important;font-size:13px!important;font-weight:500!important;color:#dce4f5;letter-spacing:-.01em;}
+.cova-demo-ranges{display:flex;gap:2px;padding:2px;border:1px solid #2e3c50;border-radius:5px;background:#0a111b;}
+.cova-demo-ranges button{border:0;border-radius:4px;background:none;color:#a0afc7;font-size:10px;min-height:27px;padding:0 9px;white-space:nowrap;}
+.cova-demo-ranges button[aria-pressed="true"]{color:#e5eeff;background:#1e3963;}
+.cova-risk-demo .astra-chart-main{position:relative;margin:8px -3px 0;padding:0;overflow:visible;}
+.cova-risk-demo .astra-chart-svg{display:block;width:100%;height:250px;min-height:0!important;max-height:none!important;overflow:visible;outline-offset:-2px;}
+.cova-risk-demo .astra-chart-svg text{fill:#93a0b8;font-family:inherit;font-size:11px;font-weight:400;}
+.cova-risk-demo .astra-chart-grid{stroke:#253047;stroke-width:.6;stroke-dasharray:none;opacity:.4;}
+.cova-risk-demo .astra-chart-vertical{stroke:#253047;stroke-width:.6;opacity:.17;}
+.cova-risk-demo .astra-chart-zero{stroke:#76849c;stroke-width:1;stroke-dasharray:4 5;opacity:.55;}
+.cova-risk-demo .astra-crosshair{stroke:#abb7d0;stroke-width:1;stroke-dasharray:3 3;opacity:.7;}
+.cova-risk-demo .astra-chart-tooltip{position:absolute;z-index:3;display:flex;flex-direction:column;gap:4px;width:178px;transform:translateX(-50%);padding:12px 13px;color:#e8eef9;background:#101a2a;border:1px solid #3a4c64;border-radius:4px;box-shadow:0 6px 24px #0006;pointer-events:none;}
+.cova-risk-demo .astra-chart-tooltip>span{font-size:10px;color:#aebbd2;}
+.cova-risk-demo .astra-chart-tooltip>strong{font-size:19px;font-weight:500;}
+.cova-risk-demo .astra-chart-tooltip>small{font-size:10px;color:#b2bfd5;}
+.cova-demo-recent-heading{display:flex;justify-content:space-between;align-items:center;margin-top:16px;margin-bottom:5px;gap:15px;}
+.cova-demo-recent-heading button{display:inline-flex;align-items:center;gap:6px;background:none;border:0;color:#a9c1f8;padding:0;font-size:11px;min-height:30px;}
+.cova-demo-recent>button{display:grid;grid-template-columns:50px 55px 1fr auto 15px;gap:9px;align-items:center;min-height:35px;width:100%;background:none;border:0;border-top:1px solid #ffffff0d;padding:0;color:#aab8ce;text-align:left;font-size:11px;}
+.cova-demo-recent>button:hover{background:#ffffff05;}
+.cova-demo-market{color:#e2e9f6;font-size:12px;font-weight:500;}
+.cova-demo-recent strong{font-weight:500;color:#dce7fb;font-variant-numeric:tabular-nums;}
+.cova-demo-recent svg{color:#8499c2;}
+.cova-demo-data-details{padding:0 23px 15px;color:var(--cova-demo-muted);font-size:11px;line-height:1.6;}
+.cova-demo-data-details summary{display:inline-block;list-style:none;cursor:pointer;color:#82adff;padding:5px 0;}
+.cova-demo-data-details summary::-webkit-details-marker{display:none;}
+.cova-demo-data-details summary:focus-visible{outline:2px solid #89a9ff;outline-offset:4px;}
+.cova-demo-data-details>div{margin-top:8px;padding:12px 14px;border:1px solid var(--cova-demo-edge);border-radius:5px;background:var(--cova-demo-fill);}
+.cova-demo-data-details p{margin:0 0 5px!important;color:var(--cova-demo-muted)!important;font-size:11px!important;line-height:1.6!important;}
+.cova-demo-data-details p:last-child{margin-bottom:0!important;}
+.cova-demo-data-details strong{margin-left:5px;color:#e57c89;font-weight:500;}
+.cova-demo-view-heading{display:flex;justify-content:space-between;align-items:center;gap:18px;min-height:34px;}
+.cova-demo-view-heading>span{font-size:11px;color:#99a8c1;}
+.cova-demo-search{display:flex;align-items:center;gap:10px;margin:18px 0 15px;padding:0 12px;border:1px solid #2d3a50;border-radius:7px;color:#9aacc9;background:var(--cova-demo-fill);min-height:40px;}
+.cova-demo-search input{width:100%;min-width:0;background:none;border:0;color:#d9e4fa;font-family:inherit;font-size:12px;height:38px;outline:none;}
+.cova-demo-search input::placeholder{color:#92a1bb;}
+.cova-demo-trade-list{height:316px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#354761 transparent;}
+.cova-demo-table-heading{position:sticky;top:0;z-index:1;display:flex;justify-content:space-between;padding:9px 27px 9px 0;background:var(--cova-demo-canvas);color:#93a3bf;font-size:11px;border-bottom:1px solid #2a3548;}
+.cova-demo-trade-list>button{display:grid;grid-template-columns:1fr auto 16px;gap:15px;align-items:center;width:100%;min-height:64px;padding:12px 4px;background:none;border:0;border-bottom:1px solid #1e293a;color:#dfe8f9;text-align:left;}
+.cova-demo-trade-list>button:hover{background:#ffffff05;}
+.cova-demo-trade-list b{display:block;font-size:13px;font-weight:500;}
+.cova-demo-trade-list small{font-size:10px;color:#94a5c0;font-weight:400;margin-left:9px;}
+.cova-demo-trade-list em{display:block;font-style:normal;font-size:11px;color:#9badcb;margin-top:6px;}
+.cova-demo-trade-list strong{font-size:14px;font-weight:450;font-variant-numeric:tabular-nums;}
+.cova-demo-trade-list svg{color:#8ba2cc;}
+.cova-demo-reset{display:flex;align-items:center;gap:7px;background:none;border:0;padding:0;min-height:32px;color:#a5bcf0;font-size:11px;}
+.cova-risk-demo .mini-journal{border:0!important;background:none!important;padding:0!important;box-shadow:none!important;min-height:0!important;border-radius:0;}
+.cova-risk-demo .mini-journal .astra-panel-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:15px;}
+.cova-risk-demo .mini-journal h2{display:flex;align-items:center;gap:9px;font-family:inherit!important;font-size:13px!important;font-style:normal!important;margin:0!important;font-weight:500!important;}
+.cova-risk-demo .mini-journal svg{width:15px;height:15px;}
+.cova-risk-demo .mini-journal .astra-panel-heading h2{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap;}
+.cova-demo-journal .cova-demo-view-heading{margin-bottom:18px;}
+.cova-risk-demo .mini-journal .astra-panel-heading{justify-content:flex-end;padding:0!important;}
+.cova-risk-demo .mini-journal input[type="date"]{max-width:146px;padding:7px 9px;background:#142034;color:#cad7ec;border:1px solid #2c3b55;border-radius:6px;min-width:0;font-family:inherit;font-size:11px;color-scheme:dark;}
+.cova-risk-demo .mini-journal textarea{width:100%;box-sizing:border-box;min-height:130px;resize:vertical;border:1px solid #31405a;border-radius:5px;background:var(--cova-demo-fill)!important;color:#d3def1!important;padding:14px;line-height:1.65;font:inherit;font-size:13px;}
+.cova-risk-demo .mini-journal .journal-attachment-area{margin-top:13px;}
+.cova-risk-demo .mini-journal .journal-attach-button{background:none;border:0;color:#a9c0f2;padding:5px 0;min-height:32px;font-size:12px;display:flex;align-items:center;gap:7px;}
+.cova-risk-demo .mini-journal .journal-attached{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid #2f405c;background:#101c2e;border-radius:8px;margin-bottom:9px;}
+.cova-risk-demo .mini-journal .journal-attached>button:first-child{display:flex;align-items:center;gap:10px;flex:1;min-width:0;border:0;background:none;color:#d3e0f6;padding:0;font-size:12px;text-align:left;}
+.cova-risk-demo .mini-journal .journal-attached small{display:block;color:#94a6c4;font-size:10px;margin-top:4px;}
+.cova-risk-demo .mini-journal .journal-attached>button:last-child{background:none;border:0;color:#adbedb;padding:5px;}
+.cova-risk-demo .mini-journal .mini-journal-footer{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-top:18px;}
+.cova-risk-demo .mini-journal .mini-journal-footer>span{color:#92a4c0;font-size:10px;line-height:1.5;}
+.cova-risk-demo .mini-journal .astra-button{background:#2b6cf3!important;color:#fff!important;border:0!important;box-shadow:none!important;border-radius:6px;min-height:33px;padding:0 13px;white-space:nowrap;font-size:11px;}
+.cova-risk-demo .mini-journal .astra-button:disabled{opacity:.45;cursor:not-allowed;}
+.cova-risk-demo .mini-journal .journal-trade-picker{margin-top:10px;max-height:200px;overflow-y:auto;background:#101a2a;border:1px solid #30415e;border-radius:8px;padding:10px;}
+.cova-risk-demo .mini-journal .journal-trade-picker label{display:flex;align-items:center;gap:8px;}
+.cova-risk-demo .mini-journal .journal-trade-picker input{background:#142139;border:1px solid #33455f;border-radius:5px;color:#d7e4ff;width:100%;min-width:0;padding:8px;}
+.cova-risk-demo .mini-journal .journal-trade-options>button{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;padding:10px 0;background:none;border:0;border-bottom:1px solid #28374e;color:#d5e1f7;font-size:12px;text-align:left;}
+.cova-risk-demo .mini-journal .journal-trade-options small{display:block;color:#97a9c6;font-size:10px;margin-top:3px;}
+.cova-risk-demo dialog.astra-trade-dialog{background:#0f0f0f!important;border:1px solid #ffffff12!important;color:#e3ebfb!important;font-family:inherit!important;max-width:550px!important;width:calc(100vw - 40px)!important;box-sizing:border-box;padding:30px!important;border-radius:15px!important;max-height:calc(100dvh - 40px);overflow-y:auto;}
+.cova-risk-demo dialog.astra-trade-dialog::backdrop{background:#02060cd9;backdrop-filter:blur(8px);}
+.cova-risk-demo dialog h2{font-family:inherit!important;font-style:normal!important;font-size:26px!important;line-height:1.2!important;font-weight:450!important;color:#edf2ff!important;}
+.cova-risk-demo dialog p{font-size:13px!important;color:#aebbd1!important;line-height:1.55!important;}
+.cova-risk-demo dialog textarea{color:#dce8fd!important;background:#111f33!important;border:1px solid #354861!important;font-size:14px!important;}
+@media(max-width:1250px){.cova-home-landing section.cova-landing-product.cova-risk-feature{gap:40px;padding-left:32px!important;padding-right:32px!important;grid-template-columns:minmax(290px,.8fr) minmax(0,1.5fr);}.cova-risk-scene{padding:70px 24px;min-height:704px;}.cova-risk-actions{gap:14px;}.cova-demo-secondary-stats{gap:20px;}.cova-demo-result-heading>div>strong{font-size:33px;}.cova-demo-secondary-stats strong{font-size:17px;}.cova-demo-body{padding:22px 19px 14px;}.cova-demo-ranges button{padding:0 7px;font-size:10px;}}
+@media(max-width:1050px){.cova-home-landing section.cova-landing-product.cova-risk-feature{grid-template-columns:1fr;gap:38px;max-width:900px;padding:65px 34px 80px!important;}.cova-risk-copy{display:grid;grid-template-columns:1fr 1fr;column-gap:55px;align-items:start;}.cova-risk-copy #landing-product-title{grid-column:1;grid-row:1;font-size:46px!important;}.cova-risk-intro{grid-column:1;grid-row:2;margin-top:18px!important;}.cova-risk-actions{grid-column:1;grid-row:3;margin-top:23px;}.cova-risk-chapters{grid-column:2;grid-row:1/4;margin-top:0;}.cova-risk-chapter h3{font-size:17px;}.cova-risk-chapter h3 button{min-height:65px;}.cova-risk-chapter-body p{font-size:14px;}.cova-risk-scene{padding:73px 44px;min-height:685px;}.cova-demo-result-heading>div>strong{font-size:39px;}.cova-demo-secondary-stats strong{font-size:21px;}.cova-risk-demo .astra-chart-svg{height:230px;}.cova-demo-body{min-height:445px;}}
+@media(max-width:600px){.cova-home-landing section.cova-landing-product.cova-risk-feature{padding:49px 20px 55px!important;gap:30px;}.cova-risk-copy{display:block;}.cova-risk-copy #landing-product-title{font-size:43px!important;letter-spacing:-.047em!important;max-width:360px;}.cova-risk-intro{font-size:17px!important;max-width:330px;line-height:1.6!important;}.cova-risk-actions{gap:19px;margin-top:23px;}.cova-risk-primary{font-size:14px;padding:0 15px;}.cova-risk-secondary{font-size:14px;}.cova-risk-chapters{margin-top:37px;}.cova-risk-chapter h3 button{min-height:63px;padding:17px 0;}.cova-risk-chapter h3{font-size:17px;}.cova-risk-chapter-body p{font-size:15px;max-width:none;}.cova-risk-chapter-body>button{min-height:36px;}.cova-risk-scene{margin:0 -7px;padding:56px 10px 49px;min-height:0;border-radius:16px;}.cova-risk-orbit{object-position:55% 65%;}.cova-risk-instrument{border-radius:10px;}.cova-demo-topbar{height:49px;padding:0 14px;gap:10px;}.cova-demo-brand{gap:12px;}.cova-demo-brand img{width:58px;}.cova-demo-brand>span{padding-left:11px;font-size:12px;}.cova-demo-sample{font-size:10px;padding:4px 7px;}.cova-demo-tabs{padding:0 14px;height:44px;gap:25px;}.cova-demo-tabs button{font-size:12px;}.cova-demo-body{padding:22px 14px 15px;min-height:486px;}.cova-demo-result-heading{display:grid;grid-template-columns:1fr;gap:20px;}.cova-demo-result-heading>div>strong{font-size:39px;}.cova-demo-history{font-size:11px;}.cova-demo-secondary-stats{justify-content:flex-start;gap:37px;}.cova-demo-secondary-stats strong{font-size:21px;}.cova-demo-secondary-stats span{font-size:11px;margin-bottom:7px;}.cova-demo-chart-heading{display:block;margin-top:27px;}.cova-demo-ranges{margin-top:12px;display:inline-flex;}.cova-demo-ranges button{font-size:10px;min-height:31px;padding:0 10px;}.cova-risk-demo .astra-chart-svg{height:180px;}.cova-risk-demo .astra-chart-svg text{font-size:11px;}.cova-demo-recent-heading{margin-top:20px;}.cova-demo-recent>button{grid-template-columns:40px 43px 1fr auto 13px;font-size:10px;gap:5px;min-height:38px;}.cova-risk-disclosure{font-size:12px!important;margin:14px 4px 0!important;}.cova-demo-trade-list{height:365px;}.cova-demo-trade-list>button{gap:8px;}.cova-demo-trade-list small{display:block;margin:4px 0 0;}.cova-demo-trade-list strong{font-size:13px;}.cova-demo-journal-intro{font-size:13px!important;}.cova-risk-demo .mini-journal textarea{font-size:13px;}.cova-risk-demo .mini-journal .mini-journal-footer{gap:10px;}.cova-demo-trade-list>p{font-size:13px;color:#a0b1ca;}.cova-risk-demo dialog.astra-trade-dialog{padding:24px!important;}}
+@media(max-width:360px){.cova-home-landing section.cova-landing-product.cova-risk-feature{padding-left:16px!important;padding-right:16px!important;}.cova-risk-copy #landing-product-title{font-size:37px!important;}.cova-risk-actions{gap:13px;}.cova-risk-secondary{font-size:12px;}.cova-risk-primary{font-size:13px;padding:0 12px;}.cova-demo-brand>span{display:none;}.cova-demo-recent .cova-demo-trade-date{font-size:9px;}.cova-demo-ranges button{padding:0 8px;}.cova-demo-result-heading>div>strong{font-size:35px;}}
+@media(prefers-reduced-motion:reduce){.cova-risk-feature *{scroll-behavior:auto!important;transition:none!important;}}
+
+/* One fixed viewport for Results, Trades and Journal. Longer content scrolls, never resizes the shell. */
+.cova-risk-feature{--cova-demo-body-height:624px;--cova-chapter-height:355px;}
+.cova-risk-feature .cova-risk-chapters{height:var(--cova-chapter-height);}
+.cova-risk-feature .cova-risk-chapter-body p{min-height:3.2em;}
+.cova-risk-feature .cova-demo-body{height:var(--cova-demo-body-height);min-height:0!important;box-sizing:border-box;overflow-y:auto;overflow-x:clip;scrollbar-width:thin;scrollbar-color:#354761 transparent;}
+.cova-risk-feature .cova-demo-trades{height:100%;display:flex;flex-direction:column;min-height:0;}
+.cova-risk-feature .cova-demo-trade-list{height:auto;flex:1;min-height:0;}
+.cova-risk-feature .cova-demo-journal{height:100%;display:flex;flex-direction:column;min-height:0;}
+.cova-risk-feature .cova-demo-journal .mini-journal{display:flex;flex-direction:column;flex:1;min-height:0!important;}
+.cova-risk-feature .cova-demo-journal .mini-journal textarea{flex:1 0 130px;}
+@media(max-width:1050px){.cova-risk-feature{--cova-demo-body-height:600px;--cova-chapter-height:335px;}}
+@media(max-width:600px){.cova-risk-feature{--cova-demo-body-height:680px;--cova-chapter-height:335px;}}

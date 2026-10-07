@@ -1,7 +1,9 @@
+import { ResourceLogoCloud } from "./landing/ResourceLogoCloud";
 const NINJATRADER_LINK = "https://ninjatraderus.pxf.io/rEqk5d";
 const KINETICK_LINK = "https://kinetick.com/NinjaTrader";
 
 export function ProviderResources({ compact = false }: { compact?: boolean }) {
+  if (compact) return <ResourceLogoCloud ninjaTraderHref={NINJATRADER_LINK} kinetickHref={KINETICK_LINK} />;
   return (
     <section className={`cova-provider-resources${compact ? " cova-provider-resources-compact" : ""}`} aria-labelledby="provider-resources-title">
       <div className="cova-provider-inner">

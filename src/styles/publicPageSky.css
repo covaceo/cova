@@ -1,0 +1,15 @@
+/* Header-linked public pages only. Share the homepage's real starfield, not a new background approximation. */
+.cova-public-page-sky {
+  position: relative;
+  isolation: isolate;
+  min-height: 100svh;
+  background: #05070c;
+}
+.cova-public-page-sky > :not(.cova-landing-stars) { position: relative; z-index: 1; }
+.cova-public-page-sky :is(.features-showcase-page, .public-pricing-page, .pricing-showcase, .resources-oa-page, .community-oa-page) {
+  background: transparent !important;
+}
+.cova-public-page-sky :is(.features-showcase-atmosphere, .resources-oa-atmosphere, .pricing-showcase-top-fade, .pricing-showcase-bottom-fade) {
+  display: none;
+}
+body:has(.cova-public-page-sky) .cova-site-footer { background: #05070c; }

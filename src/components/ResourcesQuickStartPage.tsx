@@ -1,5 +1,7 @@
 import { motion, useReducedMotion } from "motion/react";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, ChevronDown } from "lucide-react";
+import { useState } from "react";
+import "../styles/publicPageRefresh.css";
 
 type Section = "overview" | "features" | "pricing" | "resources" | "community" | "dashboard" | "import" | "oauth" | "rules" | "coach" | "passport";
 type AuthMode = "login" | "signup";
@@ -7,6 +9,7 @@ type AuthMode = "login" | "signup";
 
 export function ResourcesPage({ go }: { go: (section: Section) => void; openAuth: (mode: AuthMode) => void }) {
   const reduceMotion = useReducedMotion();
+  const [activeStep, setActiveStep] = useState<string | null>("01");
   const quickStartSteps = [
     {
       number: "01",
@@ -47,7 +50,7 @@ export function ResourcesPage({ go }: { go: (section: Section) => void; openAuth
 
 
   return (
-    <section className="resources-oa-page">
+    <section className="resources-oa-page" data-public-refresh>
       <div aria-hidden="true" className="resources-oa-atmosphere" />
       <div className="resources-oa-inner">
         <header className="resources-oa-intro">
@@ -70,7 +73,7 @@ export function ResourcesPage({ go }: { go: (section: Section) => void; openAuth
           <div className="resources-oa-board">
             <div className="resources-oa-board-header">
               <div>
-                <span>Quick start</span>
+                <span className="resources-guide-context">Quick start</span>
                 <strong>From export to proof</strong>
               </div>
               <span>5 steps · completed history only</span>
@@ -79,16 +82,20 @@ export function ResourcesPage({ go }: { go: (section: Section) => void; openAuth
             <div className="resources-oa-content">
               <ol className="resources-oa-steps">
                 {quickStartSteps.map((step) => (
-                  <li className="resources-oa-step" key={step.number}>
-                    <span className="resources-oa-step-number">{step.number}</span>
-                    <div>
-                      <h2>{step.title}</h2>
+                  <li className="resources-oa-step" key={step.number} data-resource-step={step.number}>
+                    <h3>
+                      <button className="resources-guide-toggle" type="button" aria-expanded={activeStep === step.number} aria-controls={`resource-step-${step.number}`} id={`resource-step-heading-${step.number}`} onClick={() => setActiveStep(activeStep === step.number ? null : step.number)}>
+                        <span className="resources-oa-step-number">{step.number}</span>
+                        <span>{step.title}</span>
+                        <ChevronDown aria-hidden="true" />
+                      </button>
+                    </h3>
+                    {activeStep === step.number && <motion.div className="resources-guide-body" id={`resource-step-${step.number}`} role="region" aria-labelledby={`resource-step-heading-${step.number}`} initial={reduceMotion ? false : { opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduceMotion ? 0 : 0.18 }}>
                       <p>{step.body}</p>
-                    </div>
-                    <button onClick={step.onClick} type="button">
-                      {step.action}
-                      <ArrowUpRight aria-hidden="true" />
-                    </button>
+                      <button className="resources-guide-action" onClick={step.onClick} type="button">
+                        {step.action}<ArrowUpRight aria-hidden="true" />
+                      </button>
+                    </motion.div>}
                   </li>
                 ))}
               </ol>

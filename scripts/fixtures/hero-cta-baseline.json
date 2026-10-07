@@ -1,0 +1,13 @@
+{
+  "src/components/MarketingHero.tsx": "43240571f8ff1bbdceffa76a2f7438e8004851a0c244601886ccb0da095e170a",
+  "src/components/cova-liquid-metal-signup.html": "a9096e6d1fbd84d2b715ad01e01ab26af85f1981330f4436a1d333a8cd3ca74b",
+  "src/styles/threeUiLanding.css": "632d8716b9790625823c223b2bc75c7203439c5b04dba5e2dac4372e190ddfc3",
+  "src/components/CovaLiquidMetalSignupButton.tsx": "df2ac8814821c1b1a5e4fb74232e106ac2fcc92f90d9d98ca6d5853d58c009d5",
+  "src/styles/covaSpaceHero.css": "2369638030c32a21647510b04aa9c9fcc23cfc17d5392d2b7be0962d1a1c7962",
+  "src/components/landing/RiskDeskFeature.tsx": "16ec1936126aae977272fa35fa6673384008c9c3ae985a6833c9902b34ac00b1",
+  "src/App.tsx": "44efbc6563ef341b915fe33bcbba3364d51f491dbe7e16cc362146b04b3f5f10",
+  "src/components/PlanSections.tsx": "234e3e289f341db6b5f8e1efa61927678809a99c7b237a9edcb741d9abea5b0a",
+  "src/components/landing/ResourceLogoCloud.tsx": "59a66e03680b4754dcd84a63e6c97189272b063a9bbc2bed3001fae173d09fab",
+  "src/components/landing/ProPriceDottedGlow.tsx": "2bcde39e1971c35b40ab8cc6637d1931f154c5607bf510ef41f401fa948fd351",
+  "src/components/ui/dotted-glow-background.tsx": "12820db19fead2d91f374165389258f28ff45633cc893974e80eb65036e649f1"
+}

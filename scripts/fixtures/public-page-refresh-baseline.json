@@ -1,0 +1,8 @@
+{
+  "src/components/PlanSections.tsx": "7718b15d17d097ba418383dc76c32591a092c5e5f2161c66c00560887513a083",
+  "src/components/landing/MinimalPlanPricing.tsx": "33c807141efd4f5df2c0dcafcc715fa67240f0d320300d15ca401b3540a5fdf7",
+  "src/components/MarketingPages.tsx": "5a4c31fda783f3d73a661b77c817c6faa484e92a6632b454fe198b8feee5eefd",
+  "src/components/landing/RiskDeskFeature.tsx": "16ec1936126aae977272fa35fa6673384008c9c3ae985a6833c9902b34ac00b1",
+  "src/components/FeaturesShowcasePage.tsx": "e25425f2eeb315808aa6a6a23cb9456a752c72d10d4c13daaf6202cfb63720ee",
+  "src/components/ResourcesQuickStartPage.tsx": "548c4f33322de092dd0a55b4bcfb277986c21555f7c1ea46932f90118956ca2e"
+}
