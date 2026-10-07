@@ -93,9 +93,12 @@ export async function exerciseRecapGif({send,evaluate,wait,click,ready,capture,u
   assert.match(await evaluate(`document.querySelector('label[for="recap-file-type"]').textContent`),/^Download format/);
   const selectType=async(type)=>{await evaluate(`(()=>{const select=document.querySelector('#recap-file-type');if(select.value!==${JSON.stringify(type)}){select.value=${JSON.stringify(type)};select.dispatchEvent(new Event('change',{bubbles:true}))}})()`);await ready()};
   const initialForeground=await evaluate(`document.querySelector('[data-recap-foreground]').src`);
-  const start=await evaluate(`(()=>{const editor=document.querySelector('.recap-editor');editor.scrollIntoView({block:'center'});const b=editor.getBoundingClientRect();return {x:b.x+b.width/2,y:b.y+b.height/4}})()`);
+  const start=await evaluate(`(()=>{const editor=document.querySelector('.recap-editor');editor.scrollIntoView({block:'center',behavior:'instant'});const b=editor.getBoundingClientRect();return {x:b.x+b.width/2,y:b.y+b.height/4}})()`);
   const before=await evaluate(`document.querySelector('[data-recap-background]').style.left`);
-  await send('Input.dispatchMouseEvent',{type:'mousePressed',...start,button:'left',clickCount:1});
+  await send('Input.dispatchMouseEvent',{type:'mouseMoved',...start});await ready();
+  assert.equal(await evaluate(`Boolean(document.elementFromPoint(${start.x},${start.y})?.closest('.recap-editor'))`),true,'Trusted drag must hit the actual editor');
+  await send('Input.dispatchMouseEvent',{type:'mousePressed',...start,button:'left',clickCount:1});await ready();
+  await new Promise(resolve=>setTimeout(resolve,100));
   await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:start.x+60,y:start.y,button:'left',buttons:1});
   await send('Input.dispatchMouseEvent',{type:'mouseReleased',x:start.x+60,y:start.y,button:'left',clickCount:1});await ready();
   assert.notEqual(await evaluate(`document.querySelector('[data-recap-background]').style.left`),before,'Actual pointer drag moves the crop');
@@ -216,7 +219,7 @@ export async function exerciseRecapGif({send,evaluate,wait,click,ready,capture,u
   // Mobile touch and keyboard navigation manipulate only background geometry.
   await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
   await evaluate(`document.querySelector('.recap-editor').scrollIntoView({block:'center'})`);await sleep(80);
-  const phone=await evaluate(`(()=>{const editor=document.querySelector('.recap-editor');editor.scrollIntoView({block:'center'});const b=editor.getBoundingClientRect();return {x:b.x+b.width/2,y:b.y+b.height/3}})()`);
+  const phone=await evaluate(`(()=>{const editor=document.querySelector('.recap-editor');editor.scrollIntoView({block:'center',behavior:'instant'});const b=editor.getBoundingClientRect();return {x:b.x+b.width/2,y:b.y+b.height/3}})()`);
   const left=await evaluate(`document.querySelector('[data-recap-background]').style.left`);
   await send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{...phone,id:1}]});
   await send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:phone.x-45,y:phone.y,id:1}]});

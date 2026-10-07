@@ -2,8 +2,8 @@ import {createContext,useCallback,useContext,useEffect,useRef,useState,type Reac
 import {ArrowUpRight,CreditCard,RefreshCw,X} from "lucide-react";
 
 
-export type BillingState={ownerId:string;plan:"free"|"pro";mode:"sandbox"|"live";status:string;paidUntil:string|null;cancelAtPeriodEnd:boolean;hasSubscription?:boolean;canCancel?:boolean;canManage:boolean;canCheckout:boolean;amount:number;currency:string;interval:string};
-type BillingAction="checkout"|"portal"|"cancel";
+export type BillingState={ownerId:string;plan:"free"|"pro";accessSource?:"included"|"subscription"|"free";mode:"sandbox"|"live";status:string;paidUntil:string|null;cancelAtPeriodEnd:boolean;hasSubscription?:boolean;canCancel?:boolean;paymentRequired?:boolean;canRecoverPayment?:boolean;canManage:boolean;canCheckout:boolean;amount:number;currency:string;interval:string};
+type BillingAction="checkout"|"portal"|"cancel"|"recover";
 type Request=(action?:BillingAction,signal?:AbortSignal)=>Promise<BillingState|{url:string}>;
 
 export function openBilling(){window.dispatchEvent(new Event("cova:billing-open"));}
@@ -19,12 +19,13 @@ export function BillingProvider({ownerId,children,onPlan,enabled=false,request=r
  const[state,setState]=useState<BillingState|null>(null),[loading,setLoading]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(""),[open,setOpen]=useState(false);
  const active=useRef<AbortController|null>(null),generation=useRef(0),acting=useRef(false),onPlanRef=useRef(onPlan),requestRef=useRef(request);onPlanRef.current=onPlan;requestRef.current=request;
  const refresh=useCallback(async()=>{
-  if(!enabled||!ownerId)return;active.current?.abort();const controller=new AbortController();active.current=controller;const epoch=generation.current;setLoading(true);setError("");
+  if(!enabled||!ownerId||acting.current||(active.current&&!active.current.signal.aborted))return;const controller=new AbortController();active.current=controller;const epoch=generation.current;setLoading(true);setError("");
   try{const data=await requestRef.current(undefined,controller.signal);if(controller.signal.aborted||epoch!==generation.current)return;
    if(!("ownerId" in data)||data.ownerId!==ownerId||!["free","pro"].includes(data.plan)||!["sandbox","live"].includes(data.mode)||data.currency!=="usd"||data.interval!=="month"||data.amount!==(data.mode==="live"?2900:3000))throw Error("Your billing account could not be verified.");
+   if(data.plan==="pro"&&data.hasSubscription===true&&data.accessSource!=="included"&&(!data.paidUntil||!Number.isFinite(Date.parse(data.paidUntil))||Date.parse(data.paidUntil)<=Date.now()))throw Error("Your paid period ended. Refresh billing to verify a renewal.");
    setState(data);onPlanRef.current(ownerId,data.plan);
   }catch(caught){if(!controller.signal.aborted&&epoch===generation.current)setError(caught instanceof Error?caught.message:"Billing is unavailable. Try again.");}
-  finally{if(!controller.signal.aborted&&epoch===generation.current)setLoading(false);}
+  finally{if(active.current===controller)active.current=null;if(!controller.signal.aborted&&epoch===generation.current)setLoading(false);}
  },[enabled,ownerId]);
  useEffect(()=>{generation.current++;setState(null);setError("");setOpen(false);acting.current=false;setBusy(false);void refresh();return()=>{generation.current++;active.current?.abort();};},[refresh]);
  useEffect(()=>{
@@ -35,14 +36,30 @@ export function BillingProvider({ownerId,children,onPlan,enabled=false,request=r
   const focus=()=>void refresh();window.addEventListener("focus",focus);
   return()=>{window.removeEventListener("cova:billing-open",show);window.removeEventListener("focus",focus);clearInterval(timer);};
  },[enabled,ownerId,refresh]);
+ useEffect(()=>{
+  if(!enabled||!ownerId||!state||state.ownerId!==ownerId||state.plan!=="pro"||state.accessSource==="included"||state.hasSubscription!==true||!state.paidUntil)return;
+  const until=Date.parse(state.paidUntil);if(!Number.isFinite(until))return;let timer:ReturnType<typeof setTimeout>;
+  const verify=()=>{
+   clearTimeout(timer);const remaining=until-Date.now();if(remaining>0){timer=setTimeout(verify,Math.min(remaining,2147483647));return;}
+   // A paid-through date is not permission to keep Pro during an outage.
+   // Included administrator grants are explicitly independent of this deadline.
+   active.current?.abort();active.current=null;setLoading(false);
+   setState(current=>current?.ownerId===ownerId&&current.paidUntil===state.paidUntil&&current.accessSource!=="included"?{...current,plan:"free"}:current);
+   onPlanRef.current(ownerId,"free");void refresh();
+  };
+  const visible=()=>{if(document.visibilityState==="visible")verify();};
+  timer=setTimeout(verify,Math.min(Math.max(0,until-Date.now()),2147483647));document.addEventListener("visibilitychange",visible);
+  return()=>{clearTimeout(timer);document.removeEventListener("visibilitychange",visible);};
+ },[enabled,ownerId,state,refresh]);
  async function act(action:BillingAction){
-  if(acting.current||!ownerId)return false;acting.current=true;setBusy(true);setError("");const epoch=generation.current;
+  if(acting.current||!enabled||!ownerId)return false;acting.current=true;generation.current++;active.current?.abort();active.current=null;setLoading(false);setBusy(true);setError("");const epoch=generation.current;
   try{const data=await requestRef.current(action);if(epoch!==generation.current)return false;
    if(action==="cancel"){
     if(!("ownerId"in data)||data.ownerId!==ownerId||!data.cancelAtPeriodEnd||data.canCancel!==false||!["free","pro"].includes(data.plan)||!["sandbox","live"].includes(data.mode)||data.currency!=="usd"||data.interval!=="month"||data.amount!==(data.mode==="live"?2900:3000))throw Error("Cancellation could not be verified. Refresh billing.");
-    setState(data);onPlanRef.current(ownerId,data.plan);return true;
+    if(data.plan==="pro"&&data.hasSubscription===true&&data.accessSource!=="included"&&(!data.paidUntil||!Number.isFinite(Date.parse(data.paidUntil))||Date.parse(data.paidUntil)<=Date.now()))throw Error("Your paid period ended. Refresh billing to verify a renewal.");
+   setState(data);onPlanRef.current(ownerId,data.plan);return true;
    }
-   if(!("url"in data))throw Error("Stripe did not return a link.");const url=new URL(data.url),host=action==="checkout"?"checkout.stripe.com":"billing.stripe.com";
+   if(!("url"in data))throw Error("Stripe did not return a link.");const url=new URL(data.url),host=action==="checkout"?"checkout.stripe.com":action==="recover"?"invoice.stripe.com":"billing.stripe.com";
    if(url.protocol!=="https:"||url.hostname!==host||url.username||url.password)throw Error("Stripe did not return a secure link.");navigate(url.href);return true;
   }catch(caught){if(epoch===generation.current)setError(caught instanceof Error?caught.message:"Billing is unavailable. Try again.");return false;}
   finally{if(epoch===generation.current){acting.current=false;setBusy(false);}}
@@ -61,7 +78,8 @@ export function BillingPanel(){
  if(!billing?.enabled)return null;const{state,loading,busy,error}=billing;
  const renewal=state?.paidUntil?new Date(state.paidUntil).toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}):null;
  const included=state?.plan==="pro"&&state.hasSubscription===false;
- const label=included?"Included":state?.status==="past_due"?"Payment needed":state?.cancelAtPeriodEnd?"Ending":state?.plan==="pro"?"Active":state?.status==="canceled"?"Canceled":"Free";
+ const paymentNeeded=Boolean(state?.paymentRequired||["incomplete","past_due","unpaid"].includes(state?.status||""));
+ const label=paymentNeeded?"Payment needed":included?"Included":state?.cancelAtPeriodEnd?"Ending":state?.plan==="pro"?"Active":state?.status==="canceled"?"Canceled":"Free";
  return <section className="cova-billing" aria-label="Subscription" aria-busy={loading||busy}>
   <div className="cova-billing-heading"><h3>Your plan</h3>{state?.mode==="sandbox"&&<span className="cova-billing-sandbox">Sandbox</span>}</div>
   <div className="cova-billing-plate">
@@ -70,6 +88,7 @@ export function BillingPanel(){
    <dl className="cova-billing-facts"><div><dt>Current plan</dt><dd>{state?state.plan==="pro"?"Pro":"Free":loading?"Loading…":"Unavailable"}</dd></div>{state&&<div><dt>Status</dt><dd>{label}</dd></div>}{renewal&&<div><dt>{state?.cancelAtPeriodEnd?"Access until":"Paid through"}</dt><dd>{renewal}</dd></div>}</dl>
    <div className="cova-billing-actions">
     {state?.canCheckout&&state.plan!=="pro"&&<button className="cova-settings-button cova-settings-primary" type="button" disabled={busy||loading} onClick={()=>void billing.act("checkout")}>{busy?"Opening Stripe…":"Continue to checkout"}<ArrowUpRight aria-hidden="true"/></button>}
+    {state?.canRecoverPayment&&<button className="cova-settings-button cova-settings-primary" type="button" disabled={busy||loading} onClick={()=>void billing.act("recover")}>{busy?"Opening Stripe…":"Pay outstanding invoice"}<ArrowUpRight aria-hidden="true"/></button>}
     {state?.canManage&&<button className="cova-settings-button" type="button" disabled={busy||loading} onClick={()=>void billing.act("portal")}>{busy?"Opening Stripe…":"Manage billing"}<ArrowUpRight aria-hidden="true"/></button>}
     {state?.canCancel&&!confirmCancel&&<button className="cova-settings-button" type="button" disabled={busy||loading} onClick={()=>setConfirmCancel(true)}>Cancel subscription</button>}
    </div>
@@ -78,6 +97,7 @@ export function BillingPanel(){
     <p>{renewal?`Stop renewal? Your paid access continues until ${renewal}.`:"Stop renewal at the end of this billing period?"}</p>
     <div className="cova-billing-actions"><button className="cova-settings-button" type="button" disabled={busy||loading} onClick={()=>setConfirmCancel(false)}>Keep subscription</button><button className="cova-settings-button" type="button" disabled={busy||loading} onClick={async()=>{if(await billing.act("cancel"))setConfirmCancel(false);}}>{busy?"Canceling…":"Confirm cancellation"}</button></div>
    </div>}
+  {paymentNeeded&&<p className="cova-billing-note">Pay the outstanding invoice or use Manage billing to update your payment method and view invoices. Access is checked again after Stripe confirms payment.</p>}
   {included&&<p className="cova-billing-note">No paid subscription to cancel.</p>}
   <div className="cova-billing-foot">{state?.mode==="sandbox"&&<p>No real charges in this preview.</p>}<button type="button" aria-label="Refresh billing" disabled={busy||loading} onClick={()=>void billing.refresh()}><RefreshCw aria-hidden="true"/>Refresh</button></div>
   {error&&<p className="cova-profile-error" role="alert">{error}</p>}

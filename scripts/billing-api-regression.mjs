@@ -17,7 +17,7 @@ assert.ok(commands.filter(c=>c[0]==='EVAL'&&c[2]===3).every(c=>c[1].includes("re
 const res=()=>({statusCode:200,headers:{},setHeader(k,v){this.headers[k]=v},status(v){this.statusCode=v;return this},json(v){this.body=v;return this}});
 const {default:billing}=await import('../api/billing.js');const webhook=(req,res)=>{req.url='/api/billing?webhook=1';return billing(req,res)};
 const old={...process.env},originalFetch=globalThis.fetch;try{delete process.env.COVA_BILLING_MODE;
-let r=res();for(const action of ['checkout','cancel']){r=res();await billing({method:'POST',headers:{},body:{action}},r);assert.equal(r.statusCode,401);}
+let r=res();for(const action of ['checkout','cancel','recover']){r=res();await billing({method:'POST',headers:{},body:{action}},r);assert.equal(r.statusCode,401);}
 r=res();await billing({method:'DELETE',headers:{}},r);assert.equal(r.statusCode,405);
 r=res();await webhook({method:'POST',headers:{}},r);assert.equal(r.statusCode,503);
 process.env.COVA_BILLING_MODE='sandbox';process.env.VERCEL_ENV='production';r=res();await webhook({method:'POST',headers:{}},r);assert.equal(r.statusCode,503);

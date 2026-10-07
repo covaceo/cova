@@ -45,6 +45,13 @@ function fixture(){
  const store={rows,read:async id=>rows.get(id),ownerForCustomer:async id=>[...rows].find(([,v])=>v.customerId===id)?.[0],withOwner:async(owner,run)=>{const row=structuredClone(rows.get(owner)||{ownerId:owner});return run(row,async()=>rows.set(owner,structuredClone(row)));}};
  return {stripe,store,calls,account,price,customer,setSub(value){sub=value;}};
 }
+test('manual Pro is explicitly distinguished from paid subscription access',async()=>{
+ const f=fixture(),service=createBillingService({config:billingConfig(env),stripe:f.stripe,store:f.store});
+ const state=await service.status({id:OWNER,plan:'pro'});
+ assert.equal(state.accessSource,'included','manual grants need an explicit source to survive paid-period expiry');
+ assert.equal(state.hasSubscription,false);assert.equal(state.paidUntil,null);assert.equal(state.plan,'pro');
+ assert.equal((await service.status({id:OWNER,plan:'free'})).accessSource,'free');
+});
 test('live checkout enforces the approved price, account readiness and provider mode; paid lifecycle stays owner-bound',async()=>{
  const f=fixture(),service=createBillingService({config:billingConfig(env),stripe:f.stripe,store:f.store});
  await service.checkout({id:OWNER,email:'fixture@example.invalid'});
