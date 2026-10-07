@@ -11,12 +11,12 @@ export default async function handler(req,res){
   // Portal and status stay accessible even when a new legal policy needs acceptance.
   const user=await requireAuthenticatedUser(req,{billing:false});
   const runtime=billingRuntime();if(!runtime)throw new BillingError(503,'Billing is not enabled yet.');
-  if(req.headers?.origin&&req.headers.origin!==runtime.config.origin)throw new BillingError(403,'Open billing from the Cova preview.');
+  if(req.headers?.origin&&req.headers.origin!==runtime.config.origin)throw new BillingError(403,'Open billing from Cova.');
   if(req.method==='GET')return res.status(200).json(await runtime.service.status(user));
   let body=req.body;
   if(body===undefined){const chunks=[];let size=0;for await(const chunk of req){size+=Buffer.byteLength(chunk);if(size>16384)throw new BillingError(413,'Billing request is too large.');chunks.push(Buffer.from(chunk));}body=Buffer.concat(chunks).toString('utf8');}
   if(typeof body==='string'||Buffer.isBuffer(body)){try{body=JSON.parse(String(body));}catch{throw new BillingError(400,'Invalid billing request.');}}
-  if(!body||Object.keys(body).some(k=>k!=='action')||!['checkout','portal','cancel'].includes(body.action))throw new BillingError(400,'Choose a valid billing action.');
+  if(!body||Object.keys(body).some(k=>k!=='action')||!['checkout','portal','cancel','recover'].includes(body.action))throw new BillingError(400,'Choose a valid billing action.');
   if(body.action==='checkout')await requirePolicyAcceptedUser(req,{billing:false});
   return res.status(200).json(await runtime.service[body.action](user));
  }catch(error){return sendApiError(res,error,'Billing could not be verified. Please try again.');}

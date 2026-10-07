@@ -65,9 +65,13 @@ export function createBillingService({ config, stripe, store, now = Date.now }) 
   const matchingSubscriptions=all=>all.filter(s=>s.items?.data?.length===1 && idOf(s.items.data[0].price)===config.priceId && s.items.data[0].quantity===1);
   const cancellableSubscriptions=all=>matchingSubscriptions(all).filter(s=>['active','trialing','past_due','unpaid'].includes(s.status)&&!s.schedule);
   const scheduled=sub=>Boolean(sub.cancel_at_period_end)||sub.cancel_at!=null;
-  const response=(state,user)=>({...state,plan:user.plan==='pro'?'pro':state.plan,ownerId:user.id,mode:config.mode,amount:config.amount,currency:'usd',interval:'month'});
+  const response=(state,user)=>({...state,plan:user.plan==='pro'?'pro':state.plan,accessSource:user.plan==='pro'?'included':state.plan==='pro'?'subscription':'free',ownerId:user.id,mode:config.mode,amount:config.amount,currency:'usd',interval:'month'});
+  const invoiceLine=(invoice,sub)=>invoice.lines?.data?.find(l=>l.quantity===1 && idOf(l.pricing?.price_details?.price || l.price)===config.priceId && idOf(l.parent?.subscription_item_details?.subscription || l.subscription)===sub.id);
+  const paymentStatuses=new Set(['active','incomplete','past_due','unpaid']);
+  const unpaidInvoice=(invoice,sub,customer)=>invoice.id===idOf(sub.latest_invoice)&&invoice.status==='open'&&idOf(invoice.customer)===customer&&invoice.currency==='usd'&&Number.isSafeInteger(invoice.amount_remaining)&&invoice.amount_remaining>0&&!invoice.lines?.has_more&&Boolean(invoiceLine(invoice,sub))&&typeof invoice.hosted_invoice_url==='string';
   async function reconcile(row, save) {
-    const state={plan:'free',status:'none',paidUntil:null,cancelAtPeriodEnd:false,hasSubscription:false,canCancel:false,canManage:Boolean(row.customerId),canCheckout:true};
+    let unpaid=0;
+    const state={plan:'free',status:'none',paidUntil:null,cancelAtPeriodEnd:false,hasSubscription:false,canCancel:false,canManage:Boolean(row.customerId),canCheckout:true,paymentRequired:false,canRecoverPayment:false};
     if(row.customerId){
       const customer=providerObject(await stripe.customers.retrieve(row.customerId));
       if(customer.deleted || customer.metadata?.cova_user_id!==row.ownerId) throw new BillingError(409,'Billing ownership could not be verified.');
@@ -80,11 +84,12 @@ export function createBillingService({ config, stripe, store, now = Date.now }) 
       matching.sort((a,b)=>(b.created||0)-(a.created||0));
       state.status=matching[0]?.status || 'none';
       for(const sub of matching){
-        if(sub.status!=='active' || !idOf(sub.latest_invoice)) continue;
+        if(!paymentStatuses.has(sub.status) || !idOf(sub.latest_invoice)) continue;
         const invoice=providerObject(await stripe.invoices.retrieve(idOf(sub.latest_invoice)));
-        if(invoice.status!=='paid' || idOf(invoice.customer)!==row.customerId) continue;
+        if(unpaidInvoice(invoice,sub,row.customerId)){state.paymentRequired=true;unpaid++;}
+        if(sub.status!=='active' || invoice.status!=='paid' || idOf(invoice.customer)!==row.customerId) continue;
         if(invoice.lines?.has_more) throw new BillingError(503,'Invoice details need review.');
-        const line=invoice.lines?.data?.find(l=>l.quantity===1 && idOf(l.pricing?.price_details?.price || l.price)===config.priceId && idOf(l.parent?.subscription_item_details?.subscription || l.subscription)===sub.id);
+        const line=invoiceLine(invoice,sub);
         const paidEnd=Number(line?.period?.end)*1000;
         const cancelAt=sub.cancel_at==null?null:Number(sub.cancel_at)*1000;
         if(cancelAt!==null&&(!Number.isSafeInteger(cancelAt)||cancelAt<=0))throw new BillingError(503,'Subscription cancellation needs review.');
@@ -93,6 +98,7 @@ export function createBillingService({ config, stripe, store, now = Date.now }) 
         if(!state.paidUntil || until>Date.parse(state.paidUntil)) Object.assign(state,{plan:'pro',status:'active',paidUntil:new Date(until).toISOString(),cancelAtPeriodEnd:Boolean(sub.cancel_at_period_end)||cancelAt!==null});
       }
     }
+    state.canRecoverPayment=unpaid===1;
     row.state=state;row.verifiedAt=now();await save();return state;
   }
   return {
@@ -118,6 +124,21 @@ export function createBillingService({ config, stripe, store, now = Date.now }) 
         const state=await reconcile(row,save);
         if(!state.cancelAtPeriodEnd)throw new BillingError(503,'Cancellation could not be verified. Refresh billing.');
         return response(state,user);
+      });
+    },
+    async recover(user) {
+      assertBillingOwner(config,user.id);await verifyAccount();
+      return store.withOwner(user.id,async(row,save)=>{
+        if(!row.customerId)throw new BillingError(409,'No billing account exists yet.');
+        await reconcile(row,save);
+        const pending=[];
+        for(const sub of matchingSubscriptions(await subscriptions(row.customerId))){
+          if(!paymentStatuses.has(sub.status)||!idOf(sub.latest_invoice))continue;
+          const invoice=providerObject(await stripe.invoices.retrieve(idOf(sub.latest_invoice)));
+          if(unpaidInvoice(invoice,sub,row.customerId))pending.push(invoice);
+        }
+        if(pending.length!==1)throw new BillingError(409,pending.length?'Use Manage billing to review your invoices.':'No unpaid subscription invoice to recover. Refresh billing.');
+        return {url:safeStripeUrl(pending[0].hosted_invoice_url,'invoice.stripe.com')};
       });
     },
     async portal(user) {

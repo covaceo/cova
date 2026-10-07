@@ -40,3 +40,14 @@ Webhook endpoint: `https://covadesk.com/api/billing?webhook=1`. Configure the sa
 The original deployed sandbox hosted checkout, paid Pro grant, portal cancellation, terminal revocation and old-event replay were exercised separately. Those results do not claim a live payment occurred.
 
 At creation of this document, production billing is not published. A read-only build of the existing deployed main commit confirmed that the saved Production Stripe key was a test key. Raf was asked to replace only that Production value with the live key. Remaining launch gates are provider readiness/configuration, the final candidate's full checks, normal merge/deploy and canonical-domain authenticated checkout/portal verification. Do not charge the owner or any customer merely to generate a launch-test receipt.
+
+## Customer lifecycle contract
+
+- Billing distinguishes subscription-derived access from independent administrator-included Pro.
+- Incomplete, past-due and unpaid subscriptions expose actionable payment-needed states rather than another checkout.
+- The recover action accepts no customer, subscription, invoice, price or redirect from the caller. It resolves a single open matching USD subscription invoice from the authenticated owner, checks provider mode and ownership, and returns only its verified Stripe-hosted invoice link. Opening that link never grants access.
+- Manage billing continues to use the configured customer portal for payment details and invoice history.
+- Status requests are single-flight per owner. An action invalidates stale reads, and focus refresh cannot overwrite a confirmed cancellation.
+- Subscription-derived access is rechecked at its paid-through deadline even in an already-open tab. An expired subscription response cannot re-grant Pro. Included grants are independent.
+- Cancellation, expiry and failed payments do not delete trades, journal entries, account ownership or saved history.
+- The canonical billing suite includes the customer-lifecycle security regressions plus actual desktop/laptop/phone component interaction. Real hosted sandbox checks, signed-webhook receipts and canonical production checks remain separate release evidence, not claims made by synthetic tests.
