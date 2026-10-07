@@ -1,7 +1,7 @@
 .cova-account-dropdown{width:100%;min-width:0}
-.cova-account-menu-trigger{display:flex;width:100%;min-height:48px;height:auto;gap:10px;justify-content:flex-start;padding:11px 14px;background:#0d0f14;color:#e5eaf2;border:1px solid #ffffff1a;border-radius:8px;font:500 14px/20px Inter,Arial,sans-serif;box-shadow:none}
+.cova-account-dropdown .cova-account-menu-trigger{display:flex;width:100%;min-height:44px;height:44px;gap:10px;justify-content:flex-start;padding:10px 12px;background:#0d0f14;color:#e5eaf2;border:1px solid #ffffff1a;border-radius:5px!important;font:400 12px/20px Inter,Arial,sans-serif;box-shadow:none}
 .cova-account-menu-trigger:hover{background:#121722;border-color:#ffffff40}
-.cova-account-menu-prefix{font-size:12px;font-weight:400;color:#a5afbd;flex-shrink:0}
+.cova-account-menu-prefix{font:inherit;color:#a5afbd;flex-shrink:0}
 .cova-account-menu-selection{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cova-account-menu-chevron{margin-left:auto;width:16px;height:16px;flex-shrink:0;color:#91a0b4}
 .cova-account-menu-content{z-index:150;max-width:calc(100vw - 24px);width:256px;padding:5px;border:1px solid #303846;border-radius:8px;background:#12151b;color:#e5eaf2;box-shadow:0 12px 30px #0006;font-family:Inter,Arial,sans-serif}

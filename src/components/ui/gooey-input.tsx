@@ -93,6 +93,8 @@ export interface GooeyInputProps {
   defaultValue?: string;
   onValueChange?: (value: string) => void;
   onOpenChange?: (open: boolean) => void;
+  /** Optional controlled open state for a containing rail or toolbar. */
+  open?: boolean;
   disabled?: boolean;
 }
 
@@ -108,6 +110,7 @@ export function GooeyInput({
   defaultValue = "",
   onValueChange,
   onOpenChange,
+  open: openProp,
   disabled = false,
 }: GooeyInputProps) {
   const reducedMotion = useReducedMotion();
@@ -122,7 +125,8 @@ export function GooeyInput({
   const prevExpandedRef = useRef(false);
   const hostRef = useRef<HTMLDivElement>(null);
   const returnFocusRef = useRef(false);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [internalExpanded, setInternalExpanded] = useState(false);
+  const isExpanded = openProp ?? internalExpanded;
   const [uncontrolledValue, setUncontrolledValue] = useState(defaultValue);
 
   const isControlled = valueProp !== undefined;
@@ -140,10 +144,10 @@ export function GooeyInput({
 
   const setExpanded = useCallback(
     (next: boolean) => {
-      setIsExpanded(next);
+      if (openProp === undefined) setInternalExpanded(next);
       onOpenChange?.(next);
     },
-    [onOpenChange],
+    [onOpenChange, openProp],
   );
 
   useEffect(() => {

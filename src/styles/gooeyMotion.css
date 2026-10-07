@@ -6,6 +6,8 @@
 .cova-gooey-header{display:flex;align-items:center;gap:inherit}
 .cova-gooey-nav>button,.cova-gooey-nav>.workspace-sidebar-group{position:relative;z-index:1}
 .cova-gooey-sidebar .cova-gooey-plate,.cova-gooey-sidebar .cova-gooey-tail{border-radius:9px}
+/* Sidebar targets span the rail, so width follows the same CSS layout without a one-frame observer lag. */
+.cova-gooey-sidebar .cova-gooey-plate{width:100%!important}
 /* The moving plate owns the selected fill. Retired dashboard rules must not paint a second jumping pill. */
 .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .cova-gooey-sidebar .workspace-sidebar-link-active,
 .oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .cova-gooey-sidebar .workspace-sidebar-link-active:hover{background:transparent!important;box-shadow:none!important}
