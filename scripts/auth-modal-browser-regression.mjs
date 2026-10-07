@@ -312,6 +312,14 @@ try {
 
   await send("Page.navigate", { url: `${origin}/?authBrowser=protected-route#passport` });
   await waitFor("document.readyState === 'complete'");
+  await waitFor("Boolean(document.querySelector('.auth-gate'))");
+  assert.equal(await evaluate("Boolean(document.querySelector('[role=\"dialog\"]'))"),false,'Refreshing a protected route must not automatically open an auth popup');
+  await evaluate(`(()=>{document.documentElement.style.setProperty('scroll-behavior','auto','important');const n=[...document.querySelectorAll('.auth-gate button')].find(n=>n.textContent.trim()==='Sign in');n.scrollIntoView({block:'center',behavior:'instant'});return true})()`);
+  await waitFor(`(()=>{const n=[...document.querySelectorAll('.auth-gate button')].find(n=>n.textContent.trim()==='Sign in'),r=n?.getBoundingClientRect();return Boolean(r&&r.height>20&&r.y+r.height/2<innerHeight&&n.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)))})()`);
+  const gatePoint=await evaluate(`(()=>{const r=[...document.querySelectorAll('.auth-gate button')].find(n=>n.textContent.trim()==='Sign in').getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2}})()`);
+  await send('Input.dispatchMouseEvent',{type:'mouseMoved',...gatePoint});
+  await send('Input.dispatchMouseEvent',{type:'mousePressed',button:'left',clickCount:1,...gatePoint});
+  await send('Input.dispatchMouseEvent',{type:'mouseReleased',button:'left',clickCount:1,...gatePoint});
   await waitFor("document.querySelector('[role=\"dialog\"]')?.getAttribute('aria-label') === 'Sign in to Cova'");
   await evaluate(`(() => {
     const tabs = document.querySelector('[role="dialog"] [aria-label="Account access"]');

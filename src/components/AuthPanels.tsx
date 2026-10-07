@@ -73,10 +73,6 @@ export function AuthGate({ devPreviewEmail, openAuth, onDevPreview }: AuthGatePr
   const reduceMotion = useReducedMotion();
   const showDevPreview = isDemoPreviewEnabled();
 
-  useEffect(() => {
-    const frame = window.requestAnimationFrame(() => openAuth("login"));
-    return () => window.cancelAnimationFrame(frame);
-  }, [openAuth]);
 
   return (
     <section className="auth-connection auth-gate relative min-h-screen overflow-hidden px-5 pb-24 pt-36 md:px-12 lg:px-20">

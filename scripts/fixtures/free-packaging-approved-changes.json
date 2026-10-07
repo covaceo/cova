@@ -1,0 +1,130 @@
+{
+  "src/App.tsx": [
+    {
+      "before": "canExportPassport: false,\n    canUseDirectSync: false,\n    insightLimit: 2,\n    maxStoredTrades: 25,\n    maxTradesPerImport: 25,",
+      "after": "canExportPassport: true,\n    canUseDirectSync: false,\n    insightLimit: 2,\n    maxStoredTrades: 100,\n    maxTradesPerImport: 100,"
+    },
+    {
+      "before": "import { isImportPrincipalCurrent, toImportPrincipalIdentity, type ImportPrincipal } from \"./lib/importGuard\";",
+      "after": "import { isImportPrincipalCurrent, toImportPrincipalIdentity, type ImportPrincipal } from \"./lib/importGuard\";\nimport { tradeImportCapacityError } from \"./lib/importLimits\";"
+    },
+    {
+      "before": "    const existingCount = mode === \"replace\" ? 0 : currentTrades.length;\n    const slots = Number.isFinite(entitlements.maxStoredTrades) ? Math.max(0, entitlements.maxStoredTrades - existingCount) : imported.length;\n    const importLimit = Number.isFinite(entitlements.maxTradesPerImport) ? entitlements.maxTradesPerImport : imported.length;\n    const allowedCount = Math.min(imported.length, slots, importLimit);\n\n    if (allowedCount <= 0) {\n      announce(`Free accounts hold ${entitlements.maxStoredTrades} trades. Upgrade to keep adding history.`, \"warning\");\n      setStatus(\"Free trade limit reached.\");\n      return null;\n    }\n\n    const acceptedTrades = imported.slice(0, allowedCount);\n    const mergeResult = mode === \"merge\" ? mergeTradeLedger(currentTrades, acceptedTrades) : null;\n    const nextTrades = mode === \"replace\" ? acceptedTrades : mergeResult?.trades ?? [...currentTrades, ...acceptedTrades];\n",
+      "after": "    const acceptedTrades = imported;\n    const mergeResult = mode === \"merge\" ? mergeTradeLedger(currentTrades, acceptedTrades) : null;\n    const nextTrades = mode === \"replace\" ? acceptedTrades : mergeResult?.trades ?? [...currentTrades, ...acceptedTrades];\n    const capacityError = tradeImportCapacityError(imported.length, currentTrades.length, nextTrades.length, entitlements.maxStoredTrades, entitlements.maxTradesPerImport);\n    if (capacityError) {\n      announce(capacityError, \"warning\");\n      setStatus(capacityError);\n      return null;\n    }\n"
+    },
+    {
+      "before": "upgradeToPro={upgradeToPro} ownerId={authSession?.userId} trades={visibleTrades}",
+      "after": "upgradeToPro={upgradeToPro} ownerId={authSession?.userId} exportIdentity={authSession ? { owner: toImportPrincipalIdentity(authSession), source: authSession.source } : undefined} trades={visibleTrades}"
+    }
+  ],
+  "server/workspace.ts": [
+    {
+      "before": "p_max_trades: user.plan === \"pro\" ? null : 25,",
+      "after": "p_max_trades: user.plan === \"pro\" ? null : 100,"
+    }
+  ],
+  "server/passport.ts": [
+    {
+      "before": "if(!response.ok){if(['revision_conflict','stale_evidence'].includes(data?.message))",
+      "after": "if(!response.ok){if(data?.message==='export_limit_reached')throw new ApiError(429,'Your Free Passport export is used for this month. Upgrade for more exports or wait for the monthly reset.');if(['export_attempt_reused','export_attempt_expired'].includes(data?.message))throw new ApiError(409,'This image export changed or expired. Reopen the share composer.');if(['revision_conflict','stale_evidence'].includes(data?.message))"
+    },
+    {
+      "before": "   const snapshot=()=>rest('rpc/passport_progress_snapshot',{body:{p_owner:user.id}});",
+      "after": "   const exportAction=req.method==='GET'?url.searchParams.get('action'):body?.action;\n   if(exportAction==='export-allowance'||exportAction==='consume-export'){\n    if(req.method==='GET'&&exportAction!=='export-allowance'||req.method==='POST'&&exportAction!=='consume-export')throw new ApiError(400,'Invalid export action.');\n    if(req.method==='POST'&&(!body||Object.keys(body).some(k=>!['owner','action','attempt','imageHash','preset','finish'].includes(k))||typeof body.attempt!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.attempt)||typeof body.imageHash!=='string'||!/^[a-f0-9]{64}$/.test(body.imageHash)||body.finish!=='standard'||!['square','card'].includes(body.preset)||user.plan!=='pro'&&body.preset!=='square'))throw new ApiError(400,'Free exports use the standard square image. Check the export request.');\n    if(user.plan==='pro')return res.status(200).json({owner_id:user.id,plan:'pro',limit:null,remaining:null,...req.method==='POST'?{attempt_id:body.attempt,image_hash:body.imageHash}:{}});\n    const result=req.method==='GET'?await rest('rpc/passport_free_export_allowance',{body:{p_owner:user.id}}):await rest('rpc/passport_consume_free_export',{body:{p_owner:user.id,p_attempt:body.attempt,p_hash:body.imageHash}});\n    return res.status(200).json(result);\n   }\n   const snapshot=()=>rest('rpc/passport_progress_snapshot',{body:{p_owner:user.id}});"
+    },
+    {
+      "before": "if(req.method==='GET'&&exportAction!=='export-allowance'||req.method==='POST'&&exportAction!=='consume-export')",
+      "after": "if(req.method==='GET'&&exportAction!=='export-allowance')"
+    },
+    {
+      "before": "if(req.method==='POST'&&(!body||Object.keys(body).some",
+      "after": "if(exportAction==='export-allowance'&&req.method==='POST'&&Object.keys(body).some(k=>!['owner','action'].includes(k)))throw new ApiError(400,'Invalid allowance request.');\n    if(exportAction==='consume-export'&&(!body||Object.keys(body).some"
+    },
+    {
+      "before": "...req.method==='POST'?{attempt_id:body.attempt,image_hash:body.imageHash}:{}",
+      "after": "...exportAction==='consume-export'?{attempt_id:body.attempt,image_hash:body.imageHash}:{}"
+    },
+    {
+      "before": "const result=req.method==='GET'?await rest('rpc/passport_free_export_allowance'",
+      "after": "const result=exportAction==='export-allowance'?await rest('rpc/passport_free_export_allowance'"
+    }
+  ],
+  "src/components/WorkspaceSections.tsx": [
+    {
+      "before": "import { PassportShareComposer } from \"./PassportShareComposer\";",
+      "after": "import { PassportShareComposer } from \"./PassportShareComposer\";\nimport type { PassportExportIdentity } from \"../lib/passportExports\";"
+    },
+    {
+      "before": "accountControl, ownerId, trades=[], rules=[] }: { analysis",
+      "after": "accountControl, ownerId, exportIdentity, trades=[], rules=[] }: { analysis"
+    },
+    {
+      "before": "accountControl?: ReactNode; ownerId?: string; trades?: Trade[]; rules?: RiskRule[]",
+      "after": "accountControl?: ReactNode; ownerId?: string; exportIdentity?: PassportExportIdentity; trades?: Trade[]; rules?: RiskRule[]"
+    },
+    {
+      "before": "  const composerModes = useMemo<[HoloPassportMode, string][]>(() => passportShareModes.map(mode => [mode.id, mode.label]), []);",
+      "after": "  const composerModes = useMemo<[HoloPassportMode, string][]>(() => passportShareModes.map(mode => [mode.id, mode.label]), []);\n  const exportPresets = entitlements.plan === \"free\" ? passportExportPresets.filter(p => p.id === \"square\") : passportExportPresets;\n  const activePreset = exportPresets.some(p => p.id === exportPresetId) ? exportPresetId : \"square\";"
+    },
+    {
+      "before": "<label>Format<select aria-label=\"Passport export format\" value={exportPresetId} onChange={e=>setExportPresetId(e.target.value as PassportExportPresetId)}>{passportExportPresets.map",
+      "after": "<label>Format<select aria-label=\"Passport export format\" value={activePreset} onChange={e=>setExportPresetId(e.target.value as PassportExportPresetId)}>{exportPresets.map"
+    },
+    {
+      "before": "preset={exportPresetId} onPresetChange={preset => {",
+      "after": "preset={activePreset} onPresetChange={preset => {"
+    },
+    {
+      "before": "}} presets={passportExportPresets} modes={composerModes} sample={isSampleReview} sourceKey={sourceKey} onClose={() => setSharing(false)} />",
+      "after": "}} presets={exportPresets} modes={composerModes} freePlan={entitlements.plan === \"free\"} exportIdentity={exportIdentity} onUpgrade={() => { setSharing(false); upgradeToPro(); }} sample={isSampleReview} sourceKey={sourceKey} onClose={() => setSharing(false)} />"
+    }
+  ],
+  "src/components/PassportShareComposer.tsx": [
+    {
+      "before": "import { createPortal } from 'react-dom';",
+      "after": "import { createPortal } from 'react-dom';\nimport { getPassportExportAllowance, consumePassportExport, type PassportExportIdentity, type ExportAllowance } from '../lib/passportExports';"
+    },
+    {
+      "before": "  sample?: boolean; sourceKey?: string;",
+      "after": "  sample?: boolean; sourceKey?: string; freePlan?: boolean; exportIdentity?: PassportExportIdentity; onUpgrade?: () => void;"
+    },
+    {
+      "before": "sample = true, sourceKey = '' }: Props)",
+      "after": "sample = true, sourceKey = '', freePlan = false, exportIdentity, onUpgrade }: Props)"
+    },
+    {
+      "before": "  const busy = !tile || delivering;",
+      "after": "  const [allowance, setAllowance] = useState<ExportAllowance | null>(null);\n  const [allowanceError, setAllowanceError] = useState('');\n  const [allowanceRetry, setAllowanceRetry] = useState(0);\n  const [downloadedKey, setDownloadedKey] = useState('');\n  const attempt = useRef<{ key: string; id: string } | null>(null);\n  const alive = useRef(true), liveKey = useRef(key); liveKey.current = key;\n  const used = freePlan && allowance?.remaining === 0 && downloadedKey !== key;\n  const busy = !tile || delivering || (freePlan && (!allowance || used || Boolean(allowanceError)));\n  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);\n  useEffect(() => {\n    if (!freePlan) return;\n    let active = true; setAllowance(null); setAllowanceError('');\n    getPassportExportAllowance(exportIdentity).then(value => { if (active) setAllowance(value); }).catch(error => { if (active) setAllowanceError(error instanceof Error ? error.message : 'Image allowance could not be checked.'); });\n    return () => { active = false; };\n  }, [freePlan, exportIdentity?.owner, exportIdentity?.source, allowanceRetry]);"
+    },
+    {
+      "before": "  function save() {\n    if (!tile || delivering) return;\n    const anchor = document.createElement('a');\n    anchor.href = tile.url; anchor.download = filename;\n    document.body.appendChild(anchor); anchor.click(); anchor.remove();\n    setNoticeError(false); setNotice('Image download requested. PNGs are permanent still images.');\n  }",
+      "after": "  async function save() {\n    if (!tile || busy) return;\n    setDelivering(true); setNotice(''); setNoticeError(false);\n    try {\n      if (freePlan) {\n        const imageKey = key;\n        const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', await tile.blob.arrayBuffer()))].map(value => value.toString(16).padStart(2,'0')).join('');\n        if (!alive.current || liveKey.current !== imageKey) return;\n        if (attempt.current?.key !== imageKey) attempt.current = { key: imageKey, id: crypto.randomUUID() };\n        const granted = await consumePassportExport(exportIdentity, attempt.current.id, hash);\n        if (!alive.current || liveKey.current !== imageKey) return;\n        setAllowance(granted); setDownloadedKey(imageKey);\n      }\n      const anchor = document.createElement('a');\n      anchor.href = tile.url; anchor.download = filename;\n      document.body.appendChild(anchor); anchor.click(); anchor.remove();\n      setNoticeError(false); setNotice('Image download requested. PNGs are permanent still images.');\n    } catch (error) {\n      if (!alive.current) return;\n      const message = error instanceof Error ? error.message : 'Image download could not be authorized. Try again.';\n      if (message.includes('used for this month')) setAllowance(value => value ? { ...value, remaining: 0 } : value);\n      setNoticeError(true); setNotice(message);\n    } finally { if (alive.current) setDelivering(false); }\n  }"
+    },
+    {
+      "before": "event.preventDefault(); close.current();",
+      "after": "event.preventDefault(); if (!delivering) close.current();"
+    },
+    {
+      "before": "aria-label=\"Close share composer\" onClick={onClose}",
+      "after": "aria-label=\"Close share composer\" disabled={delivering} onClick={onClose}"
+    },
+    {
+      "before": "{notice || (current?.error ?",
+      "after": "{notice || allowanceError || (freePlan && !allowance ? 'Checking your image allowance\u2026' : used ? `Free export used. Resets ${new Date(allowance!.resets_at!).toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'})} (UTC).` : freePlan && allowance?.remaining === 1 ? '1 Free image export available this month.' : current?.error ?"
+    },
+    {
+      "before": "<div className=\"passport-share-actions\">",
+      "after": "{!freePlan && <div className=\"passport-share-actions\">"
+    },
+    {
+      "before": "        </div>\n        <button type=\"button\" className=\"passport-share-save\" disabled={busy} onClick={save}>Save image</button>",
+      "after": "        </div>}\n        {allowanceError && <button type=\"button\" className=\"passport-share-save\" disabled={delivering} onClick={() => setAllowanceRetry(value => value + 1)}>Retry allowance</button>}\n        {used && onUpgrade ? <button type=\"button\" className=\"passport-share-save\" disabled={delivering} onClick={onUpgrade}>Upgrade for more exports</button> : <button type=\"button\" className=\"passport-share-save\" disabled={busy} onClick={save}>Save image</button>}"
+    }
+  ],
+  "src/components/PlanSections.tsx": [
+    {
+      "before": "  {\n    id: \"free\",\n    name: \"Free\",\n    price: \"$0\",\n    priceNote: [\"limited\", \"account\"],\n    badge: \"Limited\",\n    index: \"DEMO / 01\",\n    description: \"For testing Cova with a small sample before committing to a review workflow.\",\n    included: [\n      \"1 workspace\",\n      \"25 stored trades total\",\n      \"Up to 25 trades per import\",\n      \"1 current Risk Passport view\",\n      \"2 current insight notes\",\n      \"Starter risk limits\",\n    ],\n    notIncluded: [\n      \"Advanced limit editing\",\n      \"Passport image export\",\n      \"Direct account sync\",\n    ],\n  },\n",
+      "after": "  {\n    id: \"free\",\n    name: \"Free\",\n    price: \"$0\",\n    priceNote: [\"free\", \"account\"],\n    badge: \"Start here\",\n    index: \"COVA / 01\",\n    description: \"For reviewing your trades and sharing your first Passport.\",\n    included: [\n      \"1 workspace\",\n      \"100 stored trades total\",\n      \"Up to 100 trades per import\",\n      \"1 current Risk Passport view\",\n      \"2 current insight notes\",\n      \"Starter risk limits\",\n      \"1 Cova-branded Passport export / month\",\n      \"Privacy controls in every view\",\n    ],\n    notIncluded: [\n      \"Advanced limit editing\",\n      \"Unlimited Passport image exports\",\n      \"Direct account sync\",\n    ],\n  },\n"
+    }
+  ]
+}

@@ -1,0 +1,95 @@
+/* The approved orbital artwork, centered Hero 38 composition, and existing Cova actions.
+   All header material overrides apply only while the public home hero is mounted. */
+.cova-space-hero {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  justify-content: center;
+  min-height: 720px;
+  height: 100svh;
+  overflow: hidden;
+  background: #03070b;
+  padding: clamp(116px, 15.5svh, 152px) 24px 24px;
+}
+.cova-space-image, .cova-space-shade { position: absolute; inset: 0; pointer-events: none; }
+.cova-space-image { z-index: -2; }
+.cova-space-image img { width: 100%; height: 100%; object-fit: cover; object-position: center; }
+.cova-space-shade {
+  z-index: -1;
+  background: linear-gradient(180deg, rgba(0,0,0,.22), transparent 55%, transparent 94%, #08090c 100%),
+    radial-gradient(ellipse 600px 340px at 50% 25%, rgba(0,0,0,.45), transparent 100%);
+}
+.cova-space-copy { width: 100%; max-width: 850px; text-align: center; align-self: flex-start; }
+.cova-space-copy .cova-space-title {
+  margin: 0;
+  font-family: "Inter Tight Variable", "Inter Tight", "Inter", sans-serif;
+  font-size: clamp(50px, 5.45vw, 84px);
+  font-weight: 500;
+  line-height: 1.02;
+  letter-spacing: -.052em;
+  color: #fff;
+  text-wrap: balance;
+  text-shadow: 0 2px 18px rgba(0,0,0,.24);
+}
+.cova-space-title > span { display: block; }
+.cova-space-copy .cova-space-subline {
+  max-width: 620px;
+  margin: 24px auto 0;
+  font-family: "Inter Tight Variable", "Inter Tight", "Inter", sans-serif;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.55;
+  color: #e8eeff;
+  text-wrap: balance;
+  text-shadow: 0 1px 12px rgba(0,0,0,.8);
+}
+.cova-space-actions { display: flex; justify-content: center; align-items: center; gap: 26px; margin-top: 26px; }
+.cova-space-primary { position: relative; display: inline-flex; align-items: center; flex: 0 0 auto; }
+.cova-space-actions .dark-glass-secondary { flex: 0 0 auto; }
+.cova-space-copy .cova-space-trust { margin: 14px 0 0; color: #e8eeff; font-size: 13px; line-height: 1.4; text-shadow: 0 1px 10px #000; }
+.cova-space-proof { position: relative; background: #08090c; padding: 60px 32px 70px; overflow: hidden; }
+.cova-space-proof-inner { width: 100%; max-width: 1140px; margin: 0 auto; }
+.cova-space-proof .hero-dashboard-stage { margin: 0 auto !important; width: 100%; max-width: 1000px; min-height: 0 !important; }
+.cova-space-proof .hero-dashboard-shell { transform: none !important; }
+.cova-space-proof .market-reaction-band { margin-top: 54px; }
+body:has(.cova-space-hero) .cova-site-header[data-section="overview"] { padding: 24px clamp(20px, 4vw, 64px); }
+body:has(.cova-space-hero) .cova-site-header[data-section="overview"] .header-layout-row { max-width: none; }
+body:has(.cova-space-hero) .cova-site-header[data-section="overview"] .header-orbit {
+  justify-content: space-between; width: 100%; max-width: none;
+  background: transparent !important; border: 0 !important; border-radius: 0; box-shadow: none !important;
+  backdrop-filter: none !important; padding: 0 !important;
+}
+body:has(.cova-space-hero) .cova-site-header[data-section="overview"] .header-scroll-veil-scrolled {
+  top: 0; height: 100%; width: 100%; max-width: none; border-radius: 0;
+  background: rgba(3,7,11,.88); backdrop-filter: blur(16px); border-bottom: 1px solid rgba(255,255,255,.08);
+}
+body:has(.cova-space-hero) .cova-site-header[data-section="overview"] .brand-lockup { margin-right: 18px; }
+@media (max-width: 1050px) and (min-width: 768px) {
+  body:has(.cova-space-hero) .cova-site-header[data-section="overview"] .marketing-nav-group { gap: 12px !important; }
+  body:has(.cova-space-hero) .cova-site-header[data-section="overview"] .marketing-nav-group > button { padding: 8px 0 !important; font-size: 13px; }
+}
+@media (min-width: 768px) and (max-height: 780px) {
+  .cova-space-hero { padding-top: 104px; }
+  .cova-space-copy .cova-space-title { font-size: clamp(48px, 5vw, 68px); }
+  .cova-space-copy .cova-space-subline { margin-top: 16px; font-size: 17px; line-height: 1.5; }
+  .cova-space-actions { margin-top: 20px; }
+  .cova-space-copy .cova-space-trust { margin-top: 12px; }
+}
+@media (max-width: 767px) {
+  .cova-space-hero { padding: 112px 20px 20px; min-height: 720px; }
+  .cova-space-hero:has(.cova-space-actions[data-auth-state="signed-in"]) { min-height: 860px; }
+  .cova-space-copy .cova-space-title { font-size: clamp(39px, 11.9vw, 54px); letter-spacing: -.055em; }
+  .cova-space-copy .cova-space-subline { margin-top: 20px; max-width: 365px; font-size: 16px; line-height: 1.5; }
+  .cova-space-actions { gap: 16px; margin-top: 25px; }
+  .cova-space-actions .dark-glass-secondary { gap: 9px; }
+  .cova-space-actions .dark-glass-secondary__label { font-size: 14px; }
+  .cova-space-actions[data-auth-state="signed-in"] { flex-wrap: wrap; max-width: 330px; margin-left: auto; margin-right: auto; row-gap: 24px; }
+  .cova-space-actions[data-auth-state="signed-in"] .cova-space-primary { flex-basis: 100%; justify-content: center; }
+  .cova-space-copy .cova-space-trust { margin-top: 16px; font-size: 12px; }
+  .cova-space-proof { padding: 38px 20px 44px; }
+  .cova-space-proof .mobile-hero-dossier { margin: 0 auto !important; width: 100%; max-width: 520px; }
+  body:has(.cova-space-hero) .cova-site-header[data-section="overview"] { padding: 21px 20px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cova-space-image, .cova-space-copy { transform: none !important; }
+}

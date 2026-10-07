@@ -49,6 +49,7 @@ import {
 } from "./lib/supabaseClient";
 
 import { Hero } from "./components/MarketingHero";
+import { HomeLanding } from "./components/landing/HomeLanding";
 import { CsvExplainer } from "./components/CsvExplainer";
 import { StoryStrip } from "./components/StoryStrip";
 import { GlassButton } from "./components/GlassButton";
@@ -1420,7 +1421,7 @@ export default function App() {
                 </div>
               )}
               {section === "dashboard" && <Dashboard noteDraftOwner={dashboardPrincipal?.identity} key={`${authSession?.userId || authSession?.email}:${tradeAccount}`} analysis={analysis} rules={rules} go={go} accountControl={ <div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={[...new Set([...tradeAccounts,"local"])]} value={tradeAccount} onChange={selectTradeAccount} /></div>} onSaveTradeNote={saveTradeNote} journalActions={journalActions} onConfirmManualNet={confirmManualNetRows} onAddManualTrade={addManualTrade} onDeleteManualTrade={deleteManualTrade} manualAccounts={[...new Set([...tradeAccounts,"local"])]} selectedAccount={tradeAccount} rithmicSyncAvailable={brokerStatus?.provider === "Rithmic" && brokerStatus.status === "imported"} />}
-              {section === "import" && <ImportDesk accountManager={<ManualAccountManager accounts={[...new Set([...tradeAccounts,"local"])]} names={accountNames} onCreate={createManualAccount} onRename={renameManualAccount} onPrepareRemove={prepareRemoveAccount} onRemove={removeTradingAccount} onOpen={account => { selectTradeAccount(account); go("dashboard"); }} />} key={authSession?.userId || authSession?.email} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} entitlements={entitlements} importCsv={importCsv} prepareImportCsv={prepareImportCsv} openFirmOAuth={openFirmOAuth} status={status} reset={() => { if (workspaceSync.enabled) { announce("Keep sample trades separate from your saved account workspace.", "info"); return; } const demoTrades = entitlements.plan === "free" ? sampleTrades.slice(0, entitlements.maxStoredTrades) : sampleTrades; tradesRef.current = demoTrades; setTrades(demoTrades); selectTradeAccount("local"); setRules(defaultRules); clearBrokerStatus(); window.dispatchEvent(new CustomEvent("cova:broker-status")); setStatus("Demo trades restored."); announce("Demo trades restored.", "success"); }} upgradeToPro={upgradeToPro} />}
+              {section === "import" && <ImportDesk accountManager={<ManualAccountManager accounts={[...new Set([...tradeAccounts,"local"])].filter(account => account !== "local" || trades.some(trade => tradeAccountKey(trade) === "local") || Boolean(accountNames.local && accountNames.local !== "Manual account"))} names={accountNames} onCreate={createManualAccount} onRename={renameManualAccount} onPrepareRemove={prepareRemoveAccount} onRemove={removeTradingAccount} onOpen={account => { selectTradeAccount(account); go("dashboard"); }} />} key={authSession?.userId || authSession?.email} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} entitlements={entitlements} importCsv={importCsv} prepareImportCsv={prepareImportCsv} openFirmOAuth={openFirmOAuth} status={status} reset={() => { if (workspaceSync.enabled) { announce("Keep sample trades separate from your saved account workspace.", "info"); return; } const demoTrades = entitlements.plan === "free" ? sampleTrades.slice(0, entitlements.maxStoredTrades) : sampleTrades; tradesRef.current = demoTrades; setTrades(demoTrades); selectTradeAccount("local"); setRules(defaultRules); clearBrokerStatus(); window.dispatchEvent(new CustomEvent("cova:broker-status")); setStatus("Demo trades restored."); announce("Demo trades restored.", "success"); }} upgradeToPro={upgradeToPro} />}
               {section === "oauth" && <OAuthConnectPage firmId={oauthFirmId} onApprove={completeFirmOAuth} onCancel={cancelFirmOAuth} />}
               {section === "rules" && <RulesEngine analysis={analysis} entitlements={entitlements} rules={rules} setRules={setRules} go={go} upgradeToPro={upgradeToPro} accountControl={tradeAccounts.some(account => account !== "local") ? <div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} value={tradeAccount} onChange={selectTradeAccount} /></div> : undefined} />}
               {section === "coach" && <Coach analysis={analysis} entitlements={entitlements} go={go} upgradeToPro={upgradeToPro} accountControl={tradeAccounts.some(account => account !== "local") ? <div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} value={tradeAccount} onChange={selectTradeAccount} /></div> : undefined} />}
@@ -1440,31 +1441,33 @@ export default function App() {
           <AnimatePresence mode="wait">
           {section === "overview" && (
             <RouteFrame key="overview">
-              <Hero go={go} openAuth={openAuth} isSignedIn={isSignedIn} />
-              <StoryStrip />
+              <HomeLanding go={go}>
+                            <Hero go={go} openAuth={openAuth} isSignedIn={isSignedIn} />
+                            <StoryStrip openPassport={openPassport} />
               <PlanStrip currentPlan={authSession?.plan ?? null} go={go} openAuth={openAuth} proCheckoutAvailable={proCheckoutAvailable} upgradeToPro={upgradeToPro} />
               <ProviderResources compact />
               <CtaFooter go={go} isSignedIn={isSignedIn} openAuth={openAuth} openPassport={openPassport} />
+              </HomeLanding>
             </RouteFrame>
           )}
           {section === "features" && (
-            <RouteFrame key="features">
+            <RouteFrame key="features" sky>
               <FeaturesPage go={go} openAuth={openAuth} isSignedIn={isSignedIn} />
             </RouteFrame>
           )}
           {section === "pricing" && (
-            <RouteFrame key="pricing">
+            <RouteFrame key="pricing" sky>
               <PricingPage currentPlan={authSession?.plan ?? null} go={go} openAuth={openAuth} proCheckoutAvailable={proCheckoutAvailable} upgradeToPro={upgradeToPro} />
             </RouteFrame>
           )}
           {section === "resources" && (
-            <RouteFrame key="resources">
+            <RouteFrame key="resources" sky>
               <ResourcesPage go={go} openAuth={openAuth} />
               <ProviderResources />
             </RouteFrame>
           )}
           {section === "community" && (
-            <RouteFrame key="community">
+            <RouteFrame key="community" sky>
               <CommunityPage go={go} />
             </RouteFrame>
           )}

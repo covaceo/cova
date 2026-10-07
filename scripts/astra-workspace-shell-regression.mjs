@@ -16,6 +16,7 @@ function load(file) {
   const module = {exports:{}}; cache.set(file,module);
   const output = ts.transpileModule(readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText;
   new Function('module','exports','require',output)(module,module.exports,name => {
+    if(name.endsWith('.css')) return {};
     if(!name.startsWith('.')) return require(name);
     const path=resolve(dirname(file),name);
     return load([path,`${path}.ts`,`${path}.tsx`].find(existsSync));

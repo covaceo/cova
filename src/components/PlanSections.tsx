@@ -1,3 +1,4 @@
+import { MinimalPlanPricing } from "./landing/MinimalPlanPricing";
 import { motion } from "motion/react";
 import { ArrowUpRight, Check, X } from "lucide-react";
 import { GlassButton } from "./GlassButton";
@@ -11,7 +12,7 @@ type PlanRoute = "dashboard" | "import" | "passport";
 type FooterRoute = PlanRoute | "privacy" | "terms" | "security";
 type AuthMode = "signup";
 
-const planOptions = [
+export const planOptions = [
   {
     id: "free",
     name: "Free",
@@ -61,6 +62,7 @@ const planOptions = [
 ] as const;
 
 export function PlanStrip({ compact = false, currentPlan, go, openAuth, proCheckoutAvailable, upgradeToPro }: { compact?: boolean; currentPlan: PlanTier | null; go: (section: PlanRoute) => void; openAuth: (mode: AuthMode) => void; proCheckoutAvailable: boolean; upgradeToPro: () => void }) {
+  if (!compact) return <MinimalPlanPricing plans={planOptions} currentPlan={currentPlan} go={go} openAuth={openAuth} proCheckoutAvailable={proCheckoutAvailable} upgradeToPro={upgradeToPro} />;
   const HeadingTag = compact ? "h1" : "h2";
   return (
     <section className={`deferred-paint-section plans-section pricing-showcase ${compact ? "pricing-showcase-compact" : ""}`}>

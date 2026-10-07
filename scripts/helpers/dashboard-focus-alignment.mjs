@@ -39,10 +39,11 @@ export async function checkDashboardFocusAlignment({ evaluate, send, capture, na
   await click('.dashboard-range-controls button:last-child');
   await quiet('.dashboard-range-controls button:last-child');
   if(!mobile){
-    await click('.workspace-sidebar-search input');
+    if(await evaluate(`Boolean(document.querySelector('[data-gooey-input] button'))`))await click('[data-gooey-input] button');
+    await click('[data-gooey-input] input');
     await send('Input.insertText',{text:'risk'});
-    await quiet('.workspace-sidebar-search input');
-    await quiet('.workspace-sidebar-search');
+    await quiet('[data-gooey-input] input');
+    await quiet('[data-gooey-input]');
     await capture(name+'-search-click');
     await key('a',65,2);await key('Backspace',8);
     await key('Tab',9);
@@ -66,15 +67,17 @@ export async function checkDashboardFocusAlignment({ evaluate, send, capture, na
   }
   await evaluate(`document.activeElement?.blur();window.scrollTo({top:0,behavior:'instant'})`);
   if (!mobile) {
-    await click('.workspace-sidebar-search input');
+    if(await evaluate(`Boolean(document.querySelector('[data-gooey-input] button'))`))await click('[data-gooey-input] button');
+    await click('[data-gooey-input] input');
     await evaluate(`(() => {const b=document.createElement('button');b.id='qa-outside-workspace';b.textContent='QA tab origin';document.body.prepend(b);b.focus();})()`);
     await key('Tab',9);
     assert.equal(await evaluate(`document.querySelector('.oa-dashboard-shell').dataset.focusSource`),'keyboard','Tab from outside the workspace restores keyboard mode');
     assert.equal(await evaluate(`getComputedStyle(document.activeElement).outlineStyle`),'solid');
     await evaluate(`document.querySelector('#qa-outside-workspace').remove()`);
-    await click('.workspace-sidebar-search input');
+    if(await evaluate(`Boolean(document.querySelector('[data-gooey-input] button'))`))await click('[data-gooey-input] button');
+    await click('[data-gooey-input] input');
     await send('Emulation.setEmulatedMedia',{features:[{name:'forced-colors',value:'active'}]});
-    assert.equal((await style('.workspace-sidebar-search input')).outline,'solid','Forced-colors accessibility retains a focus boundary');
+    assert.equal((await style('[data-gooey-input] input')).outline,'solid','Forced-colors accessibility retains a focus boundary');
     await send('Emulation.setEmulatedMedia',{features:[]});
     await evaluate(`document.activeElement?.blur()`);
   }

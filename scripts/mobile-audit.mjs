@@ -9,8 +9,8 @@ const outDir = resolve("sketches/mobile-audit-2026-07-08");
 const viewportWidth = Number(process.env.COVA_VIEWPORT_WIDTH || 390);
 const viewportHeight = Number(process.env.COVA_VIEWPORT_HEIGHT || 1200);
 const routes = [
-  { name: "overview", hash: "overview", needsAuth: false, requiredText: ["See the patterns", "behind your risk.", "Explore the workflow", "DIAMOND", "Sample data · Not account verified"] },
-  { name: "overview-auth", hash: "overview", needsAuth: true, requiredText: ["Link account", "Explore the workflow", "DIAMOND", "Sample data · Not account verified"] },
+  { name: "overview", hash: "overview", needsAuth: false, requiredText: ["See the patterns", "behind your risk.", "Create my Passport", "DIAMOND", "Sample data · Not account verified"] },
+  { name: "overview-auth", hash: "overview", needsAuth: true, requiredText: ["Link account", "Create my Passport", "DIAMOND", "Sample data · Not account verified"] },
   { name: "pricing", hash: "pricing", needsAuth: false, requiredText: ["MOST CHOSEN BY ACTIVE TRADERS", "Cova Pro"] },
   { name: "import", hash: "import", needsAuth: true, requiredText: ["Tradovate", "NinjaTrader", "CSV upload"] },
   { name: "insights", hash: "coach", needsAuth: true, requiredText: ["Insights", "Details"] },
@@ -212,12 +212,12 @@ async function main() {
           const recommendationCard = document.querySelector('.plan-card-pro');
           const recommendationRect = recommendationTab?.getBoundingClientRect();
           const recommendationCardRect = recommendationCard?.getBoundingClientRect();
-          const pricingActions = [...document.querySelectorAll('.plan-primary-action, .plan-secondary-action')].map((element) => {
+          const pricingActions = [...document.querySelectorAll('.plan-primary-action, .plan-secondary-action, [data-pricing-layout="minimal"] button')].map((element) => {
             const rect = element.getBoundingClientRect();
             return { label: element.textContent?.trim() ?? '', height: rect.height };
           });
-          const hero = document.querySelector('.market-hero');
-          const heroActions = document.querySelector('.market-hero-actions');
+          const hero = document.querySelector('.cova-space-hero');
+          const heroActions = document.querySelector('.cova-space-actions');
           const heroPrimary = document.querySelector('.cova-liquid-metal-signup');
           const heroSecondary = document.querySelector('.dark-glass-secondary');
           const heroSecondaryLabel = heroSecondary?.querySelector('.dark-glass-secondary__label');
@@ -241,6 +241,8 @@ async function main() {
             hasAuthDialog: body.includes('Enter dev preview') || body.includes('Sign in to Cova'),
             title: document.querySelector('h1,h2')?.textContent?.trim() ?? '',
             pricingActions,
+            pricingMinimal: Boolean(document.querySelector('[data-pricing-layout="minimal"]')),
+            proGlow: Boolean(document.querySelector('[data-minimal-plan="pro"] [data-pro-dotted-glow]')),
             recommendation: recommendationTab && recommendationCard && recommendationRect && recommendationCardRect ? {
               position: getComputedStyle(recommendationTab).position,
               cardOverflow: getComputedStyle(recommendationCard).overflow,
@@ -282,7 +284,7 @@ async function main() {
         await sleep(900);
         const outcome = await cdp.send("Runtime.evaluate", {
           returnByValue: true,
-          expression: `({ hash: location.hash, hasAuthDialog: document.body.innerText.includes('Sign in to Cova'), storyTop: document.querySelector('.story-strip-simple')?.getBoundingClientRect().top ?? null })`,
+          expression: `({ hash: location.hash, hasAuthDialog: document.body.innerText.includes('Sign in to Cova'), storyTop: document.querySelector('[data-feature="risk-desk"]')?.getBoundingClientRect().top ?? null })`,
         });
         actionOutcome = outcome.result.value;
       }
@@ -371,9 +373,9 @@ async function main() {
     const failures = results.flatMap((result) => [
       ...(result.documentOverflow > 0 ? [`${result.name}: document overflow ${result.documentOverflow}px`] : []),
       ...(result.hasAuthDialog ? [`${result.name}: unexpected auth dialog`] : []),
-      ...(result.name === "pricing" && result.recommendation?.position !== "absolute" ? ["pricing: recommendation tab is not absolutely attached"] : []),
-      ...(result.name === "pricing" && result.recommendation?.cardOverflow !== "visible" ? ["pricing: recommendation tab is clipped by the Pro card"] : []),
-      ...(result.name === "pricing" && (!result.recommendation?.fullyInViewport || !result.recommendation?.verticallyVisible || Math.abs(result.recommendation.rightDelta - (viewportWidth < 768 ? 14 : 24)) > 6) ? ["pricing: recommendation tab is not visibly aligned inside the Pro card's upper-right edge"] : []),
+      ...(result.name === "pricing" && !result.pricingMinimal ? ["pricing: approved minimal layout missing"] : []),
+      ...(result.name === "pricing" && !result.proGlow ? ["pricing: actual Pro glow missing"] : []),
+      ...(result.name === "pricing" && result.pricingActions.length !== 4 ? ["pricing: both original plan actions are required"] : []),
       ...(result.name === "pricing" && viewportWidth < 768 ? result.pricingActions.filter((action) => action.height < 44).map((action) => `pricing: “${action.label}” touch target is ${action.height.toFixed(2)}px tall`) : []),
       ...(result.name === "overview" && result.hero?.secondary.text !== "See how it works" ? ["overview: approved Dark Glass secondary CTA label is not visible"] : []),
       ...(result.name === "overview" && (result.hero?.secondary.left < 0 || result.hero?.secondary.right > result.width) ? ["overview: secondary CTA overflows the viewport"] : []),
@@ -384,7 +386,7 @@ async function main() {
       ...(result.name.startsWith("overview") && viewportHeight <= 760 && result.hero?.actionsBottom > viewportHeight ? [`${result.name}: hero actions fall below the short desktop fold`] : []),
       ...(result.name.startsWith("overview") && result.hero?.reactionTop !== null && result.hero?.actionsBottom > result.hero?.reactionTop ? [`${result.name}: hero actions collide with the testimonial rail`] : []),
       ...(result.name === "overview" && !result.footer ? ["overview: approved closing CTA missing"] : []),
-      ...(result.name === "overview" && result.footer && result.footer.backgroundColor !== "rgb(5, 6, 7)" ? ["overview: approved Structure Flow background field missing"] : []),
+      ...(result.name === "overview" && result.footer && result.footer.backgroundColor !== "rgba(0, 0, 0, 0)" ? ["overview: approved Structure Flow background field missing"] : []),
       ...(result.name === "overview" && result.footer?.title !== "Stop repeating the trade that keeps costing you." ? ["overview: footer headline mismatch"] : []),
       ...(result.name === "overview" && (result.footer?.overflow ?? 0) > 1 ? [`overview: footer overflow ${result.footer.overflow}px`] : []),
       ...(result.name === "overview" && result.footer?.dashboardInside ? ["overview: dashboard duplicated inside closing CTA"] : []),

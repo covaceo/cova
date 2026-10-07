@@ -1,4 +1,6 @@
 import { motion, useReducedMotion } from "motion/react";
+import { RiskDeskSample } from "./landing/RiskDeskFeature";
+import "../styles/publicPageRefresh.css";
 import { PublicPassportExampleCard } from "./PublicPassportExampleCard";
 import { FeaturesTabHighlight } from "./FeaturesTabHighlight";
 import {
@@ -146,44 +148,12 @@ function TradeJournalInstrument() {
 }
 
 function RiskReviewInstrument() {
-  return (
-    <div className="features-instrument features-risk-instrument">
-      <InstrumentHeader label="SAMPLE REVIEW" meta="LAST 20 TRADES" />
-      <div className="features-risk-metrics">
-        <div><span>Reported P&L</span><strong>+$1,640</strong><small>sample value</small></div>
-        <div><span>Profit factor</span><strong>1.48</strong><small>review range</small></div>
-        <div><span>Max drawdown</span><strong data-negative="true">-$620</strong><small>sample value</small></div>
-      </div>
-      <div className="features-risk-canvas">
-        <div className="features-risk-chart">
-          <div className="features-chart-labels"><span>$1.8k</span><span>$900</span><span>$0</span></div>
-          <svg aria-hidden="true" viewBox="0 0 560 220" preserveAspectRatio="none">
-            <defs>
-              <linearGradient id="features-risk-fill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#4f7dff" stopOpacity="0.28" />
-                <stop offset="100%" stopColor="#4f7dff" stopOpacity="0" />
-              </linearGradient>
-            </defs>
-            <path className="features-risk-area" d="M0,194 L38,180 L74,186 L112,156 L150,146 L188,164 L226,124 L264,134 L302,96 L340,110 L378,72 L416,86 L454,52 L492,64 L530,34 L560,42 L560,220 L0,220 Z" />
-            <path className="features-risk-line" d="M0,194 L38,180 L74,186 L112,156 L150,146 L188,164 L226,124 L264,134 L302,96 L340,110 L378,72 L416,86 L454,52 L492,64 L530,34 L560,42" />
-            <line className="features-drawdown-line" x1="0" x2="560" y1="164" y2="164" />
-          </svg>
-          <span className="features-chart-event" style={{ left: '31%', top: '57%' }}>SIZE DRIFT</span>
-          <span className="features-chart-event" style={{ left: '67%', top: '33%' }}>RECOVERY</span>
-        </div>
-        <div className="features-risk-ledger">
-          <div className="features-ledger-title"><span>Rule warnings</span><strong>02</strong></div>
-          <div className="features-warning-row"><AlertTriangle aria-hidden="true" /><div><strong>Daily loss warning</strong><span>1 reviewed session</span></div></div>
-          <div className="features-warning-row"><AlertTriangle aria-hidden="true" /><div><strong>Size drift</strong><span>3 reviewed trades</span></div></div>
-          <div className="features-review-state"><span>Review state</span><strong>Needs attention</strong></div>
-        </div>
-      </div>
-      <footer className="features-instrument-footer">
-        <span>IMPORTED HISTORY</span>
-        <span>Metrics and warnings are illustrative until a member imports data.</span>
-      </footer>
+  const [chapter, setChapter] = useState<"results" | "trades" | "journal">("results");
+  return <div className="features-instrument features-native-instrument">
+    <div className="cova-risk-instrument" data-risk-desk-preview="interactive-sample">
+      <RiskDeskSample chapter={chapter} setChapter={setChapter} />
     </div>
-  );
+  </div>;
 }
 
 function LimitsInstrument() {
@@ -300,7 +270,7 @@ export function FeaturesPage({ go, openAuth, isSignedIn = false }: { go: (sectio
   }
 
   return (
-    <section className="features-showcase-page" data-features-showcase>
+    <section className="features-showcase-page" data-features-showcase data-public-refresh>
       <span aria-hidden="true" className="features-showcase-atmosphere" />
       <div className="features-showcase-inner">
         <header className="features-showcase-intro">
@@ -361,7 +331,7 @@ export function FeaturesPage({ go, openAuth, isSignedIn = false }: { go: (sectio
                     className="features-instrument-transition"
                     custom={direction}
                     initial={reduceMotion || !isActive ? false : "enter"}
-                    key={`${feature.id}-${isActive}`}
+                    key={feature.id === "risk-review" ? feature.id : `${feature.id}-${isActive}`}
                     transition={layoutTransition}
                     variants={OA_PANEL_VARIANTS}
                   >

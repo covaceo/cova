@@ -122,6 +122,7 @@ async function captureScreenshot(name) {
 try {
   previewServer = await startPreview({
     root,
+    build:{outDir:process.env.COVA_HOME_STORY_BUILD_DIR||'dist'},
     logLevel: "silent",
     preview: { host: "127.0.0.1", port: 0, strictPort: true },
   });
@@ -137,7 +138,7 @@ try {
   let devToolsPort;
   const started = Date.now();
   while (!devToolsPort && Date.now() - started < 10_000) {
-    try { devToolsPort = Number((await readFile(devToolsPath, "utf8")).split(/\r?\n/)[0]); }
+    try { devToolsPort = Number((await readFile(devToolsPath, "utf8")).replaceAll(String.fromCharCode(13), "").split(String.fromCharCode(10))[0]); }
     catch { await sleep(80); }
   }
   assert.ok(devToolsPort);
@@ -157,25 +158,25 @@ try {
       const story=document.querySelector('[data-home-story]');
       const rect=e=>e.getBoundingClientRect().toJSON();
       const q=s=>story.querySelector(s);
-      const steps=[...story.querySelectorAll('.home-story-step')];
+      const modes=[...story.querySelectorAll('[data-passport-sample-mode]')];
       const face=q('.passport-holo-face'), canvas=q('canvas');
-      const card=rect(q('.home-story-card')), copy=rect(q('.home-story-copy'));
+      const card=rect(q('.home-story-card')), copy=rect(q('.cova-passport-heading'));
       return {width:innerWidth, height:innerHeight, visualWidth:visualViewport.width,rootOverflow:document.documentElement.scrollWidth-document.documentElement.clientWidth,
-       card,copy, action:rect(q('.home-story-action')), steps:steps.map(e=>({rect:rect(e),overflow:e.scrollWidth-e.clientWidth,title:rect(e.querySelector('h3')),body:rect(e.querySelector('p'))})),
-       stepColumns:getComputedStyle(q('.home-story-steps')).gridTemplateColumns.split(' ').length,
+       card,copy, action:rect(q('.home-story-action')), modes:modes.map(e=>({rect:rect(e),overflow:e.scrollWidth-e.clientWidth,active:e.getAttribute('aria-pressed')})),
+       retiredSteps:document.querySelectorAll('.home-story-step,.cova-landing-loop').length,
        rank:face.dataset.passportTier,appearance:face.dataset.appearance,optics:face.dataset.optics,stage:rect(q('.home-story-stage')), face:rect(face),raster:[canvas.width,canvas.height],
-       headingFont:getComputedStyle(q('h2')).fontFamily, headingStyle:getComputedStyle(q('h2')).fontStyle, sectionBackground:getComputedStyle(story).backgroundImage, faceBackground:getComputedStyle(face).backgroundImage, faceBorder:getComputedStyle(face).borderTopWidth, faceBefore:getComputedStyle(face,'::before').display, faceAfter:getComputedStyle(face,'::after').display, shareColor:getComputedStyle(steps[3].querySelector('h3')).color,headline: q('h2').textContent,auth:document.querySelectorAll('[role=dialog][aria-modal=true]').length,
+       headingFont:getComputedStyle(q('h2')).fontFamily, headingStyle:getComputedStyle(q('h2')).fontStyle, sectionBackground:getComputedStyle(story).backgroundImage, faceBackground:getComputedStyle(face).backgroundImage, faceBorder:getComputedStyle(face).borderTopWidth, faceBefore:getComputedStyle(face,'::before').display, faceAfter:getComputedStyle(face,'::after').display,headline: q('h2').textContent,auth:document.querySelectorAll('[role=dialog][aria-modal=true]').length,
        brokenImages:[...document.images].filter(i=>i.complete&&!i.naturalWidth).length, disclosure:q('.passport-holo-disclosure').textContent};
     })()`);
     assert.equal(m.width,width);assert.equal(m.visualWidth,width);assert.equal(m.rootOverflow,0);assert.equal(m.auth,0);assert.equal(m.brokenImages,0);
     assert.equal(m.rank,'diamond');assert.equal(m.appearance,'Diamond-standard');assert.match(m.disclosure,/Sample data/);
     assert.match(m.headingFont,/Inter Tight/,'Legacy editorial face must not replace the approved sans headline.');assert.equal(m.headingStyle,'normal');
-    assert.equal(m.sectionBackground,'none');assert.equal(m.faceBackground,'none');assert.equal(m.faceBorder,'0px');assert.equal(m.faceBefore,'none');assert.equal(m.faceAfter,'none');assert.equal(m.shareColor,'rgb(143, 175, 255)');
-    assert.equal(m.steps.length,4);assert.equal(m.stepColumns,width<=760?2:4);
-    assert.ok(m.card.x>=20 && m.card.right<=width-20,JSON.stringify(m));
-    assert.ok(width<=760 ? m.card.top>=m.copy.bottom+30 : m.card.left>=m.copy.right+25,`copy/card collision at ${width}`);
+    assert.equal(m.sectionBackground,'none');assert.equal(m.faceBackground,'none');assert.equal(m.faceBorder,'0px');assert.equal(m.faceBefore,'none');assert.equal(m.faceAfter,'none');
+    assert.equal(m.retiredSteps,0);assert.equal(m.modes.length,3);assert.equal(m.modes.filter(mode=>mode.active==='true').length,1);
+    assert.ok(m.card.x>=(width<=360?16:20) && m.card.right<=width-(width<=360?16:20),JSON.stringify(m));
+    assert.ok(m.card.top>=m.copy.bottom+20,`centered heading/card collision at ${width}`);
     assert.ok(m.action.height>=44);
-    for(const step of m.steps){assert.ok(step.overflow<=1);assert.ok(step.title.right<=step.rect.right+1);assert.ok(step.body.right<=step.rect.right+1);}
+    for(const mode of m.modes){assert.ok(mode.overflow<=1);assert.ok(mode.rect.width>=60&&mode.rect.height>=40);}
     cases.push(m);
     if(screenshotDir) await writeFile(join(screenshotDir,'layout-cases.json'),JSON.stringify(cases,null,2));
     if([1672,1280,768,390,320].includes(width)) await captureScreenshot(`home-${width}.png`);
@@ -217,16 +218,17 @@ try {
   await waitFor("Math.abs(Number(document.querySelector('.home-story .passport-holo-face').dataset.opticsX))>.1");
   await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
   await waitFor("Number(document.querySelector('.home-story .passport-holo-face').dataset.opticsX)===0");
-  // A public exploratory action never opens auth. Real pointer activation verifies hash routing.
+  // The creation action must use the original gated Passport destination.
   await evaluate("document.querySelector('.home-story-action').scrollIntoView({block:'center',behavior:'instant'});true");
   const action=await evaluate("(()=>{const r=document.querySelector('.home-story-action').getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()");
   await cdp.send('Input.dispatchMouseEvent',{type:'mousePressed',button:'left',clickCount:1,...action});
   await cdp.send('Input.dispatchMouseEvent',{type:'mouseReleased',button:'left',clickCount:1,...action});
-  await waitFor("location.hash==='#features' && document.querySelector('[data-features-showcase]') && !document.querySelector('[data-home-story]')");
-  assert.equal(await evaluate("document.querySelectorAll('[role=dialog][aria-modal=true]').length"),0);
-  assert.equal(await evaluate("document.querySelectorAll('[role=tab]').length"),5);
+  await waitFor("document.querySelector('[role=dialog][aria-modal=true]') && location.hash==='#passport'");
+  const dev=await evaluate("(()=>{const b=[...document.querySelectorAll('button')].find(e=>e.textContent==='Enter dev preview'),r=b.getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2};})()");
+  await cdp.send('Input.dispatchMouseEvent',{type:'mousePressed',button:'left',clickCount:1,...dev});await cdp.send('Input.dispatchMouseEvent',{type:'mouseReleased',button:'left',clickCount:1,...dev});
+  await waitFor("document.querySelector('.workspace-shell')?.dataset.workspaceSection==='passport'");
   assert.deepEqual(consoleErrors,[]);assert.deepEqual(runtimeErrors,[]);assert.deepEqual(networkErrors,[]);
-  console.log(JSON.stringify({passed:true,cases:cases.length,pointer:true,keyboard:true,heldMotifStopped:true,touch:true,reducedMotion:true,contextRestored:true,publicCta:true,consoleErrors,runtimeErrors,networkErrors}));
+  console.log(JSON.stringify({passed:true,cases:cases.length,pointer:true,keyboard:true,heldMotifStopped:true,touch:true,reducedMotion:true,contextRestored:true,passportCta:true,consoleErrors,runtimeErrors,networkErrors}));
 } finally {
   if (chrome && chrome.exitCode === null) {
     if (cdp) await Promise.race([cdp.send('Browser.close').catch(() => {}), sleep(500)]);

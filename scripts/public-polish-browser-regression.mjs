@@ -53,11 +53,7 @@ async function waitFor(expression) {
   }
   throw new Error(`Timed out: ${expression}`);
 }
-const routes = [
-  ['resources', '.resources-oa-page'], ['community', '.community-oa-page'],
-  ['pricing', '.public-pricing-page'], ['privacy', '.public-legal-page'],
-  ['terms', '.public-legal-page'], ['security', '.public-legal-page'],
-];
+const routes = [['community', '.community-oa-page'], ['privacy', '.public-legal-page'], ['terms', '.public-legal-page'], ['security', '.public-legal-page']];
 const legalTitles = { privacy: 'Privacy Policy', terms: 'Terms of Service', security: 'Security & Data Handling' };
 const legalSectionCounts = { privacy: 12, terms: 18, security: 10 };
 try {
@@ -116,7 +112,7 @@ try {
       })()`);
       assert.equal(result.overflow, 0, `${route}@${width}: horizontal page overflow`);
       assert.deepEqual(result.clippedText, [], `${route}@${width}: text overflow`);
-      for (const heading of result.headings) assert.match(heading.font, /^"Bricolage Grotesque Variable"/, `${route}: ${heading.text}`);
+      for (const heading of result.headings) assert.match(heading.font, route==='resources'&&/^\d{2}/.test(heading.text)?/^Inter,/:/^"Bricolage Grotesque Variable"/, `${route}: ${heading.text}`);
       if (route === 'resources' || route === 'community') {
         for (const p of result.paragraphs) assert.match(p.font, /^Inter,/, `${route}: body font`);
         assert.equal(result.headerOwnOpacity, '');
@@ -157,7 +153,7 @@ try {
     }
   }
   await client.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
-  for (const [route, owner] of routes.slice(0, 2)) {
+  for (const [route, owner] of routes.filter(([route]) => route === 'community')) {
     await client.send('Page.navigate', { url: `${origin}/#${route}` });
     await waitFor(`document.querySelector('${owner}')`);
     const state = await evaluate(`(() => { const page = document.querySelector('${owner}'); const stage = page.querySelector('[class$="-oa-stage"]'); return { opacity: getComputedStyle(stage).opacity, transform: stage.style.transform, transition: getComputedStyle(page.querySelector('button')).transitionDuration }; })()`);

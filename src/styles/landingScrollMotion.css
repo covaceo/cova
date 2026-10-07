@@ -1,0 +1,4 @@
+/* One reversible handoff. The photograph, mask and all section layout remain unchanged. */
+.cova-home-landing[data-scroll-motion] .cova-space-copy{translate:0 var(--cova-hero-scroll-y,0px);opacity:var(--cova-hero-scroll-opacity,1);}
+.cova-home-landing[data-scroll-motion] :is(.cova-risk-copy,.cova-risk-stage){translate:0 var(--cova-feature-scroll-y,0px);opacity:var(--cova-feature-scroll-opacity,1);}
+@media(prefers-reduced-motion:reduce){.cova-home-landing[data-scroll-motion] :is(.cova-space-copy,.cova-risk-copy,.cova-risk-stage){translate:none!important;opacity:1!important;}}

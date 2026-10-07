@@ -1,0 +1,120 @@
+/* Homepage only. The approved hero, workspace, other public pages and commercial logic are untouched. */
+.cova-home-landing { position:relative; isolation:isolate; display:flex; flex-direction:column; background:#05070c; color:inherit; font-family:inherit; }
+.cova-landing-stars { position:fixed; z-index:0; inset:0; overflow:hidden; pointer-events:none; mask-image:radial-gradient(ellipse 55% 90% at 50% 50%,rgba(0,0,0,.8),#000); }
+.cova-landing-stars canvas { display:block; width:100%; height:100%; }
+.cova-landing-stars-fallback { display:none; position:absolute; inset:0; background:radial-gradient(1px 1px at 9% 14%,#b2c5e4,transparent),radial-gradient(1px 1px at 84% 22%,#9aabc3,transparent),radial-gradient(1px 1px at 24% 62%,#8898b1,transparent),radial-gradient(1px 1px at 91% 77%,#a7b7cf,transparent),radial-gradient(1px 1px at 43% 89%,#a5b1c5,transparent); opacity:.45; }
+.cova-landing-stars[data-state="fallback"] .cova-landing-stars-fallback { display:block; }
+.cova-home-landing > section { position:relative; z-index:1; flex:0 0 auto; }
+.cova-home-landing > section:not(.cova-space-hero) { color:#e8eeff; font-family:"Inter Tight Variable","Inter Tight",Inter,sans-serif; }
+.cova-home-landing > .cova-space-hero { order:0; }
+.cova-home-landing > .cova-landing-product { order:1; }
+.cova-home-landing > .cova-landing-loop { order:2; }
+.cova-home-landing > .home-story { order:3; }
+.cova-home-landing > .cova-space-proof { order:4; }
+.cova-home-landing > .plans-section { order:5; }
+.cova-home-landing > .cova-provider-resources { order:6; }
+.cova-home-landing > .cova-closing-section { order:7; }
+.cova-home-landing section.cova-landing-product { width:100%; max-width:1240px; margin:0 auto; padding:68px 40px 70px!important; border:0!important; background:none!important; min-height:0!important; scroll-margin-top:100px; }
+.cova-landing-section-heading { display:grid; grid-template-columns:1fr .7fr; align-items:end; gap:80px; margin-bottom:42px; }
+.cova-home-landing #landing-product-title { margin:0; color:#f5f7ff; font-family:inherit!important; font-style:normal!important; font-size:clamp(40px,4.25vw,64px); font-weight:450; line-height:1.08; letter-spacing:-.045em; }
+.cova-landing-section-heading p { margin:0; max-width:410px; color:#b9c2d2; font-size:18px; line-height:1.6; text-wrap:balance; }
+.cova-landing-text-action { display:inline-flex; align-items:center; gap:10px; margin:20px 0 0; min-height:44px; background:none; border:0; padding:0; color:#a8c0ff; font:inherit; font-size:16px; }
+.cova-landing-text-action:hover { color:#e8eeff; }
+.cova-landing-text-action:focus-visible { outline:2px solid #a8c0ff; outline-offset:6px; }
+.cova-landing-product-figure { margin:0; border:1px solid #222935; border-radius:14px; overflow:hidden; background:#0f0f0f; }
+.cova-landing-product-label { display:flex; justify-content:space-between; gap:16px; padding:17px 22px; border-bottom:1px solid #222935; color:#c7d0de; font-size:14px; }
+.cova-landing-product-label > span:last-child { color:#a8c0ff; }
+.cova-landing-product-figure picture,.cova-landing-product-figure img { display:block; width:100%; height:auto; }
+.cova-landing-product-figure figcaption { padding:15px 22px; border-top:1px solid #222935; color:#aeb9cb; font-size:13px; line-height:1.5; }
+.cova-home-landing .cova-landing-loop { width:100%; max-width:1240px; margin:0 auto; padding:40px 40px 90px; }
+.cova-landing-loop h2 { margin:0 0 32px; font-size:34px; font-weight:450; letter-spacing:-.035em; }
+.cova-landing-loop .home-story-steps { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); list-style:none; margin:0; padding:28px 0 0; border-top:1px solid #252b36; gap:30px; }
+.cova-landing-loop .home-story-step { padding:0; min-width:0; }
+.cova-landing-loop .home-story-index { color:#7e9fe5; font-size:13px; margin-bottom:16px; display:block; }
+.cova-landing-loop h3 { margin:0; font-size:26px; font-weight:450; letter-spacing:-.02em; }
+.cova-landing-loop .home-story-step p { margin:10px 0 0; color:#b9c2d2; font-size:16px; line-height:1.5; }
+.cova-home-landing section.story-strip-simple.home-story { background:transparent!important; padding:80px 40px 100px!important; border:0!important; }
+.cova-home-landing .home-story-inner { max-width:1160px; }
+.cova-home-landing .home-story-layout { grid-template-columns:.85fr 1.15fr; align-items:center; gap:70px; }
+.cova-home-landing .home-story #home-story-title { font-size:clamp(44px,4.7vw,68px); line-height:1.12!important; }
+.cova-home-landing .home-story-description { font-size:18px; max-width:360px; margin-top:24px; }
+.cova-home-landing .home-story .home-story-caption { position:static; width:auto; height:auto; padding:0; overflow:visible; clip-path:none; white-space:normal; margin-top:25px; color:#aeb9cb; font-size:13px; line-height:1.5; }
+.cova-home-landing .cova-space-proof { background:transparent!important; padding:80px 40px!important; overflow:visible; }
+/* The obsolete simulated dashboard is replaced by an actual sample UI capture above. Exact reviews remain. */
+.cova-home-landing .cova-space-proof .hero-dashboard-stage,.cova-home-landing .cova-space-proof .mobile-hero-dossier { display:none!important; }
+.cova-home-landing .market-reaction-band { display:block!important; position:relative!important; inset:auto!important; width:100%!important; margin:0!important; padding:0!important; }
+.cova-home-landing .market-reaction-heading { justify-content:flex-start!important; text-align:left!important; margin:0 0 32px!important; padding:0!important; border:0!important; }
+.cova-home-landing .market-reaction-heading span { font-family:inherit!important; font-size:34px!important; font-weight:450!important; letter-spacing:-.035em!important; text-transform:none!important; color:#e8eeff!important; }
+.cova-home-landing .market-reaction-strip { position:relative!important; display:grid!important; grid-template-columns:repeat(3,minmax(0,1fr)); gap:32px; background:none!important; padding:32px 0!important; border-top:1px solid #252b36!important; border-bottom:1px solid #252b36!important; }
+.cova-home-landing .market-reaction-item { padding:0!important; border:0!important; background:none!important; }
+.cova-home-landing .market-reaction-item p { color:#c7d0de!important; font-family:inherit!important; font-size:17px!important; line-height:1.6!important; }
+.cova-home-landing .market-reaction-item footer { margin-top:22px!important; }
+.cova-home-landing .market-reaction-item strong { color:#e8eeff!important; font-size:14px!important; }
+.cova-home-landing .market-reaction-rating { color:#a8c0ff!important; }
+.cova-home-landing .pricing-showcase { background:none!important; padding:85px 40px!important; }
+.cova-home-landing .pricing-showcase-top-fade,.cova-home-landing .pricing-showcase-bottom-fade { display:none; }
+.cova-home-landing .pricing-showcase-inner { max-width:1160px; }
+.cova-home-landing .pricing-showcase-header { margin:0 0 42px!important; text-align:left!important; }
+.cova-home-landing .pricing-showcase-title { max-width:780px!important; color:#f5f7ff!important; font-family:inherit!important; font-size:clamp(38px,3.6vw,54px)!important; font-weight:450!important; letter-spacing:-.04em!important; line-height:1.14!important; }
+.cova-home-landing .pricing-showcase-summary { max-width:620px!important; margin:18px 0 0!important; color:#b9c2d2!important; font-size:17px!important; line-height:1.55!important; }
+.cova-home-landing .pricing-plan-grid { gap:24px!important; align-items:stretch; }
+.cova-home-landing .plan-card { min-height:0!important; padding:30px!important; gap:0!important; border-radius:16px!important; background:#0c1018!important; border:1px solid #252d3b!important; box-shadow:none!important; transform:none!important; }
+.cova-home-landing .plan-card-pro { border-color:#465f96!important; background:#101827!important; }
+.cova-home-landing .plan-card-name { font-family:inherit!important; font-size:28px!important; color:#f5f7ff!important; margin-top:20px!important; }
+.cova-home-landing .plan-card-description { font-size:16px!important; line-height:1.5!important; color:#b9c2d2!important; min-height:0!important; }
+.cova-home-landing .plan-price { font-family:inherit!important; font-size:62px!important; font-weight:450!important; line-height:1.05!important; letter-spacing:-.045em!important; color:#f5f7ff!important; }
+.cova-home-landing .plan-price-row { margin:22px 0!important; }
+.cova-home-landing .plan-card-rule { margin:22px 0!important; }
+.cova-home-landing .plan-feature-ledger { gap:22px!important; }
+.cova-home-landing .plan-feature-list { gap:5px!important; }
+.cova-home-landing .plan-card-index { display:none; }
+.cova-home-landing .plan-feature-row { min-height:0!important; padding:5px 0!important; font-size:15px!important; line-height:1.45!important; color:#c7d0de!important; }
+.cova-home-landing .plan-feature-icon { width:18px!important; height:18px!important; min-width:18px!important; }
+.cova-home-landing .plan-feature-icon svg { width:12px!important; height:12px!important; }
+.cova-home-landing .plan-feature-label { color:#c7d0de!important; font-size:14px!important; }
+.cova-home-landing .plan-price-note { color:#b9c2d2!important; font-size:14px!important; }
+.cova-home-landing .plan-secondary-action { margin-top:24px!important; color:#a8c0ff!important; }
+.cova-home-landing .cova-provider-resources { background:none!important; border:0!important; padding:35px 40px 70px!important; }
+.cova-home-landing .cova-provider-inner { max-width:1160px; }
+.cova-home-landing .cova-provider-resources h2 { font-family:inherit!important; font-size:24px!important; color:#c7d0de!important; font-weight:450!important; }
+.cova-home-landing .cova-provider-grid { max-width:560px; }
+.cova-home-landing .cova-provider-grid article { background:#0c1018!important; border-color:#252d3b!important; }
+.cova-home-landing .cova-provider-trademark { color:#9ca9bf!important; }
+.cova-home-landing .cova-closing-section { background:transparent!important; margin-top:0!important; border-top:1px solid #252b36; }
+.cova-home-landing .cova-closing-structure-flow { opacity:.22; }
+.cova-home-landing .cova-closing-title { font-family:inherit!important; font-size:clamp(40px,4.3vw,64px)!important; font-weight:450!important; line-height:1.1!important; }
+.cova-home-landing .cova-closing-summary { color:#c7d0de!important; }
+body:has(.cova-home-landing) .cova-site-footer { background:#05070c; border-top:1px solid #252b36; }
+@media(max-width:760px) {
+ .cova-home-landing section.cova-landing-product { padding:46px 20px 45px!important; }
+ .cova-landing-section-heading { grid-template-columns:1fr; gap:23px; margin-bottom:30px; }
+ .cova-home-landing #landing-product-title { font-size:42px; }
+ .cova-landing-section-heading p { font-size:17px; }
+ .cova-landing-product-label { padding:14px 16px; font-size:12px; }
+ .cova-landing-product-figure figcaption { padding:14px 16px; font-size:13px; }
+ .cova-home-landing .cova-landing-loop { padding:35px 24px 45px; }
+ .cova-landing-loop h2 { font-size:30px; }
+ .cova-landing-loop .home-story-steps { grid-template-columns:1fr 1fr; gap:28px 24px; }
+ .cova-landing-loop h3 { font-size:25px; }
+ .cova-home-landing section.story-strip-simple.home-story { padding:55px 24px 65px!important; }
+ .cova-home-landing .home-story-layout { grid-template-columns:1fr; gap:40px; }
+ .cova-home-landing .home-story #home-story-title { font-size:45px; }
+ .cova-home-landing .home-story-description { font-size:17px; }
+ .cova-home-landing .cova-space-proof { padding:55px 24px!important; }
+ .cova-home-landing .market-reaction-heading span { font-size:30px!important; }
+ .cova-home-landing .market-reaction-strip { grid-template-columns:1fr; gap:30px; }
+ .cova-home-landing .market-reaction-item + .market-reaction-item { padding-top:25px!important; border-top:1px solid #252b36!important; }
+ .cova-home-landing .pricing-showcase { padding:55px 24px!important; }
+ .cova-home-landing .pricing-showcase-title { font-size:36px!important; }
+ .cova-home-landing .plan-card { padding:25px!important; }
+ .cova-home-landing .cova-provider-resources { padding:20px 24px 50px!important; }
+}
+@media(prefers-reduced-motion:reduce) { .cova-landing-text-action { transition:none; } }
+/* The Earth image fades into the same continuous sky. No new image, no crop/scale changes. */
+.cova-home-landing > .cova-space-hero { background:transparent; }
+.cova-home-landing .cova-space-image,.cova-home-landing .cova-space-shade { mask-image:linear-gradient(to bottom,#000 0%,#000 70%,rgba(0,0,0,.98)76%,rgba(0,0,0,.91)83%,rgba(0,0,0,.7)89%,rgba(0,0,0,.36)95%,rgba(0,0,0,.1)98%,transparent 100%); }
+.cova-home-landing .cova-space-title { position:relative; }
+.cova-hero-hover { position:absolute; inset:0; width:100%; height:100%; overflow:visible; pointer-events:none; opacity:0; transition:opacity .2s ease; }
+.cova-hero-hover[data-active="true"] { opacity:1; }
+.cova-hero-hover text { font-style:normal; text-shadow:none; }
+@media(prefers-reduced-motion:reduce),(hover:none),(pointer:coarse) { .cova-hero-hover { display:none; } }

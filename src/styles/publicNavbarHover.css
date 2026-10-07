@@ -1,0 +1,60 @@
+/* Public marketing navigation only. The approved workspace and hero remain separate owners. */
+
+/* Match the capsule CTA treatment in the expanded public menu, not in the workspace. */
+.cova-site-header[data-nav-design="pill-hover"] .operator-mobile-account-actions > button { border-radius:999px!important; font-family:Inter,sans-serif!important; font-size:14px!important; letter-spacing:0!important; text-transform:none!important; }
+.cova-site-header[data-nav-design="pill-hover"] .operator-mobile-account-actions .native-start-button { background:#f1f5ff!important; color:#101726!important; border:1px solid rgba(255,255,255,.2)!important; box-shadow:none!important; }
+.cova-site-header[data-nav-design="pill-hover"] .operator-mobile-account-actions .native-start-button-copy { font-family:inherit!important; letter-spacing:0!important; text-transform:none!important; }
+
+.cova-site-header[data-nav-design="pill-hover"] { padding:24px 32px 12px!important; }
+.cova-site-header[data-nav-design="pill-hover"] .header-scroll-veil { display:none!important; }
+.cova-site-header[data-nav-design="pill-hover"] .cova-public-nav-shell { width:100%; max-width:1280px; margin:0 auto; }
+.cova-site-header[data-nav-design="pill-hover"] .header-layout-row { max-width:none; }
+.cova-site-header[data-nav-design="pill-hover"]:not(.workspace-top-header) .header-orbit.marketing-header { width:100%!important; max-width:none!important; min-height:64px; gap:24px!important; padding:10px 16px 10px 24px!important; background:transparent!important; border:0!important; border-radius:999px!important; corner-shape:round; box-shadow:none!important; backdrop-filter:none!important; -webkit-backdrop-filter:none!important; }
+.cova-site-header[data-nav-design="pill-hover"] .header-orbit .brand-lockup { margin:0!important; padding:4px 0; }
+.cova-site-header[data-nav-design="pill-hover"]:not(.workspace-top-header) .header-nav-group.marketing-nav-group { margin:0 auto!important; gap:2px!important; padding:0!important; background:none!important; border:0!important; }
+.cova-site-header[data-nav-design="pill-hover"] .marketing-nav-group .marketing-nav-link { position:relative; isolation:isolate; min-height:40px; padding:10px 15px!important; color:#c6cedd!important; border:0!important; border-radius:999px!important; background:transparent!important; box-shadow:none!important; line-height:20px; transition:color .16s; }
+.cova-site-header[data-nav-design="pill-hover"] .marketing-nav-group .marketing-nav-link:hover,.cova-site-header[data-nav-design="pill-hover"] .marketing-nav-group .marketing-nav-link-active { color:#fff!important; }
+.cova-site-header[data-nav-design="pill-hover"] .marketing-nav-group .marketing-nav-link::before,.cova-site-header[data-nav-design="pill-hover"] .marketing-nav-group .marketing-nav-link::after { display:none!important; }
+.cova-site-header[data-nav-design="pill-hover"] .marketing-nav-group .marketing-nav-link:focus-visible { outline:2px solid #9abbff; outline-offset:2px; }
+.cova-nav-hover-pill { position:absolute; inset:0; z-index:0; background:rgba(230,237,255,.105); border:1px solid rgba(230,237,255,.065); border-radius:999px; pointer-events:none; }
+.cova-nav-item-label { position:relative; z-index:1; }
+.cova-site-header[data-nav-design="pill-hover"] .header-actions { flex-shrink:0; gap:12px!important; margin-left:0!important; padding-left:0!important; border:0!important; }
+.cova-site-header[data-nav-design="pill-hover"] .header-actions .native-start-button { min-height:40px; padding:9px 20px!important; border-radius:999px!important; background:#f1f5ff!important; border:1px solid rgba(255,255,255,.2)!important; box-shadow:0 2px 0 rgba(255,255,255,.12)!important; color:#101726!important; }
+.cova-site-header[data-nav-design="pill-hover"] .header-actions .native-start-button:hover { background:#fff!important; }
+.cova-site-header[data-nav-design="pill-hover"] .header-actions .marketing-login { min-height:40px; padding:8px 10px!important; color:#d1d9e8!important; }
+.cova-site-header[data-nav-design="pill-hover"] .header-actions .header-workspace-button { min-height:40px; border-radius:999px!important; }
+@media(min-width:768px) and (max-width:1050px) {
+ .cova-site-header[data-nav-design="pill-hover"] { padding-left:20px!important; padding-right:20px!important; }
+ .cova-site-header[data-nav-design="pill-hover"]:not(.workspace-top-header) .header-orbit.marketing-header { gap:12px!important; padding-left:18px!important; }
+ .cova-site-header[data-nav-design="pill-hover"] .marketing-nav-group .marketing-nav-link { padding-left:10px!important; padding-right:10px!important; font-size:13px!important; }
+ .cova-site-header[data-nav-design="pill-hover"].signed-in-marketing-header-shell .header-orbit.marketing-header { gap:8px!important; }
+ .cova-site-header[data-nav-design="pill-hover"].signed-in-marketing-header-shell .marketing-nav-link { padding-left:7px!important; padding-right:7px!important; }
+ .cova-site-header[data-nav-design="pill-hover"].signed-in-marketing-header-shell .header-actions { gap:5px!important; }
+}
+@media(max-width:767px) {
+ .cova-site-header[data-nav-design="pill-hover"] { padding:16px 16px 10px!important; }
+ .cova-site-header[data-nav-design="pill-hover"] .cova-public-nav-shell { border:0; border-radius:999px; corner-shape:round; background:transparent; backdrop-filter:none!important; -webkit-backdrop-filter:none!important; box-shadow:none; transition:border-radius .2s ease; }
+ .cova-site-header[data-nav-design="pill-hover"] .cova-public-nav-shell[data-mobile-open="true"] { border-radius:26px; background:rgba(10,14,23,.985); max-height:calc(100dvh - 32px); overflow-y:auto; scrollbar-width:thin; }
+ .cova-site-header[data-nav-design="pill-hover"] .header-layout-row { padding:8px 12px 8px 18px; min-height:56px; }
+ .cova-site-header[data-nav-design="pill-hover"] .header-mobile-brand { margin:0!important; }
+ .cova-site-header[data-nav-design="pill-hover"] .mobile-menu-toggle { width:40px; height:40px; padding:10px!important; border-radius:999px!important; border:0!important; background:rgba(231,238,255,.065)!important; box-shadow:none!important; }
+ .cova-site-header[data-nav-design="pill-hover"] .operator-mobile-menu-panel { margin:0!important; padding:4px 12px 12px!important; border:0!important; border-radius:0!important; background:transparent!important; backdrop-filter:none!important; box-shadow:none!important; }
+ .cova-site-header[data-nav-design="pill-hover"] .operator-mobile-menu-link { min-height:44px; border-radius:14px!important; color:#c6cedd!important; font-size:15px!important; font-family:Inter,sans-serif!important; font-weight:500!important; letter-spacing:0!important; text-transform:none!important; }
+ .cova-site-header[data-nav-design="pill-hover"] .operator-mobile-menu-link-active { color:#fff!important; background:rgba(230,237,255,.095)!important; }
+}
+/* The existing signed-in navbar uses its mobile mode through 1100px. Keep that authority and style its visible shell. */
+@media(min-width:768px) and (max-width:1100px) {
+
+ .cova-site-header[data-nav-design="pill-hover"].signed-in-marketing-header-shell { padding:16px 16px 10px!important; }
+ .cova-site-header[data-nav-design="pill-hover"].signed-in-marketing-header-shell .cova-public-nav-shell { border:0; border-radius:999px; corner-shape:round; background:transparent; backdrop-filter:none!important; -webkit-backdrop-filter:none!important; box-shadow:none; transition:border-radius .2s ease; }
+ .cova-site-header[data-nav-design="pill-hover"].signed-in-marketing-header-shell .cova-public-nav-shell[data-mobile-open="true"] { border-radius:26px; background:rgba(10,14,23,.985); max-height:calc(100dvh - 32px); overflow-y:auto; scrollbar-width:thin; }
+ .cova-site-header[data-nav-design="pill-hover"].signed-in-marketing-header-shell .header-layout-row { padding:8px 12px 8px 18px; min-height:56px; }
+ .cova-site-header[data-nav-design="pill-hover"].signed-in-marketing-header-shell .header-mobile-brand { margin:0!important; }
+ .cova-site-header[data-nav-design="pill-hover"].signed-in-marketing-header-shell .mobile-menu-toggle { width:40px; height:40px; padding:10px!important; border-radius:999px!important; border:0!important; background:rgba(231,238,255,.065)!important; box-shadow:none!important; }
+ .cova-site-header[data-nav-design="pill-hover"].signed-in-marketing-header-shell .operator-mobile-menu-panel { margin:0!important; padding:4px 12px 12px!important; border:0!important; border-radius:0!important; background:transparent!important; backdrop-filter:none!important; box-shadow:none!important; }
+ .cova-site-header[data-nav-design="pill-hover"].signed-in-marketing-header-shell .operator-mobile-menu-link { min-height:44px; border-radius:14px!important; color:#c6cedd!important; font-size:15px!important; font-family:Inter,sans-serif!important; font-weight:500!important; letter-spacing:0!important; text-transform:none!important; }
+ .cova-site-header[data-nav-design="pill-hover"].signed-in-marketing-header-shell .operator-mobile-menu-link-active { color:#fff!important; background:rgba(230,237,255,.095)!important; }
+}
+@media(prefers-reduced-motion:reduce) {
+ .cova-site-header[data-nav-design="pill-hover"] .cova-public-nav-shell,.cova-site-header[data-nav-design="pill-hover"] .marketing-nav-group .marketing-nav-link { transition:none; }
+}

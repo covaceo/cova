@@ -1,0 +1,19 @@
+/* Only opaque background geometry enters the goo filter. Labels, controls and numbers stay crisp. */
+.cova-gooey-defs{position:absolute;pointer-events:none;overflow:hidden}
+.cova-gooey-nav{position:relative;isolation:isolate;min-width:0}
+.cova-gooey-plates{position:absolute;inset:0;opacity:.105;pointer-events:none;z-index:0;overflow:visible}
+.cova-gooey-plate,.cova-gooey-tail{position:absolute;top:0;left:0;border-radius:999px;background:#edf2fa;pointer-events:none}
+.cova-gooey-header{display:flex;align-items:center;gap:inherit}
+.cova-gooey-nav>button,.cova-gooey-nav>.workspace-sidebar-group{position:relative;z-index:1}
+.cova-gooey-sidebar .cova-gooey-plate,.cova-gooey-sidebar .cova-gooey-tail{border-radius:9px}
+.cova-gooey-sidebar .workspace-sidebar-link-active{background:transparent!important;box-shadow:none!important}
+.workspace-sidebar .cova-gooey-search{width:100%;min-height:42px;margin:0 0 16px;justify-content:flex-start}
+.workspace-sidebar .cova-gooey-search-surface{background:#21242a!important;color:#dce3ee!important;box-shadow:none!important;border:0!important;min-height:40px;padding:0 12px!important;justify-content:flex-start}
+.workspace-sidebar .cova-gooey-search-surface span{white-space:nowrap;font:400 13px/1.4 Inter,Arial,sans-serif}
+.workspace-sidebar .cova-gooey-search-input{color:#edf2fa!important;font:400 13px/1.4 Inter,Arial,sans-serif}
+.workspace-sidebar .cova-gooey-search-input::placeholder{color:#939daa!important}
+.workspace-sidebar .cova-gooey-search-bubble{background:#21242a!important;color:#dce3ee!important;box-shadow:none!important;border:0!important}
+.workspace-sidebar [data-gooey-input] button:focus-visible,.workspace-sidebar [data-gooey-input] input:focus-visible{outline:2px solid #9abbff;outline-offset:3px}
+.workspace-shell[data-sidebar-state="collapsed"] [data-gooey-input] button{padding:0!important;justify-content:center}
+.workspace-shell[data-sidebar-state="collapsed"] [data-gooey-input] button span{display:none}
+@media(prefers-reduced-motion:reduce){.cova-gooey-plates{filter:none!important}.cova-gooey-tail{display:none}}

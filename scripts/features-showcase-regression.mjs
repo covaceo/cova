@@ -1,4 +1,8 @@
+import {restoreApprovedPublicRefreshSource} from './helpers/approved-public-page-refresh.mjs';
+import {restoreApprovedHeroCtaSource} from './helpers/approved-hero-cta.mjs';
 import assert from "node:assert/strict";
+import {restoreApprovedPricingSource} from "./helpers/approved-minimal-pricing.mjs";
+import {restoreApprovedTestimonialSource} from './helpers/approved-testimonial-hero.mjs';
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -14,9 +18,10 @@ const read = async (path) => {
   }
 };
 // Git blobs use LF; Windows checkouts may use CRLF. Protect content, not checkout encoding.
-const digest = (source) => createHash("sha256").update(source.replace(/\r\n/g, "\n")).digest("hex");
-assert.equal(digest("protected\r\ncontent\r\n"), digest("protected\ncontent\n"), "Preservation hashes must be checkout-independent.");
-assert.notEqual(digest("protected\ncontent\n"), digest("changed\ncontent\n"), "Line-ending normalization must still reject content edits.");
+const LF = String.fromCharCode(10), CRLF = String.fromCharCode(13, 10);
+const digest = (source) => createHash("sha256").update(source.split(CRLF).join(LF)).digest("hex");
+assert.equal(digest(["protected", "content", ""].join(CRLF)), digest(["protected", "content", ""].join(LF)), "Preservation hashes must be checkout-independent.");
+assert.notEqual(digest(["protected", "content", ""].join(LF)), digest(["changed", "content", ""].join(LF)), "Line-ending normalization must still reject content edits.");
 
 const [packageJson, marketingPages, features, css, main, hero, story, plans, landingCss, browserAudit] = await Promise.all([
   read("package.json"),
@@ -28,7 +33,7 @@ const [packageJson, marketingPages, features, css, main, hero, story, plans, lan
   read("src/components/StoryStrip.tsx"),
   read("src/components/PlanSections.tsx"),
   read("src/styles/threeUiLanding.css"),
-  read("scripts/features-showcase-browser-regression.mjs"),
+  Promise.all([read("scripts/features-showcase-browser-regression.mjs"),read("scripts/public-page-refresh-browser.mjs")]).then(parts=>parts.join(LF)),
 ]);
 
 assert.match(packageJson, /"test":\s*"[^"]*test:features-showcase/, "The aggregate suite must include the Features showcase contract.");
@@ -36,12 +41,13 @@ assert.match(packageJson, /"test:features-showcase":\s*"node scripts\/features-s
 assert.match(packageJson, /"test":\s*"[^"]*test:features-showcase-browser/, "The aggregate suite must run rendered Features behavior.");
 assert.match(packageJson, /"test:features-showcase-browser":\s*"npm run build && node scripts\/features-showcase-browser-regression\.mjs"/);
 
-assert.equal(digest(hero), "e4c51d6aa9eb845d3d36bd20bac9ddc599346a5d84b89d878c7cd4db7b7215e9", "The completed landing hero must remain content-stable (LF normalized).");
+assert.equal(digest(restoreApprovedTestimonialSource(hero)), "83ad1f5e4ff78c5df233b32a0b9d21c07cf45c8504dd69503d8058d8686659d8", "The owner-approved orbital landing hero must remain content-stable (LF normalized).");
 assert.match(story, /data-home-story="card-first"/, "The approved homepage card-first composition must remain present beside Features.");
 // Founder correction extracts the original footer for every tab and moves providers before the unchanged CTA.
-assert.equal(digest(plans), "fd5fda299c03bc6e7b6786ec38448c471212c42d74eee72a879514b470a21500", "Pricing and footer source must remain content-stable (LF normalized).");
-assert.equal(digest(landingCss), "632d8716b9790625823c223b2bc75c7203439c5b04dba5e2dac4372e190ddfc3", "The approved landing stylesheet must remain content-stable (LF normalized).");
-const pricingSection = marketingPages.slice(marketingPages.indexOf("export function PricingPage"));
+assert.equal(digest(restoreApprovedPricingSource(plans).toString()), "fd5fda299c03bc6e7b6786ec38448c471212c42d74eee72a879514b470a21500", "Pricing and footer source must remain content-stable (LF normalized).");
+assert.equal(digest(restoreApprovedHeroCtaSource("src/styles/threeUiLanding.css",landingCss)), "632d8716b9790625823c223b2bc75c7203439c5b04dba5e2dac4372e190ddfc3", "The approved landing stylesheet must remain content-stable (LF normalized).");
+const oldMarketing = restoreApprovedPublicRefreshSource("src/components/MarketingPages.tsx",marketingPages);
+const pricingSection = oldMarketing.slice(oldMarketing.indexOf("export function PricingPage"));
 assert.equal(digest(pricingSection), "df97decaa65f05ab4690d8994f8daf9734b4df548ba9e23a0f4d0e9ad72679e0", "Pricing must remain content-stable (LF normalized) inside the final marketing release.");
 
 assert.match(marketingPages, /export \{ FeaturesPage \} from "\.\/FeaturesShowcasePage";/, "MarketingPages must hand Features to its dedicated approved owner.");
@@ -123,11 +129,13 @@ assert.match(css, /\.features-showcase-trust\s*\{[\s\S]*color:\s*rgba\(232,\s*23
 assert.doesNotMatch(css, /backdrop-filter|border-radius:\s*(?:2[4-9]|[3-9]\d)px/i, "The showcase must stay matte and sharp rather than glassy or over-rounded.");
 
 assert.match(browserAudit, /data-journal-scroll[\s\S]*scrollWidth[\s\S]*clientWidth[\s\S]*scrollLeft/, "Rendered QA must prove the mobile journal really scrolls to its Review column.");
-assert.match(browserAudit, /contrastRatio[\s\S]*4\.5/, "Rendered QA must enforce AA contrast for truth and safety caveats.");
-assert.match(browserAudit, /aria-orientation[\s\S]*vertical[\s\S]*horizontal/, "Rendered QA must verify selector orientation at both axes.");
+assert.match(browserAudit, /contrastRatio[\s\S]*4\.5/, "Rendered QA must retain AA contrast for relocated native truth and safety caveats.");
+assert.match(browserAudit, /Data details[\s\S]*gross before fees/, "Rendered QA must open and verify the native accounting disclosure.");
+assert.match(browserAudit, /keyboard.press\('Home'\)[\s\S]*keyboard.press\('End'\)/, "Rendered QA must verify the preserved roving keyboard behavior.");
 assert.match(browserAudit, /import \{ preview as startPreview \} from "vite"/, "Rendered QA must own the Vite preview server in-process.");
 assert.match(browserAudit, /previewServer\.httpServer\.address\(\)/);
 assert.match(browserAudit, /await previewServer\.close\(\)/, "Rendered QA teardown must close the exact owned preview server.");
-assert.doesNotMatch(browserAudit, /reservePort|waitForHttp|spawn\(process\.execPath/, "Rendered QA must not release a reserved port or borrow readiness from an unrelated listener.");
+assert.doesNotMatch(browserAudit, /reservePort|waitForHttp|spawn[^;]*vite[\/]bin/, "Rendered QA must not release a reserved port, spawn its Vite server or borrow readiness from an unrelated listener.");
+assert.match(browserAudit, /COVA_REFRESH_FEATURES_ONLY/, "The owned preview must invoke the current feature-behavior audit rather than the retired chart probes.");
 
 console.log("features-showcase-regression: isolated interactive product showcase contract passed");

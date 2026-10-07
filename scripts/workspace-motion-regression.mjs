@@ -47,7 +47,7 @@ function routeTree(section, signedIn, syncOverrides = {}) {
     isProtectedSection: (value) => privateRoutes.includes(value),
     authSession: signedIn ? { userId: 'account-a', email: 'a@example.test', plan: 'free' } : null,
     brokerStatus: { provider: 'Rithmic', status: 'imported' },
-    tradeAccounts: [], tradeAccount: 'all', analysis: { trades: [] },
+    trades: [], accountNames: {}, tradeAccounts: [], tradeAccount: 'all', analysis: { trades: [] },
   };
   return evaluateMain(new Proxy(values, {
     has: () => true,
@@ -132,7 +132,7 @@ test('route props preserve behavior with owner-approved history account isolatio
         actual = actual.replace(visualSlot,'').trim();
       }
       if (name === 'ImportDesk') {
-        const manualSlot = 'accountManager={<ManualAccountManager accounts={[...new Set([...tradeAccounts,"local"])]} names={accountNames} onCreate={createManualAccount} onRename={renameManualAccount} onPrepareRemove={prepareRemoveAccount} onRemove={removeTradingAccount} onOpen={account => { selectTradeAccount(account); go("dashboard"); }} />} ';
+        const manualSlot = 'accountManager={<ManualAccountManager accounts={[...new Set([...tradeAccounts,"local"])].filter(account => account !== "local" || trades.some(trade => tradeAccountKey(trade) === "local") || Boolean(accountNames.local && accountNames.local !== "Manual account"))} names={accountNames} onCreate={createManualAccount} onRename={renameManualAccount} onPrepareRemove={prepareRemoveAccount} onRemove={removeTradingAccount} onOpen={account => { selectTradeAccount(account); go("dashboard"); }} />} ';
         assert.ok(actual.includes(manualSlot), 'Approved manual account slot keeps names, stable keys and guarded App callbacks');
         actual = actual.replace(manualSlot, '');
       }
@@ -152,6 +152,10 @@ function loadMotionComponent(file, reducedMotion, captures) {
     return React.createElement(tag, dom, children);
   } });
   new Function('module', 'exports', 'require', output)(module, module.exports, (name) => {
+    if (name === './landing/LandingStarfield') return {LandingStarfield:()=>React.createElement('canvas',{'data-landing-starfield':true})};
+    if (name === './ui/gooey-input') return loadMotionComponent('src/components/ui/gooey-input.tsx', reducedMotion, captures);
+    if (name === './ui/GooeyNavSurface') return loadMotionComponent('src/components/ui/GooeyNavSurface.tsx', reducedMotion, captures);
+    if (name.endsWith('.css')) return {};
     if (name === './WorkspaceNavIcon') return loadMotionComponent('src/components/WorkspaceNavIcon.tsx', reducedMotion, captures);
     if (name === 'motion/react') return { motion, useReducedMotion: () => reducedMotion };
     if (name === '../lib/appRoutes') return { isWorkspaceNavActive: (section, id) => section === id || (section === 'oauth' && id === 'import') };
@@ -181,22 +185,17 @@ test('section content alone enters at 8px over 200ms without opacity or exit; re
         section, brokerLabel: 'User-supplied CSV', email: 'a@example.test', riskScore: 0,
         go: () => {}, signOut: () => {}, deleteAccount: () => {},
       }, React.createElement('p', { 'data-current-content': section }, section)));
-      const content = captures.find(({ props }) => props.className === 'workspace-content');
+      const content = captures.find(({ props }) => props?.className === 'workspace-content');
       assert.ok(content, `${section}: transform-only content motion exists`);
       assert.deepEqual(content.props.initial, reduced ? false : { y: 8 });
       assert.deepEqual(content.props.animate, { y: 0 });
       assert.equal(content.props.exit, undefined, 'no outgoing private frame');
       assert.deepEqual(content.props.transition, { duration: reduced ? 0 : 0.2, ease: 'easeOut' });
-      const chrome = captures.find(({ props }) => props.className === 'workspace-shell operator-workspace oa-dashboard-shell');
+      const chrome = captures.find(({ props }) => props?.className === 'workspace-shell operator-workspace oa-dashboard-shell');
       assert.equal(chrome.props.initial, false, 'chrome has no entrance motion');
       assert.deepEqual(chrome.props.animate, { '--sidebar-progress': 1 }, 'chrome animates only rail/gutter progress, never a transform');
-      assert.deepEqual(chrome.props.transition, reduced ? {duration:0} : {type:'spring',stiffness:550,damping:40});
-      const highlight = captures.find(({ props }) => props.className === 'oa-workspace-nav-highlight');
-      if (section === 'import' || section === 'oauth') assert.equal(highlight, undefined, 'Linking uses the separate Accounts utility');
-      else {
-        assert.equal(highlight.props.layoutId, 'oa-workspace-nav-highlight');
-        assert.deepEqual(highlight.props.transition, reduced ? { duration: 0 } : { type: 'spring', stiffness: 550, damping: 40 });
-      }
+      assert.deepEqual(chrome.props.transition, reduced ? {duration:0} : {duration:.4,type:'spring',bounce:.25});
+      assert.match(html,/data-gooey-nav/,'Shared SVG surface wrapper preserves crisp labels and current-route semantics');
       assert.equal((html.match(/aria-current="page"/g) || []).length, 1, `${section}: one current nav highlight`);
       assert.match(html, new RegExp(`data-current-content="${section}"`), 'new content is present on the first render');
       assert.equal((html.match(/class="cova-site-footer"/g) || []).length, 1, 'the shared footer slot stays in the current content stage; vendor regressions render its real contents');
@@ -211,9 +210,9 @@ test('public RouteFrame stays opaque and respects reduced motion', () => {
     const captures=[];
     const {RouteFrame}=loadMotionComponent('src/components/LayoutShell.tsx',reduced,captures);
     renderToStaticMarkup(React.createElement(RouteFrame,null,'public content'));
-    assert.deepEqual(captures[0].props.initial,reduced?false:{y:8});
-    assert.deepEqual(captures[0].props.animate,{y:0});
-    assert.equal(captures[0].props.exit,undefined);
-    assert.deepEqual(captures[0].props.transition,{duration:reduced?0:.18,ease:[.16,1,.3,1]});
+    assert.deepEqual(captures.find(x=>x.props && Object.hasOwn(x.props,'data-route-frame')).props.initial,reduced?false:{y:8});
+    assert.deepEqual(captures.find(x=>x.props && Object.hasOwn(x.props,'data-route-frame')).props.animate,{y:0});
+    assert.equal(captures.find(x=>x.props && Object.hasOwn(x.props,'data-route-frame')).props.exit,undefined);
+    assert.deepEqual(captures.find(x=>x.props && Object.hasOwn(x.props,'data-route-frame')).props.transition,{duration:reduced?0:.18,ease:[.16,1,.3,1]});
   }
 });

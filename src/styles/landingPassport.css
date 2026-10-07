@@ -1,0 +1,31 @@
+/* Homepage Passport only. The original SVG, material, optics and member controls stay native. */
+.cova-home-landing section.story-strip-simple.home-story.cova-passport-feature{position:relative;order:2;display:flex;flex-direction:column;align-items:center;width:100%;max-width:1536px;margin:0 auto;padding:76px 40px 100px!important;overflow:clip;background:none!important;border:0!important;text-align:center;isolation:isolate;scroll-margin-top:100px;}
+.home-story.cova-passport-feature .cova-passport-heading{position:relative;z-index:2;max-width:850px;}
+.cova-home-landing .home-story.cova-passport-feature #home-story-title{margin:0;font-size:clamp(44px,4.6vw,70px);font-weight:450!important;line-height:1.06!important;letter-spacing:-.05em!important;color:#f4f6fb;}
+.cova-passport-heading h2>span{display:block;}
+.cova-passport-heading p{margin:22px 0 0;color:#aeb9cb;font-size:18px;line-height:1.6;}
+.home-story.cova-passport-feature .cova-passport-scene{position:relative;isolation:isolate;width:100%;max-width:1240px;margin:24px auto 0;padding:45px 90px 22px;perspective:1400px;}
+.cova-passport-sky{position:absolute;z-index:-1;inset:-36px 0 0;width:100%;height:calc(100% + 70px);object-fit:cover;object-position:50% 72%;opacity:.46;mask-image:radial-gradient(ellipse 70% 65% at 50% 55%,#000 25%,transparent 78%);pointer-events:none;}
+.home-story.cova-passport-feature .cova-passport-artifact{width:100%;max-width:960px;min-width:0;margin:0 auto;padding:0;}
+.home-story.cova-passport-feature .cova-passport-card{position:relative;width:100%;aspect-ratio:1284/756;transform-origin:center;will-change:transform;}
+.home-story.cova-passport-feature .home-story-stage{max-width:none;filter:drop-shadow(0 28px 40px #0008);}
+.cova-home-landing .home-story.cova-passport-feature .home-story-caption{position:static;width:auto;height:auto;margin:23px 0 0;padding:0;overflow:visible;clip-path:none;white-space:normal;color:#9eacc1;font-size:12px;line-height:1.6;}
+.home-story.cova-passport-feature .cova-passport-controls{position:relative;z-index:2;display:flex;justify-content:center;align-items:center;gap:24px;margin:7px auto 0;min-width:0;max-width:100%;}
+.cova-passport-modes{display:flex;align-items:center;gap:3px;padding:4px;background:#121722;border:1px solid #ffffff10;border-radius:999px;}
+.home-story.cova-passport-feature .cova-passport-modes button{display:inline-flex;align-items:center;justify-content:center;min-width:86px;min-height:40px;padding:0 18px;border:0;border-radius:999px;background:transparent;color:#aab7cc;font:450 14px/1.4 "Inter Tight Variable",Inter,sans-serif;cursor:pointer;transition:background .16s,color .16s;}
+.home-story.cova-passport-feature .cova-passport-modes button:hover{color:#f1f5ff;background:#ffffff07;}
+.home-story.cova-passport-feature .cova-passport-modes button[aria-pressed="true"]{color:#eef3ff;background:#26334b;}
+.home-story.cova-passport-feature .cova-passport-privacy{display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:44px;padding:0 2px;border:0;background:none;color:#aebbd0;font:450 13px/1.4 "Inter Tight Variable",Inter,sans-serif;cursor:pointer;}
+.cova-passport-privacy>svg{flex:none;color:#91a7cb;}
+.cova-passport-privacy:disabled{cursor:default;opacity:.68;}
+.cova-passport-switch{position:relative;width:28px;height:16px;border:1px solid #647087;border-radius:999px;background:#161c29;flex:none;}
+.cova-passport-switch:after{content:"";position:absolute;left:3px;top:3px;width:8px;height:8px;border-radius:50%;background:#afbdd1;transition:transform .16s;}
+.cova-passport-privacy[aria-checked="true"] .cova-passport-switch{background:#36589a;border-color:#6f96ff;}
+.cova-passport-privacy[aria-checked="true"] .cova-passport-switch:after{transform:translateX(12px);background:#f1f5ff;}
+.cova-home-landing .home-story.cova-passport-feature .cova-passport-action{display:inline-flex;gap:13px;margin:27px 0 0;min-height:47px;padding:0 20px;border:1px solid #f4f6fb;border-radius:9px;background:#f4f6fb;color:#0a0e16;font:550 15px/1.4 "Inter Tight Variable",Inter,sans-serif;text-decoration:none;transition:background .16s;}
+.cova-home-landing .home-story.cova-passport-feature .cova-passport-action:hover{background:#dfe7fb;}
+.cova-passport-feature :is(button,a):focus-visible{outline:2px solid #89a9ff;outline-offset:4px;}
+@media(max-width:1100px){.cova-home-landing section.story-strip-simple.home-story.cova-passport-feature{padding:65px 32px 85px!important;}.home-story.cova-passport-feature .cova-passport-scene{padding:42px 50px 22px;}.cova-home-landing .home-story.cova-passport-feature #home-story-title{font-size:56px;}.cova-passport-sky{opacity:.38;}}
+@media(max-width:760px){.cova-home-landing section.story-strip-simple.home-story.cova-passport-feature{padding:49px 20px 65px!important;}.cova-home-landing .home-story.cova-passport-feature #home-story-title{font-size:46px;line-height:1.07!important;}.cova-passport-heading p{margin-top:19px;font-size:16px;max-width:300px;}.home-story.cova-passport-feature .cova-passport-scene{margin-top:23px;padding:25px 2px 13px;}.home-story.cova-passport-feature .cova-passport-controls{flex-direction:column;gap:10px;margin-top:4px;}.home-story.cova-passport-feature .cova-passport-modes button{min-width:85px;min-height:40px;padding:0 16px;font-size:14px;}.cova-home-landing .home-story.cova-passport-feature .home-story-caption{margin-top:22px;font-size:12px;}.home-story.cova-passport-feature .cova-passport-privacy{min-height:40px;font-size:13px;}.cova-home-landing .home-story.cova-passport-feature .cova-passport-action{margin-top:18px;}.cova-passport-sky{inset:-10px -20px;width:calc(100% + 40px);height:calc(100% + 40px);object-position:50% 74%;opacity:.6;}}
+@media(max-width:360px){.cova-home-landing section.story-strip-simple.home-story.cova-passport-feature{padding-inline:16px!important;}.cova-home-landing .home-story.cova-passport-feature #home-story-title{font-size:39px;}.cova-passport-heading p{font-size:15px;max-width:265px;}.home-story.cova-passport-feature .cova-passport-modes button{min-width:78px;padding:0 12px;}}
+@media(prefers-reduced-motion:reduce){.cova-passport-feature *{transition:none!important;}.cova-passport-card{will-change:auto!important;}}

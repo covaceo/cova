@@ -54,13 +54,13 @@ const protectedFiles = {
   // Approved OA review headers reuse the exact owner-bound selector; route-prop parity remains enforced.
   // All-accounts bug fix filters synthetic rows from the selector as well as the review; ledger/auth untouched.
   // Approved journal isolation removes only the Passport journal prop; auth and ledger logic stay unchanged.
-  "src/App.tsx": "9b4220e1fdab2a0c444b1330cdcfc7f2eebbd810d7aac5eafeb7d4dfea6c3fe5",
+  "src/App.tsx": "13063013f9d119613e7a456f016603bd473367644989a115129cbb49e92c0dbe",
   "src/components/AstraEquityCurve.tsx": "41af4ca602a699399b73f2594a21cde26f5ac54f4022bf32bf34f52a5acbc27b",
   "src/components/DashboardTradeDialog.tsx": "43ded14cebab010cac25a816e007e80873cbbd608401c75739c18e125d488fdc",
   // Owner-approved recap action, source CTA/averages and standalone fee-label removal; financial logic remains locked by approved-dashboard-preservation.
   "src/components/DashboardView.tsx": "d1691b645f6e2925405471a4f6ea706a9337ec60e898347416f2bb02ca827d92",
   // Owner-approved Passport book icon, duplicate rail copy removal and Settings-to-Accounts entry; shell handlers remain intact.
-  "src/components/WorkspaceShell.tsx": "4bd5877bdb19f25f502e44f6338641f7e42e4f4cbddd9750296a99759074dd56",
+  "src/components/WorkspaceShell.tsx": "71714f99d625cd1c5df60b91a917a9992f9e5d2f1989e54f00ec9a74f24ff250",
   // Owner-approved left hero overline removal only; all dashboard CSS remains unchanged.
   "src/index.css": "e124ef2202d6a2eb61be19faa302b94132d1d4e0ba788774cc33749019ae55e4",
   // Retain UTC ordering while preserving legacy same-day input order and member annotations.

@@ -6,6 +6,8 @@ import { groupJournalEntries, type Trade, type JournalEntryGroup } from '../lib/
 import { journalSummary, moneyText } from '../lib/journalAccuracy';
 import type { DailyJournalEntry } from '../lib/dailyJournal';
 export type JournalActions = {
+  /** Public sample: in-memory only, no owner drafts or account navigation guards. */
+  ephemeral?: boolean;
   accountStorage?: boolean;
   draftKey?: string;
   read: (date: string) => string;
@@ -21,7 +23,7 @@ export function MiniJournal({ initialDate, actions, trades = [], onOpenTrade }: 
 }) {
   const read = (date: string) => actions?.readEntry?.(date) ?? { note: actions?.read(date) || '', tradeId: null };
   const [date, setDate] = useState(initialDate);
-  const draftScope = (d: string) => actions?.draftKey ? JSON.stringify(["daily",actions.draftKey,d]) : undefined;
+  const draftScope = (d: string) => !actions?.ephemeral && actions?.draftKey ? JSON.stringify(["daily",actions.draftKey,d]) : undefined;
   const restored = (d: string) => {
     const v = readJournalDraft<DailyJournalEntry>(draftScope(d));
     return v && typeof v.note === "string" && (v.tradeId === null || typeof v.tradeId === "string") ? v : null;
@@ -30,10 +32,11 @@ export function MiniJournal({ initialDate, actions, trades = [], onOpenTrade }: 
   const [dirty, setDirty] = useState(() => !!restored(initialDate));
   const [status, setStatus] = useState('');
   useEffect(() => {
+    if (actions?.ephemeral) return;
     const guard = (event: Event) => { if (dirty) { if (!window.confirm('Discard the unsaved journal note?')) event.preventDefault(); else { clearJournalDraft(draftScope(date)); setDirty(false); } } };
     window.addEventListener('cova:before-account-change', guard);
     return () => window.removeEventListener('cova:before-account-change', guard);
-  }, [dirty, actions?.draftKey, date]);
+  }, [dirty, actions?.draftKey, actions?.ephemeral, date]);
   // Owner refs are committed in the parent's layout effect. Hydrate afterward,
   // but never replace a draft when the parent refreshes its guarded actions.
   useEffect(() => {
@@ -43,7 +46,7 @@ export function MiniJournal({ initialDate, actions, trades = [], onOpenTrade }: 
   }, [actions, date, dirty]);
   const edit = (next: DailyJournalEntry) => {
     setEntry(next); setDirty(true);
-    setStatus(saveJournalDraft(draftScope(date), next) ? "Unsaved changes · draft kept on this browser" : "Draft is not backed up. Keep this page open.");
+    setStatus(actions?.ephemeral ? "Unsaved sample note" : saveJournalDraft(draftScope(date), next) ? "Unsaved changes · draft kept on this browser" : "Draft is not backed up. Keep this page open.");
   };
   const [choosing, setChoosing] = useState(false);
   const [query, setQuery] = useState('');
@@ -78,9 +81,9 @@ export function MiniJournal({ initialDate, actions, trades = [], onOpenTrade }: 
         {matches.length > shown && <button className="journal-attach-button" type="button" onClick={() => setShown(value => value + 20)}>Show more trades</button>}
       </motion.div>}
     </div>
-    <div className="mini-journal-footer"><span role="status">{status || (dirty ? 'Unsaved changes' : actions?.accountStorage ? 'Private · check account storage for sync status' : 'Private · saved on this browser')}</span><button className="astra-button" type="button" disabled={!actions || !dirty} onClick={() => {
+    <div className="mini-journal-footer"><span role="status">{status || (dirty ? 'Unsaved changes' : actions?.ephemeral ? 'Sample note · resets on reload' : actions?.accountStorage ? 'Private · check account storage for sync status' : 'Private · saved on this browser')}</span><button className="astra-button" type="button" disabled={!actions || !dirty} onClick={() => {
       if (entry.tradeId && !linked) { setStatus('Remove the unavailable trade before saving.'); return; }
-      if (actions?.save(date, entry.note, entry.tradeId)) { clearJournalDraft(draftScope(date)); setDirty(false); setStatus('Saved'); }
+      if (actions?.save(date, entry.note, entry.tradeId)) { clearJournalDraft(draftScope(date)); setDirty(false); setStatus(actions?.ephemeral ? 'Saved to this sample · resets on reload' : 'Saved'); }
       else setStatus('Not saved. Reopen this account and try again.');
     }}>Save note</button></div>
   </section>;
