@@ -1,3 +1,4 @@
+import {chooseAccountCDP,readAccountChoicesCDP} from './helpers/account-picker-cdp.mjs';
 import assert from "node:assert/strict";
 import { execFile, spawn } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -294,12 +295,12 @@ for(const [width,height,mobile] of [[1440,1000,false],[1280,720,false],[390,844,
  await evaluate(`localStorage.setItem(${JSON.stringify(key)},${JSON.stringify(JSON.stringify({trades:rows,rules:defaultRules,tradeAccount:'all'}))});localStorage.setItem('cova-dashboard-range-v1','all')`);
  const reload=async()=>{const before=await evaluate('performance.timeOrigin');await cdp.send('Page.reload',{ignoreCache:true});await waitFor(`performance.timeOrigin!==${before} && document.querySelector('[data-dashboard-trade-count]')?.dataset.dashboardTradeCount==='3' && document.fonts.status==='loaded'`)};
  await reload();
- const choose=async value=>{await evaluate(`(()=>{const s=document.querySelector('select[aria-label="Trade account"]');s.value=${JSON.stringify(value)};s.dispatchEvent(new Event('change',{bubbles:true}));})()`);await waitFor(`document.querySelector('select[aria-label="Trade account"]').value===${JSON.stringify(value)}`)};
+ const choose=async value => chooseAccountCDP({evaluate,send:cdp.send.bind(cdp),wait:waitFor},value);
  for(const [account,count,amount,history] of [['all','3','+$150.00','split'],['Tradovate:71','2','−$150.00','loss'],['Tradovate:72','1','+$300.00','profit'],['all','3','+$150.00','split']]){
   await choose(account);await waitFor(`document.querySelector('[data-dashboard-trade-count]')?.dataset.dashboardTradeCount==='${count}' && document.querySelector('.astra-chart-main')?.dataset.equityHistory==='${history}'`);
   assert.equal(await evaluate("document.querySelector('[data-astra-stat=pnl] .astra-stat-value').textContent"),amount);
   assert.equal(await evaluate("document.querySelector('[data-astra-stat=pnl] .astra-stat-label').textContent"),'Gross P&L');
-  assert.deepEqual(await evaluate("[...document.querySelectorAll('select[aria-label=\"Trade account\"] option')].map(n=>n.value)"),['all','Tradovate:71','Tradovate:72','local']);
+  assert.deepEqual(await readAccountChoicesCDP({evaluate,send:cdp.send.bind(cdp),wait:waitFor}),['all','Tradovate:71','Tradovate:72'],'No empty default Manual account is invented when all actual trades belong to the two named broker accounts');
   assert.doesNotMatch(await evaluate("document.querySelector('.astra-chart-svg').textContent"),/Apr|May/);
  }
  for(const [label,colors] of [['Latest session',['#4f7dff','#e57c89']],['Last 7 days',['#4f7dff','#e57c89','#52c79a','#52c79a']],['All trades',['#4f7dff','#e57c89','#52c79a','#52c79a']]]){

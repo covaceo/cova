@@ -1,0 +1,9 @@
+import assert from 'node:assert/strict';
+async function clickAccountControlCDP({evaluate,send,wait}, selector){
+ const probe=`(() => {const e=document.querySelector(${JSON.stringify(selector)});if(!e)return null;e.scrollIntoView({block:'center',behavior:'instant'});const r=e.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2,hit:r.width>0&&r.height>0&&e.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2))}})()`;
+ await wait(`Boolean((${probe})?.hit)`);const box=await evaluate(probe);assert(box?.hit,'The real account control must be visible and hittable: '+selector);
+ for(const[type,buttons]of[['mouseMoved',0],['mousePressed',1],['mouseReleased',0]])await send('Input.dispatchMouseEvent',{type,x:box.x,y:box.y,button:type==='mouseMoved'?'none':'left',buttons,clickCount:type==='mouseMoved'?0:1});
+}
+async function openAccountMenuCDP(io){await clickAccountControlCDP(io,'[data-component="watermelon-dropdown-menu-10"] [aria-label="Trade account"]');await io.wait('Boolean(document.querySelector("[role=menu] [data-account-key]"))');}
+export async function chooseAccountCDP(io,key){await openAccountMenuCDP(io);const selector='[role="menu"] [data-account-key='+JSON.stringify(key)+']';await io.wait(`Boolean(document.querySelector(${JSON.stringify(selector)}))`);await clickAccountControlCDP(io,selector);}
+export async function readAccountChoicesCDP(io){await openAccountMenuCDP(io);const choices=await io.evaluate('[...document.querySelectorAll("[role=menu] [data-account-key]")].map(e=>e.dataset.accountKey)');await io.send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});await io.send('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});await io.wait('!document.querySelector("[role=menu][data-state=open]")');return choices;}

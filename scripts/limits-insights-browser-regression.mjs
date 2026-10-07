@@ -1,3 +1,4 @@
+import {chooseAccountCDP} from './helpers/account-picker-cdp.mjs';
 // Real Limits/Insights components with synthetic history only. No broker or auth requests.
 import assert from 'node:assert/strict';
 import loadSource from './helpers/load-ts.cjs';
@@ -62,8 +63,8 @@ try{
     await evaluate(`(()=>{const e=document.querySelector('.oa-limit-row input[type=number]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,'3000');e.dispatchEvent(new Event('input',{bubbles:true}));})()`);await wait(`window.__reviewRules[0].limit===3000`);
     assert.equal(await evaluate('window.__reviewTrades'),snapshot,'Thresholds never rewrite trade history');
     if(mobile)assert.ok(await evaluate(`document.querySelector('.oa-limit-row [role=switch]').getBoundingClientRect().height>=44`),'Phone switch touch target');
-    await evaluate(`(()=>{const e=document.querySelector('[data-account-switcher] select');e.value='Tradovate:visual-empty';e.dispatchEvent(new Event('change',{bubbles:true}));})()`);await wait(`window.__reviewTrades==='[]'`);assert.equal(await evaluate('window.__reviewAnalysis.breaches'),analyze([],await evaluate('window.__reviewRules')).breaches.length);
-    await evaluate(`(()=>{const e=document.querySelector('[data-account-switcher] select');e.value='local';e.dispatchEvent(new Event('change',{bubbles:true}));})()`);await wait(`window.__reviewTrades!=='[]'`);assert.equal(await evaluate('window.__reviewTrades'),snapshot,'Account selection keeps histories separate');
+    await chooseAccountCDP({evaluate,send,wait},"Tradovate:visual-empty");await wait(`window.__reviewTrades==='[]'`);assert.equal(await evaluate('window.__reviewAnalysis.breaches'),analyze([],await evaluate('window.__reviewRules')).breaches.length);
+    await chooseAccountCDP({evaluate,send,wait},"local");await wait(`window.__reviewTrades!=='[]'`);assert.equal(await evaluate('window.__reviewTrades'),snapshot,'Account selection keeps histories separate');
     await evaluate(`document.querySelector('.oa-limit-row input[type=range]').focus()`);await key('Tab',9);assert.equal(await evaluate(`getComputedStyle(document.activeElement).outlineStyle`),'solid','Visible keyboard focus');
     await click('.oa-advanced-limits>summary');await wait(`document.querySelector('.oa-advanced-limits').open`);await evaluate(`document.querySelector('.oa-advanced-limits .oa-limit-row:last-child').scrollIntoView({behavior:'instant',block:'center'})`);await capture(name+'-last-rule');
    }else{

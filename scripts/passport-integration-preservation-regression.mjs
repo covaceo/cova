@@ -32,7 +32,7 @@ const protectedFiles = {
   "api/tradovate/connect.js": "0e32e6d9d728c0a1ee42a6b8c6edd44ee159d6c89ad7c064cd1c1502475e267d",
   // Owner-approved recent-history mode reuses owner lookup, limiter and deadline; legacy sync remains.
   "api/tradovate/sync.js": "c7452c268a2c4f579c2de7b384c591d98c1e54d49f52139dcca6d5594e2a371f",
-  "package-lock.json": "99bef2e4c115b3adc0ae09519513c518ea0a1d089cffef43478cd3756f3e0f0e",
+  "package-lock.json": "57ba50637ab8c9a90b693981fa20841e71609220042a4bd6b264df630196f6a2",
   "public/.well-known/security.txt": "c944f837cb8c32091a4aba3afdea372afa7ffbd058ab24b5d6fbfc285e3490d9",
   "public/cova-logo-minimal-black.svg": "539ead98bec67d21afe240ea2ff60aba7e3f9e988b4d1742e0de953f01a6f6dd",
   "public/cova-logo-minimal-white.svg": "3cab047eb026b8c3160fdab46218c0aa82978681ec9d60ec2e0116317178cbab",
@@ -54,7 +54,7 @@ const protectedFiles = {
   // Approved OA review headers reuse the exact owner-bound selector; route-prop parity remains enforced.
   // All-accounts bug fix filters synthetic rows from the selector as well as the review; ledger/auth untouched.
   // Approved journal isolation removes only the Passport journal prop; auth and ledger logic stay unchanged.
-  "src/App.tsx": "13063013f9d119613e7a456f016603bd473367644989a115129cbb49e92c0dbe",
+  "src/App.tsx": "f9be7cf0773b889153296fc3e3685f56ebf141ec1ec660bc9f4ce5040074bf23",
   "src/components/AstraEquityCurve.tsx": "41af4ca602a699399b73f2594a21cde26f5ac54f4022bf32bf34f52a5acbc27b",
   "src/components/DashboardTradeDialog.tsx": "43ded14cebab010cac25a816e007e80873cbbd608401c75739c18e125d488fdc",
   // Owner-approved recap action, source CTA/averages and standalone fee-label removal; financial logic remains locked by approved-dashboard-preservation.

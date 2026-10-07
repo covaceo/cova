@@ -1,3 +1,4 @@
+import {accountPicker,accountValue,chooseAccount,accountLabel} from './helpers/account-picker.mjs';
 import { workspaceBrowserOptions, workspaceEvidence } from "./workspace-browser-support.mjs";
 // Actual App/Dashboard/MiniJournal with synthetic auth and local workspace API.
 import {chromium} from 'playwright';
@@ -39,7 +40,7 @@ const page=await context.newPage();const dismissFixtureAuthPanel=async()=>{
 try{
  await page.goto('http://127.0.0.1:4179/#dashboard',{waitUntil:'domcontentloaded'});
  await page.getByText('Saved to your account',{exact:true}).waitFor({timeout:15000});await dismissFixtureAuthPanel();
- if(await page.getByRole('combobox',{name:'Trade account',exact:true}).inputValue()!=='local') await page.getByRole('combobox',{name:'Trade account',exact:true}).selectOption('local');
+ if(await accountValue(page)!=='local') await chooseAccount(page,'local');
  await page.getByLabel('Journal note',{exact:true}).fill('Trigger an in-flight daily save');
  await page.getByRole('button',{name:'Review ES trade from 2026-10-01'}).click();
  let release, began;
@@ -62,7 +63,7 @@ try{
  await page.locator('.astra-save-note').click();
  assert.equal(await page.evaluate(owner=>JSON.parse(localStorage.getItem('cova-react-risk-os-v2:'+owner)).trades[0].notes,owner),'Draft entered during in-flight save');
  await page.waitForTimeout(800);await page.getByText('Saved to your account',{exact:true}).waitFor({timeout:15000});await dismissFixtureAuthPanel();
- if(await page.getByRole('combobox',{name:'Trade account',exact:true}).inputValue()!=='local') await page.getByRole('combobox',{name:'Trade account',exact:true}).selectOption('local');
+ if(await accountValue(page)!=='local') await chooseAccount(page,'local');
  await page.getByRole('button',{name:'Review ES trade from 2026-10-01'}).click();
  await page.getByLabel('Trade journal note',{exact:true}).fill('Quota-protected trade draft');
  await page.evaluate(()=>{window.__realStorageSet=Storage.prototype.setItem;Storage.prototype.setItem=function(k,v){if(k.startsWith('cova-react-risk-os-v2:'))throw new DOMException('Synthetic quota','QuotaExceededError');return window.__realStorageSet.call(this,k,v);};});
@@ -78,11 +79,11 @@ try{
  await page.getByText('Account storage needs attention',{exact:true}).waitFor();
  assert.equal(await page.getByLabel('Journal note',{exact:true}).inputValue(),'Unsaved daily draft survives same-owner invalidation');
  await page.reload({waitUntil:"domcontentloaded"});await page.getByText('Saved to your account',{exact:true}).waitFor({timeout:15000});await dismissFixtureAuthPanel();
- if(await page.getByRole('combobox',{name:'Trade account',exact:true}).inputValue()!=='local') await page.getByRole('combobox',{name:'Trade account',exact:true}).selectOption('local');
+ if(await accountValue(page)!=='local') await chooseAccount(page,'local');
  assert.equal(await page.getByLabel('Journal note',{exact:true}).inputValue(),'Unsaved daily draft survives same-owner invalidation');
  page.removeAllListeners('dialog');page.on('dialog',d=>d.dismiss());
- await page.getByRole('combobox',{name:'Trade account',exact:true}).selectOption('all');
- assert.equal(await page.getByRole('combobox',{name:'Trade account',exact:true}).inputValue(),'local');
+ await chooseAccount(page,'all');
+ assert.equal(await accountValue(page),'local');
  await page.getByRole('button',{name:'Limits',exact:true}).click();
  assert.equal(await page.getByLabel('Journal note',{exact:true}).inputValue(),'Unsaved daily draft survives same-owner invalidation');
  assert.match(page.url(),/#dashboard/);
@@ -100,7 +101,7 @@ try{
  await page.reload({waitUntil:'domcontentloaded'});
  await page.getByText('Saved to your account',{exact:true}).waitFor();
  await dismissFixtureAuthPanel();
- if(await page.getByRole('combobox',{name:'Trade account',exact:true}).inputValue()!=='local') await page.getByRole('combobox',{name:'Trade account',exact:true}).selectOption('local');
+ if(await accountValue(page)!=='local') await chooseAccount(page,'local');
  assert.equal(await page.getByLabel('Journal note',{exact:true}).inputValue(),'Unsaved daily draft survives same-owner invalidation');
  await page.screenshot({path:out+'/draft-restored.png'});
  assert.deepEqual(errors,[]);

@@ -1,3 +1,4 @@
+import {chooseAccountCDP} from './helpers/account-picker-cdp.mjs';
 import assert from "node:assert/strict";
 import { execFile, spawn } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -342,7 +343,7 @@ try {
     await evaluate("window.scrollTo({top:0,behavior:'instant'})");await capture(join(evidenceDir,`dashboard-${width}-${height}.png`));
     await evaluate("document.querySelector('.mini-journal').scrollIntoView({block:'center',behavior:'instant'})");await capture(join(evidenceDir,`journal-${width}-${height}.png`));
     // Selecting another account never leaks this account's journal or manual row.
-    const choose=async account=>{await evaluate(`(()=>{const e=document.querySelector('[data-account-switcher] select');e.value=${JSON.stringify(account)};e.dispatchEvent(new Event('change',{bubbles:true}))})()`);await waitFor(`document.querySelector('[data-account-switcher] select').value===${JSON.stringify(account)}`)};
+ const choose=async account => chooseAccountCDP({evaluate,send:cdp.send.bind(cdp),wait:waitFor},account);
     await choose('Tradovate:account-b');assert.equal(await evaluate("document.querySelector('[aria-label=\"Journal note\"]').value"),'');assert.equal(await evaluate("document.querySelector('[data-win-loss]').textContent"),'1 win · 0 losses');
     assert.equal(await evaluate("Boolean(document.querySelector('[data-journal-attachment]'))"),false,'Other account cannot see attached trade');
     await choose('Tradovate:account-a');assert.equal(await evaluate("document.querySelector('[aria-label=\"Journal note\"]').value"),'Wait for the retest. Keep the next entry small.');

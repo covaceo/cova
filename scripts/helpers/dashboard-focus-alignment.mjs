@@ -25,12 +25,12 @@ export async function checkDashboardFocusAlignment({ evaluate, send, capture, na
     const state=await style(selector);report.pointer.push({selector,...state});
     if(state.outline!=='none'||state.shadow!=='none')issues.push('Pointer focus adds a ring: '+selector);
   };
-  const accountBefore=await evaluate(`document.querySelector('[data-account-switcher] select').value`);
-  await click('[data-account-switcher] select');
+  const accountBefore=await evaluate(`document.querySelector('[data-account-value]').getAttribute('data-account-value')`);
+  await click('[data-account-switcher] [aria-label="Trade account"]');
   await key('Escape',27);
-  assert.equal(await evaluate(`document.querySelector('[data-account-switcher] select').value`),accountBefore,'Opening/dismissing the account picker preserves selection');
-  await quiet('[data-account-switcher] select');
-  assert.equal((await style('[data-account-switcher] select')).focused,true);
+  assert.equal(await evaluate(`document.querySelector('[data-account-value]').getAttribute('data-account-value')`),accountBefore,'Opening/dismissing the account picker preserves selection');
+  await quiet('[data-account-switcher] [aria-label="Trade account"]');
+  assert.equal((await style('[data-account-switcher] [aria-label="Trade account"]')).focused,true);
   await capture(name+'-account-click');
   await key('Tab',9);
   const keyboardButton=await evaluate(`(() => {const e=document.activeElement,s=getComputedStyle(e);return {button:e.matches('button'),visible:e.matches(':focus-visible'),outline:s.outlineStyle,shadow:s.boxShadow};})()`);

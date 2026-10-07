@@ -1,3 +1,4 @@
+import {accountPicker,accountValue,chooseAccount,accountLabel} from './helpers/account-picker.mjs';
 import { workspaceBrowserOptions, workspaceEvidence } from "./workspace-browser-support.mjs";
 // Actual App/Dashboard/MiniJournal with synthetic auth and local workspace API.
 import {chromium} from 'playwright';
@@ -34,8 +35,8 @@ async function ready(page) {
  await page.waitForTimeout(500);
  const close=page.getByRole('button',{name:'Close auth panel',exact:true});
  if(await close.count()) await close.evaluate(b=>b.click());
- const select=page.getByRole('combobox',{name:'Trade account',exact:true});
- await select.waitFor(); if(await select.inputValue()!=='local')await select.selectOption('local');
+ const select=accountPicker(page);
+ await select.waitFor(); if(await accountValue(page)!=='local')await chooseAccount(page,'local');
 }
 try {
  await ready(writer);
