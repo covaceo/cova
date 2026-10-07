@@ -135,10 +135,19 @@ export function createBillingService({ config, stripe, store, now = Date.now }) 
         for(const sub of matchingSubscriptions(await subscriptions(row.customerId))){
           if(!paymentStatuses.has(sub.status)||!idOf(sub.latest_invoice))continue;
           const invoice=providerObject(await stripe.invoices.retrieve(idOf(sub.latest_invoice)));
-          if(unpaidInvoice(invoice,sub,row.customerId))pending.push(invoice);
+          if(unpaidInvoice(invoice,sub,row.customerId))pending.push({invoice,sub});
         }
         if(pending.length!==1)throw new BillingError(409,pending.length?'Use Manage billing to review your invoices.':'No unpaid subscription invoice to recover. Refresh billing.');
-        return {url:safeStripeUrl(pending[0].hosted_invoice_url,'invoice.stripe.com')};
+        const {invoice,sub}=pending[0];
+        const url=safeStripeUrl(invoice.hosted_invoice_url,'invoice.stripe.com');
+        // The customer's explicit recovery action saves the successfully chosen
+        // method for future invoices. Merely opening the link still grants nothing.
+        if(sub.payment_settings?.save_default_payment_method!=='on_subscription'){
+          const subscriptionId=sub.id;
+          const updated=providerObject(await stripe.subscriptions.update(subscriptionId,{payment_settings:{save_default_payment_method:'on_subscription'}}));
+          if(updated.id!==subscriptionId||idOf(updated.customer)!==row.customerId||matchingSubscriptions([updated]).length!==1||idOf(updated.latest_invoice)!==invoice.id||updated.payment_settings?.save_default_payment_method!=='on_subscription')throw new BillingError(503,'Payment recovery could not be prepared. Refresh billing.');
+        }
+        return {url};
       });
     },
     async portal(user) {
