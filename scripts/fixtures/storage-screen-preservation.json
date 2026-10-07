@@ -13,7 +13,7 @@
   "src/lib/supabaseClient.ts": "afd2e3fd30fbe4984f958cee1819c1db81b99682e6ebf20bb84c6bd62cc62c4b",
   "server/workspace.ts": "e55ab9c7f1672df46d96f77a0d75642e2af1894c94f05fd04c1919adfae9ae17",
   "server/passport.ts": "760673447010472ae8d5ea951d8308efde5a531b22fb84bfa920ffa81b63ab81",
-  "api/workspace.js": "5e1cce51571545baf0110734e30ba9e79be48cce6aae9805226bd82d57dd0a52",
+  "api/workspace.js": "f975de468992024ca9ee5a60f1344abc06dbd063c724ecdb9a2a172810bbcfa7",
   "api/passport.js": "75d8278e7e6f8b25115269d8a306da2335333936996cd2ac6c3daf5e4f154dbd",
   "docs/workspace-atomic-plan.sql": "597c1a4ee22c8ebcf4801dd644d0adae0f2412a815148030138d32ac5c3bbed1",
   "src/components/DashboardView.tsx": "d1691b645f6e2925405471a4f6ea706a9337ec60e898347416f2bb02ca827d92",

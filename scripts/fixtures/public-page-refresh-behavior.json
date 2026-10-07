@@ -8,7 +8,7 @@
     "src/components/Navbar.tsx": "ae1479cdd697c8df502e8363dd85a91e336a4f5194fb2de8765b76fdab609851",
     "src/components/ProviderResources.tsx": "4940ae73b7b0fb31fb63e0c673d7d349f669baa8a2639e52c33e7bd88b197e95",
     "src/components/WorkspaceSections.tsx": "572520751489507755f8bec5be958f4aa5285df9c1aef6d051393a413e9296ff",
-    "src/components/WorkspaceShell.tsx": "13013bf99d1848b16df453b3b2baa6a1f2b9438cbc6241e8069f2bc9e2418f08",
+    "src/components/WorkspaceShell.tsx": "86eed117876320c5eab19de285c8a5376e661da9fb1014ce8c850237209b8308",
     "src/lib/accountNames.ts": "86194df19e8388c96e33837223dd23f0ded9510d67724a1a21c552f03bde848b",
     "src/lib/apiClient.ts": "b9ebd2509cc6ab39c51dda9df83ec25804e320d7d41dcc7a10790dc0959432f4",
     "src/lib/appRoutes.ts": "eead85a5187d645b0806446cab1b56a0fbeb06619117e7c59fafd159dddc7f52",
