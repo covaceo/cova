@@ -70,6 +70,9 @@ try {
   const targets = await fetch(`http://127.0.0.1:${port}/json/list`).then(response => response.json());
   client = await connect(targets.find(target => target.type === 'page').webSocketDebuggerUrl);
   await client.send('Page.enable'); await client.send('Runtime.enable');
+  // Static legal/logo geometry is measured in its settled accessible state.
+  // Normal-motion reveal behavior is covered by the separate polish suite.
+  await client.send('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
   await client.send('Page.navigate', { url: origin + '/#disclosures' });
   await waitFor('document.querySelector(".cova-disclosures-page")');
   const fixture = { email: 'vendor-review@example.test', mode: 'login', source: 'local-preview', plan: 'pro', subscriptionStatus: 'preview', signedInAt: new Date().toISOString() };
