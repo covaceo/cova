@@ -60,7 +60,7 @@ const protectedFiles = {
   // Owner-approved recap action, source CTA/averages and standalone fee-label removal; financial logic remains locked by approved-dashboard-preservation.
   "src/components/DashboardView.tsx": "d1691b645f6e2925405471a4f6ea706a9337ec60e898347416f2bb02ca827d92",
   // Owner-approved Passport book icon, duplicate rail copy removal and Settings-to-Accounts entry; shell handlers remain intact.
-  "src/components/WorkspaceShell.tsx": "71714f99d625cd1c5df60b91a917a9992f9e5d2f1989e54f00ec9a74f24ff250",
+  "src/components/WorkspaceShell.tsx": "86eed117876320c5eab19de285c8a5376e661da9fb1014ce8c850237209b8308",
   // Owner-approved left hero overline removal only; all dashboard CSS remains unchanged.
   "src/index.css": "e124ef2202d6a2eb61be19faa302b94132d1d4e0ba788774cc33749019ae55e4",
   // Retain UTC ordering while preserving legacy same-day input order and member annotations.

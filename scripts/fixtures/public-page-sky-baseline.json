@@ -4,7 +4,7 @@
   "protected": {
     "src/components/MarketingHero.tsx": "28dce34613075921d61443ba3e06d3bddefba87b7ba6590e2ae0fe4a85479da7",
     "src/components/Navbar.tsx": "ae1479cdd697c8df502e8363dd85a91e336a4f5194fb2de8765b76fdab609851",
-    "src/components/WorkspaceShell.tsx": "13013bf99d1848b16df453b3b2baa6a1f2b9438cbc6241e8069f2bc9e2418f08",
+    "src/components/WorkspaceShell.tsx": "86eed117876320c5eab19de285c8a5376e661da9fb1014ce8c850237209b8308",
     "src/components/WorkspaceSections.tsx": "572520751489507755f8bec5be958f4aa5285df9c1aef6d051393a413e9296ff",
     "src/components/FeaturesShowcasePage.tsx": "e25425f2eeb315808aa6a6a23cb9456a752c72d10d4c13daaf6202cfb63720ee",
     "src/components/MarketingPages.tsx": "5a4c31fda783f3d73a661b77c817c6faa484e92a6632b454fe198b8feee5eefd",
