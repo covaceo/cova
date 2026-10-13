@@ -6,7 +6,7 @@ import {getMaterialSpec} from "../lib/passportMaterials";
 import {publicDiamondExample} from "./PublicPassportExampleCard";
 import {buildHoloPassportModel, type HoloPassportMode, type HoloPassportModel} from "../lib/passportHolo";
 import {analyze, sampleTrades, defaultRules} from "../lib/risk";
-import diamondMaterial from "../assets/passport-diamond-material.webp?inline";
+import diamondMaterial from "../assets/passport-diamond-material.webp?url";
 import "../styles/landingPassport.css";
 
 // Public synthetic fixture only. Diamond is illustrative, never an earned account rank.

@@ -1,6 +1,6 @@
 import { PassportHoloCard } from "./PassportHoloCard";
 import { getMaterialSpec } from "../lib/passportMaterials";
-import diamondMaterial from "../assets/passport-diamond-material.webp?inline";
+import diamondMaterial from "../assets/passport-diamond-material.webp?url";
 import type { HoloPassportModel } from "../lib/passportHolo";
 
 export const publicDiamondExample: HoloPassportModel = {
