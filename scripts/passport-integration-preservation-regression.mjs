@@ -32,7 +32,7 @@ const protectedFiles = {
   "api/tradovate/connect.js": "0e32e6d9d728c0a1ee42a6b8c6edd44ee159d6c89ad7c064cd1c1502475e267d",
   // Owner-approved recent-history mode reuses owner lookup, limiter and deadline; legacy sync remains.
   "api/tradovate/sync.js": "c7452c268a2c4f579c2de7b384c591d98c1e54d49f52139dcca6d5594e2a371f",
-  "package-lock.json": "57ba50637ab8c9a90b693981fa20841e71609220042a4bd6b264df630196f6a2",
+  "package-lock.json": "855150d31cd3149d338fcde7acbc58cfe2907b82e6e3f1e2a3e77a7a8497c057",
   "public/.well-known/security.txt": "c944f837cb8c32091a4aba3afdea372afa7ffbd058ab24b5d6fbfc285e3490d9",
   "public/cova-logo-minimal-black.svg": "539ead98bec67d21afe240ea2ff60aba7e3f9e988b4d1742e0de953f01a6f6dd",
   "public/cova-logo-minimal-white.svg": "3cab047eb026b8c3160fdab46218c0aa82978681ec9d60ec2e0116317178cbab",
@@ -103,7 +103,7 @@ const protectedFiles = {
   "src/lib/passportShareActions.ts": "c38266721f9f611bdbf139f5699ff6650497b0652516b3e5b3b30fc453ff0694",
   "src/lib/passportSquare.ts": "fc6b0d1fa28e405c27d6248c675790b212b54aabef98897e7c8c65af62cd9478",
   "src/lib/passportSquareMaterials.ts": "0863b22685ff647ac2e8595e26f2941f721510317969b8399fccec2d362e7b8d",
-  "src/passport-material.d.ts": "076aa1fab1200cf6a41eae836fbc11313ae70f461a79c58626fff977ee74106b",
+  "src/passport-material.d.ts": "88566e892baba974b63b5d1cbff6cde74268f82fbf2dc1ebfcaafde008b0b8d2",
   "src/styles/passportHolo.css": "c14bb8c783da3285d39d65184fccb13bdf59bbc5a508f639e834c4828a98ae79",
   "src/styles/passportShare.css": "8b4cfb8779f4d906713d62d8aa395e1d8ee202779e975fc2d5ee86573057d046"
 };

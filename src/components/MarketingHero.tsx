@@ -145,7 +145,10 @@ export function Hero({ go, openAuth, isSignedIn }: HeroProps) {
           transition={{ duration: 1.8, ease: [0.22, 1, 0.36, 1] }}
           aria-hidden="true"
         >
-          <img src="/media/cova-orbital-hero-v1.png" width={1672} height={941} alt="" loading="eager" decoding="async" draggable={false} />
+          <picture>
+            <source type="image/webp" srcSet="/media/cova-orbital-hero-v1.webp" />
+            <img src="/media/cova-orbital-hero-v1.png" width={1672} height={941} alt="" loading="eager" {...{ fetchpriority: "high" }} decoding="async" draggable={false} />
+          </picture>
         </motion.div>
         <div className="cova-space-shade" aria-hidden="true" />
         <motion.div
