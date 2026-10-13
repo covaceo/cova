@@ -36,7 +36,7 @@
 .features-showcase-page[data-public-refresh] .features-native-instrument .astra-chart-svg { height: 266px; }
 .features-showcase-page[data-public-refresh] .features-instrument-header { background: #161616; border-color: #ffffff0d; padding: 18px 22px; }
 .features-showcase-page[data-public-refresh] .features-outcome-reservation { grid-column: 1; grid-row: 2; min-width: 0; border: 0; background: none; padding: 0; }
-.features-showcase-page[data-public-refresh] .features-outcome-panel { align-self: start; padding: 0; border: 0; background: none; }
+.features-showcase-page[data-public-refresh] .features-outcome-panel { display: flex; flex-direction: column; align-self: start; padding: 0; border: 0; background: none; }
 .features-showcase-page[data-public-refresh] .features-outcome-panel h2 { margin: 0; font-size: 29px; font-weight: 450; line-height: 1.17; letter-spacing: -.035em; color: #f4f6fb; }
 .features-showcase-page[data-public-refresh] .features-outcome-panel p { margin: 20px 0 0; font-size: 15px; line-height: 1.6; color: #adb7c9; }
 .features-showcase-page[data-public-refresh] .features-outcome-panel ul { margin: 23px 0 0; }
@@ -182,7 +182,7 @@
 .features-showcase-page[data-public-refresh] .features-outcome-panel li::before { position: static; margin-right: 8px; }
 .resources-oa-page[data-public-refresh] .resources-oa-board-header { background: none; }
 .resources-oa-page[data-public-refresh] .resources-oa-file { background: none; border: 0; border-bottom: 1px solid #ffffff0d; border-radius: 0; }
-.resources-oa-page[data-public-refresh] .resources-oa-file-stats { background: none; border: 0; border-radius: 0; padding: 22px 0; }
+.resources-oa-page[data-public-refresh] .resources-oa-file-stats { grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); background: none; border: 0; border-radius: 0; padding: 22px 0; }
 .resources-oa-page[data-public-refresh] .resources-oa-file-stats>div { padding: 0; border: 0; }
 .resources-oa-page[data-public-refresh] .resources-oa-file-stats :is(dt,dd) { font-family: Inter,Arial,sans-serif; letter-spacing: normal; text-transform: none; }
 .resources-oa-page[data-public-refresh] .resources-oa-file-stats dd { font-size: 18px; white-space: nowrap; }

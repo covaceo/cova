@@ -90,6 +90,9 @@ body:has(.cova-space-hero) .cova-site-header[data-section="overview"] .brand-loc
   .cova-space-proof .mobile-hero-dossier { margin: 0 auto !important; width: 100%; max-width: 520px; }
   body:has(.cova-space-hero) .cova-site-header[data-section="overview"] { padding: 21px 20px; }
 }
+@media (max-width: 360px) {
+  .cova-space-actions:not([data-auth-state="signed-in"]) { flex-wrap: wrap; row-gap: 14px; }
+}
 @media (prefers-reduced-motion: reduce) {
   .cova-space-image, .cova-space-copy { transform: none !important; }
 }
