@@ -80,6 +80,12 @@ try{
    assert.equal(metricSurfaces.length,9,'Entire headline metric group inspected');
    for(const s of metricSurfaces){assert.equal(s.background,'rgba(0, 0, 0, 0)','Metrics sit directly on workspace '+s.className);assert.equal(s.image,'none');assert(s.borders.every(b=>b==='0px'),'No metric card or internal grid '+s.className);assert.equal(s.shadow,'none');}
    r.metricSurfaces=metricSurfaces;
+   const sections=await p.locator('.astra-chart-panel, .astra-recent-trades, .oa-discipline, .mini-journal, .trading-calendar').evaluateAll(nodes=>nodes.map(e=>{const s=getComputedStyle(e),h=e.querySelector('.astra-panel-heading'),b=e.getBoundingClientRect();return{name:e.getAttribute('aria-labelledby'),background:s.backgroundColor,image:s.backgroundImage,shadow:s.boxShadow,radius:s.borderTopLeftRadius,borders:[s.borderTopWidth,s.borderRightWidth,s.borderBottomWidth,s.borderLeftWidth],divider:s.borderTopColor,x:b.x,width:b.width,headingX:h.getBoundingClientRect().x,paddingTop:parseFloat(s.paddingTop)};}));
+   assert.equal(sections.length,5,'All mobile Risk Desk sections tested');
+   for(const s of sections){assert.equal(s.background,'rgba(0, 0, 0, 0)','Open section '+s.name);assert.equal(s.image,'none');assert.equal(s.shadow,'none');assert.equal(s.radius,'0px');assert.deepEqual(s.borders,['1px','0px','0px','0px'],'One section divider, not a card '+s.name);assert.equal(s.divider,'rgba(255, 255, 255, 0.08)');assert.equal(s.x,16);assert.equal(s.headingX,16,'Headings align with page gutter '+s.name);assert(s.paddingTop>=20,'Breathing room after divider');}
+   r.sections=sections;
+   const surfaces=await p.locator('.mini-journal textarea, .oa-discipline-focus, .dashboard-range-controls button[aria-pressed="true"]').evaluateAll(nodes=>nodes.map(e=>({name:e.className,background:getComputedStyle(e).backgroundColor})));
+   assert.equal(surfaces.length,3);for(const s of surfaces)assert.notEqual(s.background,'rgba(0, 0, 0, 0)','Keep meaningful input, warning and selected surfaces '+s.name);
    for(const b of r.metrics['.astra-stat-label'])assert(b.font>=13,'Readable metric labels '+width);
    for(const b of r.metrics['.dashboard-range-controls button']){assert(b.h>=44,'Range touch height '+width);assert(b.font>=13,'Range type '+width);}
    for(const b of r.metrics['.cova-account-menu-trigger'])assert(b.font>=14,'Account type '+width);
@@ -96,6 +102,14 @@ try{
    await p.locator('.astra-history-header .astra-dialog-close').click();
    await p.locator('.astra-trade-link').first().click();await p.locator('dialog[open]').waitFor();await capture(p,'trade-dialog');await p.locator('.astra-dialog-close').click();
    if(phase!=='before'){
+    const calendar=p.locator('.trading-calendar'),month=await calendar.locator('.calendar-month').innerText();
+    const day=calendar.locator('button.calendar-day-content').first();const dayDate=await day.locator('time').getAttribute('datetime');
+    await day.tap();assert.equal(await day.getAttribute('aria-pressed'),'true');assert.equal(await calendar.locator('.calendar-selection time').getAttribute('datetime'),dayDate);
+    assert.notEqual(await day.evaluate(e=>getComputedStyle(e.parentElement).backgroundColor),'rgba(0, 0, 0, 0)','Calendar daily result surfaces remain meaningful');
+    await capture(p,'calendar-selected');await calendar.getByRole('button',{name:'Next month',exact:true}).tap();assert.notEqual(await calendar.locator('.calendar-month').innerText(),month);
+    await calendar.getByRole('button',{name:'Previous month',exact:true}).tap();assert.equal(await calendar.locator('.calendar-month').innerText(),month);assert.equal(await calendar.locator('.calendar-selection').count(),0);
+    await p.getByRole('button',{name:'Review details',exact:true}).tap();const reviewDialog=p.locator('[data-discipline-details][open]');await reviewDialog.waitFor();
+    assert.notEqual(await reviewDialog.evaluate(e=>getComputedStyle(e).backgroundColor),'rgba(0, 0, 0, 0)','Dialogs keep their distinct surface');await capture(p,'score-details');await p.getByRole('button',{name:'Close review details',exact:true}).tap();
     for(const label of ['Latest session','Last 7 days','All trades']){
      const control=p.getByRole('button',{name:label,exact:true});await control.tap();assert.equal(await control.getAttribute('aria-pressed'),'true');
     }

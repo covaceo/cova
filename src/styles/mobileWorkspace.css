@@ -74,6 +74,31 @@
   .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-stats-panel :is(.astra-stat-strip, .astra-stat-cell, .astra-average-strip, .astra-average-cell) {
     background: transparent !important; border: 0 !important; box-shadow: none !important;
   }
+  /* Open mobile sections share one canvas and one quiet divider per section. */
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] :is(.astra-chart-panel, .astra-recent-trades, .oa-discipline, .mini-journal, .trading-calendar) {
+    background: transparent !important; border: 0 !important; border-top: 1px solid rgb(255 255 255 / 8%) !important;
+    border-radius: 0 !important; box-shadow: none !important; padding: 24px 0 !important; margin: 0 !important;
+  }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-desk-grid { gap: 0; margin-bottom: 0; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-desk-column { gap: 0; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-stats-panel { margin-bottom: 24px; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-stats-panel :is(.astra-stat-cell, .astra-average-cell) { padding-inline: 0; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-stats-panel :is(.astra-stat-strip, .astra-average-strip) { column-gap: 24px; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] :is(.astra-chart-panel, .astra-recent-trades, .oa-discipline, .mini-journal, .trading-calendar) > .astra-panel-heading {
+    padding: 0 0 16px; margin: 0;
+  }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .oa-discipline > .astra-panel-heading { padding-bottom: 0; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-panel-heading h2 { font-size: 18px !important; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-chart-main { padding: 0 0 8px; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-chart-note { padding: 12px 0 0; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-recent-trades :is(th, td) { padding-inline: 8px; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-recent-trades :is(th, td):first-child { padding-left: 0; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-recent-trades :is(th, td):last-child { padding-right: 0; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .mini-journal > textarea { width: 100%; margin-inline: 0; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .mini-journal :is(.journal-attachment-area, .mini-journal-footer) { margin-inline: 0; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .mini-journal-footer { margin-bottom: 0; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .calendar-table { padding-inline: 0; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .calendar-selection { padding-inline: 0; }
   .astra-dashboard[data-dashboard-visual] .astra-stat-label { font-size: 14px; line-height: 1.45; }
   .astra-dashboard[data-dashboard-visual] .astra-stat-detail { font-size: 13px; }
   .astra-dashboard[data-dashboard-visual] .astra-net-basis { font-size: 13px; }
