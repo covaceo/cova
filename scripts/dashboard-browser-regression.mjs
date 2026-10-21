@@ -390,7 +390,7 @@ async function collapsedWorkspace(width, height) {
     const focusStyle = getComputedStyle(document.activeElement);
     return {
       panelRole: panel.getAttribute('role'), panelLabel: panel.getAttribute('aria-label'), currentCount: current.length, currentText: active?.textContent.trim(),
-      activeWeight: activeStyle.fontWeight, activeShadow: activeStyle.textShadow, activeBackground: activeStyle.backgroundColor, inactiveWeight: inactiveStyle.fontWeight,
+      activeWeight: activeStyle.fontWeight, activeShadow: activeStyle.textShadow, activeBackground: activeStyle.backgroundColor, inactiveWeight: inactiveStyle.fontWeight, inactiveBackground: inactiveStyle.backgroundColor,
       focusedCurrent: document.activeElement === active, focusVisible: document.activeElement.matches(':focus-visible'), focusOutline: focusStyle.outline, focusShadow: focusStyle.boxShadow,
       deleteVisible: rect.top >= 0 && rect.bottom <= innerHeight && rect.height >= 24, deleteHit: hit === del,
     };
@@ -399,7 +399,9 @@ async function collapsedWorkspace(width, height) {
   assert.equal(menu.panelLabel, "Workspace navigation");
   assert.equal(menu.currentCount, 1);
   assert.equal(menu.currentText, "Risk Desk");
-  assert.ok(Number(menu.activeWeight) > Number(menu.inactiveWeight));
+  assert.equal(menu.activeWeight, '500', 'Approved mobile controls use consistent medium-weight type');
+  assert.equal(menu.inactiveWeight, '500');
+  assert.notEqual(menu.activeBackground, menu.inactiveBackground, 'Current route remains visually distinguished');
   assert.equal(menu.activeShadow, "none");
   assert.equal(menu.activeBackground, "rgb(23, 26, 33)", "collapsed OA state must use the traveling neutral pill");
   assert.equal(menu.focusedCurrent, true);

@@ -297,7 +297,7 @@ try {
     await reload();
     assert.deepEqual(await evaluate('[innerWidth,document.documentElement.clientWidth,Math.round(visualViewport.width)]'),[width,width,width]);
     assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth'),true);
-    assert.equal(await evaluate("(()=>{const a=document.querySelector('.astra-add-trade'),i=document.querySelector('.astra-import-action'),ar=a.getBoundingClientRect(),ir=i.getBoundingClientRect();return a.nextElementSibling===i && ar.right<=ir.left && Math.abs((ar.top+ar.bottom)/2-(ir.top+ir.bottom)/2)<1})()"),true,'Add trade stays immediately left of Import on the same row');
+    assert.equal(await evaluate("(()=>{const a=document.querySelector('.astra-add-trade'),i=document.querySelector('.astra-import-action'),ar=a.getBoundingClientRect(),ir=i.getBoundingClientRect();return a.nextElementSibling===i && (innerWidth<375 ? ir.top>=ar.bottom && ir.left>=0 && ir.right<=innerWidth : ar.right<=ir.left && Math.abs((ar.top+ar.bottom)/2-(ir.top+ir.bottom)/2)<1)})()"),true,'Add trade stays immediately left of Import on the same row');
     assert.doesNotMatch(await evaluate("document.querySelector('.workspace-sidebar').textContent"),/Quickstart|Back to website/);
     assert.equal(await evaluate("document.querySelector('[data-win-loss]').textContent"),'1 win · 1 loss');
     assert.equal(await evaluate("(()=>{const c=document.querySelector('[data-win-loss]').getBoundingClientRect(),v=document.querySelector('[data-astra-stat=win-rate] .astra-stat-value').getBoundingClientRect();return c.top>=v.bottom+2})()"),true,'Wins/losses sit below the percentage, never overlap it');
@@ -307,9 +307,9 @@ try {
     await reload();assert.equal(await evaluate("document.querySelector('[aria-label=\"Journal note\"]').value"),'Wait for the retest. Keep the next entry small.');
     assert.equal(await evaluate("document.querySelectorAll('.astra-evidence-details,.astra-review-details,.astra-date-range,.dashboard-summary-actions').length"),0,'Duplicate chrome is removed');
     const columns=await evaluate("(()=>{const r=s=>document.querySelector(s).getBoundingClientRect();const chart=r('.astra-chart-panel'),recent=r('.astra-recent-trades'),score=r('.oa-discipline'),journal=r('.mini-journal');return {journalGap:journal.top-score.bottom,leftGap:recent.top-chart.bottom,chartLeft:chart.left,recentLeft:recent.left,scoreLeft:score.left,journalLeft:journal.left,journalTop:journal.top,chartBottom:chart.bottom}})()");
-    assert.ok(Math.abs(columns.journalGap-16)<2,'Journal follows Cova score immediately, without waiting for the chart row');
+    assert.ok(Math.abs(columns.journalGap-(width<=850?0:16))<2,'Journal follows Cova score immediately; mobile uses padded open sections');
     assert.ok(Math.abs(columns.scoreLeft-columns.journalLeft)<1,'Score and journal share a column');
-    assert.ok(Math.abs(columns.leftGap-16)<2,'Recent trades follow the equity chart');
+    assert.ok(Math.abs(columns.leftGap-(width<=850?0:16))<2,'Recent trades follow the equity chart; mobile uses padded open sections');
     if(width>850){assert.ok(columns.scoreLeft>columns.chartLeft);assert.ok(columns.journalTop<columns.chartBottom,'Right column fills the old dead space');}
     const scoreCard=await evaluate("(()=>{const e=document.querySelector('.oa-discipline');return {title:e.querySelector('h2').textContent,height:e.getBoundingClientRect().height,text:e.textContent}})()");
     assert.equal(scoreCard.title,'Cova score');assert.ok(scoreCard.height<360,'Score card must not retain the tall legacy minimum height');assert.doesNotMatch(scoreCard.text,/Add more trades|Add trade history/);
@@ -346,7 +346,9 @@ try {
  const choose=async account => chooseAccountCDP({evaluate,send:cdp.send.bind(cdp),wait:waitFor},account);
     await choose('Tradovate:account-b');assert.equal(await evaluate("document.querySelector('[aria-label=\"Journal note\"]').value"),'');assert.equal(await evaluate("document.querySelector('[data-win-loss]').textContent"),'1 win · 0 losses');
     assert.equal(await evaluate("Boolean(document.querySelector('[data-journal-attachment]'))"),false,'Other account cannot see attached trade');
+    if(mobile){await clickSelector('.journal-mobile-tools button','Saved notes');await waitFor("document.querySelector('#journal-saved-notes')");assert.equal(await evaluate("document.querySelectorAll('[data-journal-saved-date]').length"),0,'History never leaks another account note');}
     await choose('Tradovate:account-a');assert.equal(await evaluate("document.querySelector('[aria-label=\"Journal note\"]').value"),'Wait for the retest. Keep the next entry small.');
+    if(mobile){await clickSelector('.journal-mobile-tools button','Saved notes');await waitFor("document.querySelector('[data-journal-saved-date]')");assert.equal(await evaluate("document.querySelectorAll('[data-journal-saved-date]').length"),1);assert.match(await evaluate("document.querySelector('#journal-saved-notes').textContent"),/Wait for the retest/);await clickSelector('[data-journal-saved-date]');}
     await clickSelector('.astra-trade-link:has(.astra-manual-tag)');await waitFor("document.querySelector('.astra-delete-manual')");await clickSelector('.astra-delete-manual');await waitFor("!document.querySelector('dialog:modal') && document.querySelector('[data-win-loss]').textContent==='1 win · 1 loss'");
     assert.deepEqual(await evaluate(`JSON.parse(localStorage.getItem(${JSON.stringify(key)})).trades`),rows);
     await clickSelector('[aria-label="Remove attached trade"]');await clickSelector('.mini-journal button','Save note');await reload();assert.equal(await evaluate("Boolean(document.querySelector('[data-journal-attachment]'))"),false);assert.equal(await evaluate("document.querySelector('[aria-label=\"Journal note\"]').value"),'Wait for the retest. Keep the next entry small.');

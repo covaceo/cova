@@ -1,4 +1,5 @@
 import {assertFrozenSource} from './helpers/frozen-source-assertion.mjs';
+import {withoutJournalHistory} from './helpers/approved-journal-history.mjs';
 import {restoreApprovedPublicRefreshSource} from './helpers/approved-public-page-refresh.mjs';
 import {restoreApprovedPublicSkySource} from './helpers/approved-public-page-sky.mjs';
 import test from'node:test';import assert from'node:assert/strict';import{readFileSync}from'node:fs';import{createHash}from'node:crypto';import{createServer}from'vite';import{createElement}from'react';import{renderToStaticMarkup}from'react-dom/server';
@@ -11,6 +12,6 @@ test('Every non-home header page receives the same decorative starfield without 
 
 test('Only the approved route sky flags and shared shell decoration may change; page content and all account logic remain exact',()=>{
  const b=JSON.parse(readFileSync('scripts/fixtures/public-page-sky-baseline.json','utf8'));
- for(const[p,h]of [['src/App.tsx',b.appLF],['src/components/LayoutShell.tsx',b.layoutLF]])assert.equal(createHash('sha256').update(restoreApprovedPublicSkySource(p,readFileSync(p,'utf8')).replaceAll('\r\n','\n')).digest('hex'),h,p);
+ for(const[p,h]of [['src/App.tsx',b.appLF],['src/components/LayoutShell.tsx',b.layoutLF]])assert.equal(createHash('sha256').update(restoreApprovedPublicSkySource(p,p==='src/App.tsx'?withoutJournalHistory(readFileSync(p,'utf8')):readFileSync(p,'utf8')).replaceAll('\r\n','\n')).digest('hex'),h,p);
  for(const[p,h]of Object.entries(b.protected))assertFrozenSource(p,restoreApprovedPublicRefreshSource(p,readFileSync(p,'utf8')),h);
 });

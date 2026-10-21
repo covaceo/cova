@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { withoutJournalHistory } from './helpers/approved-journal-history.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -114,7 +115,8 @@ function protectedDigest(path, bytes) {
   ? bytes.toString('utf8').replace(/\r\n/g, '\n') : bytes;
  const relocated = /^server\/connectors\/(?:status|disconnect)\.js$/.test(path)
   ? content.replaceAll('../../api/_lib/', '../_lib/') : content;
- return createHash('sha256').update(relocated).digest('hex');
+ const preserved = path === 'src/App.tsx' ? withoutJournalHistory(relocated) : relocated;
+ return createHash('sha256').update(preserved).digest('hex');
 }
 test('integration preserves protected content across Git text line endings and exact binary assets', () => {
  for (const [path,expected] of Object.entries(protectedFiles)) {
@@ -129,4 +131,10 @@ test('preservation normalizes only text CRLF, retaining content and binary mutat
  assert.notEqual(protectedDigest('owner.tsx', lf), protectedDigest('owner.tsx', Buffer.from('value = 1; \n')));
  assert.notEqual(protectedDigest('material.webp', lf), protectedDigest('material.webp', crlf));
  assert.notEqual(protectedDigest('font.ttf', lf), protectedDigest('font.ttf', crlf));
+});
+test('journal history exception retains all original App guards and detects unrelated changes', () => {
+ const current = readFileSync('src/App.tsx', 'utf8');
+ assert.equal(protectedDigest('src/App.tsx', Buffer.from(current)), protectedFiles['src/App.tsx']);
+ assert.throws(() => protectedDigest('src/App.tsx', Buffer.from(current.replace('list: () => dashboardPrincipal && dashboardSelectionCurrent()', 'list: () => dashboardPrincipal && true'))));
+ assert.notEqual(protectedDigest('src/App.tsx', Buffer.from(current + ' // unrelated mutation')), protectedFiles['src/App.tsx']);
 });

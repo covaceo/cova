@@ -549,7 +549,7 @@ export function WorkspaceSyncPanel({
   };
   if (sync.hasWorkspace && ["local", "saved", "saving"].includes(sync.phase) && !sync.error && !sync.issues.length) {
     return <section className="workspace-sync-panel workspace-sync-compact" data-storage-phase={sync.phase} aria-label="Account storage" aria-live="polite">
-      <details><summary>{labels[sync.phase]}</summary>
+      <details><summary><span className="workspace-storage-desktop-label">{labels[sync.phase]}</span><span className="workspace-storage-mobile-label">Data storage</span></summary>
         <p>{sync.phase === "local" ? "Your trades are saved only in this browser, not backed up to your Cova account or available on other devices." : sync.phase === "saving" ? "Saving your trading data to your Cova account." : "Your trading data is saved to your Cova account and available on your other devices."}</p>
         <button type="button" className="button quiet" onClick={() => void sync.reload()}>Reload account and review</button>
       </details>

@@ -44,7 +44,16 @@ test('Astra styles load after the legacy dashboard cascade', () => {
   const imports = [...main.matchAll(/import \"([^\"]+\.css)\"/g)].map(match=>match[1]);
   const astra = imports.indexOf('./styles/astraDashboard.css');
   assert.ok(astra > imports.indexOf('./styles/dashboardOaDark.css'), 'Astra follows the legacy dashboard cascade');
-  assert.deepEqual(imports.slice(astra + 1), ['./styles/approvedDashboard.css', './styles/approvedWorkspace.css', './styles/userProfile.css', './styles/billing.css', './styles/tradeHistory.css', './styles/homeStory.css', './styles/publicPassportExample.css', './styles/siteInteractionPolish.css', './styles/deskJournal.css', './styles/workspaceUtility.css', './styles/workspaceStorage.css', './styles/passportProgress.css', './styles/tradingCalendar.css', './styles/workspaceDashboardShell.css', './styles/workspaceSidebarMotion.css'], 'Only scoped public/card/interaction styles follow Astra');
+  assert.deepEqual(imports.slice(astra + 1), ['./styles/approvedDashboard.css', './styles/approvedWorkspace.css', './styles/userProfile.css', './styles/billing.css', './styles/tradeHistory.css', './styles/homeStory.css', './styles/publicPassportExample.css', './styles/siteInteractionPolish.css', './styles/deskJournal.css', './styles/workspaceUtility.css', './styles/workspaceStorage.css', './styles/passportProgress.css', './styles/tradingCalendar.css', './styles/workspaceDashboardShell.css', './styles/workspaceSidebarMotion.css', './styles/mobileWorkspace.css'], 'Only scoped public/card/interaction styles follow Astra');
+  const css = require('postcss').parse(readFileSync(`${root}/src/styles/mobileWorkspace.css`, 'utf8'));
+  css.walkDecls(decl => {
+    let node = decl.parent, bounded = false;
+    while (node) {
+      if (node.type === 'atrule' && node.name === 'media' && /^\(max-width: (850|620|374)px\)$/.test(node.params)) bounded = true;
+      node = node.parent;
+    }
+    assert(bounded, `Mobile declaration must never affect desktop: ${decl.toString()}`);
+  });
 });
 
 test('Financial labels preserve cents without a half-formatted dollar amount', () => {
