@@ -79,6 +79,7 @@ import { saveDashboardTradeNote } from "./lib/dashboardTradeNotes";
 import { persistManualNetConfirmation } from "./lib/manualNetConfirmation";
 import { appendManualTrade, confirmManualNet, removeManualTrade, type ManualTradeDraft } from "./lib/manualTrades";
 import { readDailyJournal, readDailyJournalEntry, saveDailyJournal, canAttachJournalTrade } from "./lib/dailyJournal";
+import { listDailyJournalEntries } from "./lib/journalNavigation";
 import { BROKER_STATUS_KEY, brokerMessageForStatus, clearBrokerStatus, readBrokerStatus, writeBrokerStatus, type BrokerStatus } from "./lib/brokerStatus";
 
 import { buildFirmConnectUrl, canRedirectToFirmProvider, csvExportGuides, getFirmProviderHost, getPropFirm, type PropFirmId } from "./lib/propFirms";
@@ -1197,6 +1198,7 @@ export default function App() {
     draftKey: dashboardPrincipal ? JSON.stringify([dashboardPrincipal.identity, tradeAccount]) : undefined,
     read: (date: string) => dashboardPrincipal && dashboardSelectionCurrent() && isImportPrincipalCurrent(dashboardPrincipal,getCurrentImportPrincipal()) ? readDailyJournal(dashboardPrincipal.identity,tradeAccount,date) : "",
     readEntry: (date: string) => dashboardPrincipal && dashboardSelectionCurrent() && isImportPrincipalCurrent(dashboardPrincipal,getCurrentImportPrincipal()) ? readDailyJournalEntry(dashboardPrincipal.identity,tradeAccount,date) : {note:"",tradeId:null},
+    list: () => dashboardPrincipal && dashboardSelectionCurrent() && isImportPrincipalCurrent(dashboardPrincipal,getCurrentImportPrincipal()) ? listDailyJournalEntries(dashboardPrincipal.identity,tradeAccount) : [],
     save: (date: string, note: string, tradeId?: string | null) => Boolean(dashboardPrincipal && dashboardSelectionCurrent() && isImportPrincipalCurrent(dashboardPrincipal,getCurrentImportPrincipal()) && canAttachJournalTrade(tradesRef.current,tradeAccount,tradeId) && saveDailyJournal(dashboardPrincipal.identity,tradeAccount,date,note,tradeId)),
   };
   function createManualAccount(name: string) {

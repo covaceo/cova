@@ -5,6 +5,9 @@ import { motion, useReducedMotion } from 'motion/react';
 import { groupJournalEntries, type Trade, type JournalEntryGroup } from '../lib/risk';
 import { journalSummary, moneyText } from '../lib/journalAccuracy';
 import type { DailyJournalEntry } from '../lib/dailyJournal';
+import { readJournalEditorDate, rememberJournalEditorDate } from '../lib/journalNavigation';
+import { validJournalDate } from '../lib/manualTrades';
+const isMobileJournal = () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 850px)').matches;
 export type JournalActions = {
   /** Public sample: in-memory only, no owner drafts or account navigation guards. */
   ephemeral?: boolean;
@@ -12,6 +15,7 @@ export type JournalActions = {
   draftKey?: string;
   read: (date: string) => string;
   readEntry?: (date: string) => DailyJournalEntry;
+  list?: () => (DailyJournalEntry & { date: string })[];
   save: (date: string, note: string, tradeId?: string | null) => boolean;
 };
 function resultText(group: JournalEntryGroup) {
@@ -22,14 +26,14 @@ export function MiniJournal({ initialDate, actions, trades = [], onOpenTrade }: 
   initialDate: string; actions?: JournalActions; trades?: Trade[]; onOpenTrade?: (id: string) => void;
 }) {
   const read = (date: string) => actions?.readEntry?.(date) ?? { note: actions?.read(date) || '', tradeId: null };
-  const [date, setDate] = useState(initialDate);
+  const [date, setDate] = useState(() => isMobileJournal() && !actions?.ephemeral ? readJournalEditorDate(actions?.draftKey, initialDate) : initialDate);
   const draftScope = (d: string) => !actions?.ephemeral && actions?.draftKey ? JSON.stringify(["daily",actions.draftKey,d]) : undefined;
   const restored = (d: string) => {
     const v = readJournalDraft<DailyJournalEntry>(draftScope(d));
     return v && typeof v.note === "string" && (v.tradeId === null || typeof v.tradeId === "string") ? v : null;
   };
-  const [entry, setEntry] = useState(() => restored(initialDate) ?? read(initialDate));
-  const [dirty, setDirty] = useState(() => !!restored(initialDate));
+  const [entry, setEntry] = useState(() => restored(date) ?? read(date));
+  const [dirty, setDirty] = useState(() => !!restored(date));
   const [status, setStatus] = useState('');
   useEffect(() => {
     if (actions?.ephemeral) return;
@@ -57,12 +61,37 @@ export function MiniJournal({ initialDate, actions, trades = [], onOpenTrade }: 
   const linked = groups.find(group => group.rows.some(row => row.id === entry.tradeId));
   const matches = groups.filter(group => group.rows.some(row => `${row.date} ${row.market} ${row.side}`.toLowerCase().includes(query.trim().toLowerCase())));
   const closePicker = () => { setChoosing(false); attachButton.current?.focus(); };
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyShown, setHistoryShown] = useState(8);
+  const noteInput = useRef<HTMLTextAreaElement>(null);
+  const history = historyOpen ? actions?.list?.() ?? [] : [];
+  const changeDate = (next: string) => {
+    if (!validJournalDate(next) || next === date) return;
+    if (dirty) {
+      if (isMobileJournal() && !actions?.ephemeral) {
+        if (!saveJournalDraft(draftScope(date), entry)) { setStatus('Draft is not backed up. Save this note before changing dates.'); return; }
+      } else {
+        if (!window.confirm('Discard the unsaved journal note?')) return;
+        clearJournalDraft(draftScope(date));
+      }
+    }
+    if (!actions?.ephemeral) rememberJournalEditorDate(actions?.draftKey, next);
+    const draft = restored(next);
+    setDate(next); setEntry(draft ?? read(next)); setDirty(!!draft); setStatus(''); setChoosing(false); setHistoryOpen(false);
+  };
   return <section className="astra-panel astra-journal mini-journal" aria-labelledby="astra-journal-title">
-    <div className="astra-panel-heading"><h2 id="astra-journal-title"><BookOpen aria-hidden="true" />Journal</h2><input aria-label="Journal date" type="date" value={date} onChange={event => {
-      if (dirty && !window.confirm('Discard the unsaved journal note?')) return;
-      clearJournalDraft(draftScope(date)); const next = event.target.value; setDate(next); setEntry(restored(next) ?? read(next)); setDirty(!!restored(next)); setStatus(''); setChoosing(false);
-    }} /></div>
-    <textarea aria-label="Journal note" rows={3} maxLength={2000} placeholder="What worked? What will you change next time?" value={entry.note} readOnly={!actions} onChange={event => { edit({ ...entry, note: event.target.value }); }} />
+    <div className="astra-panel-heading"><h2 id="astra-journal-title"><BookOpen aria-hidden="true" />Journal</h2><input className="journal-desktop-date" aria-label="Journal date" type="date" value={date} onChange={event => changeDate(event.target.value)} /></div>
+    <div className="journal-mobile-tools">
+      <label className="journal-mobile-date"><span>Date</span><input aria-label="Journal date" type="date" value={date} onChange={event => changeDate(event.target.value)} /></label>
+      <button type="button" onClick={() => changeDate(new Date().toLocaleDateString('en-CA'))}>Today</button>
+      {actions?.list && <button type="button" aria-expanded={historyOpen} aria-controls="journal-saved-notes" onClick={() => { setHistoryOpen(!historyOpen); setHistoryShown(8); }}>Saved notes</button>}
+    </div>
+    {historyOpen && <div className="journal-saved-notes" id="journal-saved-notes" role="region" aria-label="Saved journal notes">
+      {history.slice(0, historyShown).map(saved => <button type="button" key={saved.date} data-journal-saved-date={saved.date} onClick={() => { changeDate(saved.date); setHistoryOpen(false); noteInput.current?.focus(); }}><time dateTime={saved.date}>{new Date(saved.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</time><span>{saved.note.trim() || 'Attached trade'}</span></button>)}
+      {!history.length && <p>No saved notes yet.</p>}
+      {history.length > historyShown && <button type="button" onClick={() => setHistoryShown(n => n + 8)}>Show more notes</button>}
+    </div>}
+    <textarea ref={noteInput} aria-label="Journal note" rows={3} maxLength={2000} placeholder={isMobileJournal() && !actions?.ephemeral ? 'Write your session note…' : 'What worked? What will you change next time?'} value={entry.note} readOnly={!actions} onChange={event => { edit({ ...entry, note: event.target.value }); }} />
     <div className="journal-attachment-area">
       {entry.tradeId && <div className="journal-attached" data-journal-attachment>
         <button type="button" data-journal-linked-trade disabled={!linked || !onOpenTrade} onClick={() => linked && onOpenTrade?.(entry.tradeId!)}>

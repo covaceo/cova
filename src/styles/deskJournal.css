@@ -1,4 +1,5 @@
 /* Compact journal and clearly self-reported manual trade capture. */
+.journal-mobile-tools,.journal-saved-notes { display:none; }
 .astra-dashboard[data-dashboard-visual] .astra-trade-actions { display:flex; flex:none; align-items:center; gap:8px; }
 .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .mini-journal { align-self:start; min-height:0; }
 .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .mini-journal .astra-panel-heading { gap:12px; margin-bottom:12px; }

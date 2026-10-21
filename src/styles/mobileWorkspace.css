@@ -99,6 +99,30 @@
   .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .mini-journal-footer { margin-bottom: 0; }
   .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .calendar-table { padding-inline: 0; }
   .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .calendar-selection { padding-inline: 0; }
+  /* A note-first composer: date/history, writing area, then one action row. */
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .mini-journal { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .mini-journal > .astra-panel-heading { grid-column: 1 / -1; order: 0; padding-bottom: 0; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .journal-desktop-date { display: none; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .journal-mobile-tools { display: flex; align-items: center; gap: 8px; grid-column: 1 / -1; order: 1; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .journal-mobile-date { min-width: 0; flex: 1; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .journal-mobile-date > span { display: none; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .journal-mobile-date input { width: 100%; max-width: 170px; padding: 0; background: transparent; font-size: 14px; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .journal-mobile-tools button { flex: none; min-height: 44px; padding: 0 8px; border: 0; border-radius: 10px; background: transparent; color: #a8c4fa; font: 500 13px/20px Inter, sans-serif; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .journal-mobile-tools button[aria-expanded="true"] { background: #ffffff0a; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .journal-saved-notes { display: grid; grid-column: 1 / -1; order: 2; max-height: 260px; overflow: auto; overscroll-behavior: contain; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .journal-saved-notes button { display: grid; gap: 6px; text-align: left; min-width: 0; min-height: 56px; padding: 12px 0; border: 0; border-bottom: 1px solid #ffffff14; background: transparent; color: #e0e8f5; font: 400 14px/1.5 Inter, sans-serif; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .journal-saved-notes time { color: #aab9d0; font-size: 12px; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .journal-saved-notes button > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .journal-saved-notes p { margin: 0; color: #aab9d0; font-size: 14px; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .mini-journal > textarea { grid-column: 1 / -1; order: 3; min-height: 170px; padding: 16px; border: 1px solid #ffffff14 !important; border-radius: 12px !important; corner-shape: round; background: #ffffff04 !important; line-height: 1.6; resize: vertical; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .mini-journal :is(.journal-attachment-area, .mini-journal-footer) { display: contents; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .mini-journal .journal-attached { grid-column: 1 / -1; order: 4; margin: 0; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .mini-journal .journal-trade-picker { grid-column: 1 / -1; order: 5; margin: 0; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .journal-attachment-area > .journal-attach-button { grid-column: 1; order: 6; justify-self: start; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .mini-journal-footer > button { grid-column: 2; order: 7; padding-inline: 18px; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .mini-journal-footer > button:not(:disabled) { background: #286cf4 !important; color: #fff !important; border-color: #286cf4 !important; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .mini-journal-footer > span { grid-column: 1 / -1; order: 8; font-size: 12px; line-height: 1.5; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] :is(.journal-mobile-tools button, .journal-saved-notes button):focus-visible { outline: 2px solid #79a3ff; outline-offset: 2px; }
   .astra-dashboard[data-dashboard-visual] .astra-stat-label { font-size: 14px; line-height: 1.45; }
   .astra-dashboard[data-dashboard-visual] .astra-stat-detail { font-size: 13px; }
   .astra-dashboard[data-dashboard-visual] .astra-net-basis { font-size: 13px; }
