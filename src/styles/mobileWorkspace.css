@@ -1,0 +1,103 @@
+/* Phone/tablet ergonomics for the existing Cova workspace. Desktop and financial logic are unchanged. */
+@media (max-width: 850px) {
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual="reference"] {
+    padding-inline: 16px !important;
+    padding-bottom: max(24px, env(safe-area-inset-bottom)) !important;
+  }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-reference-header { gap: 10px; }
+  .astra-dashboard[data-dashboard-visual] .astra-header-controls {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; width: 100%; align-items: stretch;
+  }
+  .astra-dashboard[data-dashboard-visual] .astra-header-controls [data-account-switcher] { grid-column: 1 / -1; min-width: 0; width: 100%; }
+  .astra-dashboard[data-dashboard-visual] .astra-header-controls .astra-trade-actions { display: contents; }
+  .astra-dashboard[data-dashboard-visual] .astra-header-controls > button,
+  .astra-dashboard[data-dashboard-visual] .astra-header-controls .astra-trade-actions > button {
+    width: 100%; min-width: 0; min-height: 48px; height: auto; margin: 0; padding: 10px 8px;
+    font-size: 13px !important; line-height: 1.35; gap: 6px; justify-content: center; white-space: normal;
+  }
+  .astra-dashboard[data-dashboard-visual] .astra-header-controls button svg { width: 16px; height: 16px; flex: none; }
+  .astra-dashboard[data-dashboard-visual] .astra-header-controls:not(:has(.astra-add-trade)),
+  .astra-dashboard[data-dashboard-visual] .astra-header-controls:not(:has(.recap-open)) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .oa-dashboard-app .cova-account-dropdown .cova-account-menu-trigger { font-size: 14px; }
+  .astra-dashboard[data-dashboard-visual] .astra-header-meta { font-size: 13px; }
+  .astra-dashboard[data-dashboard-visual] .astra-data-details summary { min-height: 44px; width: fit-content; }
+  .astra-dashboard[data-dashboard-visual] .astra-data-content .astra-source-label,
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-data-content p,
+  .astra-dashboard[data-dashboard-visual] .astra-metric-explanations :is(dt, dd) { font-size: 14px !important; line-height: 1.6 !important; }
+  .astra-dashboard[data-dashboard-visual] .astra-metric-explanations > div { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .astra-dashboard[data-dashboard-visual] .astra-stat-label { font-size: 14px; line-height: 1.45; }
+  .astra-dashboard[data-dashboard-visual] .astra-stat-detail { font-size: 13px; }
+  .astra-dashboard[data-dashboard-visual] .astra-net-basis { font-size: 13px; }
+  .astra-dashboard[data-dashboard-visual] .astra-stat-cell[data-astra-stat="pnl"] { padding: 18px; }
+  .astra-dashboard[data-dashboard-visual] [data-astra-stat="pnl"] .astra-stat-value { margin: 8px 0 4px; }
+  .astra-dashboard[data-dashboard-visual] .astra-stat-cell { padding: 12px 16px; }
+  .astra-dashboard[data-dashboard-visual] .astra-stat-value { overflow-wrap: anywhere; }
+  .astra-dashboard[data-dashboard-visual] .astra-average-cell { padding: 14px 16px; }
+  .astra-dashboard[data-dashboard-visual] .astra-average-cell .astra-stat-value { white-space: normal; }
+  .astra-dashboard[data-dashboard-visual] .astra-panel-heading { padding: 16px; }
+  .astra-dashboard[data-dashboard-visual] .astra-chart-panel .astra-panel-heading { flex-direction: column; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-segmented { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-segmented button {
+    min-height: 44px !important; padding: 8px 5px !important; font-size: 13px !important; white-space: normal; line-height: 1.35 !important;
+  }
+  .astra-dashboard[data-dashboard-visual] .astra-chart-tooltip :is(span, small) { font-size: 13px; }
+  .astra-dashboard[data-dashboard-visual] .astra-chart-note { font-size: 12px; padding: 12px 16px; }
+  .astra-dashboard[data-dashboard-visual] .astra-trade-table th { font-size: 12px; padding-inline: 12px; }
+  .astra-dashboard[data-dashboard-visual] .astra-trade-table td { font-size: 14px; height: 56px; padding: 6px 12px; }
+  .astra-dashboard[data-dashboard-visual] .astra-trade-link { font-size: 14px !important; min-height: 44px; }
+  .astra-dashboard[data-dashboard-visual] .astra-manual-tag { font-size: 12px; }
+  .astra-dashboard[data-dashboard-visual] .astra-text-link { display: inline-flex; align-items: center; min-height: 44px; font-size: 14px !important; }
+  .astra-dashboard[data-dashboard-visual] .oa-discipline-reading p { font-size: 14px; }
+  .astra-dashboard[data-dashboard-visual] :is(.oa-review-pill, .oa-review-details-button, .journal-attach-button) { min-height: 44px; font-size: 14px; }
+  .oa-dashboard-app .mini-journal textarea { min-height: 120px; font-size: 16px; line-height: 1.5; }
+  .oa-dashboard-app .mini-journal input[type="date"] { min-height: 44px; max-width: 170px; font-size: 16px; }
+  .oa-dashboard-app .mini-journal-footer { flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+  .oa-dashboard-app .mini-journal-footer span { max-width: none; flex: 1 1 150px; font-size: 13px; }
+  .oa-dashboard-app .mini-journal-footer .astra-button { min-height: 44px; font-size: 14px !important; }
+  .astra-dashboard[data-dashboard-visual] .astra-chart-svg text { font-size: 12px; }
+  .oa-dashboard-app .journal-trade-picker input { min-height: 44px; font-size: 16px; }
+  .oa-dashboard-app .journal-trade-options > button { min-height: 48px; font-size: 14px; }
+  .oa-dashboard-app .astra-trade-dialog :is(input, select, textarea),
+  .oa-dashboard-app .accounts-page :is(input:not([type="file"]), select, textarea),
+  .oa-dashboard-app .profile-settings-dialog :is(input, select, textarea) { font-size: 16px; }
+  .oa-dashboard-app .astra-dialog-close,
+  .oa-dashboard-app .oa-review-dialog > header button { min-width: 44px; min-height: 44px; }
+  .oa-dashboard-app .astra-trade-dialog :is(label, summary),
+  .oa-dashboard-app .astra-history-meta,
+  .oa-dashboard-app .astra-history-header p { font-size: 14px; }
+  .oa-dashboard-app .astra-trade-dialog summary { min-height: 44px; align-content: center; }
+  .oa-dashboard-app .astra-trade-dialog .astra-button { min-height: 44px; font-size: 14px !important; }
+  .oa-dashboard-app .manual-trade-fields { align-items: end; }
+  .oa-dashboard-app .astra-history-table { font-size: 14px; }
+  .oa-dashboard-app .astra-history-scroll { overscroll-behavior: contain; }
+  .oa-dashboard-app .astra-workspace-page .astra-deskbar .astra-button { font-size: 14px; }
+  .oa-dashboard-app .accounts-page :is(.accounts-button, .accounts-text-button) { font-size: 14px; }
+  .oa-dashboard-app .accounts-page :is(.accounts-field, .accounts-help summary, .accounts-dropzone small) { font-size: 14px; }
+  .oa-dashboard-app .accounts-help summary { min-height: 44px; align-content: center; }
+  .oa-dashboard-app .workspace-top-header .operator-mobile-menu-panel {
+    max-height: calc(100dvh - 92px - env(safe-area-inset-bottom)); overflow-y: auto; overscroll-behavior: contain;
+  }
+  .oa-dashboard-app .workspace-top-header .operator-mobile-menu-link {
+    min-height: 48px; font: 500 15px/1.4 Inter, Arial, sans-serif !important; text-transform: none !important; letter-spacing: 0 !important;
+  }
+  .oa-dashboard-app .workspace-sync-compact summary { min-height: 44px; }
+}
+@media (max-width: 620px) {
+  .astra-dashboard[data-dashboard-visual] .astra-stat-strip { grid-template-rows: auto auto auto; }
+  .astra-dashboard[data-dashboard-visual] .astra-stat-cell:not([data-astra-stat="pnl"]):not([data-astra-stat="drawdown"]) { grid-row: 2; }
+  .astra-dashboard[data-dashboard-visual] [data-astra-stat="drawdown"] { grid-row: 3; grid-template-columns: minmax(0, 1fr) auto; padding: 14px 16px; }
+  .astra-dashboard[data-dashboard-visual] [data-astra-stat="drawdown"] .astra-stat-value { font-size: clamp(21px, 6vw, 26px); }
+  .astra-dashboard[data-dashboard-visual] .astra-average-cell .astra-stat-value { font-size: clamp(21px, 6vw, 26px); }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .mini-journal .astra-panel-heading { flex-wrap: wrap; gap: 8px; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .mini-journal .astra-panel-heading h2 { flex: 1 1 auto; }
+  .oa-dashboard-app .astra-history-pagination { flex-wrap: wrap; gap: 10px; }
+}
+@media (max-width: 374px) {
+  .astra-dashboard[data-dashboard-visual] .astra-header-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .astra-dashboard[data-dashboard-visual] .astra-header-controls .astra-import-action { grid-column: 1 / -1; }
+  .astra-dashboard[data-dashboard-visual] .astra-header-controls:not(:has(.astra-add-trade)) .astra-import-action,
+  .astra-dashboard[data-dashboard-visual] .astra-header-controls:not(:has(.recap-open)) .astra-import-action { grid-column: auto; }
+  .astra-dashboard[data-dashboard-visual] [data-astra-stat="pnl"] .astra-stat-value { font-size: 38px; }
+  .astra-dashboard[data-dashboard-visual] [data-astra-stat="drawdown"] { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .astra-dashboard[data-dashboard-visual] [data-astra-stat="drawdown"] .astra-stat-value { grid-column: 1; grid-row: 2; }
+}
