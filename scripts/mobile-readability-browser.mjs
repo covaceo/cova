@@ -84,6 +84,14 @@ try{
    assert.equal(sections.length,5,'All mobile Risk Desk sections tested');
    for(const s of sections){assert.equal(s.background,'rgba(0, 0, 0, 0)','Open section '+s.name);assert.equal(s.image,'none');assert.equal(s.shadow,'none');assert.equal(s.radius,'0px');assert.deepEqual(s.borders,['1px','0px','0px','0px'],'One section divider, not a card '+s.name);assert.equal(s.divider,'rgba(255, 255, 255, 0.08)');assert.equal(s.x,16);assert.equal(s.headingX,16,'Headings align with page gutter '+s.name);assert(s.paddingTop>=20,'Breathing room after divider');}
    r.sections=sections;
+   const dateControl=await p.locator('.journal-mobile-date input').evaluate(e=>{const s=getComputedStyle(e),b=e.getBoundingClientRect();return{background:s.backgroundColor,image:s.backgroundImage,shadow:s.boxShadow,border:s.borderTopWidth,font:parseFloat(s.fontSize),height:b.height,x:b.x,right:b.right};});
+   assert.equal(dateControl.background,'rgba(0, 0, 0, 0)','Journal date belongs to the canvas, not a black input slab');
+   assert.equal(dateControl.image,'none');assert.equal(dateControl.shadow,'none');assert.equal(dateControl.border,'0px');
+   assert.equal(dateControl.font,16,'Date stays readable without mobile focus zoom');assert.equal(dateControl.height,44,'Date retains a native touch target');
+   const dateRow=await p.locator('.journal-mobile-tools').evaluate(e=>[...e.querySelectorAll('input,button')].map(n=>{const b=n.getBoundingClientRect();return{x:b.x,right:b.right,center:b.y+b.height/2};}));
+   for(let i=1;i<dateRow.length;i++){assert(dateRow[i].x>=dateRow[i-1].right,'Journal date actions do not overlap');assert(Math.abs(dateRow[i].center-dateRow[0].center)<=1,'Journal date actions align');}
+   r.dateControl=dateControl;
+   if([320,390,850].includes(width))await p.locator('.mini-journal').screenshot({path:join(out,'journal-composer-'+width+'.png')});
    const surfaces=await p.locator('.mini-journal textarea, .oa-discipline-focus, .dashboard-range-controls button[aria-pressed="true"]').evaluateAll(nodes=>nodes.map(e=>({name:e.className,background:getComputedStyle(e).backgroundColor})));
    assert.equal(surfaces.length,3);for(const s of surfaces)assert.notEqual(s.background,'rgba(0, 0, 0, 0)','Keep meaningful input, warning and selected surfaces '+s.name);
    for(const b of r.metrics['.astra-stat-label'])assert(b.font>=13,'Readable metric labels '+width);

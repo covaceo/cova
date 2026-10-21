@@ -106,7 +106,9 @@
   .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .journal-mobile-tools { display: flex; align-items: center; gap: 8px; grid-column: 1 / -1; order: 1; }
   .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .journal-mobile-date { min-width: 0; flex: 1; }
   .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .journal-mobile-date > span { display: none; }
-  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .journal-mobile-date input { width: 100%; max-width: 170px; padding: 0; background: transparent; font-size: 14px; }
+  /* Override the global important input fill, without changing other fields. */
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .journal-mobile-date input { display: block; box-sizing: border-box; width: 100%; max-width: 155px; height: 44px; margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent !important; box-shadow: none; color: #aebdd1; font: 500 16px/20px Inter, sans-serif; color-scheme: dark; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .journal-mobile-date input:focus-visible { outline: 2px solid #79a3ff; outline-offset: 2px; }
   .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .journal-mobile-tools button { flex: none; min-height: 44px; padding: 0 8px; border: 0; border-radius: 10px; background: transparent; color: #a8c4fa; font: 500 13px/20px Inter, sans-serif; }
   .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .journal-mobile-tools button[aria-expanded="true"] { background: #ffffff0a; }
   .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .journal-saved-notes { display: grid; grid-column: 1 / -1; order: 2; max-height: 260px; overflow: auto; overscroll-behavior: contain; }
