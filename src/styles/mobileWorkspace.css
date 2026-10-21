@@ -1,5 +1,38 @@
 /* Phone/tablet ergonomics for the existing Cova workspace. Desktop and financial logic are unchanged. */
 @media (max-width: 850px) {
+  /* One continuous app canvas, not a floating black website bar. */
+  .oa-dashboard-app .cova-site-header.workspace-top-header {
+    padding: calc(10px + env(safe-area-inset-top)) 16px 10px !important;
+    background: #0f0f0f !important; background-image: none !important;
+    border: 0 !important; box-shadow: none !important; backdrop-filter: none !important;
+  }
+  .oa-dashboard-app .workspace-top-header::before,
+  .oa-dashboard-app .workspace-top-header::after { display: none !important; }
+  .oa-dashboard-app .workspace-top-header .header-mobile-wordmark { width: 76px; max-width: none; height: auto; }
+  .oa-dashboard-app .workspace-top-header .operator-mobile-menu-toggle {
+    display: grid; place-items: center; width: 44px; height: 44px; min-height: 44px; padding: 10px !important;
+    border: 0 !important; border-radius: 8px !important; background: transparent !important; box-shadow: none !important;
+  }
+  .oa-dashboard-app .workspace-top-header .operator-mobile-menu-toggle::before,
+  .oa-dashboard-app .workspace-top-header .operator-mobile-menu-toggle::after { display: none !important; }
+  .oa-dashboard-app .workspace-top-header .operator-mobile-menu-toggle svg { width: 22px; height: 22px; }
+  .oa-dashboard-app .workspace-top-header .operator-mobile-menu-panel { border-radius: 14px !important; }
+  /* Quiet normal status moves below the workspace; setup/errors stay up front. */
+  .oa-dashboard-app :is(.workspace-content, .astra-workspace-page):has(> .workspace-sync-compact) { display: flex; flex-direction: column; }
+  .oa-dashboard-app :is(.workspace-content, .astra-workspace-page) > .workspace-sync-compact {
+    order: 2; margin: 8px 16px 24px !important; padding: 0 !important;
+  }
+  .oa-dashboard-app .workspace-content:has(> .workspace-sync-compact) > footer { order: 3; }
+  .oa-dashboard-app .oa-dashboard-shell[data-workspace-section="dashboard"] .workspace-sync-compact + div > .astra-dashboard[data-dashboard-visual] {
+    padding-top: calc(88px + env(safe-area-inset-top)) !important;
+  }
+  .oa-dashboard-app .workspace-sync-compact .workspace-storage-desktop-label { display: none; }
+  .oa-dashboard-app .workspace-sync-compact .workspace-storage-mobile-label { display: inline; }
+  .oa-dashboard-app .workspace-sync-compact summary { display: flex; align-items: center; list-style: none; font-size: 13px; color: #aab4c3; }
+  .oa-dashboard-app .workspace-sync-compact summary::-webkit-details-marker { display: none; }
+  .oa-dashboard-app .workspace-sync-compact summary::marker { content: ""; }
+  .oa-dashboard-app .workspace-sync-compact summary:hover { color: #edf2f9; text-decoration: underline; text-underline-offset: 4px; }
+  .oa-dashboard-app .workspace-sync-compact summary:focus-visible { outline: 2px solid #88adff; outline-offset: 4px; }
   .oa-dashboard-app .astra-dashboard[data-dashboard-visual="reference"] {
     padding-inline: 16px !important;
     padding-bottom: max(24px, env(safe-area-inset-bottom)) !important;

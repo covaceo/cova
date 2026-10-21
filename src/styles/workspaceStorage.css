@@ -1,4 +1,5 @@
 /* Account-storage setup and status only. Never change workspace data or route authority. */
+.workspace-storage-mobile-label { display: none; }
 .oa-dashboard-app .workspace-sync-panel {
   margin: 24px;
   padding: 24px;

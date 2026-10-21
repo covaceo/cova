@@ -13,7 +13,7 @@ const owner='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const {sampleTrades,defaultRules}=loadSource('src/lib/risk.ts');
 const trades=sampleTrades.map(t=>({...t,manual:{accountKey:'local',currency:'USD',pnlBasis:'reported_net'}}));
 const browser=await chromium.launch({...workspaceBrowserOptions,headless:true});
-const records=[],errors=[];
+const records=[],errors=[],storageRecovery=[];
 async function context(width,auth=true,height=844,seedTrades=trades){
  const c=await browser.newContext({viewport:{width,height},isMobile:width<=850,hasTouch:width<=850,reducedMotion:'reduce'});
  c.on('page',p=>{
@@ -58,6 +58,18 @@ try{
   const r=await measure(p,'dashboard',width);records.push(r);assert.equal(r.actualWidth,width);assert(r.overflow<=1,JSON.stringify(r.outside));
   await capture(p,'dashboard-'+width,true);
   if(phase!=='before'&&width<=850){
+   const chrome=await p.locator('.workspace-top-header').evaluate(e=>({background:getComputedStyle(e).backgroundColor,height:e.getBoundingClientRect().height}));
+   assert.equal(chrome.background,'rgb(15, 15, 15)','Header belongs to the workspace canvas');
+   const toggle=await p.getByRole('button',{name:'Toggle menu',exact:true}).evaluate(e=>({background:getComputedStyle(e).backgroundColor,border:getComputedStyle(e).borderTopWidth}));
+   assert.equal(toggle.background,'rgba(0, 0, 0, 0)','No circular menu plate');
+   assert.equal(toggle.border,'0px');
+   const storage=p.locator('.workspace-sync-compact');
+   assert((await storage.boundingBox()).y >= (await p.locator('.astra-dashboard').boundingBox()).y+(await p.locator('.astra-dashboard').boundingBox()).height,'Quiet storage belongs below the desk');
+   const storageControl=storage.locator('summary');assert.equal((await storageControl.innerText()).trim(),'Data storage');
+   assert.equal(await storageControl.evaluate(e=>getComputedStyle(e).listStyleType),'none','No disclosure triangle');
+   await storageControl.tap();assert(await storage.getByText(/not backed up to your Cova account/).isVisible());if(width===390)await capture(p,'storage-details');await storageControl.tap();await p.evaluate(()=>scrollTo(0,0));
+   assert((await p.locator('.astra-header-title').boundingBox()).y>=chrome.height+12,'Title clears the fixed header');
+   assert((await p.locator('.astra-header-title').boundingBox()).y<120,'No empty status-strip gap');
    for(const b of r.metrics['.astra-stat-label'])assert(b.font>=13,'Readable metric labels '+width);
    for(const b of r.metrics['.dashboard-range-controls button']){assert(b.h>=44,'Range touch height '+width);assert(b.font>=13,'Range type '+width);}
    for(const b of r.metrics['.cova-account-menu-trigger'])assert(b.font>=14,'Account type '+width);
@@ -92,7 +104,16 @@ try{
     await p.reload();await p.locator('.astra-stats-panel').waitFor();await p.waitForFunction(()=>document.querySelector('[data-dashboard-trade-count]')?.getAttribute('data-dashboard-trade-count')==='26');
     const storage=await p.evaluate(owner=>JSON.parse(localStorage.getItem('cova-react-risk-os-v2:'+owner)),owner);
     assert.equal(storage.trades.length,26);for(const old of trades)assert.deepEqual(storage.trades.find(t=>t.id===old.id),old,'Existing history unchanged');
-    await p.setViewportSize({width:320,height:568});await p.getByRole('button',{name:'Toggle menu',exact:true}).tap();
+    await p.locator('.workspace-sync-compact summary').tap();await p.getByRole('button',{name:'Reload account and review',exact:true}).tap();
+    const review=p.locator('.workspace-sync-panel[data-storage-phase="review"]');await review.waitFor();await p.evaluate(()=>scrollTo(0,0));
+    assert(!await review.evaluate(e=>e.classList.contains('workspace-sync-compact')),'Review and recovery must not move into the quiet footer');
+    await review.getByRole('button',{name:'Keep browser only',exact:true}).tap();
+    await p.locator('.workspace-sync-panel[data-storage-phase="local"]').waitFor();
+    storageRecovery.push(await p.locator('.workspace-sync-panel').evaluate(e=>({phase:e.getAttribute('data-storage-phase'),text:e.textContent,compact:e.classList.contains('workspace-sync-compact')})));
+    // Existing migration warnings can keep the full panel visible after review.
+    // The local mode and unchanged ledger, not a cosmetic collapse, prove recovery.
+    assert.equal(await p.locator('[data-dashboard-trade-count]').getAttribute('data-dashboard-trade-count'),'26','Storage review preserves the browser ledger');
+    await p.setViewportSize({width:320,height:568});await p.evaluate(()=>scrollTo(0,0));await p.getByRole('button',{name:'Toggle menu',exact:true}).tap();
     const nav=p.getByRole('navigation',{name:'Workspace navigation'});await nav.waitFor();await nav.getByRole('button',{name:'Link account',exact:true}).scrollIntoViewIfNeeded();await capture(p,'short-phone-menu');
     await nav.getByRole('button',{name:'Link account',exact:true}).tap();await p.locator('.astra-workspace-page[data-astra-route="import"]').waitFor();
    }
@@ -116,6 +137,6 @@ try{
  }
  await c.close();
  assert.deepEqual(errors,[]);
- await writeFile(join(out,'audit.json'),JSON.stringify({phase,records,errors},null,2));
+ await writeFile(join(out,'audit.json'),JSON.stringify({phase,records,errors,storageRecovery},null,2));
  console.log(JSON.stringify({phase,out,records:records.length,overflows:records.filter(r=>r.overflow>1).map(r=>({route:r.route,width:r.width,overflow:r.overflow})),smallText:records.map(r=>({route:r.route,width:r.width,count:r.smallText.length}))}));
 }finally{await browser.close();}
