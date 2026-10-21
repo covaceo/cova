@@ -37,6 +37,16 @@
     padding-inline: 16px !important;
     padding-bottom: max(24px, env(safe-area-inset-bottom)) !important;
   }
+  /* Rounded controls retain the same labels, touch areas and behavior. */
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-button,
+  .oa-dashboard-app .astra-workspace-page .astra-button,
+  .oa-dashboard-app .astra-trade-dialog .astra-button,
+  .oa-dashboard-app .cova-account-dropdown .cova-account-menu-trigger,
+  .oa-dashboard-app .workspace-sync-panel button,
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-segmented,
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-segmented button {
+    border-radius: 999px !important; corner-shape: round;
+  }
   .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-reference-header { gap: 10px; }
   .astra-dashboard[data-dashboard-visual] .astra-header-controls {
     display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; width: 100%; align-items: stretch;

@@ -70,6 +70,9 @@ try{
    await storageControl.tap();assert(await storage.getByText(/not backed up to your Cova account/).isVisible());if(width===390)await capture(p,'storage-details');await storageControl.tap();await p.evaluate(()=>scrollTo(0,0));
    assert((await p.locator('.astra-header-title').boundingBox()).y>=chrome.height+12,'Title clears the fixed header');
    assert((await p.locator('.astra-header-title').boundingBox()).y<120,'No empty status-strip gap');
+   const rounded=await p.locator('.astra-header-controls .astra-button, .cova-account-menu-trigger, .dashboard-range-controls button, .mini-journal-footer button').evaluateAll(nodes=>nodes.map(e=>({text:e.textContent,height:e.getBoundingClientRect().height,radius:parseFloat(getComputedStyle(e).borderTopLeftRadius)})));
+   assert(rounded.length>=8,'All mobile primary controls are tested');
+   for(const b of rounded)assert(b.radius>=b.height/2,'Pill-shaped mobile control: '+b.text);
    for(const b of r.metrics['.astra-stat-label'])assert(b.font>=13,'Readable metric labels '+width);
    for(const b of r.metrics['.dashboard-range-controls button']){assert(b.h>=44,'Range touch height '+width);assert(b.font>=13,'Range type '+width);}
    for(const b of r.metrics['.cova-account-menu-trigger'])assert(b.font>=14,'Account type '+width);
