@@ -69,6 +69,11 @@
   .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-data-content p,
   .astra-dashboard[data-dashboard-visual] .astra-metric-explanations :is(dt, dd) { font-size: 14px !important; line-height: 1.6 !important; }
   .astra-dashboard[data-dashboard-visual] .astra-metric-explanations > div { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  /* Mobile headline metrics belong to the canvas, not a bordered card/grid. */
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-stats-panel,
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-stats-panel :is(.astra-stat-strip, .astra-stat-cell, .astra-average-strip, .astra-average-cell) {
+    background: transparent !important; border: 0 !important; box-shadow: none !important;
+  }
   .astra-dashboard[data-dashboard-visual] .astra-stat-label { font-size: 14px; line-height: 1.45; }
   .astra-dashboard[data-dashboard-visual] .astra-stat-detail { font-size: 13px; }
   .astra-dashboard[data-dashboard-visual] .astra-net-basis { font-size: 13px; }
