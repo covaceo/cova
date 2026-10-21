@@ -37,7 +37,7 @@
     padding-inline: 16px !important;
     padding-bottom: max(24px, env(safe-area-inset-bottom)) !important;
   }
-  /* Rounded controls retain the same labels, touch areas and behavior. */
+  /* Soft corners without capsule bulk; preserve readable type and touch areas. */
   .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-button,
   .oa-dashboard-app .astra-workspace-page .astra-button,
   .oa-dashboard-app .astra-trade-dialog .astra-button,
@@ -45,20 +45,21 @@
   .oa-dashboard-app .workspace-sync-panel button,
   .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-segmented,
   .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-segmented button {
-    border-radius: 999px !important; corner-shape: round;
+    border-radius: 12px !important; corner-shape: round;
+    font-family: Inter, Arial, sans-serif !important; font-weight: 500 !important; letter-spacing: 0 !important;
   }
   .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-reference-header { gap: 10px; }
   .astra-dashboard[data-dashboard-visual] .astra-header-controls {
-    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; width: 100%; align-items: stretch;
+    display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .8fr) minmax(0, 1.2fr); gap: 8px; width: 100%; align-items: stretch;
   }
   .astra-dashboard[data-dashboard-visual] .astra-header-controls [data-account-switcher] { grid-column: 1 / -1; min-width: 0; width: 100%; }
   .astra-dashboard[data-dashboard-visual] .astra-header-controls .astra-trade-actions { display: contents; }
   .astra-dashboard[data-dashboard-visual] .astra-header-controls > button,
   .astra-dashboard[data-dashboard-visual] .astra-header-controls .astra-trade-actions > button {
-    width: 100%; min-width: 0; min-height: 48px; height: auto; margin: 0; padding: 10px 8px;
-    font-size: 13px !important; line-height: 1.35; gap: 6px; justify-content: center; white-space: normal;
+    display: inline-flex; align-items: center; width: 100%; min-width: 0; min-height: 44px; height: 44px; margin: 0; padding: 8px 6px;
+    font-size: 14px !important; line-height: 20px !important; gap: 6px; justify-content: center; white-space: nowrap;
   }
-  .astra-dashboard[data-dashboard-visual] .astra-header-controls button svg { width: 16px; height: 16px; flex: none; }
+  .astra-dashboard[data-dashboard-visual] .astra-header-controls button svg { display: block; width: 16px; height: 16px; flex: none; stroke-width: 1.75; }
   .astra-dashboard[data-dashboard-visual] .astra-header-controls:not(:has(.astra-add-trade)),
   .astra-dashboard[data-dashboard-visual] .astra-header-controls:not(:has(.recap-open)) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .oa-dashboard-app .cova-account-dropdown .cova-account-menu-trigger { font-size: 14px; }
@@ -81,7 +82,7 @@
   .astra-dashboard[data-dashboard-visual] .astra-chart-panel .astra-panel-heading { flex-direction: column; }
   .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-segmented { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; }
   .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-segmented button {
-    min-height: 44px !important; padding: 8px 5px !important; font-size: 13px !important; white-space: normal; line-height: 1.35 !important;
+    border-radius: 10px !important; min-height: 44px !important; padding: 8px 5px !important; font-size: 13px !important; white-space: normal; line-height: 20px !important;
   }
   .astra-dashboard[data-dashboard-visual] .astra-chart-tooltip :is(span, small) { font-size: 13px; }
   .astra-dashboard[data-dashboard-visual] .astra-chart-note { font-size: 12px; padding: 12px 16px; }

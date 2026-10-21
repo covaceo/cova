@@ -52,7 +52,7 @@ async function measure(p,route,width){
  },{route,width});
 }
 try{
- for(const width of [320,390,430,768,850,851,1280,1440]){
+ for(const width of [320,375,390,430,768,850,851,1280,1440]){
   const c=await context(width);const p=await c.newPage();p.on('pageerror',e=>errors.push(e.message));await ready(p,'dashboard');
   await p.getByText('Signed in. Account stats are unlocked.',{exact:true}).waitFor({state:'hidden',timeout:15000});
   const r=await measure(p,'dashboard',width);records.push(r);assert.equal(r.actualWidth,width);assert(r.overflow<=1,JSON.stringify(r.outside));
@@ -72,7 +72,10 @@ try{
    assert((await p.locator('.astra-header-title').boundingBox()).y<120,'No empty status-strip gap');
    const rounded=await p.locator('.astra-header-controls .astra-button, .cova-account-menu-trigger, .dashboard-range-controls button, .mini-journal-footer button').evaluateAll(nodes=>nodes.map(e=>({text:e.textContent,height:e.getBoundingClientRect().height,radius:parseFloat(getComputedStyle(e).borderTopLeftRadius)})));
    assert(rounded.length>=8,'All mobile primary controls are tested');
-   for(const b of rounded)assert(b.radius>=b.height/2,'Pill-shaped mobile control: '+b.text);
+   for(const b of rounded)assert(b.radius>=8&&b.radius<=12&&b.radius<b.height/2,'Soft compact corners, not square or pill: '+b.text);
+   const actions=await p.locator('.astra-header-controls .astra-button').evaluateAll(nodes=>nodes.map(e=>{const s=getComputedStyle(e),b=e.getBoundingClientRect();return{text:e.textContent,height:b.height,font:parseFloat(s.fontSize),weight:s.fontWeight,overflow:e.scrollWidth>e.clientWidth,icons:[...e.querySelectorAll('svg')].map(i=>({width:i.getBoundingClientRect().width,height:i.getBoundingClientRect().height,stroke:getComputedStyle(i).strokeWidth,centerDelta:Math.abs(i.getBoundingClientRect().y+i.getBoundingClientRect().height/2-b.y-b.height/2)}))};}));
+   for(const b of actions){assert.equal(b.height,44,'Compact touch target '+b.text);assert.equal(b.font,14,'Consistent readable action type '+b.text);assert.equal(b.weight,'500');assert(!b.overflow,'No clipped action '+b.text);for(const i of b.icons){assert.equal(i.width,16);assert.equal(i.height,16);assert.equal(i.stroke,'1.75px');assert(i.centerDelta<=1,'Centered icon '+b.text);}}
+   r.controls={rounded,actions};
    for(const b of r.metrics['.astra-stat-label'])assert(b.font>=13,'Readable metric labels '+width);
    for(const b of r.metrics['.dashboard-range-controls button']){assert(b.h>=44,'Range touch height '+width);assert(b.font>=13,'Range type '+width);}
    for(const b of r.metrics['.cova-account-menu-trigger'])assert(b.font>=14,'Account type '+width);
