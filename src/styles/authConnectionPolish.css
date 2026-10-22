@@ -92,6 +92,11 @@
 .auth-connection .terminal-tab,
 .auth-connection .terminal-tab::after,
 .auth-connection .terminal-tab-motion { transition-duration: 180ms !important; }
+/* Keep touch credential fields readable without browser focus zoom.
+   Desktop typography and the user's own pinch-zoom remain unchanged. */
+@media (max-width: 850px), (any-pointer: coarse) {
+  .auth-connection.auth-overlay input:not([type="checkbox"]) { font-size: 16px; }
+}
 @media (prefers-reduced-motion: reduce) {
   .auth-connection.auth-connection *,
   .auth-connection.auth-connection *::before,
