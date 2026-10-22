@@ -1,0 +1,16 @@
+import test,{before,after} from 'node:test';
+import assert from 'node:assert/strict';
+import {createServer} from 'vite';
+import React from 'react';
+import {renderToStaticMarkup} from 'react-dom/server';
+import {readFileSync} from 'node:fs';
+let server,Panel;
+before(async()=>{server=await createServer({server:{middlewareMode:true,hmr:false},cacheDir:'node_modules/.vite-workspace-entry-ssr',appType:'custom',logLevel:'error'});Panel=(await server.ssrLoadModule('/src/components/WorkspaceSync.tsx')).WorkspaceSyncPanel;});
+after(async()=>{await server?.close();});
+const render=(phase,extra={})=>renderToStaticMarkup(React.createElement(Panel,{sync:{enabled:true,hasWorkspace:false,phase,error:'',issues:[],deletions:[],preview:{added:[],conflicts:[],cloudOnly:0},choose:()=>{},browserOnly:()=>{},reload:()=>{},...extra}}));
+test('loading is a single truthful handoff, not a storage-choice page',()=>{const html=render('loading');assert.match(html,/>Opening Risk Desk<\/h1>/);assert.match(html,/workspace-entry/);assert.doesNotMatch(html,/Choose where|Open your workspace|type="button"/);assert.equal((html.match(/<h1/g)||[]).length,1);});
+test('review keeps every explicit choice and the full transfer disclosure',()=>{const html=render('review');assert.match(html,/>Review account storage<\/h1>/);for(const text of ['Back up and copy browser changes','Back up and use account copy','Keep browser only','Fee confirmations and CSV verification history stay','Custom pictures and GIFs are not','Deleted account'])assert(html.includes(text),text);assert.equal((html.match(/type="button"/g)||[]).length,3);assert.match(html,/>What moves to your account<\/summary>/);});
+test('errors retain the failure, browser-copy assurance and both recovery paths',()=>{const html=render('error',{error:'The account request failed.'});for(const text of ['The account request failed.','Your browser copy and backups are retained.','Reload account and review','Keep browser only'])assert(html.includes(text));assert.match(html,/role="alert"/);});
+test('existing workspace storage disclosure remains compact and unchanged',()=>{const html=render('saved',{hasWorkspace:true});assert.match(html,/workspace-sync-compact/);assert.doesNotMatch(html,/workspace-entry/);assert(html.includes('Data storage'));assert(html.includes('Saved to your account'));});
+test('saving shows the actual operation, without fake progress or premature choices',()=>{const html=render('saving');assert.match(html,/>Saving your workspace<\/h1>/);assert.doesNotMatch(html,/type="button"|%/);});
+test('all existing ownership, hydration, backup and mutation logic remains byte-exact',()=>{const source=readFileSync('src/components/WorkspaceSync.tsx','utf8'),frozen=JSON.parse(readFileSync('scripts/fixtures/storage-screen-preservation.json','utf8'));assert.equal(source.slice(0,source.indexOf('function reviewText(')).replaceAll('\r\n','\n'),frozen.syncHookSource.replaceAll('\r\n','\n'));});
