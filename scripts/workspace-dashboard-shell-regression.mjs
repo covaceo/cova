@@ -5,8 +5,15 @@ import {createHash} from 'node:crypto';
 import postcss from 'postcss';
 const cssPath='src/styles/workspaceDashboardShell.css';
 const readCss=()=>existsSync(cssPath)?readFileSync(cssPath,'utf8'):'';
-const declarations=(selector)=>{const found={};postcss.parse(readCss()).walkRules(rule=>{if(rule.selector===selector)rule.walkDecls(d=>found[d.prop]=d.value);});return found;};
+const declarations=(selector)=>{const found={};postcss.parse(readCss()).walkRules(rule=>{if(rule.selectors.includes(selector))rule.walkDecls(d=>found[d.prop]=d.value);});return found;};
 const route='.oa-dashboard-app .oa-dashboard-shell[data-sidebar-state]';
+test('document canvas closes the header seam only when the real workspace shell is present',()=>{
+ for(const target of ['html','body']){
+  const selector=target+':has(.oa-dashboard-app .oa-dashboard-shell[data-sidebar-state])';
+  const d=declarations(selector);
+  assert.deepEqual(d,{background:'#0f0f0f'},'The seam fix changes only background, not header clearance or layout');
+ }
+});
 test('Risk Desk shares one neutral canvas instead of painting a separate outer panel',()=>{
  assert.equal(declarations('.oa-dashboard-app:has(.oa-dashboard-shell[data-sidebar-state])').background,'#0f0f0f');
  assert.equal(declarations(route).background,'#0f0f0f');
