@@ -390,7 +390,7 @@ async function auditDarkDashboard(label) {
   assert.deepEqual(audit.forbiddenClassMarkers, [], `${label} dashboard DOM must not emit copper, green, mint, or emerald class markers`);
   assert.deepEqual(audit.light, [], `${label} must not contain light card surfaces`);
   for (const check of audit.contrastChecks) assert.ok(check.ratio >= 4.5, `${label} ${check.selector} contrast ${check.ratio.toFixed(2)} must meet WCAG AA`);
-  assert.equal(audit.bodyBackground, "rgb(8, 9, 12)");
+  assert.equal(audit.bodyBackground, "rgb(15, 15, 15)", "Document exposed below the header matches the protected workspace canvas");
   assert.equal(audit.shellBackground, "rgb(15, 15, 15)", "Approved shared matte workspace surface");
   assert.equal(audit.dashboardBackground, "rgba(0, 0, 0, 0)", "Risk Desk shares the shell instead of nesting another page slab");
   assert.equal(audit.chartStroke, "rgb(79, 125, 255)");
