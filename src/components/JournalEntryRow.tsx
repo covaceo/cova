@@ -11,13 +11,13 @@ export function JournalEntryRow({ group, journalReview }: { group: JournalEntryG
   const rows = [...group.rows].sort((a,b) => closedLabel(a).localeCompare(closedLabel(b)));
   const first = rows[0], last = rows[rows.length-1], partial = rows.length > 1;
   const money = (row: Trade, value: number) => journalReview ? rowMoneyText(row, value) : formatMoney(value);
-  return <tr data-history-trade={first.id} data-entry-group={group.id} className="border-b border-white/10">
-    <td className="whitespace-nowrap p-3">{closedLabel(last)}</td>
-    <td className="p-3">{first.market}</td><td className="p-3">{first.side}</td>
-    <td className="p-3">{group.contracts}</td>
-    <td className="whitespace-nowrap p-3">{money(first, group.pnl)}</td>
-    <td className="whitespace-nowrap p-3">{partial ? 'See exits' : hasPlannedRisk(first) ? money(first, first.risk) : 'Not provided'}</td>
-    <td className="min-w-40 max-w-80 break-words p-3">{partial ? <details>
+  return <tr role="row" data-history-trade={first.id} data-entry-group={group.id} className="border-b border-white/10">
+    <td role="cell" data-history-field="closed" className="whitespace-nowrap p-3"><span className="history-field-label" aria-hidden="true">Closed</span>{closedLabel(last)}</td>
+    <td role="cell" data-history-field="market" className="p-3"><span className="history-field-label" aria-hidden="true">Market</span>{first.market}</td><td role="cell" data-history-field="side" className="p-3"><span className="history-field-label" aria-hidden="true">Side</span>{first.side}</td>
+    <td role="cell" data-history-field="contracts" className="p-3"><span className="history-field-label" aria-hidden="true">Contracts</span>{group.contracts}</td>
+    <td role="cell" data-history-field="pnl" className="whitespace-nowrap p-3"><span className="history-field-label" aria-hidden="true">Gross / reported P&amp;L</span>{money(first, group.pnl)}</td>
+    <td role="cell" data-history-field="risk" className="whitespace-nowrap p-3"><span className="history-field-label" aria-hidden="true">Planned risk</span>{partial ? 'See exits' : hasPlannedRisk(first) ? money(first, first.risk) : 'Not provided'}</td>
+    <td role="cell" data-history-field="notes" className="min-w-40 max-w-80 break-words p-3"><span className="history-field-label" aria-hidden="true">Notes / partial exits</span>{partial ? <details>
       <summary className="cursor-pointer">{rows.length} partial exits</summary>
       <ul className="mt-3 space-y-3">{rows.map(row => <li data-partial-exit={row.id} key={row.id}>
         <p>{closedLabel(row)} · {row.contracts} closed @ {row.exit}</p>

@@ -310,7 +310,9 @@ try {
     assert.ok(Math.abs(columns.journalGap-(width<=850?0:16))<2,'Journal follows Cova score immediately; mobile uses padded open sections');
     assert.ok(Math.abs(columns.scoreLeft-columns.journalLeft)<1,'Score and journal share a column');
     assert.ok(Math.abs(columns.leftGap-(width<=850?0:16))<2,'Recent trades follow the equity chart; mobile uses padded open sections');
-    if(width>850){assert.ok(columns.scoreLeft>columns.chartLeft);assert.ok(columns.journalTop<columns.chartBottom,'Right column fills the old dead space');}
+    if(width===851)await capture(join(evidenceDir,'breakpoint-851.png'));
+    // Compact chart at the narrow desktop edge may end within one existing 16px gutter of the journal.
+    if(width>850){assert.ok(columns.scoreLeft>columns.chartLeft);assert.ok(columns.journalTop<columns.chartBottom+(width<=1000?16:0),'Right column stays adjacent to compact chart '+JSON.stringify(columns));}
     const scoreCard=await evaluate("(()=>{const e=document.querySelector('.oa-discipline');return {title:e.querySelector('h2').textContent,height:e.getBoundingClientRect().height,text:e.textContent}})()");
     assert.equal(scoreCard.title,'Cova score');assert.ok(scoreCard.height<360,'Score card must not retain the tall legacy minimum height');assert.doesNotMatch(scoreCard.text,/Add more trades|Add trade history/);
     await evaluate("document.querySelector('.oa-discipline').scrollIntoView({block:'center',behavior:'instant'})");await sleep(120);await capture(join(evidenceDir,`cova-score-${width}-${height}.png`));

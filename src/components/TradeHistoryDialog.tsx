@@ -48,9 +48,9 @@ export function TradeHistoryDialog({ trades, journalReview, onClose, attachedTra
         <p>{groups.length} trade entries from {groups.reduce((count, group) => count + group.rows.length, 0)} saved rows. Partial exits with the same broker entry ID appear together. Tradovate times are UTC and P&amp;L is gross before fees. Older saved history stays here after an empty or failed sync.</p>
       </details></div>
       {journalReview && <JournalHeadlineStats journal={journal} />}
-      <div className="astra-history-scroll" tabIndex={0} role="region" aria-label="Trade history table, scroll for more columns">
-        <table className="astra-history-table"><thead><tr>{['Closed','Market','Side','Contracts','Gross / reported P&L','Planned risk','Notes / partial exits'].map(label => <th scope="col" key={label}>{label}</th>)}</tr></thead>
-          <tbody>{[...groups].reverse().slice(currentPage * 50, (currentPage + 1) * 50).map(group => <JournalEntryRow key={group.id} group={group} journalReview={journalReview} />)}</tbody>
+      <div className="astra-history-scroll" tabIndex={0} role="region" aria-label="Trade history records">
+        <table className="astra-history-table" role="table"><thead role="rowgroup"><tr role="row">{['Closed','Market','Side','Contracts','Gross / reported P&L','Planned risk','Notes / partial exits'].map(label => <th role="columnheader" scope="col" key={label}>{label}</th>)}</tr></thead>
+          <tbody role="rowgroup">{[...groups].reverse().slice(currentPage * 50, (currentPage + 1) * 50).map(group => <JournalEntryRow key={group.id} group={group} journalReview={journalReview} />)}</tbody>
         </table>
       </div>
       {!groups.length && <p>{attachedTradeId ? "Attached trade is no longer available." : "No saved trades for this selection."}</p>}
