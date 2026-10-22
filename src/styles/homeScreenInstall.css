@@ -18,6 +18,8 @@
 .cova-install-sheet .cova-install-steps svg {width:21px;height:21px;margin-top:1px;color:#e5ebf5;stroke-width:1.5;}
 .cova-install-sheet .cova-install-steps strong {font-weight:500;color:#f0f3f8;}
 .cova-install-sheet button:focus-visible {outline:2px solid #b9d0ff;outline-offset:3px;}
+/* The heading receives announcement focus, not an interactive control ring. */
+.cova-install-sheet #cova-install-title:focus {outline:none;}
 .cova-install-sheet button:hover {filter:brightness(1.1);}
 .cova-install-sheet button:active {transform:scale(.985);}
 @media(prefers-reduced-motion:no-preference){.cova-install-sheet[open]{animation:cova-install-enter .22s ease-out;}.cova-install-sheet button{transition:transform .14s ease,filter .14s ease;}}
