@@ -75,7 +75,7 @@
     "src/styles/publicPageSky.css": "582aa0eacb34764d601b84ccd8e46ee837871102146e913099ae43ffa60f0128",
     "src/components/landing/LandingStarfield.tsx": "f4c2ec45d710dee1088172f3173e3217effbaa4240837f2c30b721798e94d8f9",
     "src/components/landing/ResourceLogoCloud.tsx": "59a66e03680b4754dcd84a63e6c97189272b063a9bbc2bed3001fae173d09fab",
-    "src/components/ui/dotted-glow-background.tsx": "12820db19fead2d91f374165389258f28ff45633cc893974e80eb65036e649f1",
+    "src/components/ui/dotted-glow-background.tsx": "8f713313ae07d85c9a3330c1c0920aba738e8cbeff350ca63f913ccd603bafb7",
     "api/billing.js": "619a82a96a33410971794d7b0f258fdca99f88864a3f84d0e73e715b23caf7f8",
     "api/passport.js": "7c53b89587713fd1f406a0d6dd89a5c66790bafd5979a7d1e1a90ecc4f0b620d",
     "api/workspace.js": "caf5b9ff281fe6a8c8df7648bc22a6a2faa71fb97675c66722b98f90597fab3b",

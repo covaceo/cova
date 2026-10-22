@@ -1,0 +1,30 @@
+import { execFileSync } from 'node:child_process';
+import assert from 'node:assert/strict';
+import { build } from 'vite';
+import { createServer } from 'node:http';
+import { chromium } from 'playwright';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { workspaceBrowserOptions,workspaceEvidence } from './workspace-browser-support.mjs';
+const out=workspaceEvidence('glow-runtime');await mkdir(out,{recursive:true});
+const entry=`import React from 'react';import{createRoot}from'react-dom/client';import{DottedGlowBackground}from'./src/components/ui/dotted-glow-background.tsx';const root=createRoot(document.getElementById('root'));window.renderGlow=(speed=1)=>{window.__seed=123;root.render(React.createElement(DottedGlowBackground,{color:'rgba(112,146,195,0.45)',glowColor:'rgba(77,124,255,0.6)',speedScale:speed}));};window.unmountGlow=()=>root.unmount();renderGlow();`;
+const built=await build({configFile:false,logLevel:'error',plugins:[{name:'glow-fixture',resolveId(id){if(id==='glow-entry')return process.cwd().replaceAll('\\','/')+'/glow-entry.js';},load(id){if(id.endsWith('/glow-entry.js'))return entry;if(process.env.GLOW_ORIGINAL==='1'&&id.endsWith('/src/components/ui/dotted-glow-background.tsx'))return execFileSync('git',['show','69df51d7b0c89e45f3ae989d5a445ee3be4fa2c4:src/components/ui/dotted-glow-background.tsx'],{encoding:'utf8'});}}],build:{write:false,minify:false,rollupOptions:{input:'glow-entry',output:{format:'iife'}}}});
+const code=built.output.find(o=>o.type==='chunk').code;
+const server=createServer((req,res)=>{res.setHeader('Content-Type',req.url==='/app.js'?'text/javascript':'text/html');res.end(req.url==='/app.js'?code:'<style>body{margin:0;background:#101010}#root{position:relative;width:340px;height:600px}</style><div id="root"></div><script src="/app.js"></script>');});await new Promise(r=>server.listen(0,'127.0.0.1',r));const origin='http://127.0.0.1:'+server.address().port;
+const browser=await chromium.launch({...workspaceBrowserOptions,headless:true});const records=[];
+try{for(const dpr of [1,2]){
+const c=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:dpr});const p=await c.newPage();const errors=[];p.on('pageerror',e=>errors.push(e.message));
+await p.addInitScript(()=>{let id=0;const queue=new Map();window.__queue=queue;window.requestAnimationFrame=cb=>{queue.set(++id,cb);return id};window.cancelAnimationFrame=i=>queue.delete(i);window.__step=t=>{const calls=[...queue.values()];queue.clear();calls.forEach(cb=>cb(t));};Math.random=()=>{window.__seed=(Math.imul(window.__seed||123,1664525)+1013904223)>>>0;return window.__seed/4294967296};window.__cost={fills:0,reads:0};const fill=CanvasRenderingContext2D.prototype.fill;CanvasRenderingContext2D.prototype.fill=function(...a){if(this.canvas.isConnected)window.__cost.fills++;return fill.apply(this,a)};const rect=Element.prototype.getBoundingClientRect;Element.prototype.getBoundingClientRect=function(){if(this.parentElement?.id==='root')window.__cost.reads++;return rect.call(this)};});
+await p.goto(origin);await p.locator('canvas').waitFor();await p.waitForTimeout(100);await p.evaluate(()=>__step(1000));await p.waitForTimeout(50);await p.evaluate(()=>{__cost={fills:0,reads:0};__step(1100)});
+const live=await p.evaluate(()=>({cost:__cost,queued:__queue.size,pixels:document.querySelector('canvas').toDataURL()}));await writeFile(join(out,'glow-'+dpr+'.png'),Buffer.from(live.pixels.split(',')[1],'base64'));console.log('HOT_LOOP',dpr,live.cost);
+await p.evaluate(()=>{__cost={fills:0,reads:0};__step(1101)});assert.equal(await p.evaluate(()=>__cost.fills),0,'Slow shimmer must not redraw on every high-refresh display tick');assert.equal(live.cost.reads,0,'Frame loop must not force layout reads');assert.equal(live.queued,1,'Visible animation remains active');
+const cadence=await p.evaluate(()=>{__cost={fills:0,reads:0};for(let i=1;i<=180;i++)__step(1100+i*1000/180);return __cost;});assert(cadence.fills>live.cost.fills*20&&cadence.fills<=live.cost.fills*31,'High-refresh display keeps the decorative paint rate bounded while motion continues');
+await p.evaluate(()=>document.getElementById('root').style.transform='translateY(2000px)');await p.waitForTimeout(100);await p.evaluate(()=>__step(1200));assert.equal(await p.evaluate(()=>__queue.size),0,'Offscreen glow must stop requesting frames');
+await p.evaluate(()=>document.getElementById('root').style.transform='none');await p.waitForTimeout(100);assert.equal(await p.evaluate(()=>__queue.size),1,'Reentry resumes motion');
+await p.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'));});assert.equal(await p.evaluate(()=>__queue.size),0,'Hidden document stops the loop');
+await p.evaluate(()=>{delete document.hidden;document.dispatchEvent(new Event('visibilitychange'));});assert.equal(await p.evaluate(()=>__queue.size),1,'Visible document resumes the loop');
+await p.evaluate(()=>renderGlow(0));await p.waitForTimeout(100);await p.evaluate(()=>__step(1300));assert.equal(await p.evaluate(()=>__queue.size),0,'Reduced-motion glow paints once, not every frame');
+const initial=await p.locator('canvas').getAttribute('width');await p.evaluate(()=>document.getElementById('root').style.width='300px');await p.waitForTimeout(100);assert.notEqual(await p.locator('canvas').getAttribute('width'),initial,'Resize redraws static canvas');
+await p.evaluate(()=>unmountGlow());assert.equal(await p.evaluate(()=>__queue.size),0);assert.deepEqual(errors,[]);records.push({dpr,hotLoop:live.cost,visibility:'pass',reducedMotion:'pass',resize:'pass',cleanup:'pass'});await c.close();
+}}finally{await browser.close();await new Promise(r=>server.close(r));}
+await writeFile(join(out,'results.json'),JSON.stringify(records,null,2));console.log('PASS glow rendering cost and lifecycle',JSON.stringify(records));
