@@ -99,7 +99,7 @@ writeFileSync("scripts/.workspace-fixture.tsx", entry);
 const server = await createServer({
   cacheDir: `node_modules/.vite-workspace-browser-${process.env.COVA_WORKSPACE_FIXTURE_PORT || "4179"}`,
   configFile: false,
-  define: { "import.meta.env.VITE_WORKSPACE_SYNC_ENABLED": '"true"' },
+  define: { "import.meta.env.VITE_WORKSPACE_SYNC_ENABLED": '"true"', ...(process.env.COVA_HOME_SCREEN_QA === '1' ? { 'import.meta.env.VITE_SUPABASE_URL': '"https://home-screen.example.invalid"', 'import.meta.env.VITE_SUPABASE_ANON_KEY': '"public-test"' } : {}) },
   server: { host: "127.0.0.1", port: Number(process.env.COVA_WORKSPACE_FIXTURE_PORT || 4179), strictPort: true },
   plugins: [
     {
