@@ -17,6 +17,13 @@ test('the approved orbital artwork replaces the decorative ribbon in the first-f
  const server=await createServer({server:{middlewareMode:true,hmr:false},appType:'custom',logLevel:'error',optimizeDeps:{noDiscovery:true}});
  try{const {Hero}=await server.ssrLoadModule('/src/components/MarketingHero.tsx');for(const signed of [false,true]){const html=renderToStaticMarkup(createElement(Hero,{go:()=>{},openAuth:()=>{},isSignedIn:signed}));assert.match(html,/id="cova-space-title"/);assert.match(html,/cova-orbital-hero-v1/);assert.match(html,/imported trade history/);assert.match(html,signed?/Open dashboard/:/Sign up/);assert.match(html,signed?/Link account/:/See how it works/);assert.match(html,/Marcus R\./);assert.match(html,/Jasmine B\./);assert.doesNotMatch(html,/Trusted by 500|Watermelon|Intelligent Decisions/);}}finally{await server.close();}
 });
+test('hero letters retain a subtle gap on desktop and phones',()=>{
+ const css=read('src/styles/covaSpaceHero.css');
+ const rules=[...css.matchAll(/\.cova-space-copy \.cova-space-title\s*\{([^}]+)\}/g)].map(m=>m[1]);
+ const tracked=rules.filter(rule=>rule.includes('letter-spacing'));
+ assert.equal(tracked.length,2);
+ for(const rule of tracked)assert.match(rule,/letter-spacing: -\.035em;/);
+});
 test('the existing Cova routes, wordmark, workspace and lower product story stay exact',()=>{
  const frozen={"src/components/Navbar.tsx": "3c44686abcb793666c7f9b9b443380f9da949f6988d4dc5cdfe3ace396374dfc", "src/components/WorkspaceShell.tsx": "86eed117876320c5eab19de285c8a5376e661da9fb1014ce8c850237209b8308", "src/components/WorkspaceSections.tsx": "8c29ea2e26fbb3214882ffd9d82f2fd8a98b898a8a85384ba9b248c93cdf4f99", "src/styles/workspaceDashboardShell.css": "eb1d523248807cc318d1fc9065eefa27040e70ab5d72f2da8924ec7853fbf09c", "src/styles/workspaceSidebarMotion.css": "ce86b58438c52fa461e1f7ebc577c4071b2574f7f3a15c8701862790dc9526c6"};
  for(const [path,hash] of Object.entries(frozen))assert.equal(createHash('sha256').update(read(path)).digest('hex'),hash,path);
