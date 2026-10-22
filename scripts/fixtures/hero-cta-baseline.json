@@ -9,5 +9,5 @@
   "src/components/PlanSections.tsx": "234e3e289f341db6b5f8e1efa61927678809a99c7b237a9edcb741d9abea5b0a",
   "src/components/landing/ResourceLogoCloud.tsx": "59a66e03680b4754dcd84a63e6c97189272b063a9bbc2bed3001fae173d09fab",
   "src/components/landing/ProPriceDottedGlow.tsx": "2bcde39e1971c35b40ab8cc6637d1931f154c5607bf510ef41f401fa948fd351",
-  "src/components/ui/dotted-glow-background.tsx": "12820db19fead2d91f374165389258f28ff45633cc893974e80eb65036e649f1"
+  "src/components/ui/dotted-glow-background.tsx": "8f713313ae07d85c9a3330c1c0920aba738e8cbeff350ca63f913ccd603bafb7"
 }
