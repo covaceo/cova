@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {withoutHomeScreenInstall} from './approved-home-screen.mjs';
 
 /** Reverse only the approved read-only journal index, preserving all prior App behavior. */
 export function withoutJournalHistory(source) {
@@ -11,5 +12,5 @@ export function withoutJournalHistory(source) {
     assert.equal(restored.split(line).length, 2, 'Exact guarded journal history extension');
     restored = restored.replace(line + String.fromCharCode(10), '');
   }
-  return restored;
+  return withoutHomeScreenInstall(restored);
 }

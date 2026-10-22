@@ -72,6 +72,7 @@ import { Toast } from "./components/Toast";
 import { WorkspaceShell } from "./components/WorkspaceShell";
 import { BillingProvider, openBilling } from "./components/Billing";
 import { UserProfileProvider } from "./components/UserProfile";
+import { HomeScreenInstall } from "./components/HomeScreenInstall";
 import { getHostedLogoutUrl, isDemoPreviewEnabled } from "./lib/authEnvironment";
 import { CURRENT_PRIVACY_VERSION, CURRENT_TERMS_VERSION } from "./lib/legal";
 import { isImportPrincipalCurrent, toImportPrincipalIdentity, type ImportPrincipal } from "./lib/importGuard";
@@ -1409,6 +1410,7 @@ export default function App() {
         pendingPolicyConfirmation={Boolean(pendingSupabaseSession)}
       />
       <Toast toast={toast} />
+      <HomeScreenInstall owner={authSession?.source === 'supabase' ? authSession.userId : undefined} eligible={workspaceSync.enabled && workspaceSync.phase === 'saved' && workspaceSync.hasWorkspace && workspaceSync.allowEdit && section === 'dashboard' && !mobileOpen && !authMode && !passwordRecoverySession && !pendingSupabaseSession && !toast} />
       {isSignedIn&&authSession?.userId&&workspaceSync.canPublishPlan&&<PassportPlanSync key={authSession.userId} owner={authSession.userId} rules={rules}/>}
 
       <main className="relative z-10">
