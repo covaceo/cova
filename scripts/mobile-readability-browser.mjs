@@ -54,7 +54,7 @@ async function measure(p,route,width){
 try{
  for(const width of [320,375,390,430,768,850,851,1280,1440]){
   const c=await context(width);const p=await c.newPage();p.on('pageerror',e=>errors.push(e.message));await ready(p,'dashboard');
-  await p.getByText('Signed in. Account stats are unlocked.',{exact:true}).waitFor({state:'hidden',timeout:15000});
+  await p.locator('[data-toast-kind="sign-in"]').waitFor({state:'hidden',timeout:15000});
   const r=await measure(p,'dashboard',width);records.push(r);assert.equal(r.actualWidth,width);assert(r.overflow<=1,JSON.stringify(r.outside));
   await capture(p,'dashboard-'+width,true);
   if(phase!=='before'&&width<=850){

@@ -29,7 +29,8 @@ try{
  for(const [engine,driver,opts]of engines){browser=await driver.launch({...opts,headless:true});
   for(const width of [320,390,1440])for(const state of ['loading','review']){
    const d=await open(width,state),{c,p,owner}=d;assert.equal(await p.locator('.astra-dashboard').count(),0,'No private dashboard before explicit storage choice');assert.equal(d.posts(),0,'No implicit storage write');
-   const toast=p.getByText('Signed in. Account stats are unlocked.',{exact:true});
+   const toast=p.locator('[data-toast-kind="sign-in"]');
+   if(width===390&&state==='loading'){await toast.waitFor();const badge=await toast.locator('.cova-sign-in-toast-surface').boundingBox();assert(Math.abs(badge.x+badge.width/2-width/2)<=1,'Actual App sign-in notice is centered');assert.equal(await toast.innerText(),'Signed in');await p.screenshot({path:path.join(out,`${engine}-390-signin-toast.png`)});}
    if(width<850&&await toast.isVisible()){const t=await toast.boundingBox(),mark=await p.locator('.workspace-entry-mark').boundingBox();assert(mark.y>=t.y+t.height,'Sign-in feedback does not cover the entry graphic');}
    await toast.waitFor({state:'hidden',timeout:10000});
    await p.screenshot({path:path.join(out,`${engine}-${width}-${state}.png`)});await p.screenshot({path:path.join(out,`${engine}-${width}-${state}-full.png`),fullPage:true});records.push({engine,width,state,...await metrics(p)});

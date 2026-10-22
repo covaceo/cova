@@ -1,0 +1,33 @@
+/* Only the sign-in confirmation. Other notices keep their existing presentation. */
+.cova-sign-in-toast {
+  position: fixed;
+  inset-inline: 0;
+  top: calc(88px + env(safe-area-inset-top, 0px));
+  z-index: 90;
+  display: flex;
+  justify-content: center;
+  padding-inline: max(16px, env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
+  pointer-events: none;
+}
+.cova-sign-in-toast-surface {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  max-width: 100%;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 11px 16px;
+  border: 1px solid #ffffff12;
+  border-radius: 14px;
+  background: #202126;
+  color: #ededf0;
+  box-shadow: 0 8px 24px #00000038;
+  font: 500 14px/20px Inter, Arial, sans-serif;
+  text-align: center;
+  pointer-events: auto;
+}
+.cova-sign-in-toast-surface svg {
+  flex: 0 0 16px;
+  color: #b8d8c9;
+}

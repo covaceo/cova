@@ -36,7 +36,7 @@ await context.route('**/api/**',async route=>{
  await page.waitForTimeout(600);
  const close=page.getByRole('button',{name:'Close auth panel',exact:true});
  if(await close.count())await close.evaluate(b=>b.click());
- await page.getByText('Signed in. Account stats are unlocked.',{exact:true}).waitFor({state:'hidden',timeout:10000});
+ await page.locator('[data-toast-kind="sign-in"]').waitFor({state:'hidden',timeout:10000});
  assert.equal(await page.locator('vite-error-overlay').count(),0);
  return {page,context,owner};
 }

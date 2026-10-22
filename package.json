@@ -69,7 +69,8 @@
     "test:site-polish": "node --test scripts/site-motion-polish-regression.mjs scripts/public-polish-regression.mjs && node scripts/auth-connection-visual-regression.mjs --source",
     "test:site-polish-browser": "npm run build && node scripts/public-polish-browser-regression.mjs && node scripts/auth-connection-visual-regression.mjs",
     "test:workspace": "node --test scripts/workspace-model-regression.mjs scripts/workspace-candidate-regression.mjs scripts/workspace-api-regression.mjs scripts/workspace-database-regression.mjs scripts/workspace-hydration-regression.mjs scripts/workspace-production-sql-regression.mjs scripts/workspace-conflict-sql-regression.mjs && npm run test:workspace-entry",
-    "test:workspace-entry": "node --test scripts/workspace-entry-regression.mjs && node scripts/workspace-entry-browser.mjs",
+    "test:workspace-entry": "node --test scripts/workspace-entry-regression.mjs && node scripts/workspace-entry-browser.mjs && npm run test:signin-toast",
+    "test:signin-toast": "node scripts/signin-toast-browser.mjs",
     "test:workspace-browser:fixture": "node scripts/workspace-browser-fixture.mjs",
     "test:workspace-browser": "node scripts/workspace-browser-regression.mjs"
   },

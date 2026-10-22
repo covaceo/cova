@@ -34,7 +34,7 @@ async function open(width,height,rows=trades,name='Review account') {
   },{owner,trades:rows,rules:defaultRules,name});
   const p=await c.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.message));
   await p.goto(origin+'/#dashboard');await p.locator(rows.length?'.astra-stats-panel':'[data-dashboard-empty]').waitFor();
-  await p.evaluate(()=>document.fonts.ready);await p.getByText('Signed in. Account stats are unlocked.',{exact:true}).waitFor({state:'hidden',timeout:15000});
+  await p.evaluate(()=>document.fonts.ready);await p.locator('[data-toast-kind="sign-in"]').waitFor({state:'hidden',timeout:15000});
   await p.evaluate(()=>document.documentElement.style.setProperty('scroll-behavior','auto','important'));await sleep(100);
   return {c,p,errors};
 }
