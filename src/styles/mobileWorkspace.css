@@ -16,7 +16,16 @@
   .oa-dashboard-app .workspace-top-header .operator-mobile-menu-toggle::before,
   .oa-dashboard-app .workspace-top-header .operator-mobile-menu-toggle::after { display: none !important; }
   .oa-dashboard-app .workspace-top-header .operator-mobile-menu-toggle svg { width: 22px; height: 22px; }
-  .oa-dashboard-app .workspace-top-header .operator-mobile-menu-panel { border-radius: 14px !important; }
+  .oa-dashboard-app .workspace-top-header .operator-mobile-menu-panel {
+    border-radius: 14px !important;
+    /* The dropdown floats; its fading presence must not grow the opaque header. */
+    position: absolute;
+    top: calc(100% - 10px);
+    left: 16px;
+    right: 16px;
+    /* Motion owns transform/opacity, not the inherited glass CSS transition. */
+    transition: none;
+  }
   /* Quiet normal status moves below the workspace; setup/errors stay up front. */
   .oa-dashboard-app :is(.workspace-content, .astra-workspace-page):has(> .workspace-sync-compact) { display: flex; flex-direction: column; }
   .oa-dashboard-app :is(.workspace-content, .astra-workspace-page) > .workspace-sync-compact {
