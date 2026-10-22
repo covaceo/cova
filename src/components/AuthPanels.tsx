@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type RefObject } from "react";
 import type { Session as SupabaseSession } from "@supabase/supabase-js";
+import { beginAuthViewportSession } from "../lib/authViewport";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail, RotateCw, SlidersHorizontal, X } from "lucide-react";
 import { buildHostedAuthUrl, canRedirectToHostedAuth, isDemoPreviewEnabled, isLocalPreview } from "../lib/authEnvironment";
@@ -179,6 +180,7 @@ export function AuthSheet({
     const overlay = overlayRef.current;
     const dialog = dialogRef.current;
     if (!overlay || !dialog) return;
+    const finishAuthViewport = beginAuthViewportSession(dialog);
 
     const scrollX = window.scrollX;
     const scrollY = window.scrollY;
@@ -253,6 +255,7 @@ export function AuthSheet({
       });
       document.documentElement.style.overflow = previousRootOverflow;
       Object.assign(document.body.style, previousBodyStyle);
+      finishAuthViewport();
       window.scrollTo(scrollX, scrollY);
       const opener = openerRef.current;
       openerRef.current = null;
