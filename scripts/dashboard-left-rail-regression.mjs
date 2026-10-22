@@ -52,7 +52,8 @@ assert.match(app, /<Navbar[\s\S]*?deleteAccount=\{deleteAccount\}/, "App must wi
 assert.doesNotMatch(navbar, /bg-white\/8|text-white\/68/, "collapsed current-state styling must use emitted authored classes rather than absent dynamic Tailwind utilities");
 
 assert.match(dashboard, /<h1[^>]*>Risk Desk<\/h1>/, "dashboard must use Raf’s approved Astra title");
-assert.match(dashboard, /dashboard-range-controls/, "dashboard must expose visible review-range controls");
+assert.match(dashboard, /<DashboardReviewRange trades=\{analysis\.trades\} range=\{range\} onChange=\{setRange\}/, "dashboard-wide controls preserve the selected history and existing range setter");
+assert.match(read("src", "components", "DashboardReviewRange.tsx"), /dashboard-range-controls/, "dashboard must expose visible review-range controls");
 assert.match(dashboard, /astra-stat-strip/, "dashboard must lead with the approved four-cell financial strip");
 assert.match(dashboard, /astra-desk-grid/, "dashboard must use the approved Astra chart and discipline composition");
 assert.match(dashboard, /<OaDisciplineReview/);

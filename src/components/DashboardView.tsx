@@ -10,6 +10,7 @@ import { getTradeSourceLabel } from "../lib/tradeSourceLabel";
 
 import { RithmicAttribution } from "./RithmicAttribution";
 import { AstraEquityCurve } from "./AstraEquityCurve";
+import { DashboardReviewRange } from "./DashboardReviewRange";
 import { accountEquityPnlCents } from "../lib/equityCurveState";
 import { DashboardTradeDialog } from "./DashboardTradeDialog";
 import { TradeHistoryDialog } from "./TradeHistoryDialog";
@@ -27,11 +28,7 @@ const IMPORT_PROVIDER_HINT_KEY = "cova-import-provider-v1";
 type Section = "overview" | "features" | "pricing" | "resources" | "community" | "dashboard" | "import" | "oauth" | "rules" | "coach" | "passport";
 type TimeRange = "today" | "week" | "all";
 type Analysis = ReturnType<typeof analyze>;
-const rangeOptions: { id: TimeRange; label: string }[] = [
-  { id: "today", label: "Latest session" },
-  { id: "week", label: "Last 7 days" },
-  { id: "all", label: "All trades" },
-];
+
 
 export function Dashboard({ noteDraftOwner, analysis, rules, go, rithmicSyncAvailable = false, onSaveTradeNote, journalReview = journalReviewEnabled(), accountControl, journalActions, onConfirmManualNet, onAddManualTrade, onDeleteManualTrade, manualAccounts = ["local"], selectedAccount = "local" }: {
   noteDraftOwner?: string;
@@ -110,6 +107,7 @@ export function Dashboard({ noteDraftOwner, analysis, rules, go, rithmicSyncAvai
         </details>
       </div>
     </header>
+    {hasTradeHistory && <DashboardReviewRange trades={analysis.trades} range={range} onChange={setRange} cash={netCash} />}
 
     {!hasTradeHistory ? <section className="dashboard-empty-state" data-dashboard-empty="true" aria-labelledby="dashboard-empty-title">
       <div className="dashboard-empty-panel">
@@ -127,9 +125,7 @@ export function Dashboard({ noteDraftOwner, analysis, rules, go, rithmicSyncAvai
         <section className="astra-panel astra-chart-panel" aria-labelledby="astra-equity-title">
           <div className="astra-panel-heading">
             <div><h2 id="astra-equity-title">{netCash ? "Net P&L curve" : "Equity curve"}</h2></div>
-            <div className="dashboard-range-controls astra-segmented" role="group" aria-label="Dashboard review range">
-              {rangeOptions.map(option => <button aria-pressed={range === option.id} className={range === option.id ? "dashboard-range-active" : ""} key={option.id} onClick={() => setRange(option.id)} type="button">{option.label}</button>)}
-            </div>
+
           </div>
           {journalReview && journal.money.status !== 'available' ? <p className="astra-mini-note">{journal.money.reason}</p> : <AstraEquityCurve accountPnlCents={accountEquityPnlCents(analysis.trades, netCash ? (range === "all" ? cash : brokerCashSummary(analysis.trades, "all")) : { status: "unavailable", reason: "Reported trade basis" })} basis={netCash ? "daily-net" : "trades"} points={netCash ? netCash.points : journalReview && journal.money.status === 'available' ? journal.money.equityPoints : scopedAnalysis.equityPoints} />}
           <div className="astra-chart-note"><span>{netCash ? "Daily · USD" : tradovateOnly ? "Gross P&L" : "Reported P&L"}</span><span data-dashboard-trade-count={journalReview ? scopedTrades.length : scopedAnalysis.tradeCount}>{journalReview ? scopedTrades.length : scopedAnalysis.tradeCount} {journalReview ? `matched rows · ${journal.money.status === 'available' ? moneyText(journal.money.totalCents) : 'Unavailable'}` : 'trades'}</span></div>

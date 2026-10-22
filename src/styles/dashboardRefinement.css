@@ -1,0 +1,112 @@
+/* Approved Risk Desk refinements. Presentation only; no shared marketing or ledger changes. */
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .dashboard-review-range {
+  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px 20px; margin:0 0 16px;
+}
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .dashboard-review-period { display:flex; flex-direction:column; gap:2px; color:#e0e8f5; font:400 13px/1.5 Inter,Arial,sans-serif; text-align:right; }
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .dashboard-review-period small { color:#aab4c3; font:400 12px/1.5 Inter,Arial,sans-serif; }
+/* One restrained type scale; keep the lead figure and all existing metrics. */
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-title h1 { font-size:32px!important; letter-spacing:-.03em!important; }
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-reference-header { margin-bottom:12px!important; }
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-stat-strip { padding-block:12px; }
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-stat-value { font-size:30px; letter-spacing:-.03em; }
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] [data-astra-stat=pnl] .astra-stat-value { font-size:40px; }
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-average-cell { padding-block:10px; }
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-average-cell .astra-stat-value { font-size:24px; }
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-panel-heading { padding:16px 22px; }
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-panel-heading h2 { font-size:18px; }
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-chart-panel { min-height:360px; }
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-chart-svg { min-height:250px; }
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-chart-svg text { font:400 12px Inter,Arial,sans-serif; fill:#aab4c3; }
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] :is(.astra-chart-note,.astra-stat-detail,.astra-dashboard-footer,.astra-trade-table th,.astra-net-basis) { font-size:12px; }
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-chart-tooltip :is(span,small) { font-size:12px; }
+/* Scope gets enough room before utility actions; long names still open in the existing menu. */
+@media(min-width:851px) {
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-header-controls [data-account-switcher] { flex:0 0 260px; min-width:240px; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .cova-account-menu-trigger { font-size:13px; }
+}
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .cova-account-menu-trigger:hover { background:#1b1b1b!important; color:#e0e8f5!important; }
+/* Sample quantity describes evidence, not whether trading is safe. */
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .oa-discipline-sample { margin:0; font:400 13px/1.5 Inter,Arial,sans-serif; }
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .oa-discipline-sample small { display:block; margin-top:2px; color:#aab4c3; font-size:12px; }
+/* Existing dialogs share the workspace's raised surface and control language. */
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] {
+  --desk-dialog:#161616; --desk-field:#101010; --desk-edge:#ffffff1f; --desk-ink:#e0e8f5; --desk-muted:#aab4c3;
+}
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-trade-dialog { background:var(--desk-dialog); color:var(--desk-ink); border-color:var(--desk-edge); border-radius:16px; corner-shape:round; font-family:Inter,Arial,sans-serif; }
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-trade-dialog::backdrop { background:#000b; backdrop-filter:none; }
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-trade-dialog :is(h2,h3) { font-family:Inter,Arial,sans-serif; letter-spacing:-.025em; }
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-trade-dialog h2 { font-size:24px; line-height:1.3; }
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-trade-dialog :is(.astra-note-date,.astra-detail-metrics span,.astra-note-storage,.manual-trade-disclosure) { font:400 12px/1.6 Inter,Arial,sans-serif; color:var(--desk-muted); text-transform:none; letter-spacing:0; }
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-trade-dialog :is(input,select,textarea) { background:var(--desk-field)!important; color:var(--desk-ink); border-color:#ffffff24; border-radius:10px!important; font-family:Inter,Arial,sans-serif; }
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-trade-dialog :is(input,textarea)::placeholder { color:var(--desk-muted); }
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-trade-dialog :is(.astra-button,.oa-review-pill) { min-height:40px; border-radius:10px!important; font:500 14px/1.4 Inter,Arial,sans-serif!important; }
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-trade-dialog .astra-save-note { background:#286cf4; border-color:#286cf4; color:#fff; }
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-trade-dialog :is(.astra-dialog-close,.oa-review-dialog > header button) { width:40px; height:40px; background:#ffffff08; border:1px solid var(--desk-edge); border-radius:10px!important; color:var(--desk-ink); }
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-trade-dialog .astra-detail-metrics { border-color:var(--desk-edge); }
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .oa-review-dialog > header { background:var(--desk-dialog); }
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .oa-review-dialog p { font-family:Inter,Arial,sans-serif; color:var(--desk-muted); }
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-history-header { border-color:var(--desk-edge); }
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-history-scroll { border-color:var(--desk-edge); }
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-history-table th { background:var(--desk-dialog); color:var(--desk-muted); font-size:12px; }
+.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-history-table td { border-color:var(--desk-edge); }
+@media(min-width:621px) {
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-history-table :is(th,td):is(:nth-child(4),:nth-child(5),:nth-child(6)) { text-align:right; }
+}
+/* Field labels appear only in the phone history layout; table headers remain accessible. */
+.history-field-label { display:none; }
+@media(max-width:620px) {
+  .oa-dashboard-app .astra-history-dialog .astra-history-scroll { border:0; border-radius:0; }
+  .oa-dashboard-app .astra-history-dialog .astra-history-table { display:block; min-width:0; width:100%; }
+  .oa-dashboard-app .astra-history-dialog .astra-history-table thead { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+  .oa-dashboard-app .astra-history-dialog .astra-history-table tbody { display:block; }
+  .oa-dashboard-app .astra-history-dialog .astra-history-table tr[data-entry-group] { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px 16px; padding:16px 0; border-bottom:1px solid #ffffff14; }
+  .oa-dashboard-app .astra-history-dialog .astra-history-table td { display:block; min-width:0; max-width:none; padding:0; border:0; white-space:normal; overflow-wrap:anywhere; font-size:14px; }
+  .oa-dashboard-app .astra-history-dialog .history-field-label { display:block; color:#aab4c3; font-size:12px; line-height:1.5; font-weight:400; margin-bottom:2px; }
+  .oa-dashboard-app .astra-history-dialog [data-history-field=market] { grid-column:1; grid-row:1; font-weight:600; font-size:16px; }
+  .oa-dashboard-app .astra-history-dialog [data-history-field=pnl] { grid-column:2; grid-row:1; text-align:right; font-weight:600; font-size:16px; }
+  .oa-dashboard-app .astra-history-dialog [data-history-field=closed] { grid-column:1; grid-row:2; }
+  .oa-dashboard-app .astra-history-dialog [data-history-field=side] { grid-column:1; grid-row:3; }
+  .oa-dashboard-app .astra-history-dialog [data-history-field=contracts] { grid-column:2; grid-row:3; text-align:right; }
+  .oa-dashboard-app .astra-history-dialog [data-history-field=risk] { grid-column:2; grid-row:2; text-align:right; }
+  .oa-dashboard-app .astra-history-dialog [data-history-field=notes] { grid-column:1/-1; grid-row:4; }
+}
+@media(max-width:374px) {
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] [data-astra-stat=drawdown] { grid-template-columns:minmax(0,1fr) minmax(0,1.2fr); gap:8px; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] [data-astra-stat=drawdown] .astra-stat-value { grid-column:2; grid-row:1; text-align:right; }
+}
+@media(min-width:851px) and (max-width:1250px) {
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-stat-value { font-size:28px; }
+}
+@media(min-width:851px) and (max-width:1000px) {
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] [data-astra-stat=pnl] .astra-stat-value { font-size:36px; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-stat-value { font-size:24px; }
+}
+@media(min-width:621px) and (max-width:850px) {
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .dashboard-review-range { flex-wrap:nowrap; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .dashboard-review-range .astra-segmented { display:flex; width:auto; flex:none; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .dashboard-review-range .astra-segmented button { padding-inline:12px!important; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .dashboard-review-range .dashboard-review-period { flex-direction:column; text-align:right; }
+}
+@media(min-width:700px) and (max-width:850px) {
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-header-controls { grid-template-columns:minmax(180px,1.4fr) repeat(3,minmax(0,1fr)); }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-header-controls [data-account-switcher] { grid-column:auto; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-header-controls:not(:has(.recap-open)) { grid-template-columns:minmax(180px,1.4fr) repeat(2,minmax(0,1fr)); }
+}
+@media(max-width:850px) {
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-trade-dialog :is(.astra-button,.oa-review-pill,.astra-dialog-close,.oa-review-dialog > header button) { min-height:44px; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-reference-header { margin-bottom:8px!important; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-title h1 { font-size:28px!important; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-stat-strip { padding:0; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-stats-panel { margin-bottom:16px; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-stat-cell { padding-block:8px; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-stat-cell[data-astra-stat=pnl] { padding-block:10px; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-stat-value { font-size:26px; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-average-cell { padding-block:8px; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-average-cell .astra-stat-value { font-size:24px; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-chart-panel { min-height:0; padding-block:16px!important; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-chart-panel .astra-panel-heading { padding-top:0; padding-inline:0; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-chart-svg { min-height:210px; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .dashboard-review-range { gap:8px; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .dashboard-review-period { flex:1; flex-direction:row; flex-wrap:wrap; justify-content:space-between; gap:2px 12px; text-align:left; }
+  .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .dashboard-review-cash-period { flex-basis:100%; }
+}
