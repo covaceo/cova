@@ -69,6 +69,7 @@
 .astra-workspace-page .oa-review-about p { max-width:70ch; margin-top:8px; }
 .astra-workspace-page .oa-insight-feed { display:grid; gap:28px; }
 .astra-workspace-page .oa-insight-primary { padding:28px; }
+.astra-workspace-page .oa-insight-empty { display:grid; justify-items:start; gap:20px; }
 .astra-workspace-page .oa-insight-primary h2 { font-size:27px!important; font-weight:400!important; letter-spacing:-.025em!important; margin:14px 0 6px; }
 .astra-workspace-page .oa-insight-action { color:var(--oa-muted); font-size:14px; }
 .astra-workspace-page .oa-insight-proof { display:grid; gap:14px; margin:22px 0; padding:20px 22px; border:0; border-radius:20px; background:var(--oa-inset); font-size:14px; color:#b7bdc7; }
@@ -94,6 +95,10 @@
 @media(max-width:1050px) {
   .astra-workspace-page .oa-review-page { max-width:900px; }
   .astra-workspace-page .oa-limit-row { grid-template-columns:minmax(0,1fr) 130px 56px; gap:20px; }
+}
+@media(max-width:850px) {
+  .astra-workspace-page .oa-review-button { min-height:44px; padding:10px 16px; border-radius:12px; corner-shape:round; font:500 14px/20px Inter,Arial,sans-serif; letter-spacing:0; }
+  .astra-workspace-page .oa-review-button svg { width:16px; height:16px; flex:none; }
 }
 @media(max-width:620px) {
   .astra-workspace-page .oa-review-page { margin-top:8px; padding-bottom:36px; }

@@ -15,7 +15,7 @@ export function ResourcesPage({ go }: { go: (section: Section) => void; openAuth
       number: "01",
       title: "Export your trades",
       body: "Download completed trades or fills from the platform you already use.",
-      action: "Open import paths",
+      action: "Import trades",
       onClick: () => go("import"),
     },
     {
@@ -28,7 +28,7 @@ export function ResourcesPage({ go }: { go: (section: Section) => void; openAuth
     {
       number: "03",
       title: "Review the account",
-      body: "Read P&L, drawdown context, and the highest-priority behavior warning together.",
+      body: "Review your P&L, drawdown, and any limit warnings.",
       action: "Review account",
       onClick: () => go("dashboard"),
     },
@@ -102,8 +102,8 @@ export function ResourcesPage({ go }: { go: (section: Section) => void; openAuth
 
               <aside className="resources-oa-sample" aria-label="Sample CSV file check">
                 <div className="resources-oa-sample-header">
-                  <span>SAMPLE FILE CHECK</span>
-                  <strong>NEEDS REVIEW</strong>
+                  <span>Sample file check</span>
+                  <strong>Needs review</strong>
                 </div>
                 <div className="resources-oa-file">
                   <span>trades.csv</span>
@@ -130,7 +130,7 @@ export function ResourcesPage({ go }: { go: (section: Section) => void; openAuth
                 </div>
                 <div className="resources-oa-notice" role="status">
                   <span>2 rows need review</span>
-                  <p>Nothing imports until the member confirms the file.</p>
+                  <p>Nothing imports until you confirm the file.</p>
                 </div>
                 <button className="resources-oa-secondary" onClick={() => go("import")} type="button">
                   Open CSV import
@@ -148,18 +148,18 @@ export function ResourcesPage({ go }: { go: (section: Section) => void; openAuth
 
         <div className="resources-oa-utility" aria-label="More help">
           <div>
-            <span>Optional connections</span>
-            <p>Supported account sources appear only when they are configured and available.</p>
-            <button onClick={() => go("import")} type="button">View account sources</button>
+            <span>Account connections</span>
+            <p>See available connections and CSV imports.</p>
+            <button onClick={() => go("import")} type="button">View connections</button>
           </div>
           <div>
             <span>Need help?</span>
-            <p>Send the file issue or workflow question directly to Cova support.</p>
+            <p>Get help with an import or your account.</p>
             <a href="mailto:support@covadesk.com">support@covadesk.com</a>
           </div>
           <div>
             <span>Ask other traders</span>
-            <p>Use the real Cova working room for completed-trade review and product questions.</p>
+            <p>Discuss completed trades and ask product questions.</p>
             <button onClick={() => go("community")} type="button">Open Community</button>
           </div>
         </div>

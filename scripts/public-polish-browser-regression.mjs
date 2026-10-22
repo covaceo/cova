@@ -120,8 +120,8 @@ try {
       }
       if (route === 'resources') {
         assert.deepEqual(result.headings.slice(1).map(h => h.text), ['Export your trades', 'Upload and check the file', 'Review the account', 'Set your limits', 'Share your Passport']);
-        assert.match(result.text, /NEEDS REVIEW[\s\S]*trades\.csv[\s\S]*2 warnings[\s\S]*Nothing imports until the member confirms the file\./);
-        assert.deepEqual(result.buttons, ['Upload CSV', 'Open import paths', 'Upload CSV', 'Review account', 'Open limits', 'Open Passport', 'Open CSV import', 'View account sources', 'Open Community']);
+        assert.match(result.text, /Needs review[\s\S]*trades\.csv[\s\S]*2 warnings[\s\S]*Nothing imports until you confirm the file\./);
+        assert.deepEqual(result.buttons, ['Upload CSV', 'Import trades', 'Upload CSV', 'Review account', 'Open limits', 'Open Passport', 'Open CSV import', 'View connections', 'Open Community']);
       } else if (route === 'community') {
         assert.deepEqual(result.headings.map(h => h.text), ['Find us.', 'Instagram', 'Discord', 'X']);
         assert.doesNotMatch(result.text, /A REAL COVA COMMUNITY|REAL ROOMS|Bring the screenshot/);
