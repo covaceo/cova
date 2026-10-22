@@ -91,7 +91,7 @@ export function MiniJournal({ initialDate, actions, trades = [], onOpenTrade }: 
       {!history.length && <p>No saved notes yet.</p>}
       {history.length > historyShown && <button type="button" onClick={() => setHistoryShown(n => n + 8)}>Show more notes</button>}
     </div>}
-    <textarea ref={noteInput} aria-label="Journal note" rows={3} maxLength={2000} placeholder={isMobileJournal() && !actions?.ephemeral ? 'Write your session note…' : 'What worked? What will you change next time?'} value={entry.note} readOnly={!actions} onChange={event => { edit({ ...entry, note: event.target.value }); }} />
+    <textarea ref={noteInput} aria-label="Journal note" rows={3} maxLength={2000} placeholder={actions?.ephemeral ? 'What worked? What will you change next time?' : 'Session note'} value={entry.note} readOnly={!actions} onChange={event => { edit({ ...entry, note: event.target.value }); }} />
     <div className="journal-attachment-area">
       {entry.tradeId && <div className="journal-attached" data-journal-attachment>
         <button type="button" data-journal-linked-trade disabled={!linked || !onOpenTrade} onClick={() => linked && onOpenTrade?.(entry.tradeId!)}>

@@ -27,7 +27,7 @@
 .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .cova-account-menu-trigger:hover { background:#1b1b1b!important; color:#e0e8f5!important; }
 /* Sample quantity describes evidence, not whether trading is safe. */
 .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .oa-discipline-sample { margin:0; font:400 13px/1.5 Inter,Arial,sans-serif; }
-.oa-dashboard-app .astra-dashboard[data-dashboard-visual] .oa-discipline-sample small { display:block; margin-top:2px; color:#aab4c3; font-size:12px; }
+
 /* Existing dialogs share the workspace's raised surface and control language. */
 .oa-dashboard-app .astra-dashboard[data-dashboard-visual] {
   --desk-dialog:#161616; --desk-field:#101010; --desk-edge:#ffffff1f; --desk-ink:#e0e8f5; --desk-muted:#aab4c3;

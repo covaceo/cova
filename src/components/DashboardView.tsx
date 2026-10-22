@@ -113,7 +113,6 @@ export function Dashboard({ noteDraftOwner, analysis, rules, go, rithmicSyncAvai
       <div className="dashboard-empty-panel">
         <span className="dashboard-empty-icon" aria-hidden="true"><FileUp /></span>
         <h2 id="dashboard-empty-title">Import trade history to start your review</h2>
-        <p>Cova keeps a new account blank until you add your own trade data.</p>
         <button className="dashboard-empty-action" onClick={() => go("import")} type="button">Import trade history <ArrowUpRight aria-hidden="true" /></button>
       </div>
     </section> : <>

@@ -141,7 +141,7 @@ test('An account without trades stays blank and older rows without notes remain 
   assert.ok(empty.includes('data-dashboard-empty="true"'));
   assert.ok(!empty.includes('data-astra-stat=')&&!empty.includes('astra-score-ring'));
   const html = renderToStaticMarkup(React.createElement(Dashboard,{analysis:analyze([{...sampleTrades[0],notes:undefined}],defaultRules),rules:defaultRules,go:()=>{}}));
-  assert.ok(html.includes('What worked? What will you change next time?'));
+  assert.ok(html.includes('placeholder="Session note"'));
   assert.ok(html.includes('Attach trade'));
 });
 
