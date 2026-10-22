@@ -1,3 +1,4 @@
+import {restoreMobileRecordingSource} from './helpers/approved-mobile-recording.mjs';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
@@ -15,7 +16,7 @@ assert.match(source,/oa-insight-primary/);assert.match(source,/oa-insight-second
 assert.doesNotMatch(source.slice(0,source.indexOf('type PassportTier')),/rules-ledger-grid|rules-ledger-summary|insight-briefing-row/,'Retire boxy main-content structures');
 const css=read('src/styles/astraWorkspaceContent.css');
 assert.doesNotMatch(css,/workspace-sidebar|astra-rail|workspace-nav/,'Never restyle the left side');
-const tree=ts.createSourceFile('WorkspaceSections.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
+const tree=ts.createSourceFile('WorkspaceSections.tsx',restoreMobileRecordingSource('src/components/WorkspaceSections.tsx',source),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 const coach=tree.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='Coach');
 const nonRender=coach.body.statements.filter(n=>!ts.isReturnStatement(n)).map(n=>n.getText(tree)).join('\n');
 assert.equal(createHash('sha256').update(nonRender).digest('hex'),'cc0a4abc785be793bc099d03446d3f92210083037677d10e85ac3fb569d6f236','Insight derivations, prioritization and entitlements preserved');

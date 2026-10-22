@@ -52,7 +52,7 @@ export function RulesEngine({ analysis, entitlements, rules, setRules, go, upgra
   const rangeStep = isCountRule ? 1 : isMinimumRule ? 0.05 : 50;
   const formattedLimit = isCountRule ? rule.limit : isMinimumRule ? rule.limit.toFixed(2) : formatMoney(rule.limit);
   const locked = isMinimumRule && !entitlements.canEditAdvancedLimits;
-  const ruleState = !rule.enabled || status?.evaluated === false ? "off" : status?.breached ? "breach" : "inside";
+  const ruleState = analysis.tradeCount === 0 || !rule.enabled || status?.evaluated === false ? "off" : status?.breached ? "breach" : "inside";
   const ruleStateLabel = ruleState === "off" ? "Not checked" : ruleState === "breach" ? "Breach in history" : "Inside limit";
     return (
       <article className="oa-limit-row" key={rule.id} data-rule-id={rule.id} data-rule-state={ruleState}>
@@ -61,7 +61,7 @@ export function RulesEngine({ analysis, entitlements, rules, setRules, go, upgra
           <details className="oa-limit-adjust">
             <summary aria-label={`Adjust ${rule.name}`}><span>{ruleStateLabel}</span><ChevronDown aria-hidden="true" /></summary>
             <div className="oa-limit-adjust-content">
-              <p>{rule.enabled ? status?.summary : "Disabled — excluded from the current review."}</p>
+              <p>{!rule.enabled ? "Disabled — excluded from the current review." : analysis.tradeCount === 0 ? "No trades to review." : status?.summary}</p>
               <label><span>{rule.name}: {formattedLimit}</span>
                 <input type="range" min={rangeMin} max={rangeMax} step={rangeStep} value={rule.limit}
                   onChange={(event) => setRules(rules.map((item) => item.id === rule.id ? { ...item, limit: Number(event.target.value) } : item))}
@@ -87,8 +87,8 @@ export function RulesEngine({ analysis, entitlements, rules, setRules, go, upgra
   return (
     <section className="oa-review-page oa-limits" aria-labelledby="oa-limits-title">
       <header className="oa-review-header"><div><h1 id="oa-limits-title">Limits</h1><p>Set thresholds for reviewing your trades.</p></div>{accountControl}</header>
-      <p className="oa-review-state" data-warning={analysis.breaches.length > 0} role="status">
-        <span aria-hidden="true" />{analysis.breaches.length ? `${analysis.breaches.length} warning${analysis.breaches.length === 1 ? "" : "s"} in history` : "No warnings in history"}
+      <p className="oa-review-state" data-warning={analysis.tradeCount > 0 && analysis.breaches.length > 0} role="status">
+        <span aria-hidden="true" />{analysis.tradeCount === 0 ? "No trades to review" : analysis.breaches.length ? `${analysis.breaches.length} warning${analysis.breaches.length === 1 ? "" : "s"} in history` : "No warnings in history"}
       </p>
       <section className="oa-limit-group" aria-labelledby="oa-loss-heading">
         <h2 id="oa-loss-heading"><Gauge aria-hidden="true" />Loss limits</h2>
@@ -103,12 +103,12 @@ export function RulesEngine({ analysis, entitlements, rules, setRules, go, upgra
         <div className="oa-review-plate">{rules.filter(rule => rule.metric.includes("min")).map(renderRule)}</div>
       </details>
       <footer className="oa-review-footer">
-        {analysis.breaches.length > 0 && <button className="oa-review-button oa-review-primary" onClick={() => go("coach")} type="button">Review warnings</button>}
+        {analysis.tradeCount > 0 && analysis.breaches.length > 0 && <button className="oa-review-button oa-review-primary" onClick={() => go("coach")} type="button">Review warnings</button>}
         <span>Reviews history. Does not block orders.</span>
         <details className="oa-review-about"><summary>About this review<ChevronDown aria-hidden="true" /></summary>
           <p>Set review thresholds for imported history. Cova flags trades that cross them; it never blocks orders or changes broker settings.</p>
           <p>Changing a threshold can change which warnings appear. It re-checks the same imported history; it does not rewrite a trade.</p>
-          <p>Breaches in history: {analysis.breaches.length} · Rules followed: {formatPercent(analysis.compliance)}</p>
+          {analysis.tradeCount > 0 && <p>Breaches in history: {analysis.breaches.length} · Rules followed: {formatPercent(analysis.compliance)}</p>}
         </details>
       </footer>
     </section>
@@ -116,6 +116,17 @@ export function RulesEngine({ analysis, entitlements, rules, setRules, go, upgra
 }
 
 export function Coach({ analysis, entitlements, go, upgradeToPro, accountControl }: { analysis: ReturnType<typeof analyze>; entitlements: WorkspaceEntitlements; go: (section: Section) => void; upgradeToPro: () => void; accountControl?: ReactNode }) {
+  if (analysis.tradeCount === 0) {
+    return (
+      <section className="oa-review-page oa-insights" aria-labelledby="oa-insights-title">
+        <header className="oa-review-header"><div><h1 id="oa-insights-title">Insights</h1></div>{accountControl}</header>
+        <div className="oa-insight-primary oa-review-plate oa-insight-empty">
+          <h2>Import trades to see insights</h2>
+          <button className="oa-review-button oa-review-primary" onClick={() => go("import")} type="button">Import trades<ArrowUpRight aria-hidden="true" /></button>
+        </div>
+      </section>
+    );
+  }
   const primaryBreach = analysis.breaches[0];
   const bestSetup = analysis.bySetup.filter(setup => setup.riskCount >= 3 && setup.avgR !== null).sort((a, b) => b.avgR! - a.avgR!)[0];
   const brief = analysis.nextSessionBrief;

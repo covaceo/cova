@@ -59,7 +59,9 @@
  .features-showcase-page[data-public-refresh] .native-start-button { margin-top: 22px; }
  .features-showcase-page[data-public-refresh] .features-showcase-layout { grid-template-columns: minmax(0,1fr); grid-template-rows: auto auto auto; min-height: 0; gap: 28px; }
  .features-showcase-page[data-public-refresh] .features-system-rail { grid-column: 1; grid-row: 1; overflow-x: auto; }
- .features-showcase-page[data-public-refresh] .features-system-tab { padding-inline: 12px; font-size: 14px; }
+ .features-showcase-page[data-public-refresh] .features-system-tab { display: flex; flex: 0 0 auto; min-width: max-content; gap: 8px; padding-inline: 12px; font-size: 14px; }
+ .features-showcase-page[data-public-refresh] .features-system-tab strong { flex: none; font: 500 14px/20px Inter, Arial, sans-serif; letter-spacing: 0; }
+ .features-showcase-page[data-public-refresh] .features-system-tab svg { flex: none; }
  .features-showcase-page[data-public-refresh] .features-system-tab-index { display: none; }
  .features-showcase-page[data-public-refresh] .features-instrument-shell { grid-column: 1; grid-row: 2; }
  .features-showcase-page[data-public-refresh] .features-outcome-reservation { grid-column: 1; grid-row: 3; }
@@ -162,6 +164,14 @@
  .resources-oa-page[data-public-refresh] .resources-oa-sample { padding: 24px; }
  .resources-oa-page[data-public-refresh] .resources-oa-boundary { flex-direction: column; align-items: flex-start; }
  .resources-oa-page[data-public-refresh] .resources-oa-utility { grid-template-columns: minmax(0,1fr); gap: 28px; margin-top: 44px; padding-top: 28px; }
+ .resources-oa-page[data-public-refresh] :is(.resources-oa-boundary, .resources-oa-utility>div>span, .resources-oa-mapping, .resources-oa-sample-header) { font-family: Inter, Arial, sans-serif; text-transform: none; letter-spacing: 0; }
+ .resources-oa-page[data-public-refresh] .resources-oa-utility p { font-size: 15px; }
+ .resources-oa-page[data-public-refresh] :is(.resources-oa-primary, .resources-oa-secondary, .resources-guide-action, .resources-oa-utility button, .resources-oa-utility a),
+ .features-showcase-page[data-public-refresh] :is(.native-start-button, .features-outcome-action) { min-height: 44px; border-radius: 12px; corner-shape: round; font: 500 14px/20px Inter, Arial, sans-serif; letter-spacing: 0; }
+ .features-showcase-page[data-public-refresh] .native-start-button { border-radius: 12px !important; corner-shape: round !important; }
+ .features-showcase-page[data-public-refresh] .native-start-button-copy { font: 500 14px/20px Inter, Arial, sans-serif !important; letter-spacing: 0 !important; }
+ .resources-oa-page[data-public-refresh] :is(.resources-oa-primary, .resources-oa-secondary) svg,
+ .features-showcase-page[data-public-refresh] .features-outcome-action svg { width: 16px; height: 16px; flex: none; }
  .cova-public-page-sky:has(.resources-oa-page[data-public-refresh])>.cova-provider-resources { padding: 24px 20px 48px; }
  .cova-public-page-sky:has(.resources-oa-page[data-public-refresh]) .cova-provider-grid { grid-template-columns: minmax(0,1fr); gap: 28px; }
 }
