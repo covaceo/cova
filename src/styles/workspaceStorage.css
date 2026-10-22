@@ -11,22 +11,56 @@
 }
 .oa-dashboard-app .workspace-sync-panel[data-workspace-storage-setup] {
   box-sizing: border-box;
-  min-height: calc(100dvh - 48px);
+  width: min(100%, 536px);
+  min-height: calc(100svh - 24px);
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  align-items: flex-start;
-  padding: clamp(24px, 5vw, 64px);
+  align-items: stretch;
+  padding: 48px 28px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #aaaeb6;
 }
-.oa-dashboard-app .workspace-sync-heading { margin-bottom: 28px; }
+.oa-dashboard-app .workspace-sync-heading { margin-bottom: 24px; text-align: center; }
 .oa-dashboard-app .workspace-sync-heading h1 {
-  margin: 0 0 12px;
-  color: #f1f5fa;
-  font-size: clamp(28px, 3vw, 40px);
+  margin: 0;
+  color: #f3f3f4;
+  font-size: 26px;
   font-weight: 500;
-  line-height: 1.2;
-  letter-spacing: -1.1px;
+  line-height: 1.25;
+  letter-spacing: -.75px;
 }
+.workspace-entry-mark { display: block; width: 112px; height: 90px; margin: 0 auto 24px; }
+.workspace-entry-back { fill: #151619; stroke: #24262b; }
+.workspace-entry-middle { fill: #1b1c20; stroke: #313339; }
+.workspace-entry-front { fill: #25262b; stroke: #41434b; }
+.workspace-entry-record { stroke: #777b87; }
+.workspace-entry-pulse { fill: #eeeef1; }
+.workspace-entry-activity { display: flex; justify-content: center; gap: 6px; margin-top: 24px; }
+.workspace-entry-activity i { width: 4px; height: 4px; border-radius: 50%; background: #9a9ca5; }
+.workspace-entry-activity i:nth-child(2) { animation-delay: 180ms; }
+.workspace-entry-activity i:nth-child(3) { animation-delay: 360ms; }
+.oa-dashboard-app .workspace-entry:is([data-storage-phase="loading"], [data-storage-phase="saving"]) {
+  min-height: calc(100svh - 24px);
+  justify-content: center;
+  padding-bottom: 96px;
+}
+.workspace-entry:is([data-storage-phase="loading"], [data-storage-phase="saving"]) .workspace-entry-mark { width: 176px; height: 141px; margin-bottom: 32px; }
+.oa-dashboard-app .workspace-sync-panel.workspace-entry > button { width: 100%; min-height: 48px; margin: 8px 0 0; border-radius: 12px; background: #202126; color: #ededf0; }
+.oa-dashboard-app .workspace-sync-panel.workspace-entry > button.primary { background: #ededf0; color: #17181c; }
+.oa-dashboard-app .workspace-entry .workspace-entry-disclosure { margin: 0 0 20px; padding: 0; border-bottom: 1px solid #ffffff12; }
+.oa-dashboard-app .workspace-entry-disclosure summary { display: list-item; min-height: 44px; padding: 12px 0; color: #d0d1d7; }
+.oa-dashboard-app .workspace-entry-disclosure p { margin: 8px 0 16px; }
+.workspace-entry summary:focus-visible { outline: 2px solid #88adff; outline-offset: 4px; border-radius: 4px; }
+@media (prefers-reduced-motion: no-preference) {
+  .workspace-entry-activity i { animation: workspace-entry-wait 1.4s ease-in-out infinite; }
+  .workspace-entry-activity i:nth-child(2) { animation-delay: 180ms; }
+  .workspace-entry-activity i:nth-child(3) { animation-delay: 360ms; }
+  .workspace-entry-mark[data-busy] .workspace-entry-pulse { animation: workspace-entry-wait 1.4s ease-in-out infinite; }
+}
+@keyframes workspace-entry-wait { 0%,100% { opacity: .3; } 50% { opacity: 1; } }
 .oa-dashboard-app .workspace-sync-panel p { max-width: 760px; margin: 0 0 14px; }
 .oa-dashboard-app .workspace-sync-panel .workspace-sync-status { color: #edf2f9; font-weight: 500; }
 .oa-dashboard-app .workspace-sync-panel details { margin: 4px 0 16px; max-width: 100%; }
@@ -54,7 +88,8 @@
 .oa-dashboard-app .workspace-sync-panel [role="alert"] { color: #e5eaf2; }
 @media (max-width: 850px) {
   .oa-dashboard-app .workspace-sync-panel { margin: 16px; padding: 20px; }
-  .oa-dashboard-app .workspace-sync-panel[data-workspace-storage-setup] { min-height: calc(100dvh - 112px); padding: 24px 20px; }
+  .oa-dashboard-app .workspace-sync-panel[data-workspace-storage-setup] { min-height: calc(100svh - 70px); margin: 0 auto; padding: 72px 24px 40px; }
+  .oa-dashboard-app .workspace-entry:is([data-storage-phase="loading"], [data-storage-phase="saving"]) { min-height: calc(100svh - 70px); padding-top: 32px; padding-bottom: 88px; }
   .oa-dashboard-app .workspace-sync-panel > button { width: 100%; margin-right: 0; }
 }
 

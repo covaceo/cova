@@ -532,12 +532,39 @@ function reviewText(
       .join(" · ");
   return "Saved account data";
 }
+function WorkspaceEntryMark({ busy }: { busy: boolean }) {
+  return <svg className="workspace-entry-mark" data-busy={busy || undefined} viewBox="0 0 160 128" fill="none" aria-hidden="true">
+    <rect className="workspace-entry-back" x="38" y="13" width="92" height="72" rx="13" />
+    <rect className="workspace-entry-middle" x="28" y="25" width="102" height="76" rx="13" />
+    <rect className="workspace-entry-front" x="17" y="38" width="114" height="78" rx="14" />
+    <image href="/media/wordmark-options/cova-wordmark-option-3-sleek-cropped.png" x="37" y="55" width="54" height="17" preserveAspectRatio="xMidYMid meet" />
+    <path className="workspace-entry-record" d="M37 87H107M37 98H77" strokeWidth="3" strokeLinecap="round" />
+    <circle className="workspace-entry-pulse" cx="109" cy="63" r="3" />
+  </svg>;
+}
+
+function WorkspaceTransferDisclosure({ entry }: { entry: boolean }) {
+  const content = <>
+    <p>Enable private account storage for your trades, risk rules, notes
+      and account names so they are available on your other devices. A
+      verified browser backup is kept before copying. Review differences
+      before replacing a saved version.</p>
+    <p>Fee confirmations and CSV verification history stay on this device;
+      you may need to reconfirm them elsewhere. Broker verification
+      requires a fresh broker check. Custom pictures and GIFs are not
+      uploaded.</p>
+  </>;
+  return entry ? <details className="workspace-entry-disclosure"><summary>What moves to your account</summary>{content}</details> : content;
+}
+
 export function WorkspaceSyncPanel({
   sync,
 }: {
   sync: ReturnType<typeof useWorkspaceSync>;
 }) {
   if (!sync.enabled) return null;
+  const entry = !sync.hasWorkspace;
+  const busy = ["loading", "saving"].includes(sync.phase) && !sync.error;
   const labels = {
     disabled: "",
     loading: "Loading account workspace…",
@@ -557,19 +584,20 @@ export function WorkspaceSyncPanel({
   }
   return (
     <section
-      className="workspace-sync-panel m-4 rounded-xl border border-white/10 p-4 text-sm"
+      className={entry ? "workspace-sync-panel workspace-entry" : "workspace-sync-panel m-4 rounded-xl border border-white/10 p-4 text-sm"}
       data-workspace-storage-setup={!sync.hasWorkspace || undefined}
       data-storage-phase={sync.phase}
       aria-label="Account storage"
       aria-live="polite"
     >
-      {!sync.hasWorkspace && (
+      {entry && (
         <header className="workspace-sync-heading">
-          <h1>Open your workspace</h1>
-          <p>Choose where to keep your trading data to open Risk Desk.</p>
+          <WorkspaceEntryMark busy={busy} />
+          <h1>{sync.phase === "loading" ? "Opening Risk Desk" : sync.phase === "saving" ? "Saving your workspace" : labels[sync.phase]}</h1>
+          {busy && <span className="workspace-entry-activity" aria-hidden="true"><i /><i /><i /></span>}
         </header>
       )}
-      <p className="workspace-sync-status">{labels[sync.phase]}</p>
+      {!entry && <p className="workspace-sync-status">{labels[sync.phase]}</p>}
       {sync.error && (
         <p role="alert">
           {sync.error} Your browser copy and backups are retained.
@@ -585,18 +613,7 @@ export function WorkspaceSyncPanel({
       )}
       {sync.phase === "review" && (
         <>
-          <p>
-            Enable private account storage for your trades, risk rules, notes
-            and account names so they are available on your other devices. A
-            verified browser backup is kept before copying. Review differences
-            before replacing a saved version.
-          </p>
-          <p>
-            Fee confirmations and CSV verification history stay on this device;
-            you may need to reconfirm them elsewhere. Broker verification
-            requires a fresh broker check. Custom pictures and GIFs are not
-            uploaded.
-          </p>
+          <WorkspaceTransferDisclosure entry={entry} />
           <p>
             {sync.preview?.added.length} browser-only records ·{" "}
             {sync.preview?.conflicts.length} differences ·{" "}
