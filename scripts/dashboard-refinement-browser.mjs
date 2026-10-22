@@ -53,7 +53,10 @@ try {
       for(const [label,count,date]of [['Latest session',2,'May 6, 2026'],['Last 7 days',9,'Apr 30 – May 6, 2026'],['All trades',25,'Apr 17 – May 6, 2026']]) {
         await p.getByRole('button',{name:label,exact:true}).click();
         assert.equal(await p.locator('[data-dashboard-trade-count]').getAttribute('data-dashboard-trade-count'),String(count));
-        assert((await p.locator('.dashboard-review-period').innerText()).includes(date));
+        const period=await p.locator('.dashboard-review-period').innerText();
+        assert(period.includes(date));
+        assert(!period.includes('All saved trades')&&!period.includes('Latest trade session'),'Selected control is not repeated as supporting copy');
+        if(label==='Last 7 days')assert(period.includes('Ends at latest trade'),'Non-calendar anchor stays explicit');
         assert.equal(await range.locator('button[aria-pressed=true]').count(),1);
       }
       record.checks.scope=true;
@@ -74,11 +77,13 @@ try {
       await p.locator('.astra-header-controls .cova-account-menu-trigger').click();await p.getByRole('menu').waitFor();await p.keyboard.press('Escape');record.checks.account=true;
     }
     if(checks.includes('score')) {
-      const text=await p.locator('.oa-discipline-reading').innerText();assert(text.includes('25 trades reviewed'));assert(!text.includes('Good sample'));assert(text.includes('71'));assert((await p.locator('.oa-discipline-state').innerText()).includes('2 warnings'));record.checks.score=true;
+      const text=await p.locator('.oa-discipline-reading').innerText();assert(text.includes('25 trades reviewed'));assert(!text.includes('Good sample'));assert(!text.includes('Established history sample'));assert(text.includes('71'));assert((await p.locator('.oa-discipline-state').innerText()).includes('2 warnings'));assert.equal(await p.getByRole('textbox',{name:'Journal note',exact:true}).getAttribute('placeholder'),'Session note');record.checks.score=true;
     }
     if(checks.includes('history')) {
       await p.getByRole('button',{name:'View all',exact:true}).click();const dialog=p.locator('dialog[open]');await dialog.waitFor();
       const row=dialog.locator('[data-entry-group]').first();assert.equal(await row.locator('td').count(),7,'all existing fields retained');
+      for(const field of ['closed','market','side','pnl'])assert.equal(await row.locator(`[data-history-field="${field}"] .history-field-label`).count(),0,'No repeated '+field+' label');
+      assert((await dialog.locator('.astra-history-meta').innerText()).includes('Gross / reported P&L'),'Shared financial basis remains visible');
       const money=row.locator('td').nth(4);
       if(width<=620){const b=await rect(money);assert(b.x>=0&&b.right<=width,'P&L visible without horizontal scroll');assert(await dialog.locator('.astra-history-scroll').evaluate(e=>e.scrollWidth<=e.clientWidth+1),'mobile history reflows');}
       record.checks.history={fields:await row.innerText()};await p.screenshot({path:path.join(out,`${width}-history.png`)});await p.keyboard.press('Escape');
