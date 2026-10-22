@@ -19,6 +19,23 @@
 .manual-trade-dialog label { display:flex; flex-direction:column; gap:6px; min-width:0; color:#bdcada; font:12px/1.4 Inter,Arial,sans-serif; }
 .manual-trade-dialog input,.manual-trade-dialog select,.manual-trade-dialog textarea { width:100%; min-width:0; border:1px solid #334155; border-radius:5px; background:#0b121c; color:#e4ecf7; padding:10px; min-height:40px; font:13px Inter,Arial,sans-serif; }
 .manual-trade-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+/* Keep mobile native controls inside their grid cells, including iOS dates. */
+@media (max-width:850px) {
+  .oa-dashboard-app .manual-trade-dialog :is(input, select) {
+    box-sizing:border-box; width:100%; min-width:0; max-width:100%;
+    height:44px; min-height:44px;
+  }
+  .oa-dashboard-app .manual-trade-dialog select { padding-block:0; }
+  .oa-dashboard-app .manual-trade-dialog input[type="date"] {
+    -webkit-appearance:none; appearance:none; display:block;
+  }
+  .oa-dashboard-app .manual-trade-dialog input[type="date"]::-webkit-date-and-time-value {
+    text-align:left; min-height:1em;
+  }
+}
+@media (max-width:374px) {
+  .oa-dashboard-app .manual-trade-fields { grid-template-columns:minmax(0,1fr); }
+}
 .manual-trade-dialog summary { font:12px/1.5 Inter,Arial,sans-serif; cursor:pointer; color:#a8c4fa; }
 .manual-trade-dialog details[open] label { margin-top:12px; }
 .manual-trade-dialog .manual-trade-disclosure { color:#a5b6ca; font:11px/1.5 Inter,Arial,sans-serif; margin:0; }
