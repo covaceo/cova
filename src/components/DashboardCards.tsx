@@ -2,7 +2,7 @@ import { analyze, formatR, formatMoney } from "../lib/risk";
 
 export function MetricDock({ analysis }: { analysis: ReturnType<typeof analyze> }) {
   const metrics = [
-    ["Score", `${analysis.score}/100`],
+    ["Score", analysis.score === null ? "—" : `${analysis.score}/100`],
     ["Reported P&L", formatMoney(analysis.totalPnl)],
     ["Biggest Dip", formatMoney(-analysis.maxDrawdown)],
     ["Profit Factor", Number.isFinite(analysis.profitFactor) ? analysis.profitFactor.toFixed(2) : "∞"],
@@ -29,8 +29,8 @@ export function ScoreCard({ analysis }: { analysis: ReturnType<typeof analyze> }
       </header>
       <div className="oa-card-inset oa-score-inset">
         <div className="oa-score-reading">
-          <p className="oa-score-value">{analysis.score}<span>/100</span></p>
-          <p className="oa-score-caption">{analysis.score >= 80 ? "Strong risk discipline" : analysis.score >= 60 ? "Decent, with room to tighten" : "Risk needs attention"}</p>
+          <p className="oa-score-value">{analysis.score ?? "—"}{analysis.score !== null && <span>/100</span>}</p>
+          <p className="oa-score-caption">{analysis.score === null ? "Score unavailable" : analysis.score >= 80 ? "Strong recorded performance" : analysis.score >= 50 ? "Positive or balanced results" : "Negative recorded results"}</p>
           <p className="oa-score-sample">{analysis.tradeCount} trades checked</p>
         </div>
         <div className="oa-factor-list">

@@ -1,3 +1,4 @@
+import {restorePerformanceScoreSource} from './helpers/approved-performance-score.mjs';
 import test from 'node:test';
 import { withoutJournalHistory } from './helpers/approved-journal-history.mjs';
 import assert from 'node:assert/strict';
@@ -115,7 +116,7 @@ function protectedDigest(path, bytes) {
   ? bytes.toString('utf8').replace(/\r\n/g, '\n') : bytes;
  const relocated = /^server\/connectors\/(?:status|disconnect)\.js$/.test(path)
   ? content.replaceAll('../../api/_lib/', '../_lib/') : content;
- const preserved = path === 'src/App.tsx' ? withoutJournalHistory(relocated) : relocated;
+ const preserved = path === 'src/App.tsx' ? withoutJournalHistory(relocated) : restorePerformanceScoreSource(path,relocated);
  return createHash('sha256').update(preserved).digest('hex');
 }
 test('integration preserves protected content across Git text line endings and exact binary assets', () => {

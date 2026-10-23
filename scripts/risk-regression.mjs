@@ -49,7 +49,7 @@ const legacyOrder = analyze([
 assert.deepEqual(legacyOrder.trades.map(trade => trade.id), ["z-first", "a-second"], "Legacy same-day trades without timestamps retain input chronology, not lexical ID order.");
 
 const noHistory = analyze([], defaultRules);
-assert.equal(noHistory.score, 0, "No trade history should not create a real risk score.");
+assert.equal(noHistory.score, null, "No trade history should not create a real risk score.");
 assert.equal(noHistory.evidenceQuality.label, "No sample", "No-history evidence quality should be explicit.");
 assert.equal(noHistory.scoreFactors[0].label, "No trade history", "No-history score factor should explain the missing sample.");
 assert.equal(noHistory.nextSessionBrief.status, "caution", "No-history brief should ask for trades before advice.");
@@ -164,18 +164,20 @@ const cleanTrades = Array.from({ length: 30 }, (_, index) => {
     setup: index % 2 ? "VWAP rejection" : "Opening range",
   });
 });
-const cleanAnalysis = analyze(cleanTrades, defaultRules);
-assert.equal(cleanAnalysis.evidenceQuality.label, "Good sample", "30 clean trades should be treated as a good sample.");
-assert.ok(cleanAnalysis.score >= 80, `Clean rule-following sample should score strongly, got ${cleanAnalysis.score}.`);
+const supported = trades => trades.map(t => ({...t, manual: {accountKey:"local", currency:"USD", pnlBasis:"reported_net"}}));
+const cleanAnalysis = analyze(supported(cleanTrades), defaultRules);
+assert.equal(cleanAnalysis.evidenceQuality.label, "Early history", "30 rows across ten uneven days must not claim high confidence.");
+assert.ok(cleanAnalysis.score > 50 && cleanAnalysis.score < 100, `Positive distributed results receive a supported, nonperfect score, got ${cleanAnalysis.score}.`);
 assert.equal(cleanAnalysis.breaches.filter((status) => status.rule.severity === "critical").length, 0, "Clean sample should not have critical breaches.");
-assert.ok(cleanAnalysis.scoreFactors.some((factor) => factor.label === "Rule discipline"), "Score factors should explain rule discipline.");
+assert.ok(cleanAnalysis.scoreFactors.some((factor) => factor.label === "P&L balance"), "Score factors explain realized performance, not rule-toggle bonuses.");
+assert.equal(cleanAnalysis.score, analyze(supported(cleanTrades), []).score, "Disabling limits cannot improve performance points.");
 
 const recentCritical = analyze([
   ...cleanTrades.slice(0, 18),
   makeTrade({ id: "recent-critical", date: "2026-06-15", pnl: -2700, risk: 600, setup: "Revenge trade" }),
 ], defaultRules);
 assert.equal(recentCritical.nextSessionBrief.status, "locked", "A recent critical breach should lock the next-session brief.");
-assert.ok(recentCritical.scoreFactors.some((factor) => factor.label === "Limit severity" && factor.impact === "negative"), "Score factors should explain critical/warning limit severity.");
+assert.ok(recentCritical.breaches.some(status => status.rule.severity === "critical"), "Critical limits remain visible separately from performance points.");
 
 const oldCriticalWithRecovery = analyze([
   makeTrade({ id: "old-critical", date: "2026-05-01", pnl: -1700, risk: 500, setup: "Opening range" }),
@@ -202,8 +204,11 @@ const smallLuckySample = analyze(Array.from({ length: 4 }, (_, index) => makeTra
   pnl: 650,
   risk: 250,
 })), defaultRules);
-assert.equal(smallLuckySample.evidenceQuality.label, "Small sample", "Four trades should still be called a small sample.");
-assert.ok(smallLuckySample.score <= 72, `Small samples should not receive overconfident scores, got ${smallLuckySample.score}.`);
+assert.equal(smallLuckySample.evidenceQuality.label, "Unavailable", "Legacy rows without currency evidence cannot be graded by assuming USD.");
+assert.equal(smallLuckySample.score, null);
+const supportedLucky = analyze(supported(smallLuckySample.trades), defaultRules);
+assert.equal(supportedLucky.evidenceQuality.label, "Early history");
+assert.ok(supportedLucky.score > 50 && supportedLucky.score < 70, "Four winning days earn limited, not perfect, support.");
 
 const oversized = analyze([
   makeTrade({ id: "s1", contracts: 1, pnl: 200 }),
@@ -230,7 +235,7 @@ const improvingTrades = Array.from({ length: 24 }, (_, index) => makeTrade({
 }));
 const improvingAnalysis = analyze(improvingTrades, defaultRules);
 assert.ok(improvingAnalysis.avgRTrend > 0.5, "Analysis should measure recent R improvement across the sample.");
-assert.ok(improvingAnalysis.scoreFactors.some((factor) => factor.label === "Recent improvement" && factor.impact === "positive"), "Score factors should explain when recent behavior improves.");
+assert.ok(analyze(supported(improvingTrades), defaultRules).scoreFactors.some(factor => factor.label === "Daily consistency"), "Performance factors use observable daily results; R improvement stays in its existing metric.");
 
 const concentratedTrades = Array.from({ length: 20 }, (_, index) => makeTrade({
   id: `concentrated-${index}`,

@@ -227,10 +227,10 @@ test('Non-Flex modes cannot leak P&L and Ghost omits identity and markets even i
     assert.ok(html.includes('Not account verified'));
     if (mode === 'private') {
       assert.doesNotMatch(html,/Trader 6714|NQ \/ ES/,'Ghost must actually omit identity and markets');
-      assert.equal(model.heroValue,'70+');
+      assert.equal(model.heroValue,`${Math.floor(analysis.score/10)*10}+`);
       const zero = buildHoloPassportModel({...analysis,score:0},'Bronze',mode,false);
       assert.equal(zero.heroValue,'0+');
-      assert.equal(buildHoloPassportModel(analyze([],[]),'Unranked','private',false).heroValue,'0+','Preserve the existing empty-review score range behavior');
+      assert.equal(buildHoloPassportModel(analyze([],[]),'Unranked','private',false).heroValue,'—','Empty evidence must not invent a zero score range');
     }
     if (mode === 'coach') assert.ok(model.support.some(line=>line.includes('Top warning:')),'Coach keeps the warning field');
     if (mode === 'discipline') assert.ok(model.support.some(line=>line.includes('max drawdown')),'Discipline keeps drawdown context');

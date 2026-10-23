@@ -118,7 +118,9 @@ assert.doesNotMatch(liveDashboardSource, /(?:emerald|green|copper|mint)|#18c887|
 
 assert.match(dashboardCss, /\.dashboard-equity-path\s*\{[^}]*stroke:\s*var\(--oa-primary\)/s, "The dashboard equity line must use cobalt primary");
 assert.match(dashboardCss, /\.dashboard-summary-cell strong\.positive\s*\{[^}]*color:\s*var\(--oa-positive\)/s, "Positive summary states must use the non-green cobalt treatment");
-assert.ok(review.includes("factor.impact === 'positive' ? 'astra-positive'"), "Positive review evidence retains the non-chart cobalt semantic class");
+assert.ok(review.includes('<FlagStack analysis={analysis}'), "Simple review retains actionable evidence");
+assert.ok(dashboardCards.includes('flag.severity === "positive" ? "oa-tone-positive"'), "Positive actionable evidence retains the non-chart cobalt semantic class");
+assert.doesNotMatch(review, /analysis\.scoreFactors|oa-score-breakdown|oa-score-method/, "Internal score math is not customer-facing");
 assert.match(reviewCss, /background:color-mix\(in srgb,var\(--review-ink,#e0e8f5\) 7%,transparent\)/, "Approved OA review actions use quiet ink-derived surfaces rather than a second filled primary CTA");
 assert.match(dashboardCss, /color-scheme:\s*dark/, "Dashboard must remain dark-only");
 assert.doesNotMatch(dashboardCss, /prefers-color-scheme|color-scheme:\s*light/i, "Dashboard must not add a light or automatic OS theme branch");
@@ -136,7 +138,9 @@ const dashboardRules = [...compiledCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
   .join("\n");
 assert.ok(dashboardRules.length > 1_000, "Compiled dashboard-scoped CSS rule set must resolve before scanning");
 assert.doesNotMatch(dashboardRules, forbiddenNames, "Compiled dashboard-scoped CSS must not contain forbidden palette names");
-assert.deepEqual(findForbiddenDashboardAccents(dashboardRules), [], "Compiled dashboard-scoped CSS must not contain normalized green, copper, gold, cyan, or purple accents");
+const approvedFocusRule = '.oa-dashboard-app .astra-dashboard .oa-review-dialog>header button:focus-visible{outline:none!important;box-shadow:inset 0 0 0 1px #cbd5e1!important}';
+assert.ok(dashboardRules.includes(approvedFocusRule), 'Only the approved review close control substitutes neutral inset keyboard focus for the blue ring');
+assert.deepEqual(findForbiddenDashboardAccents(dashboardRules.replace(approvedFocusRule, '')), [], "All other compiled dashboard-scoped CSS retains the original palette guard");
 assert.match(dashboardRules, /#4f7dff|rgb\(79\s+125\s+255\)/i, "Compiled dashboard-scoped CSS must contain cobalt primary");
 assert.match(dashboardRules, /#e8eeff|rgb\(232\s+238\s+255\)/i, "Compiled dashboard-scoped CSS must contain polar");
 for (const marker of ["#08090c", "#0d0f14", "#171a21", "#2b303a"]) {

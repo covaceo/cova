@@ -429,7 +429,7 @@ async function passportExportTruth() {
   await evaluate("[...document.querySelectorAll('.passport-workspace-modes button')].find(button => button.textContent === 'Ghost').click(); true");
   await waitFor("document.querySelector('.passport-holo-hero-label')?.textContent.trim() === 'Score range'");
   const ghostZero = await evaluate(`(() => ({ label: document.querySelector('.passport-holo-hero-label').textContent.trim(), value: document.querySelector('.passport-holo-hero-value').textContent.trim() }))()`);
-  assert.deepEqual(ghostZero, { label: "Score range", value: "0+" }, "Passport Ghost mode must preserve a valid score of zero");
+  assert.deepEqual(ghostZero, { label: "Score range", value: "—" }, "Empty history must not invent a zero-score range");
   await evaluate(`localStorage.removeItem(${JSON.stringify(scopedStateKey)})`);
   await cdp.send("Page.navigate", { url: `${origin}/?dashboardPassport=${Date.now()}#passport` });
   await waitFor("document.querySelector('.passport-holo-face') && !document.querySelector('.passport-workspace-share').disabled", 30_000);
@@ -493,8 +493,8 @@ async function numericZeroStates() {
     await evaluate("localStorage.setItem('cova-react-risk-os-v2:signed-out', JSON.stringify({trades:[],rules:[]})); true");
     const snapshot = await activeLedgerSnapshot();
     const base = snapshot.state.trades[0];
-    for (const [name, pnl] of [["zero metrics", 0], ["valid zero score", -100000]]) {
-      const trade = { ...base, id: 'qa-zero-state', date: '2026-08-20', pnl, risk: 1, notes: '' };
+    for (const [name, pnl, supported] of [["zero metrics", 0, true], ["supported loss score", -100000, true], ["unsupported score", -100000, false]]) {
+          const trade = { ...base, id: supported ? 'manual-qa-zero-state' : 'qa-zero-state', date: '2026-08-20', pnl, risk: 1, notes: '', source: undefined, manual: supported ? {accountKey: 'local', currency: 'USD', pnlBasis: 'reported_net'} : undefined };
       await evaluate(`document.documentElement.dataset.numericZeroDocument = 'previous'; localStorage.setItem(${JSON.stringify(snapshot.key)}, ${JSON.stringify(JSON.stringify({ trades: [trade], rules: [] }))}); localStorage.setItem('cova-dashboard-range-v1','all'); true`);
       await cdp.send('Page.navigate', { url: `${origin}/?numericZero=${width}-${Date.now()}#dashboard` });
       await waitFor("document.documentElement.dataset.numericZeroDocument !== 'previous' && document.readyState === 'complete' && document.querySelector('[data-astra-dashboard=\"integrated\"]') && document.querySelector('.oa-discipline-score')");
@@ -513,12 +513,11 @@ async function numericZeroStates() {
       assert.deepEqual(state.metrics.map(item => item.id), ['pnl','win-rate','profit-factor','drawdown']);
       assert.doesNotMatch(state.curve, /NaN|Infinity/);
       if (pnl === 0) assert.deepEqual(state.metrics.map(item => item.value), ['$0.00','0%','0.00','$0.00'], `${width}px valid financial zeros must not become -- or Infinity`);
-      else {
-        assert.equal(state.score, '0', `${width}px valid Cova score zero must be visible`);
-        assert.equal(state.scoreLabel, 'Cova Score 0 out of 100');
-        assert.equal(state.railScore, '0');
-        assert.equal(state.railLabel, 'Cova risk score 0', 'Account zero is distinct from unavailable proof');
-      }
+      const expectedScore = supported && pnl < 0 ? '7.5' : '—';
+      assert.equal(state.score, expectedScore, `${width}px ${name}: financial zero and unsupported evidence are not a fabricated zero grade`);
+      assert.equal(state.scoreLabel, expectedScore === '—' ? 'Cova Score unavailable' : 'Cova Score 7.5 out of 100');
+      assert.equal(state.railScore, expectedScore === '—' ? '--' : expectedScore);
+      assert.equal(state.railLabel, expectedScore === '—' ? 'Cova risk score not available' : 'Cova risk score 7.5');
     }
   }
 }
@@ -577,8 +576,8 @@ try {
     ['desktop visual, focus, disclosure, empty account', desktopVisualState],
     ...[[850, 900], [849, 900], [800, 900], [768, 900], [767, 900], [390, 844], [390, 640]].map(([width, height]) => [`collapsed ${width}x${height}`, () => collapsedWorkspace(width, height)]),
     ['mobile empty account', mobileEmptyState],
-    ['financial zero and valid score zero', numericZeroStates],
-    ['Passport zero score and actual PNG export', passportExportTruth],
+    ['financial zero, supported performance and unavailable score', numericZeroStates],
+    ['Passport empty-history score and actual PNG export', passportExportTruth],
     ...[1440, 1250, 1050, 1023, 851].flatMap(width => [760, 625, 520, 400].map(height => [`desktop rail ${width}x${height}`, () => shortHeight(width, height)])),
   ];
   for (const [label, run] of phases) {

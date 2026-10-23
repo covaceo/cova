@@ -7,7 +7,7 @@ import path from 'node:path';
 import {chromium} from 'playwright';
 import {workspaceBrowserOptions} from './workspace-browser-support.mjs';
 const require=createRequire(import.meta.url), load=require('./helpers/load-ts.cjs');
-const {sampleTrades,defaultRules}=load('src/lib/risk.ts');
+const {sampleTrades,defaultRules,analyze}=load('src/lib/risk.ts');
 const trades=sampleTrades.map(t=>({...t,manual:{accountKey:'local',currency:'USD',pnlBasis:'reported_net'}}));
 const owner='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const port=process.env.REFINEMENT_PORT||'4297', origin=`http://127.0.0.1:${port}`;
@@ -77,7 +77,7 @@ try {
       await p.locator('.astra-header-controls .cova-account-menu-trigger').click();await p.getByRole('menu').waitFor();await p.keyboard.press('Escape');record.checks.account=true;
     }
     if(checks.includes('score')) {
-      const text=await p.locator('.oa-discipline-reading').innerText();assert(text.includes('25 trades reviewed'));assert(!text.includes('Good sample'));assert(!text.includes('Established history sample'));assert(text.includes('71'));assert((await p.locator('.oa-discipline-state').innerText()).includes('2 warnings'));assert.equal(await p.getByRole('textbox',{name:'Journal note',exact:true}).getAttribute('placeholder'),'Session note');record.checks.score=true;
+      const text=await p.locator('.oa-discipline-reading').innerText();assert(text.includes('25 trades reviewed'));assert(!text.includes('Good sample'));assert(!text.includes('Established history sample'));assert.equal(await p.locator('.oa-discipline-score strong').innerText(),String(analyze(trades,defaultRules).score));assert((await p.locator('.oa-discipline-state').innerText()).includes('2 warnings'));assert.equal(await p.getByRole('textbox',{name:'Journal note',exact:true}).getAttribute('placeholder'),'Session note');record.checks.score=true;
     }
     if(checks.includes('history')) {
       await p.getByRole('button',{name:'View all',exact:true}).click();const dialog=p.locator('dialog[open]');await dialog.waitFor();

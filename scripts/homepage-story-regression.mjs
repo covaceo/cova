@@ -1,3 +1,4 @@
+import {restorePerformanceScoreSource} from './helpers/approved-performance-score.mjs';
 import assert from 'node:assert/strict';
 import {restoreApprovedTestimonialSource} from './helpers/approved-testimonial-hero.mjs';
 import { createServer } from 'vite';
@@ -12,7 +13,7 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const preservation = JSON.parse(await readFile(join(root, 'scripts/fixtures/homepage-story-preservation.json'), 'utf8'));
 for (const item of preservation) {
   const raw = await readFile(join(root, item.path));
-  const approvedRaw = item.path === 'src/components/MarketingHero.tsx' ? Buffer.from(restoreApprovedTestimonialSource(raw.toString('utf8'))) : raw;
+  const approvedRaw = item.path === 'src/components/MarketingHero.tsx' ? Buffer.from(restoreApprovedTestimonialSource(raw.toString('utf8'))) : restorePerformanceScoreSource(item.path,raw);
   const data = item.normalization === 'lf' ? approvedRaw.toString('utf8').split(String.fromCharCode(13,10)).join(String.fromCharCode(10)) : approvedRaw;
   assert.equal(createHash('sha256').update(data).digest('hex'), item.sha256, `Protected approved source/artwork changed: ${item.path}`);
 }

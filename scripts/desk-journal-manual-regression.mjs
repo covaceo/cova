@@ -38,7 +38,7 @@ test('attached trade detail reopens one complete saved entry including its parti
 test('compact Cova score omits the duplicate history-import prompt but keeps review evidence',()=>{
  const {OaDisciplineReview}=load('src/components/OaDisciplineReview.tsx');
  const {getDashboardSummaryAction}=load('src/lib/dashboardReviewState.ts');
- const analysis=analyze([{...sampleTrades[0],id:'thin-history',pnl:100}],[]);
+ const analysis=analyze([{...sampleTrades[0],id:'thin-history',pnl:100,manual:{accountKey:'local',currency:'USD',pnlBasis:'reported_net'}}],[]);
  assert.equal(getDashboardSummaryAction(analysis).target,'import','fixture exercises the retired add-more-trades prompt');
  const html=renderToStaticMarkup(React.createElement(OaDisciplineReview,{analysis,go:()=>{}}));
  assert.match(html,/<h2[^>]*>Cova score<\/h2>/);
