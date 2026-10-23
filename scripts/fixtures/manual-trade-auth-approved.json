@@ -1,0 +1,22 @@
+[
+  {
+    "old": "import { persistManualNetConfirmation } from \"./lib/manualNetConfirmation\";\nimport { appendManualTrade, confirmManualNet, removeManualTrade, type ManualTradeDraft } from \"./lib/manualTrades\";\nimport { readDailyJournal, readDailyJournalEntry, saveDailyJournal, canAttachJournalTrade } from \"./lib/dailyJournal\";\nimport { listDailyJournalEntries } from \"./lib/journalNavigation\";\n",
+    "new": "import { persistManualNetConfirmation } from \"./lib/manualNetConfirmation\";\nimport { appendManualTrade, confirmManualNet, removeManualTrade, type ManualTradeDraft } from \"./lib/manualTrades\";\nimport { ManualTradeAuth } from \"./lib/manualTradeAuth\";\nimport { readDailyJournal, readDailyJournalEntry, saveDailyJournal, canAttachJournalTrade } from \"./lib/dailyJournal\";\nimport { listDailyJournalEntries } from \"./lib/journalNavigation\";\n"
+  },
+  {
+    "old": "  const authGenerationRef = useRef(0);\n  const identitySwitchGenerationRef = useRef(0);\n  const activeProviderUserIdRef = useRef<string | null>(null);\n  const pendingPolicyUserIdRef = useRef<string | null>(null);\n",
+    "new": "  const authGenerationRef = useRef(0);\n  const identitySwitchGenerationRef = useRef(0);\n  const manualTradeAuth = useRef(new ManualTradeAuth());\n  const activeProviderUserIdRef = useRef<string | null>(null);\n  const pendingPolicyUserIdRef = useRef<string | null>(null);\n"
+  },
+  {
+    "old": "\n  function adoptSupabaseSession(session: SupabaseSession) {\n    authGenerationRef.current += 1;\n    providerSessionRef.current = session;\n    validatedAccessTokenRef.current = session.access_token;\n",
+    "new": "\n  function adoptSupabaseSession(session: SupabaseSession) {\n    const previous: ImportPrincipal = {\n      identity: toImportPrincipalIdentity(authSessionRef.current),\n      authGeneration: authGenerationRef.current,\n      identityGeneration: identitySwitchGenerationRef.current,\n    };\n    const previousSessionId = providerSessionRef.current\n      ? getSupabaseAuthSessionId(providerSessionRef.current.access_token) : null;\n    authGenerationRef.current += 1;\n    manualTradeAuth.current.refresh(previous, {\n      ...previous, identity: session.user.id, authGeneration: authGenerationRef.current,\n    }, previousSessionId, getSupabaseAuthSessionId(session.access_token));\n    providerSessionRef.current = session;\n    validatedAccessTokenRef.current = session.access_token;\n"
+  },
+  {
+    "old": "\n  const dashboardSelectionCurrent = historySelection.current.capture();\n  const journalActions = {\n    accountStorage: workspaceSync.enabled && workspaceSync.phase !== \"local\",\n",
+    "new": "\n  const dashboardSelectionCurrent = historySelection.current.capture();\n  const manualTradePrincipal = manualTradeAuth.current.capture(dashboardPrincipal);\n  const journalActions = {\n    accountStorage: workspaceSync.enabled && workspaceSync.phase !== \"local\",\n"
+  },
+  {
+    "old": "  }\n  function addManualTrade(draft: ManualTradeDraft, account: string) {\n    const result = appendManualTrade(tradesRef.current,draft,account,entitlements.maxStoredTrades,dashboardPrincipal,getCurrentImportPrincipal(),dashboardSelectionCurrent(),tradeAccounts);\n    if (result.error) return result.error;\n    try { localStorage.setItem(scopedStorageKey(STORAGE_KEY),JSON.stringify({trades:result.trades,rules,tradeAccount:account})); }\n",
+    "new": "  }\n  function addManualTrade(draft: ManualTradeDraft, account: string) {\n    const result = appendManualTrade(tradesRef.current,draft,account,planEntitlements[authSessionRef.current?.plan ?? \"free\"].maxStoredTrades,manualTradePrincipal.current,getCurrentImportPrincipal(),dashboardSelectionCurrent(),tradeAccounts);\n    if (result.error) return result.error;\n    try { localStorage.setItem(scopedStorageKey(STORAGE_KEY),JSON.stringify({trades:result.trades,rules,tradeAccount:account})); }\n"
+  }
+]

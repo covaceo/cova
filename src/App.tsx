@@ -79,6 +79,7 @@ import { isImportPrincipalCurrent, toImportPrincipalIdentity, type ImportPrincip
 import { saveDashboardTradeNote } from "./lib/dashboardTradeNotes";
 import { persistManualNetConfirmation } from "./lib/manualNetConfirmation";
 import { appendManualTrade, confirmManualNet, removeManualTrade, type ManualTradeDraft } from "./lib/manualTrades";
+import { ManualTradeAuth } from "./lib/manualTradeAuth";
 import { readDailyJournal, readDailyJournalEntry, saveDailyJournal, canAttachJournalTrade } from "./lib/dailyJournal";
 import { listDailyJournalEntries } from "./lib/journalNavigation";
 import { BROKER_STATUS_KEY, brokerMessageForStatus, clearBrokerStatus, readBrokerStatus, writeBrokerStatus, type BrokerStatus } from "./lib/brokerStatus";
@@ -169,6 +170,7 @@ export default function App() {
   const [passwordRecoverySession, setPasswordRecoverySession] = useState<SupabaseSession | null>(null);
   const authGenerationRef = useRef(0);
   const identitySwitchGenerationRef = useRef(0);
+  const manualTradeAuth = useRef(new ManualTradeAuth());
   const activeProviderUserIdRef = useRef<string | null>(null);
   const pendingPolicyUserIdRef = useRef<string | null>(null);
   const passwordRecoveryUserIdRef = useRef<string | null>(null);
@@ -570,7 +572,17 @@ export default function App() {
   }
 
   function adoptSupabaseSession(session: SupabaseSession) {
+    const previous: ImportPrincipal = {
+      identity: toImportPrincipalIdentity(authSessionRef.current),
+      authGeneration: authGenerationRef.current,
+      identityGeneration: identitySwitchGenerationRef.current,
+    };
+    const previousSessionId = providerSessionRef.current
+      ? getSupabaseAuthSessionId(providerSessionRef.current.access_token) : null;
     authGenerationRef.current += 1;
+    manualTradeAuth.current.refresh(previous, {
+      ...previous, identity: session.user.id, authGeneration: authGenerationRef.current,
+    }, previousSessionId, getSupabaseAuthSessionId(session.access_token));
     providerSessionRef.current = session;
     validatedAccessTokenRef.current = session.access_token;
     if (pendingPolicyUserIdRef.current === session.user.id) {
@@ -1194,6 +1206,7 @@ export default function App() {
   }
 
   const dashboardSelectionCurrent = historySelection.current.capture();
+  const manualTradePrincipal = manualTradeAuth.current.capture(dashboardPrincipal);
   const journalActions = {
     accountStorage: workspaceSync.enabled && workspaceSync.phase !== "local",
     draftKey: dashboardPrincipal ? JSON.stringify([dashboardPrincipal.identity, tradeAccount]) : undefined,
@@ -1235,7 +1248,7 @@ export default function App() {
     return null;
   }
   function addManualTrade(draft: ManualTradeDraft, account: string) {
-    const result = appendManualTrade(tradesRef.current,draft,account,entitlements.maxStoredTrades,dashboardPrincipal,getCurrentImportPrincipal(),dashboardSelectionCurrent(),tradeAccounts);
+    const result = appendManualTrade(tradesRef.current,draft,account,planEntitlements[authSessionRef.current?.plan ?? "free"].maxStoredTrades,manualTradePrincipal.current,getCurrentImportPrincipal(),dashboardSelectionCurrent(),tradeAccounts);
     if (result.error) return result.error;
     try { localStorage.setItem(scopedStorageKey(STORAGE_KEY),JSON.stringify({trades:result.trades,rules,tradeAccount:account})); }
     catch { return "Could not save on this browser. Free storage and try again."; }
