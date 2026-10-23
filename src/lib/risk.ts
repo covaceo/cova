@@ -80,7 +80,7 @@ export type NextSessionBrief = {
 };
 
 export type EvidenceQuality = {
-  label: "No sample" | "Small sample" | "Building sample" | "Good sample" | "High confidence";
+  label: "No sample" | "Unavailable" | "Early history" | "Developing history" | "Broader history";
   level: "none" | "low" | "medium" | "high";
   summary: string;
   caveats: string[];
@@ -91,6 +91,8 @@ export type ScoreFactor = {
   impact: "positive" | "negative" | "neutral";
   summary: string;
   evidence: string;
+  points?: number;
+  maximum?: number;
 };
 
 export type CsvParseIssue = {
@@ -315,52 +317,10 @@ export function analyze(trades: Trade[], rules: RiskRule[]) {
   const bySetup = summarize(sorted, (trade) => trade.setup);
   const byMarket = summarize(sorted, (trade) => trade.market);
   const setupConcentration = getConcentration(bySetup, sorted.length);
-  const criticalBreaches = breaches.filter((status) => status.rule.severity === "critical").length;
-  const warningBreaches = breaches.filter((status) => status.rule.severity === "warning").length;
-  const infoBreaches = breaches.filter((status) => status.rule.severity === "info").length;
-  const worstSessionLoss = Math.max(0, ...sessions.map((session) => Math.abs(Math.min(0, session.pnl))));
-  const recentPenalty = recentAvgR !== null && recentAvgR < 0 ? Math.abs(recentAvgR) * 8 : 0;
-  const trendAdjustment = avgRTrend !== null ? clamp(avgRTrend * 6, -6, 6) : 0;
-  const concentrationPenalty = setupConcentration && setupConcentration.share >= 0.45 && setupConcentration.avgR !== null && setupConcentration.avgR < 0 ? 4 : 0;
-  const sessionPenalty = Math.min(10, worstSessionLoss / 700);
-  const samplePenalty = getSamplePenalty(tradeCount);
-  const evidenceQuality = buildEvidenceQuality(tradeCount, rules.filter((rule) => rule.enabled).length, sorted);
-  const rawScore = sorted.length
-    ? clamp(
-      Math.round(
-        70 +
-          compliance * 20 +
-          Math.max(0, avgR ?? 0) * 11 +
-          Math.max(0, recentAvgR ?? 0) * 5 +
-          Math.min(8, Math.max(0, profitFactor - 1) * 4) -
-          criticalBreaches * 10 -
-          warningBreaches * 5 -
-          infoBreaches * 2 -
-          recentPenalty -
-          concentrationPenalty +
-          trendAdjustment -
-          sessionPenalty -
-          samplePenalty -
-          maxDrawdown / 850,
-      ),
-      0,
-      100,
-    )
-    : 0;
-  const score = applyEvidenceScoreCap(rawScore, evidenceQuality);
-  const scoreFactors = buildScoreFactors({
-    avgR,
-    breaches,
-    compliance,
-    evidenceQuality,
-    maxDrawdown,
-    avgRTrend,
-    profitFactor,
-    recentAvgR,
-    recentPnl,
-    score,
-    sorted,
-  });
+  const performanceScore = calculatePerformanceScore(sorted);
+  const score = performanceScore.score;
+  const evidenceQuality = buildEvidenceQuality(tradeCount, rules.filter((rule) => rule.enabled).length, sorted, performanceScore);
+  const scoreFactors = buildScoreFactors(performanceScore);
   const behaviorFlags = buildBehaviorFlags({
     bySetup,
     maxDrawdown,
@@ -416,6 +376,7 @@ export function analyze(trades: Trade[], rules: RiskRule[]) {
     nextSessionBrief,
     compliance,
     score,
+    performanceScore,
     evidenceQuality,
     scoreFactors,
     bySetup,
@@ -667,7 +628,7 @@ function buildNextSessionBrief({
   recentAvgR: number | null;
   recentPnl: number;
   rules: RiskRule[];
-  score: number;
+  score: number | null;
   sorted: Trade[];
 }): NextSessionBrief {
   const dailyLimit = getRuleLimit(rules, "maxDailyLoss", 2500);
@@ -716,7 +677,17 @@ function buildNextSessionBrief({
     };
   }
 
-  if (hasWarning || (recentAvgR !== null && recentAvgR < 0) || score < 70) {
+  if (!hasWarning && score === null) return {
+    status: "caution", headline: "Performance score needs usable history.",
+    summary: "Review the score details for the missing or incompatible evidence. Configured limits are checked separately.",
+    watchlist, guardrails, evidence,
+  };
+  if (!hasWarning && score !== null && score < 50 && !(recentAvgR !== null && recentAvgR < 0)) return {
+    status: "caution", headline: "Recorded results are negative.",
+    summary: "Review the losses in the selected history. This is historical performance, not a recommendation for the next trade.",
+    watchlist, guardrails, evidence,
+  };
+  if (hasWarning || (recentAvgR !== null && recentAvgR < 0)) {
     const recentPressure = (recentAvgR !== null && recentAvgR < 0) || hasRecentWarningBreach || behaviorFlags.some((flag) => flag.severity === "warning" && flag.id !== "critical-limit");
     return {
       status: "caution",
@@ -854,188 +825,145 @@ function rMultiple(trade: Trade): number | null {
   return Number.isFinite(value) ? value : null;
 }
 
-function getSamplePenalty(count: number) {
-  if (count <= 0) {
-    return 40;
+export const PERFORMANCE_SCORE_VERSION = "cova-performance-v2" as const;
+// Versioned product policy, not fitted coefficients or a probability of future profit.
+export const PERFORMANCE_SCORE_POLICY = /* @__PURE__ */ Object.freeze({ balance: .4, consistency: .3, recovery: .3, supportPriorDays: 10 });
+export type PerformanceScoreComponent = { label: string; value: number; weight: number; points: number; summary: string; evidence: string };
+export type PerformanceScore = {
+  version: typeof PERFORMANCE_SCORE_VERSION;
+  status: "available" | "unavailable";
+  score: number | null;
+  rawScore: number | null;
+  unroundedScore: number | null;
+  evidenceAdjustment: number;
+  reason: string;
+  basis: string;
+  days: { date: string; pnlCents: string }[];
+  nonzeroDays: number;
+  supportDays: number;
+  supportWeight: number;
+  netCents: string | null;
+  maxDrawdownCents: string | null;
+  components: PerformanceScoreComponent[];
+};
+
+/** Realized, recorded-day performance. No inferred capital, planned risk, fees or positions.
+ * Keep the financial core self-contained: existing client/server and isolated TS consumers
+ * execute this same source. See docs/performance-score-v2.md for the exact model contract.
+ */
+export function calculatePerformanceScore(trades: readonly Trade[]): PerformanceScore {
+  const unavailable = (reason: string): PerformanceScore => ({
+    version: PERFORMANCE_SCORE_VERSION, status: "unavailable", score: null, rawScore: null,
+    unroundedScore: null, evidenceAdjustment: 0, reason, basis: "Unavailable", days: [],
+    nonzeroDays: 0, supportDays: 0, supportWeight: 0, netCents: null, maxDrawdownCents: null, components: [],
+  });
+  if (!trades.length) return unavailable("No trade history");
+  const max = BigInt(Number.MAX_SAFE_INTEGER);
+  const abs = (n: bigint) => n < 0n ? -n : n;
+  const ids = new Set<string>(), bases = new Set<string>();
+  const daily = new Map<string, bigint>();
+  const usdFutures = new Set(["NQ","MNQ","ES","MES","YM","MYM","RTY","M2K","CL","MCL","GC","MGC","SI","SIL","HG","ZB","ZN","ZF","ZT"]);
+  let absoluteRowTotal = 0n;
+  for (const row of trades) {
+    if (!row.id || ids.has(row.id)) return unavailable("Duplicate or missing source row identity");
+    ids.add(row.id);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(row.date) || !Number.isFinite(Date.parse(row.date + "T00:00:00.000Z")) ||
+        new Date(row.date + "T00:00:00.000Z").toISOString().slice(0, 10) !== row.date) return unavailable("Invalid recorded close date");
+    if (row.manual && row.source) return unavailable("Conflicting source provenance");
+    let basis: string;
+    if (row.manual && row.manual.currency === "USD" && row.manual.accountKey &&
+        ["reported_net", "gross_before_fees"].includes(row.manual.pnlBasis)) {
+      basis = row.manual.pnlBasis === "reported_net" ? "Reported net P&L" : "Recorded gross P&L";
+    } else if (!row.manual && row.source?.provider === "Tradovate" && row.source.accountId && row.source.pnlBasis === "gross_before_fees" && usdFutures.has(row.market)) {
+      basis = "Recorded gross P&L";
+    } else if (!row.manual && row.source?.provider === "Rithmic" && row.source.currency === "USD" && row.source.accountKey && row.source.accountId) {
+      basis = "Reported P&L";
+    } else if (!row.manual && !row.source && sampleTrades.some(t => t.id === row.id && t.date === row.date && t.market === row.market && t.pnl === row.pnl)) {
+      basis = "Sample P&L";
+    } else return unavailable("USD currency and P&L source evidence required");
+    bases.add(basis);
+    if (bases.size > 1) return unavailable("Mixed P&L bases; select one compatible account");
+    // Do not round unsupported precision, convert NaN, or silently drop a bad row.
+    const amount = /^(-?)(\d+)(?:\.(\d{1,2}))?$/.exec(String(row.pnl));
+    if (typeof row.pnl !== "number" || !Number.isFinite(row.pnl) || !amount) return unavailable("Invalid cent-precision P&L");
+    const value = (amount[1] ? -1n : 1n) * (BigInt(amount[2]) * 100n + BigInt((amount[3] ?? "").padEnd(2, "0")));
+    absoluteRowTotal += abs(value);
+    if (absoluteRowTotal > max) return unavailable("P&L exceeds safe monetary range");
+    daily.set(row.date, (daily.get(row.date) ?? 0n) + value);
   }
-  if (count < 10) {
-    return 7;
+  const ordered = [...daily].sort(([a], [b]) => a.localeCompare(b));
+  const active = ordered.map(([, value]) => value).filter(value => value !== 0n);
+  if (!active.length) return unavailable("No nonzero daily results to grade");
+  let net = 0n, peak = 0n, drawdown = 0n, positive = 0n, negative = 0n, squares = 0n;
+  for (const value of active) {
+    net += value;
+    peak = net > peak ? net : peak;
+    drawdown = peak - net > drawdown ? peak - net : drawdown;
+    if (value > 0n) positive += value; else negative -= value;
+    squares += value * value;
   }
-  if (count < 25) {
-    return 3;
-  }
-  return 0;
+  const magnitude = positive + negative;
+  const n = active.length;
+  const policy = PERFORMANCE_SCORE_POLICY;
+  const balance = Number(positive) / Number(magnitude);
+  // Bounded signed mean/RMS, not Sharpe and not a return on account capital.
+  const consistency = clamp((1 + Number(net) / Math.sqrt(n * Number(squares))) / 2, 0, 1);
+  const recovery = (1 + Number(net) / Number(abs(net) + drawdown)) / 2;
+  // Inverse magnitude concentration: 30 tiny days plus one windfall are NOT 31
+  // equally supportive observations. This is not statistical effective sample size.
+  const supportDays = clamp(Number(magnitude * magnitude) / Number(squares), 1, n);
+  const supportWeight = supportDays / (supportDays + policy.supportPriorDays);
+  const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
+  const usd = (v: bigint) => `${v < 0n ? "-" : ""}$${(Number(abs(v)) / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const component = (label: string, value: number, weight: number, summary: string, evidence: string): PerformanceScoreComponent =>
+    ({ label, value, weight, points: Math.round(value * weight * 10000) / 100, summary, evidence });
+  const components = [
+    component("P&L balance", balance, policy.balance, "Positive-day P&L divided by positive-day P&L plus absolute negative-day P&L.", `${usd(positive)} positive / ${usd(magnitude)} total movement · ${pct(balance)}`),
+    component("Daily consistency", consistency, policy.consistency, "Signed average daily P&L relative to daily root-mean-square P&L; large outliers reduce steadiness.", `${n} nonzero days · ${pct(consistency)} component score`),
+    component("Drawdown recovery", recovery, policy.recovery, "Net P&L relative to its absolute amount plus the largest recorded day-end drawdown, centered at 50%.", `${usd(net)} net / (${usd(abs(net))} + ${usd(drawdown)} drawdown)`),
+  ];
+  const rawScore = components.reduce((sum, c) => sum + Math.round(c.points * 100), 0) / 100;
+  // Only discount favorable evidence. Shrinking a loss toward 50 would reward an
+  // outsized loss for reducing supportDays. Loss-making evidence gets no upgrade.
+  const evidenceAdjustment = rawScore > 50 ? -Math.round((rawScore - 50) * (1 - supportWeight) * 100) / 100 : 0;
+  const unroundedScore = clamp(Math.round((rawScore + evidenceAdjustment) * 100) / 100, 0, 100);
+  return { version: PERFORMANCE_SCORE_VERSION, status: "available", score: Math.round(unroundedScore * 10) / 10,
+    rawScore, unroundedScore, evidenceAdjustment, reason: "", basis: [...bases][0],
+    days: ordered.map(([date, value]) => ({ date, pnlCents: value.toString() })), nonzeroDays: n, supportDays, supportWeight,
+    netCents: net.toString(), maxDrawdownCents: drawdown.toString(), components };
 }
 
-function applyEvidenceScoreCap(score: number, evidenceQuality: EvidenceQuality) {
-  if (evidenceQuality.level === "none") {
-    return 0;
-  }
-  if (evidenceQuality.level === "low") {
-    return Math.min(score, 72);
-  }
-  if (evidenceQuality.level === "medium") {
-    return Math.min(score, 86);
-  }
-  return score;
-}
-
-function buildEvidenceQuality(tradeCount: number, activeRuleCount: number, trades: Trade[]): EvidenceQuality {
-  const missingRiskCount = trades.filter((trade) => !hasPlannedRisk(trade)).length;
-  const legacyRiskCount = trades.filter(trade => trade.id.startsWith("csv-") && trade.riskStatus === undefined && hasPlannedRisk(trade)).length;
+function buildEvidenceQuality(tradeCount: number, activeRuleCount: number, trades: Trade[], performance: PerformanceScore): EvidenceQuality {
   const caveats = [
-    legacyRiskCount ? `${legacyRiskCount} older CSV row${legacyRiskCount === 1 ? "" : "s"} have unverified risk values; check the original planned risk.` : "",
-    activeRuleCount ? "" : "No active risk rules are enabled.",
-    missingRiskCount ? `${missingRiskCount} row${missingRiskCount === 1 ? "" : "s"} missing planned risk; excluded from R-based results.` : "",
+    "Selected recorded history only; not a complete-account or future-performance guarantee.",
+    trades.some(t => t.id.startsWith("csv-") && t.riskStatus === undefined && hasPlannedRisk(t)) ? "Older CSV planned-risk values remain unverified; check the original plan." : "",
+    "Day-end results do not measure intraday exposure or unrealized losses. Fees are not inferred.",
+    "The model weights and history adjustment are Cova policy, not externally validated ratings.",
+    !activeRuleCount ? "No active risk rules. Limits are reviewed separately and do not award score points." : "Configured limits are reviewed separately from performance.",
+    trades.some(t => !hasPlannedRisk(t)) ? "Some rows are missing planned risk; no risk amount is inferred for this score." : "",
   ].filter(Boolean);
-
-  if (!tradeCount) {
-    return {
-      label: "No sample",
-      level: "none",
-      summary: "Upload or connect trade history before trusting any score.",
-      caveats: caveats.length ? caveats : ["No trades reviewed yet."],
-    };
-  }
-
-  if (tradeCount < 10) {
-    return {
-      label: "Small sample",
-      level: "low",
-      summary: "Enough to preview the workflow, not enough to judge the account with confidence.",
-      caveats: [`Only ${tradeCount} trade${tradeCount === 1 ? "" : "s"} reviewed.`, ...caveats],
-    };
-  }
-
-  if (tradeCount < 25) {
-    return {
-      label: "Building sample",
-      level: "medium",
-      summary: "Useful for recent behavior, but still light for setup-level conclusions.",
-      caveats,
-    };
-  }
-
-  if (tradeCount < 50) {
-    return {
-      label: "Good sample",
-      level: "high",
-      summary: "Enough trades to review limits, drawdown, and recurring habits.",
-      caveats,
-    };
-  }
-
+  if (performance.status === "unavailable") return {
+    label: tradeCount ? "Unavailable" : "No sample", level: "none", summary: performance.reason, caveats,
+  };
+  const support = performance.supportDays;
   return {
-    label: "High confidence",
-    level: "high",
-    summary: "The sample is large enough for stronger risk and behavior evidence.",
+    label: support < 10 ? "Early history" : support < 30 ? "Developing history" : "Broader history",
+    level: support < 10 ? "low" : support < 30 ? "medium" : "high",
+    summary: `${performance.days.length} recorded day${performance.days.length === 1 ? "" : "s"} · ${performance.basis}`,
     caveats,
   };
 }
 
-function buildScoreFactors({
-  avgR,
-  avgRTrend,
-  breaches,
-  compliance,
-  evidenceQuality,
-  maxDrawdown,
-  profitFactor,
-  recentAvgR,
-  recentPnl,
-  score,
-  sorted,
-}: {
-  avgR: number | null;
-  avgRTrend: number | null;
-  breaches: RuleStatus[];
-  compliance: number;
-  evidenceQuality: EvidenceQuality;
-  maxDrawdown: number;
-  profitFactor: number;
-  recentAvgR: number | null;
-  recentPnl: number;
-  score: number;
-  sorted: Trade[];
-}): ScoreFactor[] {
-  if (!sorted.length) {
-    return [
-      {
-        label: "No trade history",
-        impact: "neutral",
-        summary: "The score is locked until Cova has trades to review.",
-        evidence: "0 trades uploaded",
-      },
-    ];
-  }
-
-  const criticalBreaches = breaches.filter((status) => status.rule.severity === "critical").length;
-  const warningBreaches = breaches.filter((status) => status.rule.severity === "warning").length;
-  const factors: ScoreFactor[] = [
-    {
-      label: "Rule discipline",
-      impact: breaches.length ? "negative" : "positive",
-      summary: breaches.length
-        ? `${breaches.length} active limit warning${breaches.length === 1 ? "" : "s"} pulled the score down.`
-        : "Active limits are clean in this sample.",
-      evidence: `${Math.round(compliance * 100)}% limits followed`,
-    },
-    {
-      label: "Recent behavior",
-      impact: recentAvgR === null ? "neutral" : recentAvgR < 0 ? "negative" : recentAvgR > 0.15 ? "positive" : "neutral",
-      summary: recentAvgR === null ? "Recent R is unavailable without planned risk." : recentAvgR < 0 ? "Recent trades are costing R." : "Recent trades are not pressuring the score.",
-      evidence: `${formatR(recentAvgR)} recent avg (${sorted.slice(-7).filter(hasPlannedRisk).length}/${sorted.slice(-7).length} rows with planned risk), ${formatMoney(recentPnl)} recent P&L`,
-    },
-    {
-      label: "Expectancy",
-      impact: avgR !== null && avgR > 0.1 && profitFactor >= 1.05 ? "positive" : (avgR !== null && avgR < 0) || profitFactor < 1 ? "negative" : "neutral",
-      summary: "Profit factor and average R show whether winners are paying for losers.",
-      evidence: `${Number.isFinite(profitFactor) ? profitFactor.toFixed(2) : "∞"} PF, ${formatR(avgR)} avg (${sorted.filter(hasPlannedRisk).length}/${sorted.length} rows with planned risk)`,
-    },
-    {
-      label: "Drawdown pressure",
-      impact: maxDrawdown > 2500 ? "negative" : maxDrawdown < 1000 ? "positive" : "neutral",
-      summary: maxDrawdown > 2500 ? "The account has a meaningful peak-to-trough pullback." : "Drawdown is controlled for this sample.",
-      evidence: `Biggest dip ${formatMoney(-maxDrawdown)}`,
-    },
-    {
-      label: "Evidence quality",
-      impact: evidenceQuality.level === "low" || evidenceQuality.level === "none" ? "negative" : "neutral",
-      summary: evidenceQuality.summary,
-      evidence: `${evidenceQuality.label}, ${sorted.length} trade${sorted.length === 1 ? "" : "s"}`,
-    },
+function buildScoreFactors(performance: PerformanceScore): ScoreFactor[] {
+  if (performance.status === "unavailable") return [{ label: performance.reason, impact: "neutral", summary: "No score is assigned without usable performance evidence.", evidence: "Score unavailable" }];
+  return [
+    ...performance.components.map(c => ({ label: c.label,
+      impact: (c.value > .5 ? "positive" : c.value < .5 ? "negative" : "neutral") as ScoreFactor["impact"],
+      points: c.points, maximum: c.weight * 100, summary: c.summary, evidence: `${c.points.toFixed(2)} / ${(c.weight * 100).toFixed(0)} points · ${c.evidence}` })),
+    { label: "History support", points: performance.evidenceAdjustment, impact: performance.evidenceAdjustment < 0 ? "negative" : "neutral",
+      summary: "Favorable results are discounted when history is short or concentrated. Losses receive no uplift.",
+      evidence: `${performance.supportDays.toFixed(2)} concentration-adjusted days · ${performance.evidenceAdjustment.toFixed(2)} points` },
   ];
-
-  if (avgRTrend !== null && Math.abs(avgRTrend) >= 0.2) {
-    factors.unshift({
-      label: avgRTrend > 0 ? "Recent improvement" : "Recent regression",
-      impact: avgRTrend > 0 ? "positive" : "negative",
-      summary: avgRTrend > 0
-        ? "The newer half of the sample is producing better R than the older half."
-        : "The newer half of the sample is producing worse R than the older half.",
-      evidence: `${avgRTrend > 0 ? "+" : ""}${avgRTrend.toFixed(2)}R shift`,
-    });
-  }
-
-  if (criticalBreaches || warningBreaches) {
-    factors.unshift({
-      label: "Limit severity",
-      impact: "negative",
-      summary: "Critical and warning limits carry the heaviest score penalties.",
-      evidence: `${criticalBreaches} critical, ${warningBreaches} warning`,
-    });
-  }
-
-  if (score >= 85 && avgR !== null && sorted.every(hasPlannedRisk)) {
-    factors.unshift({
-      label: "Score support",
-      impact: "positive",
-      summary: "The account is scoring well because rule discipline and expectancy are aligned.",
-      evidence: `${score}/100 Cova Score`,
-    });
-  }
-
-  return factors.slice(0, 5);
 }
 
 function groupBy<T>(items: T[], getKey: (item: T) => string) {

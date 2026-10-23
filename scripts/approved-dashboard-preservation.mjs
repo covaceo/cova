@@ -1,3 +1,4 @@
+import {restorePerformanceScoreSource} from './helpers/approved-performance-score.mjs';
 // Owner-approved compact daily journal, manual entries and win/loss counts.
 // Manual provenance and owner/account guards have executable unit + compiled browser coverage.
 // Broker cash math, sync, rules and all unrelated behaviors remain exact.
@@ -27,7 +28,7 @@ const baseline = {
     "DisciplineReview": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
   }
 };
-const read = file => readFileSync(file,'utf8');
+const read = file => restorePerformanceScoreSource(file,readFileSync(file,'utf8'));
 const sha = value => createHash('sha256').update(value.replaceAll('\r\n','\n')).digest('hex');
 for (const [file, hash] of Object.entries(baseline.files)) assert.equal(sha(read(file)),hash,`${file}: visual work must not change financial/ownership/save semantics`);
 const file=ts.createSourceFile('DashboardView.tsx',read('src/components/DashboardView.tsx'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);

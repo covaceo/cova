@@ -46,7 +46,7 @@ export function ScoreExplanationStrip({ analysis }: { analysis: ReturnType<typeo
             </span>
           </div>
           <h3 className="mt-4 font-body text-3xl font-semibold leading-[1.02] tracking-[-0.04em] text-white">
-            Why Cova scored this {analysis.score}/100.
+            {analysis.score === null ? "Performance score unavailable." : `Why Cova scored this ${analysis.score}/100.`}
           </h3>
           <p className="mt-3 font-body text-sm font-light leading-relaxed text-white/56">
             Cova weighs limit discipline, recent R, drawdown, and sample quality. It is a review system, not a signal.

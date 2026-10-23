@@ -1,0 +1,11 @@
+/* Neutral keyboard feedback, without the blue outer ring. */
+.oa-dashboard-app .astra-dashboard .oa-review-dialog > header button:focus-visible {
+  outline: none !important;
+  box-shadow: inset 0 0 0 1px #cbd5e1 !important;
+}
+/* Keep long feedback and its status readable in the phone review. */
+@media (max-width: 640px) {
+  .oa-dashboard-app .oa-review-dialog .oa-watch-inset { grid-template-columns: minmax(0, 1fr); }
+  .oa-dashboard-app .oa-review-dialog .oa-watch-row { min-width: 0; min-height: 44px; }
+  .oa-dashboard-app .oa-review-dialog .oa-watch-row > span { white-space: normal; overflow-wrap: anywhere; }
+}

@@ -319,7 +319,7 @@ function readPassportPreferences(): { exportPresetId: PassportExportPresetId; sh
 
 function getPassportTier(analysis: ReturnType<typeof analyze>): PassportTier {
   const breachCount = analysis.breaches.length;
-  const score = analysis.score;
+  const score = analysis.score ?? 0;
   const tradeCount = analysis.tradeCount;
   const profitable = analysis.totalPnl > 0;
   const inTheRed = analysis.totalPnl < 0;
@@ -744,7 +744,7 @@ function getPassportMarketLine(analysis: ReturnType<typeof analyze>) {
 function getPassportStats(analysis: ReturnType<typeof analyze>, mode: PassportShareModeId): PassportStat[] {
     if (mode === "discipline") {
       return [
-        { label: "Control score", value: `${analysis.score}`, tone: "positive" },
+        { label: "Cova score", value: analysis.score === null ? "—" : String(analysis.score), tone: "positive" },
         { label: "Rules held", value: formatPercent(analysis.compliance), tone: analysis.compliance >= 0.75 ? "positive" : "negative" },
         { label: "Average R", value: `${formatR(analysis.avgR)} (${analysis.riskCount}/${analysis.trades.length} rows)`, tone: analysis.avgR === null ? "neutral" : analysis.avgR >= 0 ? "positive" : "negative" },
         { label: "Max DD", value: formatMoney(Math.round(analysis.maxDrawdown)), tone: analysis.maxDrawdown > 0 ? "neutral" : "positive" },
@@ -754,7 +754,7 @@ function getPassportStats(analysis: ReturnType<typeof analyze>, mode: PassportSh
     }
     if (mode === "private") {
       return [
-        { label: "Score range", value: Number.isFinite(analysis.score) ? `${Math.floor(analysis.score / 10) * 10}+` : "Hidden", tone: "positive" },
+        { label: "Score range", value: analysis.score !== null && Number.isFinite(analysis.score) ? `${Math.floor(analysis.score / 10) * 10}+` : "Hidden", tone: "positive" },
         { label: "Rules held", value: formatPercent(analysis.compliance), tone: analysis.compliance >= 0.75 ? "positive" : "negative" },
         { label: "Sample", value: analysis.evidenceQuality.label, tone: "neutral" },
         { label: "Generated", value: analysis.latestDate, tone: "neutral" },
@@ -764,7 +764,7 @@ function getPassportStats(analysis: ReturnType<typeof analyze>, mode: PassportSh
     }
     if (mode === "coach") {
       return [
-        { label: "Control score", value: `${analysis.score}`, tone: "neutral" },
+        { label: "Cova score", value: analysis.score === null ? "—" : String(analysis.score), tone: "neutral" },
         { label: "Flags", value: `${analysis.breaches.length}`, tone: analysis.breaches.length ? "negative" : "positive" },
         { label: "Top leak", value: getPrimaryLeak(analysis), tone: analysis.breaches.length ? "negative" : "positive" },
         { label: "Next", value: analysis.nextSessionBrief.status.toUpperCase(), tone: analysis.nextSessionBrief.status === "ready" ? "positive" : "negative" },
@@ -774,7 +774,7 @@ function getPassportStats(analysis: ReturnType<typeof analyze>, mode: PassportSh
     }
     return [
       { label: "Reported P&L", value: formatMoney(analysis.totalPnl), tone: analysis.totalPnl >= 0 ? "positive" : "negative" },
-      { label: "Control score", value: `${analysis.score}`, tone: "positive" },
+      { label: "Cova score", value: analysis.score === null ? "—" : String(analysis.score), tone: "positive" },
       { label: "Rules held", value: formatPercent(analysis.compliance), tone: analysis.compliance >= 0.75 ? "positive" : "negative" },
       { label: "Trades reviewed", value: `${analysis.tradeCount}`, tone: "neutral" },
       { label: "Profit factor", value: analysis.profitFactor.toFixed(2), tone: analysis.profitFactor >= 1 ? "positive" : "negative" },
@@ -785,7 +785,7 @@ function getPassportStats(analysis: ReturnType<typeof analyze>, mode: PassportSh
 function getPassportDiamondPreviewStats(mode: PassportShareModeId): PassportStat[] {
   if (mode === "discipline") {
     return [
-      { label: "Control score", value: "94", tone: "positive" },
+      { label: "Cova score", value: "94", tone: "positive" },
       { label: "Rules held", value: "93%", tone: "positive" },
       { label: "Average R", value: "0.42R", tone: "positive" },
       { label: "Max DD", value: "$620", tone: "positive" },
@@ -805,7 +805,7 @@ function getPassportDiamondPreviewStats(mode: PassportShareModeId): PassportStat
   }
   if (mode === "coach") {
     return [
-      { label: "Control score", value: "94", tone: "positive" },
+      { label: "Cova score", value: "94", tone: "positive" },
       { label: "Flags", value: "0", tone: "positive" },
       { label: "Top leak", value: "No major leak", tone: "positive" },
       { label: "Next", value: "READY", tone: "positive" },
@@ -815,7 +815,7 @@ function getPassportDiamondPreviewStats(mode: PassportShareModeId): PassportStat
   }
   return [
     { label: "Reported P&L", value: "$18,760", tone: "positive" },
-    { label: "Control score", value: "94", tone: "positive" },
+    { label: "Cova score", value: "94", tone: "positive" },
     { label: "Rules held", value: "93%", tone: "positive" },
     { label: "Trades reviewed", value: "72", tone: "neutral" },
     { label: "Profit factor", value: "1.86", tone: "positive" },
@@ -843,7 +843,7 @@ export function Passport({ analysis, entitlements, isSampleReview, go, upgradeTo
   const cardStats = getPassportStats(analysis, shareModeId);
   const nextTarget = getPassportNextTarget(tier, analysis);
   const verifiedRules = analysis.ruleStatuses.filter(status => status.evaluated && !status.breached).length;
-  const reviewId = `COVA-${analysis.latestDate.replace(/-/g, "").slice(2)}-${analysis.score}${verifiedRules}`;
+  const reviewId = `COVA-${analysis.latestDate.replace(/-/g, "").slice(2)}-${analysis.score ?? "NA"}${verifiedRules}`;
   const hasUncheckedRules = analysis.ruleStatuses.some(status => !status.evaluated);
   const ledgerHasFlags = analysis.breaches.length > 0;
   const ledgerStatusCopy = isSampleReview ? "Sample review · demo data" : !analysis.ruleStatuses.length ? "Rules not checked" : hasUncheckedRules ? "Partial review · planned risk missing" : ledgerHasFlags ? "Rules calculated · flags found" : "Rules calculated · no flags found";
@@ -1123,7 +1123,7 @@ async function downloadPassportPng(analysis: ReturnType<typeof analyze>, tier: P
   const exportSkin = tier.skin.toUpperCase();
   const exportHeadline = tier.headline.toUpperCase();
   const verifiedRules = analysis.ruleStatuses.filter(status => status.evaluated && !status.breached).length;
-  const reviewId = `COVA-${analysis.latestDate.replace(/-/g, "").slice(2)}-${analysis.score}${verifiedRules}`;
+  const reviewId = `COVA-${analysis.latestDate.replace(/-/g, "").slice(2)}-${analysis.score ?? "NA"}${verifiedRules}`;
   const diamondExportFx = isDiamondExport ? `
       <path d="M82 86 H998 L1026 114 V1386 L998 1414 H82 L54 1386 V114 Z" fill="none" stroke="${palette.accent}" stroke-opacity="0.36" stroke-width="1"/>
       <path d="M132 420 L948 420 L976 536 L948 652 L132 652 L104 536 Z" fill="rgba(156,236,255,0.035)" stroke="rgba(210,248,255,0.16)"/>

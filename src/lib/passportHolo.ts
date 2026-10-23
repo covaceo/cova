@@ -32,19 +32,19 @@ export function buildHoloPassportModel(analysis: ReturnType<typeof analyze>, ran
     provenance: `${sample ? "Sample" : "User-supplied"} data · Not account verified${analysis.legacyRiskCount ? " · Older CSV risk unverified" : ""}`, sample,
   };
   if (mode === "discipline") return {
-    ...model, modeLabel: "Discipline", heroValue: count ? String(analysis.score) : "—", heroLabel: "Control score",
+    ...model, modeLabel: "Discipline", heroValue: analysis.score === null ? "—" : String(analysis.score), heroLabel: "Cova score",
     support: [`${ruleSummary} · ${formatR(analysis.avgR)} average (${analysis.riskCount}/${analysis.trades.length} rows with risk)`, `${formatMoney(Math.round(analysis.maxDrawdown))} max drawdown · ${flags}`],
   };
   if (mode === "private") return {
     ...model, modeLabel: "Ghost", identity: "Private profile", marketLine: `${analysis.tradeCount} reviewed trades`,
-    heroValue: Number.isFinite(analysis.score) ? `${Math.floor(analysis.score / 10) * 10}+` : "—", heroLabel: "Score range",
+    heroValue: analysis.score !== null && Number.isFinite(analysis.score) ? `${Math.floor(analysis.score / 10) * 10}+` : "—", heroLabel: "Score range",
     support: [`${ruleSummary} · ${analysis.evidenceQuality.label} sample`, `Reviewed ${analysis.latestDate} · Sensitive stats omitted`],
   };
   if (mode === "coach") {
     const warning = analysis.behaviorFlags.find(flag => flag.severity === "critical" || flag.severity === "warning")?.label
       ?? analysis.breaches[0]?.rule.name ?? "No major leak";
     return {
-      ...model, modeLabel: "Coach", heroValue: count ? String(analysis.score) : "—", heroLabel: "Control score",
+      ...model, modeLabel: "Coach", heroValue: analysis.score === null ? "—" : String(analysis.score), heroLabel: "Cova score",
       support: [`${flags} · ${analysis.profitFactor.toFixed(2)} profit factor · ${formatR(analysis.avgR)} average (${analysis.riskCount}/${analysis.trades.length} rows with risk)`, `Top warning: ${warning}`],
     };
   }

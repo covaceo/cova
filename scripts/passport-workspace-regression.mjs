@@ -222,7 +222,7 @@ for (const invalidation of ['rank/material', 'entitlement']) {
         tree = h.render(); await h.flush();
       }
       assert.equal(byType(tree, PassportHoloCard)[0].props.appearance.id,
-        invalidation === 'rank/material' ? 'Unranked-standard' : 'Gold-standard');
+        invalidation === 'rank/material' ? 'Unranked-standard' : 'Silver-standard');
       assert.equal(byType(tree, PassportShareComposer).length, 0,
         `${invalidation} recovery must not remount a composer with privacy selections reset`);
       tree = h.render(); await h.flush();
@@ -274,7 +274,7 @@ test('Real review modes preserve zero, empty, negative and scoped preference dat
       assert.equal(card.props.model.sample, false);
       assert.match(card.props.model.provenance, /^User-supplied/);
       if (!analysis.ruleStatuses.length) {
-        assert.equal(card.props.model.heroValue, '—', 'Coach cannot invent a checked control score');
+        assert.equal(card.props.model.heroValue, analysis.score === null ? '—' : String(analysis.score), 'Coach shows the same evidence-based performance score without inventing rule compliance');
         assert.match(text(tree), /Rules not checked/);
       }
       if (analysis.totalPnl < 0) {
@@ -350,15 +350,15 @@ test('Passport workspace binds one Standard engraved card to the current review 
     assert.equal(cards.length, 1, 'Only one live horizontal card');
     const card = cards[0];
     assert.equal(card.props.engraved, true);
-    assert.equal(card.props.appearance.id, 'Gold-standard');
+    assert.equal(card.props.appearance.id, 'Silver-standard');
     const { buildHoloPassportModel } = h.load('src/lib/passportHolo.ts');
-    assert.deepEqual(card.props.model, buildHoloPassportModel(props().analysis, 'Gold', 'flex', true));
+    assert.deepEqual(card.props.model, buildHoloPassportModel(props().analysis, 'Silver', 'flex', true));
     const html = text(tree);
     assert.ok(html.indexOf('passport-holo-art') < html.indexOf('aria-label="Card view"'), 'Modes sit below the card');
     assert.match(html, /<details[^>]*>[\s\S]*Review detail/);
     assert.doesNotMatch(html, /<details[^>]*\sopen(?:=|>)/);
     for (const label of ['Flex', 'Discipline', 'Ghost', 'Coach', 'Review receipt', 'Cumulative reviewed trade result', 'Next up', 'Risk review', 'Setup context', 'Not account verified']) assert.ok(html.includes(label), label);
-    assert.doesNotMatch(html, /Rank visual samples|Cosmetic finish|Market Maker|90d|180d|365d/);
+    assert.doesNotMatch(html.replace(/data:image\/[^\"]+/g, ''), /Rank visual samples|Cosmetic finish|Market Maker|90d|180d|365d/, 'Check customer copy, not accidental substrings inside encoded artwork');
     let destination;
     tree = h.render({ ...props(), go: section => { destination = section; } });
     byType(tree, 'button').find(button => button.props.children === 'Back to review').props.onClick();
