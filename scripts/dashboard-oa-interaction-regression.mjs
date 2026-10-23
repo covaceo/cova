@@ -304,7 +304,8 @@ async function auditDarkDashboard(label) {
       // all other dashboard accents and retired colors remain checked.
       const profitCell = node.closest('.trading-calendar [data-calendar-state="profit"]');
       const calendarGreen = ([r,g,b]) => profitCell && ((r===115 && g===215 && b===174) || (r===82 && g===199 && b===154));
-      const forbidden = values.flatMap(parseColors).filter(color => forbiddenAccent(color) && !calendarGreen(color));
+      const neutralCloseFocus = ([r,g,b]) => node.matches('.oa-review-dialog > header button:focus-visible') && style.outlineStyle === 'none' && style.boxShadow.includes('inset') && r===203 && g===213 && b===225;
+      const forbidden = values.flatMap(parseColors).filter(color => forbiddenAccent(color) && !calendarGreen(color) && !neutralCloseFocus(color));
       return forbidden.length ? [{ tag: node.tagName, className: node.className?.baseVal || node.className || '', values, forbidden }] : [];
     }).slice(0, 10);
     const forbiddenClassMarkers = [...document.querySelectorAll('.oa-dashboard-app *, .workspace-shell *')].flatMap((node) => {
@@ -338,7 +339,7 @@ async function auditDarkDashboard(label) {
       ...(document.querySelector('.calendar-pnl') ? ['.calendar-pnl'] : []),
       ...(innerWidth >= 851 ? ['.workspace-sidebar-group-label', '.cova-profile-trigger > span:nth-child(2)', '.astra-rail-account small'] : []),
       // Owner removed the duplicate rail disclaimer; the actual dashboard footer remains required above.
-      ...(document.querySelector('[data-discipline-details]:modal') ? ['.oa-review-evidence', '.astra-factor-list span', '.oa-next-review p', '.dashboard-review-disclosure'] : []),
+      ...(document.querySelector('[data-discipline-details]:modal') ? ['.oa-review-evidence', '.oa-watch-row > span', '.oa-next-review p', '.dashboard-review-disclosure'] : []),
     ];
     const contrastChecks = contrastSelectors.flatMap((selector) => {
       const nodes = [...document.querySelectorAll(selector)].filter(visible);

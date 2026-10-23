@@ -127,7 +127,7 @@ for (const script of tempRegressionScripts) {
 assert.match(workspace, /Rules calculated · flags found/, "Passport ledger should use factual mixed-state copy when any rules are flagged.");
 assert.doesNotMatch(workspace, /Net P&L/, "Passport live cards, privacy rows, previews, and fallback exports must not label provider-reported gross P&L as net.");
 assert.match(workspace, /Reported P&L/, "Passport must use provider-neutral P&L wording everywhere the reviewed value appears.");
-assert.match(workspace, /Score range", value: Number\.isFinite\(analysis\.score\) \? `\$\{Math\.floor\(analysis\.score \/ 10\) \* 10\}\+` : "Hidden"/, "Passport Ghost mode must preserve a valid score of zero as the 0+ range.");
+assert.match(workspace, /Score range", value: analysis\.score !== null && Number\.isFinite\(analysis\.score\) \? `\$\{Math\.floor\(analysis\.score \/ 10\) \* 10\}\+` : "Hidden"/, "Passport Ghost mode must preserve a valid score of zero as the 0+ range.");
 assert.match(workspace, /analysis\.breaches\.length/, "Passport ledger heading should be tied to actual breach state, not static verified copy.");
 assert.match(workspace, /Limit warnings/, "Insights should give the warning card a specific scan label.");
 assert.match(workspace, /Review note/, "Insights should frame outputs as retrospective review notes rather than trading directives.");
