@@ -84,7 +84,7 @@ const handler = createWorkspaceHandler({
   enabled: () => true,
   environment: () => ({ WORKSPACE_SYNC_PROJECT_REF: 'aaaaaaaaaaaaaaaaaaaa', SUPABASE_URL: 'https://aaaaaaaaaaaaaaaaaaaa.supabase.co' }),
   auth: async (req) => ({
-    id: String(req.headers.authorization || "").replace("Bearer qa-", ""),
+    id: String(req.headers.authorization || "").replace("Bearer qa-", "").split("~")[0],
     plan: "pro",
   }),
   rest,
@@ -108,8 +108,8 @@ const server = await createServer({
       load(id) {
         if (id.endsWith("/src/lib/supabaseClient.ts"))
           return readFileSync("src/lib/supabaseClient.ts","utf8").replace("export function getSupabaseClient() {","function unusedRealSupabaseClient() {").replace("export function getSupabaseAuthSessionId(accessToken: string)","function unusedRealSessionId(accessToken: string)") + `
-export const getSupabaseAuthSessionId=()=>"qa-session";
-export const getSupabaseClient=()=>({auth:{getSession:async()=>({data:{session:window.__qaSession||{user:{id:window.__owner},access_token:'qa-'+window.__owner}}}),onAuthStateChange:()=>({data:{subscription:{unsubscribe(){}}}}),signOut:async()=>({error:null})}});`;
+export const getSupabaseAuthSessionId=(accessToken)=>window.__qaSessionIds?.[accessToken]||"qa-session";
+export const getSupabaseClient=()=>({auth:{getSession:async()=>({data:{session:window.__qaSession||{user:{id:window.__owner},access_token:'qa-'+window.__owner}}}),onAuthStateChange:(callback)=>{window.__qaAuthEvent=callback;return {data:{subscription:{unsubscribe(){delete window.__qaAuthEvent;}}}}},signOut:async()=>({error:null})}});`;
       },
       configureServer(s) {
         s.middlewares.use(async (req, res, next) => {

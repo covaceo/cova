@@ -5,6 +5,9 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
+import load from "./helpers/load-ts.cjs";
+const {ManualTradeAuth}=load("src/lib/manualTradeAuth.ts");
+const {toImportPrincipalIdentity}=load("src/lib/importGuard.ts");
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const read = (...parts) => readFileSync(join(root, ...parts), "utf8");
@@ -848,6 +851,10 @@ test("same-user refresh and sign-out preserve confirmed deletion cleanup while a
   const context = {
     authGenerationRef: { current: 11 },
     identitySwitchGenerationRef: { current: 5 },
+    authSessionRef: { current: {userId:"user-A"} },
+    manualTradeAuth: { current: new ManualTradeAuth() },
+    toImportPrincipalIdentity,
+    getSupabaseAuthSessionId: () => "session-A",
     providerSessionRef: { current: { access_token: "token-A", user: { id: "user-A", email: "a@example.com" } } },
     validatedAccessTokenRef: { current: "token-A" },
     pendingPolicyUserIdRef: { current: null },
@@ -864,7 +871,7 @@ test("same-user refresh and sign-out preserve confirmed deletion cleanup while a
     normalizePlan: () => "free",
   };
   const executable = `${adoptSource.replace("session: SupabaseSession", "session")}\n${prepareSource.replace("session: SupabaseSession", "session")}\n${continuitySource.replace("userId: string, identityGeneration: number", "userId, identityGeneration")}\nglobalThis.adoptSupabaseSession = adoptSupabaseSession; globalThis.prepareSupabaseIdentity = prepareSupabaseIdentity; globalThis.hasDeletionIdentityContinuity = hasDeletionIdentityContinuity;`;
-  runInNewContext(executable, context);
+  runInNewContext(ts.transpileModule(executable,{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText, context);
 
   context.adoptSupabaseSession({ access_token: "token-A-refreshed", user: { id: "user-A", email: "a@example.com" } });
   assert.equal(context.authGenerationRef.current, 12);
