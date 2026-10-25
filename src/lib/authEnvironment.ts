@@ -38,8 +38,15 @@ export function isLocalPreview() {
   return ["localhost", "127.0.0.1", "0.0.0.0"].includes(window.location.hostname);
 }
 
+export function isFounderVercelPreview() {
+  const hostname = window.location.hostname.toLowerCase();
+  return hostname.startsWith("cova-git-preview-founder-demo-")
+    && hostname.endsWith("-cova3.vercel.app");
+}
+
 export function isDemoPreviewEnabled() {
   const env = getViteEnv();
   return isLocalPreview()
+    || isFounderVercelPreview()
     || env.VITE_ENABLE_DEMO_PREVIEW === "true";
 }
