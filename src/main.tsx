@@ -62,6 +62,8 @@ import "./styles/workspaceDashboardShell.css";
 import "./styles/workspaceSidebarMotion.css";
 import "./styles/mobileWorkspace.css";
 import "./styles/dashboardRefinement.css";
+import "./styles/riskDeskPresentation.css";
+import "./styles/riskDeskControls.css";
 
 if (navigator.platform.startsWith("Win")) {
   document.documentElement.classList.add("cova-platform-windows");

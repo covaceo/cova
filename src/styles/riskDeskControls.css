@@ -1,0 +1,142 @@
+/* Risk Desk controls. Active only while the real dashboard is mounted, including its portals.
+   Approved mobile header: share beside title, equal-width actions below account. */
+html:root:has(.astra-dashboard[data-dashboard-visual]) {
+  --btn-surface:#1b1e24;
+  --btn-hover:#282d35;
+  --btn-edge:#3b414c;
+  --btn-ink:#e5eaf2;
+  --btn-muted:#b5bfce;
+  --btn-accent:#2864da;
+  --btn-accent-hover:#2d6ae6;
+  --btn-focus:#92b7ff;
+  --btn-radius:6px;
+
+  /* The specificity of this dashboard-scoped layer beats the legacy per-screen cascade. */
+  & :is(.oa-dashboard-app .astra-dashboard[data-dashboard-visual], .oa-dashboard-app, .cova-account-menu-content, dialog, [role="dialog"]) {
+    & button {
+      border-radius:var(--btn-radius) !important;
+      corner-shape:round !important;
+      box-shadow:none !important;
+      background-image:none !important;
+      text-shadow:none !important;
+      transition:background-color 120ms ease,border-color 120ms ease,color 120ms ease !important;
+    }
+    & button:not(:where(.workspace-brand-button,.header-mobile-brand,.workspace-sidebar-link,.astra-rail-account,.cova-profile-trigger,.astra-trade-link,.calendar-day-content,[data-journal-trade-option],[data-journal-saved-date],[data-journal-linked-trade],.recap-backgrounds button)) {
+      display:inline-flex; align-items:center; justify-content:center;
+      position:relative; isolation:isolate; box-sizing:border-box;
+      min-height:36px !important; height:36px !important;
+      padding:0 12px !important; gap:7px !important;
+      border:1px solid var(--btn-edge) !important;
+      background:var(--btn-surface) !important; color:var(--btn-ink) !important;
+      font-family:Inter,Arial,sans-serif !important;
+      font-size:13px !important; font-weight:500 !important; line-height:18px !important;
+      letter-spacing:0 !important; white-space:nowrap; text-decoration:none !important;
+      transform:none !important; cursor:pointer;
+    }
+    & button:not(:disabled):hover { border-color:#657080 !important; }
+    & button:focus-visible {
+      outline:2px solid var(--btn-focus) !important; outline-offset:3px !important;
+    }
+    & button:disabled:not([aria-pressed="true"]), & button[aria-disabled="true"] {
+      opacity:1 !important; color:#8793a5 !important; cursor:not-allowed;
+    }
+    & button:is(.astra-button,.oa-review-pill,.cova-account-menu-trigger) svg,
+    & button:is(.oa-review-pill,.oa-review-details-button) small { flex-shrink:0; font:inherit !important; }
+    & button:is(.astra-button,.oa-review-pill,.journal-attach-button,.astra-dialog-close) svg {
+      width:15px !important; height:15px !important;
+    }
+    & button:is(.astra-import-action,.astra-save-note,[data-recap-download]) {
+      background:var(--btn-accent) !important; color:#fff !important; border-color:var(--btn-accent) !important;
+    }
+    & button:is(.astra-import-action,.astra-save-note,[data-recap-download]):enabled:hover {
+      background:var(--btn-accent-hover) !important; border-color:var(--btn-accent-hover) !important;
+    }
+    & button:is(.astra-import-action,.astra-save-note,[data-recap-download]):disabled {
+      background:#202b3d !important; border-color:#34435c !important; color:#a9b7ce !important;
+    }
+    & button:is(.recap-open,.oa-review-details-button,.journal-attach-button,.astra-text-link,.calendar-today),
+    & .calendar-controls button[aria-label], & .journal-date-controls button {
+      border-color:transparent !important; background:transparent !important; color:var(--btn-muted) !important;
+    }
+    & button:is(.recap-open,.oa-review-details-button,.journal-attach-button,.astra-text-link,.calendar-today):enabled:hover,
+    & .calendar-controls button[aria-label]:hover, & .journal-date-controls button:hover {
+      background:var(--btn-hover) !important; color:var(--btn-ink) !important; border-color:transparent !important;
+    }
+    & button:is(.astra-add-trade,.oa-review-pill,.cova-account-menu-trigger):enabled:hover {
+      background:var(--btn-hover) !important;
+    }
+    & button.oa-review-details-button { padding-inline:0 !important; }
+    & button.mobile-menu-toggle { width:44px !important; min-width:44px !important; padding:0 !important; background:transparent !important; border-color:transparent !important; backdrop-filter:none !important; }
+    & button.mobile-menu-toggle::before { content:none !important; }
+    & .recap-formats { background:transparent !important; border:0 !important; border-radius:6px !important; padding:0 !important; }
+    & .recap-backgrounds .recap-swatch { border-radius:6px !important; border-color:var(--btn-edge) !important; background:#11151b !important; box-shadow:none !important; }
+    & .recap-backgrounds button[aria-pressed="true"] .recap-swatch { border-color:var(--btn-focus) !important; }
+    & .cova-site-footer-meta button { background:transparent !important; border-color:transparent !important; color:var(--btn-muted) !important; }
+    & button:is(.cova-profile-delete,[data-variant="destructive"]) { color:#f18b9a !important; background:#2c1a20 !important; border-color:#71404a !important; }
+    & button:is(.cova-profile-delete,[data-variant="destructive"]):hover { background:#3a2028 !important; }
+    & .cova-account-menu-trigger { justify-content:flex-start !important; }
+    & .cova-account-menu-trigger span { font-size:13px !important; line-height:18px !important; }
+    & .astra-header-controls button::before, & .astra-segmented button::before { content:none !important; }
+    & .astra-segmented {
+      padding:0 !important; gap:12px !important;
+      background:transparent !important; border:0 !important; border-bottom:1px solid #303743 !important;
+      border-radius:0 !important; box-shadow:none !important;
+    }
+    & .astra-segmented button {
+      border:0 !important; border-bottom:2px solid transparent !important; border-radius:0 !important;
+      background:transparent !important; padding:0 4px !important; color:var(--btn-muted) !important;
+      font-size:12px !important;
+    }
+    & .astra-segmented button[aria-pressed="true"] {
+      border-bottom-color:var(--btn-focus) !important; color:var(--btn-ink) !important;
+    }
+    & .astra-segmented button:hover { border-bottom-color:var(--btn-muted) !important; color:var(--btn-ink) !important; }
+    & button:is(.astra-dialog-close,[aria-label^="Close "],[aria-label="Previous month"],[aria-label="Next month"],[aria-label="Remove attached trade"],.workspace-sidebar-toggle) {
+      width:36px !important; min-width:36px !important; padding:0 !important;
+      background:transparent !important; border-color:transparent !important; color:var(--btn-muted) !important;
+    }
+    & button:is(.astra-dialog-close,[aria-label^="Close "],[aria-label="Previous month"],[aria-label="Next month"],[aria-label="Remove attached trade"],.workspace-sidebar-toggle):hover {
+      background:var(--btn-hover) !important; color:var(--btn-ink) !important;
+    }
+    & button:is(.astra-dialog-close,[aria-label^="Close "],[aria-label="Previous month"],[aria-label="Next month"]) svg { width:16px !important; height:16px !important; }
+    & .recap-formats button[aria-pressed="true"] { border-color:var(--btn-focus) !important; background:#202b3d !important; color:var(--btn-ink) !important; }
+    & .recap-backgrounds button { border-radius:6px !important; font-size:12px !important; box-shadow:none !important; }
+    & button:is(.astra-trade-link,[data-journal-trade-option],[data-journal-saved-date],[data-journal-linked-trade]):hover { background:#ffffff08 !important; }
+    & button.calendar-day-content { border-radius:4px !important; }
+    & button.calendar-day-content[aria-pressed="true"] { outline:1px solid var(--btn-focus) !important; outline-offset:-2px !important; }
+    & button.calendar-day-content:focus-visible { outline:2px solid var(--btn-focus) !important; outline-offset:-3px !important; }
+  }
+  & .cova-account-menu-item { border-radius:6px !important; font-size:13px !important; }
+  & .cova-account-menu-item[data-highlighted] { background:var(--btn-hover) !important; }
+}
+@media(max-width:850px) {
+  html:root:has(.astra-dashboard[data-dashboard-visual]) :is(.oa-dashboard-app .astra-dashboard[data-dashboard-visual], .oa-dashboard-app, dialog, [role="dialog"]) {
+    /* Transparent extensions retain 44px vertical hit areas around compact 36px faces. */
+    & button:not(:where(.calendar-day-content,.workspace-brand-button,.header-mobile-brand,.workspace-sidebar-link,.astra-rail-account,.cova-profile-trigger,.astra-trade-link,[data-journal-trade-option],[data-journal-saved-date],[data-journal-linked-trade],.recap-backgrounds button))::after {
+      content:""; position:absolute; inset:-5px 0; background:transparent; pointer-events:auto;
+    }
+    & .astra-header-controls button { padding-inline:8px !important; font-size:12px !important; }
+    & .astra-header-controls button svg { width:14px !important; height:14px !important; }
+    & .astra-segmented { gap:6px !important; }
+    & .astra-segmented button { min-height:44px !important; height:44px !important; }
+    & .astra-segmented button::after { inset:0 !important; }
+    & button:is(.astra-dialog-close,[aria-label^="Close "],[aria-label="Previous month"],[aria-label="Next month"],[aria-label="Remove attached trade"]) { width:44px !important; min-width:44px !important; }
+  }
+}
+/* Approved removal: disclosure is absent from the Risk Desk at every width. */
+html:root:has(.astra-dashboard[data-dashboard-visual]) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-header-meta { display:none !important; }
+/* Phone header: share beside title; two equal action columns aligned with account. */
+@media(max-width:620px) {
+  html:root:has(.astra-dashboard[data-dashboard-visual]) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-reference-header:has(.recap-open) {
+    grid-template-columns:minmax(0,1.15fr) minmax(0,.8fr) minmax(0,1.2fr);
+    & .astra-header-title { grid-column:1/3; grid-row:1; }
+    & .astra-header-controls { display:contents !important; }
+    & [data-account-switcher] { grid-column:1/-1; grid-row:2; }
+    & .recap-open { grid-column:3; grid-row:1; justify-self:end; width:auto; }
+    & .astra-trade-actions { display:grid !important; grid-template-columns:repeat(2,minmax(0,1fr)); grid-column:1/-1; grid-row:3; justify-self:stretch; width:100%; max-width:100%; gap:8px; }
+    & .astra-trade-actions > button { width:100% !important; min-width:0; grid-column:auto !important; grid-row:auto !important; }
+  }
+}
+@media(prefers-reduced-motion:reduce) {
+  html:root:has(.astra-dashboard[data-dashboard-visual]) :is(.oa-dashboard-app .astra-dashboard[data-dashboard-visual], .oa-dashboard-app, .cova-account-menu-content, dialog, [role="dialog"]) button { transition:none !important; }
+}

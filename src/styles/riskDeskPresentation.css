@@ -1,0 +1,78 @@
+/* Approved Risk Desk presentation. Cova's existing palette, type, controls, data and routes are retained.
+   Composition: one consistent panel family, a useful balanced journal column,
+   compact mobile introduction, and a calendar subordinate to the equity curve. */
+html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] {
+  --risk-desk-radius: 8px;
+  --risk-desk-pad: 20px;
+}
+html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] :is(.astra-panel,.astra-stats-panel) {
+  border-radius: var(--risk-desk-radius) !important;
+  corner-shape: round;
+  box-shadow: none !important;
+}
+html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] :is(.astra-stat-value,.oa-discipline-score,.calendar-pnl,.calendar-day-content,.astra-trade-table td) { font-variant-numeric: tabular-nums; }
+html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-panel-heading { padding:16px var(--risk-desk-pad); }
+html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-panel-heading h2 { font-size:16px !important; letter-spacing:-.02em; }
+html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-title h1 { font-size:28px !important; }
+html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .oa-discipline > .astra-panel-heading { padding:0; }
+html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .oa-discipline-focus { border-radius:6px !important; }
+html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .calendar-day { border-radius:4px; }
+html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .calendar-day-content { min-height:54px; padding:8px 10px; gap:8px; }
+html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .calendar-pnl { font-size:14px; letter-spacing:-.015em; }
+html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .calendar-day--idle { background:transparent; border-color:rgb(255 255 255 / 4%); }
+html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .calendar-day--outside { color:#8993a1; }
+html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .calendar-table { border-spacing:4px; padding:0 16px 16px; }
+@media(min-width:851px) {
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-stats-panel { margin-bottom:16px; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-stat-strip { padding-block:16px; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-stat-value { font-size:28px; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] [data-astra-stat="pnl"] .astra-stat-value { font-size:40px; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-average-cell { padding:8px 24px; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-average-cell .astra-stat-label { font-size:12px; color:#aab4c3; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-average-cell .astra-stat-value { font-size:20px; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-desk-grid { gap:16px; align-items:stretch; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-desk-side { display:grid; grid-template-rows:auto minmax(0,1fr); gap:16px; align-self:stretch; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .mini-journal { display:flex; flex-direction:column; align-self:stretch; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .mini-journal > textarea { flex:1; min-height:150px; border-radius:6px !important; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .mini-journal .astra-panel-heading { margin-bottom:4px; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .mini-journal-footer { margin-top:12px; }
+}
+@media(max-width:850px) {
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] { padding-inline:20px !important; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-reference-header {
+    display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; align-items:center; margin-bottom:12px !important;
+  }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-header-title { grid-column:1; grid-row:1; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-header-meta { grid-column:2; grid-row:1; justify-content:flex-end; width:auto !important; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-header-meta:has(details[open]) { grid-column:1/-1; grid-row:3; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-data-details summary { font-size:12px; min-height:44px; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-header-controls { grid-column:1/-1; grid-row:2; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-title h1 { font-size:26px !important; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .dashboard-review-range { margin-bottom:14px; gap:6px 12px; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .dashboard-review-period { font-size:12px; line-height:18px; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-stats-panel { margin-bottom:12px; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-stat-strip { padding:0; row-gap:0; min-height:0; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-stat-cell { padding:7px 0; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-stat-cell[data-astra-stat="pnl"] { padding:0 0 8px; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-stat-label { font-size:14px; line-height:20px; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-stat-value { font-size:24px; line-height:1.15; margin:4px 0 0; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] [data-astra-stat="pnl"] .astra-stat-value { font-size:36px; margin:4px 0 0; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-win-loss { font-size:12px; margin-top:4px; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] [data-astra-stat="drawdown"] { padding:7px 0; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-average-cell { display:flex; grid-row:auto; flex-direction:row; align-items:center; justify-content:space-between; padding:8px 0; gap:6px; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-average-cell .astra-stat-label { font-size:12px; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-average-cell .astra-stat-value { font-size:20px; margin:0; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] :is(.astra-chart-panel,.astra-recent-trades,.oa-discipline,.mini-journal,.trading-calendar) { border-radius:0 !important; padding-block:18px !important; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-panel-heading { padding:0 0 12px; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .mini-journal > textarea { min-height:140px; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .calendar-table { padding:0 0 8px; border-spacing:3px; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .calendar-day-content { min-height:56px; padding:7px 1px; gap:8px; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .calendar-pnl { font-size:12px; }
+}
+@media(min-width:621px) and (max-width:850px) {
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-stat-strip { grid-template-columns:minmax(0,1.5fr) repeat(3,minmax(0,1fr)); grid-template-rows:auto; column-gap:18px; align-items:start; padding:12px 0; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-stat-cell,
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-stat-cell[data-astra-stat="pnl"] { grid-column:auto; grid-row:auto; padding:0; display:block; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] [data-astra-stat="pnl"] .astra-stat-value { font-size:32px; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-stat-value { font-size:24px; }
+}
