@@ -15,7 +15,7 @@ export function OaDisciplineReview({ analysis, go }: { analysis: Analysis; go: (
   return <section className="astra-panel astra-discipline oa-discipline" aria-labelledby="astra-discipline-title">
     <div className="astra-panel-heading"><h2 id="astra-discipline-title">Cova score</h2><span className={`oa-discipline-state ${warnings ? 'has-warning' : ''}`}>{warnings ? `${warnings} ${warnings === 1 ? 'warning' : 'warnings'}` : 'No warnings'}</span></div>
     <div className="oa-discipline-reading"><div className="oa-discipline-score" aria-label={analysis.score === null ? "Cova Score unavailable" : `Cova Score ${analysis.score} out of 100`}><strong>{analysis.score ?? "—"}</strong>{analysis.score !== null && <small>/100</small>}</div><p className="oa-discipline-sample">{analysis.tradeCount} {analysis.entryGroups.some(group => group.entryIdentified) ? 'entries' : analysis.tradeCount === 1 ? 'trade' : 'trades'} reviewed</p></div>
-    <div className="oa-discipline-focus"><h3>{analysis.score === null ? 'Score unavailable' : flag?.label || 'History review'}</h3><p>{analysis.score === null ? analysis.performanceScore.reason : flag?.summary || analysis.evidenceQuality.summary}</p></div>
+    <div className="oa-discipline-focus"><h3>{analysis.score === null ? 'Score unavailable' : flag?.label || 'Trade results'}</h3><p>{analysis.score === null ? analysis.performanceScore.reason : flag?.summary || analysis.evidenceQuality.summary}</p></div>
     <div className="oa-discipline-actions">{action.target !== 'import' && <button className="dashboard-summary-primary oa-review-pill" type="button" onClick={() => go(action.target)}><small>{action.label}</small><ArrowUpRight aria-hidden="true" /></button>}<button className="oa-review-details-button" type="button" onClick={() => setDetails(true)}>Review details</button></div>
     {details && <DisciplineDetails analysis={analysis} onClose={() => setDetails(false)} go={go} />}
   </section>;
@@ -35,7 +35,6 @@ function DisciplineDetails({ analysis, onClose, go }: { analysis: Analysis; onCl
 
 
     <FlagStack analysis={analysis} onReviewRisk={() => { onClose(); go('rules'); }} />
-    <section className="oa-next-review"><h3>Next review</h3><p>{brief.headline}</p>{brief.watchlist.map((item, index) => <p key={index}>{item}</p>)}<span>{brief.status === 'ready' ? 'Within limits' : brief.status === 'locked' ? 'Limit crossed' : 'Needs review'}</span><button type="button" className="oa-review-pill" onClick={() => { onClose(); go('coach'); }}>Open insights <ArrowUpRight aria-hidden="true" /></button></section>
-    <p className="dashboard-review-disclosure">Retrospective analysis only. No live orders, broker controls, or future-result prediction.</p>
+    <section className="oa-next-review"><h3>Risk summary</h3><p>{brief.headline}</p>{brief.watchlist.map((item, index) => <p key={index}>{item}</p>)}<span>{brief.status === 'ready' ? 'Summary ready' : brief.status === 'locked' ? 'Limit crossed' : 'Needs review'}</span><button type="button" className="oa-review-pill" onClick={() => { onClose(); go('coach'); }}>Open insights <ArrowUpRight aria-hidden="true" /></button></section>
   </motion.dialog>;
 }

@@ -38,11 +38,11 @@ export function buildHoloPassportModel(analysis: ReturnType<typeof analyze>, ran
   if (mode === "private") return {
     ...model, modeLabel: "Ghost", identity: "Private profile", marketLine: `${analysis.tradeCount} reviewed trades`,
     heroValue: analysis.score !== null && Number.isFinite(analysis.score) ? `${Math.floor(analysis.score / 10) * 10}+` : "—", heroLabel: "Score range",
-    support: [`${ruleSummary} · ${analysis.evidenceQuality.label} sample`, `Reviewed ${analysis.latestDate} · Sensitive stats omitted`],
+    support: [`${ruleSummary} · ${analysis.evidenceQuality.label}`, `Latest: ${analysis.latestDate} · Sensitive stats hidden`],
   };
   if (mode === "coach") {
     const warning = analysis.behaviorFlags.find(flag => flag.severity === "critical" || flag.severity === "warning")?.label
-      ?? analysis.breaches[0]?.rule.name ?? "No major leak";
+      ?? analysis.breaches[0]?.rule.name ?? "No major warning";
     return {
       ...model, modeLabel: "Coach", heroValue: analysis.score === null ? "—" : String(analysis.score), heroLabel: "Cova score",
       support: [`${flags} · ${analysis.profitFactor.toFixed(2)} profit factor · ${formatR(analysis.avgR)} average (${analysis.riskCount}/${analysis.trades.length} rows with risk)`, `Top warning: ${warning}`],

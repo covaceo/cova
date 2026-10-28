@@ -137,7 +137,7 @@ export function LimitsEditor({ entitlements, rules, setRules, upgradeToPro, acco
 
   return (
     <section className="li-page limits-preview" aria-labelledby={`${id}-title`}>
-      <header className="li-header"><div className="li-header-copy"><h1 id={`${id}-title`}>Limits</h1><p>Set the thresholds that fit your trading.</p></div>{accountControl}</header>
+      <header className="li-header"><div className="li-header-copy"><h1 id={`${id}-title`}>Limits</h1><p>Set limits to check against your trades.</p></div>{accountControl}</header>
       <div className="limits-layout">
         <div className="limits-main">
           <section className="li-panel limits-core" aria-labelledby={`${id}-core`}>
@@ -152,8 +152,8 @@ export function LimitsEditor({ entitlements, rules, setRules, upgradeToPro, acco
         </div>
           <details className="li-details limits-about">
             <summary><span>How limits work</span><ChevronDown aria-hidden="true" /></summary>
-            <p className="li-muted">Changing a threshold re-checks the same imported history. It does not rewrite a trade.</p>
-            <p className="li-muted">Cova flags limits crossed in history. It does not block orders or change broker settings.</p>
+            <p className="li-muted">Changing a limit updates warnings, not your saved trades.</p>
+            <p className="li-muted">Cova checks imported trades against your limits. It does not block orders or change broker settings.</p>
           </details>
       </div>
     </section>

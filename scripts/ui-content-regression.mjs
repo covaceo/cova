@@ -124,7 +124,7 @@ for (const script of tempRegressionScripts) {
   assert.match(script, /process\.once\("exit", \(\) => rmSync\(outDir, \{ recursive: true, force: true \}\)\)/, "Regression transpilation directories must be removed when each test process exits.");
 }
 
-assert.match(workspace, /Rules calculated · flags found/, "Passport ledger should use factual mixed-state copy when any rules are flagged.");
+assert.match(workspace, /Rules checked · warnings found/, "Passport ledger should use factual mixed-state copy when any rules are flagged.");
 assert.doesNotMatch(workspace, /Net P&L/, "Passport live cards, privacy rows, previews, and fallback exports must not label provider-reported gross P&L as net.");
 assert.match(workspace, /Reported P&L/, "Passport must use provider-neutral P&L wording everywhere the reviewed value appears.");
 assert.match(workspace, /Score range", value: analysis\.score !== null && Number\.isFinite\(analysis\.score\) \? `\$\{Math\.floor\(analysis\.score \/ 10\) \* 10\}\+` : "Hidden"/, "Passport Ghost mode must preserve a valid score of zero as the 0+ range.");
@@ -133,10 +133,10 @@ assert.match(workspace, /Limit warnings/, "Insights should give the warning card
 assert.match(workspace, /Review note/, "Insights should frame outputs as retrospective review notes rather than trading directives.");
 assert.match(workspace, /Setup review/, "Insights should describe setup evidence without claiming trading permission.");
 assert.doesNotMatch(workspace, /Trade normal size|Trade reduced size|Do not trade live size|Setup permission/, "Insights must not issue personalized live-trading directives.");
-assert.match(workspace, /Set review thresholds for imported history/, "Limits should describe review thresholds instead of implying order blocking.");
-assert.match(workspace, /Changing a threshold can change which warnings appear/, "Limits should explain that edits re-check history without rewriting the trade.");
+assert.match(workspace, /Cova checks imported trades against your limits/, "Limits should describe review thresholds instead of implying order blocking.");
+assert.match(workspace, /Changing a limit updates warnings, not your saved trades/, "Limits should explain that edits re-check history without rewriting the trade.");
 assert.match(workspace, /Not checked/, "Disabled Limits rules should not be mislabeled clean.");
-assert.match(workspace, /Breach in history/, "Limits should label historical breaches without implying that moving the threshold fixes them.");
+assert.match(workspace, /Limit crossed/, "Limits should label historical breaches without implying that moving the threshold fixes them.");
 assert.match(workspace, /Review warnings/, "Limits should provide a direct route into the warning brief.");
 assert.match(workspace, /Review active limits/, "Insights should provide a direct route back to the guardrails that generated warnings.");
 assert.match(workspace, /data-tone=\{insight\.tone\.toLowerCase\(\)\}/, "Insights should expose severity to the visual system.");
@@ -177,7 +177,7 @@ assert.match(marketingHero, /Cova showed me patterns in my trading I never notic
 assert.match(marketingHero, /It’s more than a trade tracker\. Cova helps me understand why I keep making the same mistakes\./, "Daniel's permissioned quote should remain exact.");
 assert.match(marketingHero, /Cova made my trade reviews faster, clearer, and way more useful\./, "Jasmine's permissioned quote should remain exact.");
 assert.equal((marketingHero.match(/rating: 5,/g) ?? []).length, 3, "All three permissioned reviews should retain their five-star rating.");
-assert.match(marketingHero, /Cova turns imported trade history into retrospective summaries of behavior, performance, and rule adherence\./, "Homepage hero support copy should describe retrospective analysis without personalized advice.");
+assert.match(marketingHero, /Cova helps you review your trades, spot patterns, and see how you followed your rules\./, "Homepage hero support copy should describe retrospective analysis without personalized advice.");
 assert.match(marketingHero, /See the[\s\S]*patterns[\s\S]*behind your risk\./, "Homepage hero should retain the original dark risk-pattern message.");
 assert.doesNotMatch(marketingHero, /market-hero-evidence-room/, "The apricot evidence-room treatment must not replace the homepage hero.");
 assert.match(ctaFooter, /cova-closing-section/, "The homepage must end with the dedicated closing CTA instead of a second product hero.");
@@ -235,7 +235,7 @@ assert.match(operatorDossierCss, /@media \(min-width: 768px\) and \(max-width: 1
 
 assert.equal((featuresShowcase.match(/id: "(?:trade-journal|risk-review|limits|insights|passport)"/g) ?? []).length, 5, "Features should expose the five current product systems.");
 assert.match(planSections, /pricing-showcase-header/, "Pricing should use the approved split editorial header.");
-assert.match(planSections, /Start small enough to prove the workflow\. Upgrade when Cova becomes part of every session review\./, "Pricing should retain the approved concise support copy.");
+assert.match(planSections, /Start with 25 trades\. Upgrade for unlimited imports and Passport exports\./, "Pricing should retain the approved concise support copy.");
 assert.doesNotMatch(planSections, /pricing-quick-actions/, "Pricing should not restore the detached CTA row that is absent from the approved reference.");
 assert.match(planSections, /plan-primary-action/, "Each plan card should expose its primary decision action above the feature ledger.");
 assert.match(operatorDossierCss, /\.pricing-showcase-inner\s*\{[\s\S]*?max-width:\s*58\.75rem;/, "Standard desktop pricing geometry should retain the approved 940px content rail.");
@@ -293,7 +293,7 @@ assert.match(workspaceShell, /<SiteFooter go=\{go\} \/>/, "Keep the original leg
 assert.match(app, /const hasSampleTrades = visibleTrades\.some\(\(trade\) => trade\.id\.startsWith\("demo-"\)\)/, "Any demo row in the selected account keeps a mixed Passport visibly sample-derived.");
 assert.match(app, /const isSampleReview = hasSampleTrades/, "Passport should derive sample provenance from any demo rows in the review.");
 assert.match(tradeSourceLabel, /Sample[\s\S]*CSV[\s\S]*sourceLabels\.join\(" \+ "\)/, "Mixed demo and imported rows should disclose both sources.");
-assert.match(tradeSourceLabel, /CSV:\s*"Imported CSV review"/, "Imported CSV history should not remain labeled as a sample funded review.");
+assert.match(tradeSourceLabel, /CSV:\s*"CSV import"/, "Imported CSV history should not remain labeled as a sample funded review.");
 assert.match(app, /isSampleReview=\{isSampleReview\}/, "Passport should receive explicit sample provenance.");
 assert.match(read('src/lib/passportHolo.ts'), /provenance:[^\n]*sample[^\n]*Not account verified/, "Passport model carries sample/user-supplied provenance.");
 assert.match(read('src/components/PassportEtchedContent.tsx'), /passport-holo-disclosure[^\n]*model.provenance/, "The actual etched export face must preserve visible provenance.");

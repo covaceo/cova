@@ -466,7 +466,7 @@ function buildBehaviorFlags({
       id: "critical-limit",
       label: recent ? "Limit crossed" : "Old limit breach",
       severity: recent ? "critical" : "warning",
-      summary: recent ? criticalBreach.summary : "An older trade crossed a critical limit. Keep it visible, but judge the next session from recent behavior.",
+      summary: recent ? criticalBreach.summary : "An earlier result breached a critical limit. The affected dates are listed below.",
       evidence,
     });
   }
@@ -476,8 +476,8 @@ function buildBehaviorFlags({
       id: "daily-loss-pressure",
       label: "Daily loss pressure",
       severity: latestSession.pnl <= -dailyLimit ? "critical" : "warning",
-      summary: "The latest session used too much of the daily loss budget.",
-      evidence: [`${latestSession.date}: ${formatMoney(latestSession.pnl)}`, `Limit: ${formatMoney(-dailyLimit)}`],
+      summary: "The latest session lost at least 70% of the daily-loss threshold.",
+      evidence: [`${latestSession.date}: ${formatMoney(latestSession.pnl)}`, `Daily-loss threshold (active limit or default): ${formatMoney(-dailyLimit)}`],
     });
   }
 
@@ -486,10 +486,10 @@ function buildBehaviorFlags({
     const largest = sizeOffenders.reduce((max, trade) => Math.max(max, trade.contracts), 0);
     flags.push({
       id: "size-drift",
-      label: recentSizeOffenders.length ? "Size drift" : "Old size drift",
+      label: recentSizeOffenders.length ? "Size above threshold" : "Earlier size above threshold",
       severity: recentSizeOffenders.length ? "warning" : "info",
-      summary: recentSizeOffenders.length ? "Recent trades used more contracts than the limit allows." : "Older trades used more contracts than the limit allows.",
-      evidence: [`Largest size: ${largest} contracts`, `Limit: ${maxContracts} contracts`],
+      summary: recentSizeOffenders.length ? "Recent rows exceed the contract threshold." : "Older rows exceed the contract threshold.",
+      evidence: [`Largest recorded row: ${largest} contracts`, `Size threshold (active limit or default): ${maxContracts} contracts`],
     });
   }
 
@@ -497,9 +497,9 @@ function buildBehaviorFlags({
     const previous = sorted[sorted.indexOf(sizeUpAfterLoss) - 1];
     flags.push({
       id: "size-up-after-loss",
-      label: recentDates.has(sizeUpAfterLoss.date) ? "Sized up after a loss" : "Old size-up pattern",
+      label: recentDates.has(sizeUpAfterLoss.date) ? "Larger size after a loss" : "Earlier size increase after a loss",
       severity: recentDates.has(sizeUpAfterLoss.date) ? "warning" : "info",
-      summary: "The account increased size immediately after a losing trade and the next trade also lost. That is the kind of pattern to stop before it becomes a daily loss breach.",
+      summary: "Two consecutive rows show losses, with more contracts on the second row. Rows may include partial exits.",
       evidence: [
         `${previous.date} ${previous.market}: ${previous.contracts} contract${previous.contracts === 1 ? "" : "s"}, ${formatMoney(previous.pnl)}`,
         `${sizeUpAfterLoss.date} ${sizeUpAfterLoss.market}: ${sizeUpAfterLoss.contracts} contract${sizeUpAfterLoss.contracts === 1 ? "" : "s"}, ${formatMoney(sizeUpAfterLoss.pnl)}`,
@@ -513,7 +513,7 @@ function buildBehaviorFlags({
       id: "r-outlier-loss",
       label: "Large R loss",
       severity: recentDates.has(rOutlierLoss.date) ? "warning" : "info",
-      summary: "One loss was large relative to planned risk. This matters even when the dollar loss does not break a hard limit.",
+      summary: "One recorded loss was at least twice its planned risk.",
       evidence: [
         `${rOutlierLoss.date} ${rOutlierLoss.market}: ${lossR.toFixed(2)}R`,
         `${formatMoney(rOutlierLoss.pnl)} loss on ${formatMoney(rOutlierLoss.risk)} planned risk`,
@@ -524,22 +524,22 @@ function buildBehaviorFlags({
   if (recentAvgR !== null && recentAvgR < -0.1) {
     flags.push({
       id: "recent-expectancy",
-      label: "Recent edge faded",
+      label: "Recent average R is negative",
       severity: "warning",
-      summary: "The most recent trades are averaging a negative R multiple.",
-      evidence: [`Recent average: ${recentAvgR.toFixed(2)}R`, `Recent P&L: ${formatMoney(recentPnl)}`],
+      summary: "Average R is negative across rows with planned risk in the latest seven rows, or all rows if fewer.",
+      evidence: [`Recent average (rows with planned risk): ${recentAvgR.toFixed(2)}R`, `Recent P&L (all recent rows): ${formatMoney(recentPnl)}`],
     });
   }
 
   if (negativeOvertradingSession) {
     flags.push({
       id: "overtrading-session",
-      label: "Too many trades on a red day",
+      label: "High activity with negative average R",
       severity: recentDates.has(negativeOvertradingSession.date) ? "warning" : "info",
-      summary: "One session had a high trade count and negative average R. That usually needs a tighter stop-trading rule.",
+      summary: "One session has at least eight rows with planned risk and a negative average R. Rows may include partial exits.",
       evidence: [
-        `${negativeOvertradingSession.date}: ${negativeOvertradingSession.trades} trades`,
-        `${formatR(negativeOvertradingSession.avgR)} average result, ${formatMoney(negativeOvertradingSession.pnl)}`,
+        `${negativeOvertradingSession.date}: ${negativeOvertradingSession.trades} rows`,
+        `${formatR(negativeOvertradingSession.avgR)} average (rows with planned risk), ${formatMoney(negativeOvertradingSession.pnl)} total P&L`,
       ],
     });
   }
@@ -548,14 +548,14 @@ function buildBehaviorFlags({
     const isNegative = setupConcentration.avgR < 0;
     flags.push({
       id: "setup-concentration",
-      label: isNegative ? "Too much risk in one setup" : "One setup is dominating",
+      label: isNegative ? "Frequent setup with negative average R" : "Results concentrated in one setup",
       severity: isNegative ? "warning" : "info",
       summary: isNegative
-        ? `${setupConcentration.name} is taking up most of the sample while producing negative R.`
-        : `${setupConcentration.name} is taking up most of the sample, so the summary is sensitive to that setup's results.`,
+        ? `${setupConcentration.name} accounts for at least 45% of rows and has a negative average R where planned risk is recorded.`
+        : `${setupConcentration.name} accounts for at least 45% of rows. Overall results depend heavily on this setup.`,
       evidence: [
-        `${setupConcentration.count}/${sorted.length} trades (${formatPercent(setupConcentration.share)})`,
-        `${setupConcentration.avgR.toFixed(2)}R average result`,
+        `${setupConcentration.count}/${sorted.length} rows (${formatPercent(setupConcentration.share)})`,
+        `${setupConcentration.avgR.toFixed(2)}R average (rows with planned risk)`,
       ],
     });
   }
@@ -565,7 +565,7 @@ function buildBehaviorFlags({
       id: "loss-streak",
       label: "Loss streak",
       severity: "warning",
-      summary: "The imported history crossed the configured clustered-loss threshold.",
+      summary: "Consecutive losing rows exceeded the loss-streak limit. Rows may include partial exits.",
       evidence: [`Configured threshold: ${lossStreakLimit} losses`, `Worst streak: ${breaches.find((status) => status.rule.metric === "maxLossStreak")?.evidence[0]?.replace("Worst loss streak: ", "") ?? "review"}`],
     });
   }
@@ -573,9 +573,9 @@ function buildBehaviorFlags({
   if (weakestSetup && weakestSetup.avgR !== null && weakestSetup.avgR < -0.15) {
     flags.push({
       id: "weak-setup",
-      label: `${weakestSetup.name} needs review`,
+      label: `${weakestSetup.name} has negative average R`,
       severity: "info",
-      summary: "This setup has enough imported history for its negative average result to be visible in the review.",
+      summary: "Average R is below -0.15 across at least three rows with planned risk. Rows without planned risk are excluded.",
       evidence: [`${weakestSetup.riskCount}/${weakestSetup.count} rows with planned risk`, `${weakestSetup.avgR.toFixed(2)}R average result`],
     });
   }
@@ -583,9 +583,9 @@ function buildBehaviorFlags({
   if (!flags.some((flag) => flag.severity === "critical" || flag.severity === "warning") && bestSetup) {
     flags.push({
       id: "stable-setup",
-      label: `${bestSetup.name} has the strongest reviewed sample`,
+      label: `${bestSetup.name} has the highest average R`,
       severity: "positive",
-      summary: "This setup has the strongest current sample inside the trade history.",
+      summary: "Highest average R among setups with at least three rows with planned risk. This is a comparison, not proof of an edge.",
       evidence: [`${bestSetup.riskCount}/${bestSetup.count} rows with planned risk`, `${formatR(bestSetup.avgR)} average result`],
     });
   }
@@ -602,8 +602,8 @@ function buildBehaviorFlags({
       id: "steady",
       label: "No major warnings",
       severity: "positive",
-      summary: "The current sample is staying inside the active limits.",
-      evidence: [`${sorted.length} trades reviewed`, `Biggest dip: ${formatMoney(-maxDrawdown)}`],
+      summary: "No tracked warning was found in the selected rows. Only enabled rules are checked.",
+      evidence: [`${sorted.length} trade records`, `Drawdown in recorded P&L: ${formatMoney(-maxDrawdown)}`],
     });
   }
 
@@ -645,21 +645,21 @@ function buildNextSessionBrief({
     .map((flag) => flag.label)
     .slice(0, 3);
   const guardrails = [
-    `Configured daily-loss limit: ${formatMoney(dailyLimit)}.`,
-    `Configured size limit: ${maxContracts} contract${maxContracts === 1 ? "" : "s"}.`,
-    `Configured loss-streak threshold: ${lossStreakLimit} trade${lossStreakLimit === 1 ? "" : "s"}.`,
+    `Daily-loss threshold: ${formatMoney(dailyLimit)} (active limit or default).`,
+    `Size threshold: ${maxContracts} contract${maxContracts === 1 ? "" : "s"} (active limit or default).`,
+    `Loss-streak threshold: ${lossStreakLimit} row${lossStreakLimit === 1 ? "" : "s"} (active limit or default).`,
   ];
   const evidence = [
-    latestSession ? `Latest session: ${formatMoney(latestSession.pnl)} across ${latestSession.trades} trade${latestSession.trades === 1 ? "" : "s"}` : "No latest session yet",
+    latestSession ? `Latest session: ${formatMoney(latestSession.pnl)} across ${latestSession.trades} row${latestSession.trades === 1 ? "" : "s"}` : "No latest session yet",
     recentAvgR !== null ? `Recent average: ${formatR(recentAvgR)} (${sorted.slice(-7).filter(hasPlannedRisk).length}/${sorted.slice(-7).length} rows with planned risk)` : "Recent R unavailable: planned risk not provided",
-    `Biggest dip: ${formatMoney(-maxDrawdown)}`,
+    `Drawdown in recorded P&L: ${formatMoney(-maxDrawdown)}`,
   ];
 
   if (!sorted.length) {
     return {
       status: "caution",
-      headline: "Upload trades to generate a historical review.",
-      summary: "Cova needs trade history before it can summarize patterns against your configured limits.",
+      headline: "Add trade history to see results.",
+      summary: "Import trades or add them manually to check results against your limits.",
       watchlist: ["No trade history yet"],
       guardrails,
       evidence,
@@ -669,8 +669,8 @@ function buildNextSessionBrief({
   if (hasCritical) {
     return {
       status: "locked",
-      headline: "A critical limit was crossed in the reviewed history.",
-      summary: "The imported sample contains activity beyond a configured limit. Review the underlying trades and source data before relying on this summary.",
+      headline: "A critical threshold was reached.",
+      summary: "See the flagged rows and session losses below. Thresholds use active limits, or defaults when no active limit is set.",
       watchlist: watchlist.length ? watchlist : ["Critical limit warning"],
       guardrails,
       evidence: [...evidence, `${breaches.length} active limit warning${breaches.length === 1 ? "" : "s"}`],
@@ -678,23 +678,23 @@ function buildNextSessionBrief({
   }
 
   if (!hasWarning && score === null) return {
-    status: "caution", headline: "Performance score needs usable history.",
-    summary: "Review the score details for the missing or incompatible evidence. Configured limits are checked separately.",
+    status: "caution", headline: "Performance score unavailable.",
+    summary: "Score details explain which data is missing or incompatible. Limit checks remain separate.",
     watchlist, guardrails, evidence,
   };
   if (!hasWarning && score !== null && score < 50 && !(recentAvgR !== null && recentAvgR < 0)) return {
     status: "caution", headline: "Recorded results are negative.",
-    summary: "Review the losses in the selected history. This is historical performance, not a recommendation for the next trade.",
+    summary: "Losses outweigh gains in the selected history. Check the losing days and setups below.",
     watchlist, guardrails, evidence,
   };
   if (hasWarning || (recentAvgR !== null && recentAvgR < 0)) {
     const recentPressure = (recentAvgR !== null && recentAvgR < 0) || hasRecentWarningBreach || behaviorFlags.some((flag) => flag.severity === "warning" && flag.id !== "critical-limit");
     return {
       status: "caution",
-      headline: recentPressure ? "Recent history contains a recurring risk pattern." : "Older rule warnings remain in the reviewed sample.",
+      headline: recentPressure ? "Risk warnings need attention." : "Older limit warnings remain.",
       summary: recentPressure
-        ? "Cova detected the same warning across recent imported trades. This is retrospective analysis, not a recommendation for the next trade."
-        : "Recent trades differ from the older warning pattern, but the historical rule flags remain part of the account review.",
+        ? "Check the flagged rows and recent average R below. A warning can come from a single result."
+        : "Older breaches remain listed even when recent results differ.",
       watchlist: watchlist.length ? watchlist : ["Recent trades need review"],
       guardrails,
       evidence: [...evidence, `Recent P&L: ${formatMoney(recentPnl)}`],
@@ -702,15 +702,15 @@ function buildNextSessionBrief({
   }
 
   if (sorted.some(trade => !hasPlannedRisk(trade))) return {
-    status: "caution", headline: "Planned risk is missing from part of this sample.",
-    summary: "R-based results only include rows with positive planned risk. Add the original planned-risk amounts to complete this review.",
+    status: "caution", headline: "Some rows are missing planned risk.",
+    summary: "Average R excludes rows without positive planned risk. Add the original risk amounts to include those rows.",
     watchlist: ["Missing planned risk"], guardrails, evidence,
   };
 
   return {
     status: "ready",
-    headline: "The reviewed sample stayed inside the configured limits.",
-    summary: "No active limit breach was detected in the imported history. This does not predict future performance or indicate that a trade is appropriate.",
+    headline: "No recent limit warnings detected.",
+    summary: "No recent warnings in the selected history. Older breaches may still appear in the detailed checks.",
     watchlist: behaviorFlags.length ? behaviorFlags.map((flag) => flag.label).slice(0, 3) : ["No current warning pattern detected"],
     guardrails,
     evidence,
@@ -743,35 +743,35 @@ function evaluateRule(rule: RiskRule, trades: Trade[], sessions: SessionSummary[
       const intradayLow = session.worstCumulativePnl < session.pnl ? `, intraday low ${formatMoney(session.worstCumulativePnl)}` : "";
       return `${session.date}: closed ${formatMoney(session.pnl)}${intradayLow}`;
     });
-    summary = breached ? `${offenders.length} session${offenders.length === 1 ? "" : "s"} crossed the ${formatMoney(rule.limit)} daily loss line.` : `Daily losses stayed above ${formatMoney(-rule.limit)}.`;
+    summary = breached ? `${offenders.length} session${offenders.length === 1 ? "" : "s"} reached the ${formatMoney(rule.limit)} daily-loss limit.` : `Recorded session P&L stayed above ${formatMoney(-rule.limit)}.`;
   }
   if (rule.metric === "maxTradeLoss") {
     const offenders = trades.filter((trade) => trade.pnl <= -rule.limit);
     breached = offenders.length > 0;
     evidence = offenders.map((trade) => `${trade.date} ${trade.market}: ${formatMoney(trade.pnl)}`);
-    summary = breached ? `${offenders.length} trade${offenders.length === 1 ? "" : "s"} lost more than ${formatMoney(rule.limit)}.` : `Single-trade losses stayed under ${formatMoney(rule.limit)}.`;
+    summary = breached ? `${offenders.length} row${offenders.length === 1 ? "" : "s"} lost at least ${formatMoney(rule.limit)}.` : `Recorded losses per row stayed under ${formatMoney(rule.limit)}.`;
   }
   if (rule.metric === "maxContracts") {
     const offenders = trades.filter((trade) => trade.contracts > rule.limit);
     breached = offenders.length > 0;
     evidence = offenders.map((trade) => `${trade.date} ${trade.market}: ${trade.contracts} contracts`);
-    summary = breached ? `${offenders.length} trade${offenders.length === 1 ? "" : "s"} used more than ${rule.limit} contracts.` : `Position size stayed at or below ${rule.limit} contracts.`;
+    summary = breached ? `${offenders.length} row${offenders.length === 1 ? "" : "s"} recorded more than ${rule.limit} contracts.` : `Recorded size per row stayed at or below ${rule.limit} contracts.`;
   }
   if (rule.metric === "maxLossStreak") {
     breached = metrics.worstLossStreak > rule.limit;
     evidence = [`Worst loss streak: ${metrics.worstLossStreak}`];
-    summary = breached ? `Loss streak went past ${rule.limit}.` : `Loss streak stayed at or below ${rule.limit}.`;
+    summary = breached ? `Consecutive losing rows exceeded ${rule.limit}.` : `Consecutive losing rows stayed at or below ${rule.limit}.`;
   }
   if (rule.metric === "minProfitFactor") {
     breached = metrics.profitFactor < rule.limit;
     evidence = [`Profit factor: ${Number.isFinite(metrics.profitFactor) ? metrics.profitFactor.toFixed(2) : "∞"}`];
-    summary = breached ? `Profit factor is below ${rule.limit}.` : `Profit factor is above ${rule.limit}.`;
+    summary = breached ? `Profit factor is below ${rule.limit}.` : `Profit factor is at or above ${rule.limit}.`;
   }
   if (rule.metric === "minAvgR") {
     if (metrics.avgR === null) return { rule, breached: false, evaluated: false, summary: "Not evaluated: planned risk not provided.", evidence: ["Average R unavailable; no rows with positive planned risk."] };
     breached = metrics.avgR < rule.limit;
     evidence = [`Average R: ${formatR(metrics.avgR)}`, `${trades.filter(hasPlannedRisk).length}/${trades.length} rows with planned risk`];
-    summary = breached ? `Average R is below ${rule.limit}.` : `Average R is above ${rule.limit}.`;
+    summary = breached ? `Average R is below ${rule.limit}.` : `Average R is at or above ${rule.limit}.`;
   }
   return { rule, breached, evaluated: true, summary, evidence };
 }
@@ -865,11 +865,11 @@ export function calculatePerformanceScore(trades: readonly Trade[]): Performance
   const usdFutures = new Set(["NQ","MNQ","ES","MES","YM","MYM","RTY","M2K","CL","MCL","GC","MGC","SI","SIL","HG","ZB","ZN","ZF","ZT"]);
   let absoluteRowTotal = 0n;
   for (const row of trades) {
-    if (!row.id || ids.has(row.id)) return unavailable("Duplicate or missing source row identity");
+    if (!row.id || ids.has(row.id)) return unavailable("A row ID is missing or duplicated");
     ids.add(row.id);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(row.date) || !Number.isFinite(Date.parse(row.date + "T00:00:00.000Z")) ||
-        new Date(row.date + "T00:00:00.000Z").toISOString().slice(0, 10) !== row.date) return unavailable("Invalid recorded close date");
-    if (row.manual && row.source) return unavailable("Conflicting source provenance");
+        new Date(row.date + "T00:00:00.000Z").toISOString().slice(0, 10) !== row.date) return unavailable("A recorded close date is invalid");
+    if (row.manual && row.source) return unavailable("A row has both manual and broker source details");
     let basis: string;
     if (row.manual && row.manual.currency === "USD" && row.manual.accountKey &&
         ["reported_net", "gross_before_fees"].includes(row.manual.pnlBasis)) {
@@ -880,20 +880,20 @@ export function calculatePerformanceScore(trades: readonly Trade[]): Performance
       basis = "Reported P&L";
     } else if (!row.manual && !row.source && sampleTrades.some(t => t.id === row.id && t.date === row.date && t.market === row.market && t.pnl === row.pnl)) {
       basis = "Sample P&L";
-    } else return unavailable("USD currency and P&L source evidence required");
+    } else return unavailable("USD currency and P&L source are not confirmed");
     bases.add(basis);
-    if (bases.size > 1) return unavailable("Mixed P&L bases; select one compatible account");
+    if (bases.size > 1) return unavailable("P&L types differ; select one compatible account");
     // Do not round unsupported precision, convert NaN, or silently drop a bad row.
     const amount = /^(-?)(\d+)(?:\.(\d{1,2}))?$/.exec(String(row.pnl));
-    if (typeof row.pnl !== "number" || !Number.isFinite(row.pnl) || !amount) return unavailable("Invalid cent-precision P&L");
+    if (typeof row.pnl !== "number" || !Number.isFinite(row.pnl) || !amount) return unavailable("P&L must be a valid amount with no fractions of a cent");
     const value = (amount[1] ? -1n : 1n) * (BigInt(amount[2]) * 100n + BigInt((amount[3] ?? "").padEnd(2, "0")));
     absoluteRowTotal += abs(value);
-    if (absoluteRowTotal > max) return unavailable("P&L exceeds safe monetary range");
+    if (absoluteRowTotal > max) return unavailable("P&L exceeds the supported amount range");
     daily.set(row.date, (daily.get(row.date) ?? 0n) + value);
   }
   const ordered = [...daily].sort(([a], [b]) => a.localeCompare(b));
   const active = ordered.map(([, value]) => value).filter(value => value !== 0n);
-  if (!active.length) return unavailable("No nonzero daily results to grade");
+  if (!active.length) return unavailable("Every recorded day has zero P&L");
   let net = 0n, peak = 0n, drawdown = 0n, positive = 0n, negative = 0n, squares = 0n;
   for (const value of active) {
     net += value;
@@ -918,9 +918,9 @@ export function calculatePerformanceScore(trades: readonly Trade[]): Performance
   const component = (label: string, value: number, weight: number, summary: string, evidence: string): PerformanceScoreComponent =>
     ({ label, value, weight, points: Math.round(value * weight * 10000) / 100, summary, evidence });
   const components = [
-    component("P&L balance", balance, policy.balance, "Positive-day P&L divided by positive-day P&L plus absolute negative-day P&L.", `${usd(positive)} positive / ${usd(magnitude)} total movement · ${pct(balance)}`),
-    component("Daily consistency", consistency, policy.consistency, "Signed average daily P&L relative to daily root-mean-square P&L; large outliers reduce steadiness.", `${n} nonzero days · ${pct(consistency)} component score`),
-    component("Drawdown recovery", recovery, policy.recovery, "Net P&L relative to its absolute amount plus the largest recorded day-end drawdown, centered at 50%.", `${usd(net)} net / (${usd(abs(net))} + ${usd(drawdown)} drawdown)`),
+    component("P&L balance", balance, policy.balance, "The share of total daily gains and losses that came from profitable days.", `${usd(positive)} gains / ${usd(magnitude)} gains plus losses · ${pct(balance)}`),
+    component("Daily consistency", consistency, policy.consistency, "Uses the direction and size of daily results. Positive, evenly distributed results score higher.", `${n} days with nonzero P&L · ${pct(consistency)} component score`),
+    component("Drawdown recovery", recovery, policy.recovery, "Compares net P&L with the largest day-end drop from a prior peak. Intraday and open-position losses are not included.", `${usd(net)} net / (${usd(abs(net))} + ${usd(drawdown)} day-end drawdown)`),
   ];
   const rawScore = components.reduce((sum, c) => sum + Math.round(c.points * 100), 0) / 100;
   // Only discount favorable evidence. Shrinking a loss toward 50 would reward an
@@ -935,12 +935,12 @@ export function calculatePerformanceScore(trades: readonly Trade[]): Performance
 
 function buildEvidenceQuality(tradeCount: number, activeRuleCount: number, trades: Trade[], performance: PerformanceScore): EvidenceQuality {
   const caveats = [
-    "Selected recorded history only; not a complete-account or future-performance guarantee.",
+    "Selected history only; not a forecast or a complete account record.",
     trades.some(t => t.id.startsWith("csv-") && t.riskStatus === undefined && hasPlannedRisk(t)) ? "Older CSV planned-risk values remain unverified; check the original plan." : "",
-    "Day-end results do not measure intraday exposure or unrealized losses. Fees are not inferred.",
-    "The model weights and history adjustment are Cova policy, not externally validated ratings.",
-    !activeRuleCount ? "No active risk rules. Limits are reviewed separately and do not award score points." : "Configured limits are reviewed separately from performance.",
-    trades.some(t => !hasPlannedRisk(t)) ? "Some rows are missing planned risk; no risk amount is inferred for this score." : "",
+    "Day-end P&L excludes intraday exposure and open-position losses. Missing fees are not estimated.",
+    "Cova defines the score weights and history adjustment. This is not an independently validated rating.",
+    !activeRuleCount ? "No active risk rules. Enabling limits does not add score points." : "Limit checks do not change the performance score.",
+    trades.some(t => !hasPlannedRisk(t)) ? "Some rows are missing planned risk. R-based results exclude those rows; the performance score does not use planned risk." : "",
   ].filter(Boolean);
   if (performance.status === "unavailable") return {
     label: tradeCount ? "Unavailable" : "No sample", level: "none", summary: performance.reason, caveats,
@@ -955,14 +955,14 @@ function buildEvidenceQuality(tradeCount: number, activeRuleCount: number, trade
 }
 
 function buildScoreFactors(performance: PerformanceScore): ScoreFactor[] {
-  if (performance.status === "unavailable") return [{ label: performance.reason, impact: "neutral", summary: "No score is assigned without usable performance evidence.", evidence: "Score unavailable" }];
+  if (performance.status === "unavailable") return [{ label: performance.reason, impact: "neutral", summary: "These results cannot be scored. Check the reason above.", evidence: "Score unavailable" }];
   return [
     ...performance.components.map(c => ({ label: c.label,
       impact: (c.value > .5 ? "positive" : c.value < .5 ? "negative" : "neutral") as ScoreFactor["impact"],
       points: c.points, maximum: c.weight * 100, summary: c.summary, evidence: `${c.points.toFixed(2)} / ${(c.weight * 100).toFixed(0)} points · ${c.evidence}` })),
-    { label: "History support", points: performance.evidenceAdjustment, impact: performance.evidenceAdjustment < 0 ? "negative" : "neutral",
-      summary: "Favorable results are discounted when history is short or concentrated. Losses receive no uplift.",
-      evidence: `${performance.supportDays.toFixed(2)} concentration-adjusted days · ${performance.evidenceAdjustment.toFixed(2)} points` },
+    { label: "History adjustment", points: performance.evidenceAdjustment, impact: performance.evidenceAdjustment < 0 ? "negative" : "neutral",
+      summary: "Scores above 50 are reduced when history is short or P&L is concentrated in a few days. Scores of 50 or less are unchanged.",
+      evidence: `${performance.supportDays.toFixed(2)} weighted days (not a calendar-day count) · ${performance.evidenceAdjustment.toFixed(2)} points` },
   ];
 }
 

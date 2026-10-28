@@ -412,7 +412,7 @@ export function ImportDesk({ entitlements, importCsv, prepareImportCsv, openFirm
 
   async function startTradovateConnect() {
     if (!canRedirectToTradovate()) {
-      setBrokerNotice("Tradovate secure sync is not available in this preview. Upload a Tradovate export below to review the account today.");
+      setBrokerNotice("Tradovate sync is unavailable in this preview. Upload a CSV export below.");
       return;
     }
 
@@ -499,7 +499,7 @@ export function ImportDesk({ entitlements, importCsv, prepareImportCsv, openFirm
           updatedAt: new Date().toISOString(),
         };
         setBrokerStatus(nextStatus);
-        setBrokerNotice(`${nextStatus.message} Upload a CSV export instead and Cova will review the account the same way.`);
+        setBrokerNotice(`${nextStatus.message} Upload a CSV export instead.`);
       }
     } finally {
       setBrokerBusy(false);

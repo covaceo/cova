@@ -25,8 +25,8 @@ const workspaceNavGroups = [
   {
     label: "Discipline",
     items: [
-      { id: "rules", label: "Limits", icon: Gauge },
       { id: "coach", label: "Insights", icon: Activity },
+      { id: "rules", label: "Limits", icon: Gauge },
     ],
   },
   {
@@ -126,7 +126,7 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
               </div>
             </div>
           ))}
-          {filteredGroups.length === 0 && !showAccounts && <p className="workspace-sidebar-empty">No matching workspace route.</p>}
+          {filteredGroups.length === 0 && !showAccounts && <p className="workspace-sidebar-empty">No matching page.</p>}
           </GooeyNavSurface>
         </nav>
 

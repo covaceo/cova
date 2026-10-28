@@ -30,15 +30,15 @@ export function disciplineReview(rules: readonly RiskRule[], completed: Complete
     const base: JudgmentV1 = { ruleId: rule.id, label: rule.name, status: 'insufficient evidence', observed: null, threshold: rule.limit,
       rowIds: [...rowIds], groupIds: [], coverage: { checked: 0, total: rowIds.length, unit: 'rows' },
       reason: completed.status === 'unavailable' ? completed.reason : 'Required rule evidence not available' };
-    if (rule.metric === 'minProfitFactor') return { ...base, status: 'not applicable', reason: 'Profitability is not discipline evidence' };
-    if (rule.metric === 'minAvgR') return { ...base, reason: 'Completed-group planned risk unavailable; no R is manufactured from P&L' };
+    if (rule.metric === 'minProfitFactor') return { ...base, status: 'not applicable', reason: 'Profitability does not show whether limits were followed' };
+    if (rule.metric === 'minAvgR') return { ...base, reason: 'Planned risk is unavailable for completed positions; R cannot be calculated' };
     if (rule.metric === 'maxContracts' && Number.isSafeInteger(rule.limit) && rule.limit > 0) {
       const offenders = rawTrades.filter(row => rowIds.includes(row.id) && Number.isSafeInteger(row.contracts) && row.contracts > rule.limit);
-      if (offenders.length) return { ...base, status: 'breach detected', observed: Math.max(...offenders.map(row => row.contracts)), rowIds: offenders.map(row => row.id), coverage: { checked: rawTrades.length, total: rowIds.length, unit: 'rows' }, reason: 'A matched quantity alone exceeds the current contract limit. This proves a minimum size, not peak exposure.' };
+      if (offenders.length) return { ...base, status: 'breach detected', observed: Math.max(...offenders.map(row => row.contracts)), rowIds: offenders.map(row => row.id), coverage: { checked: rawTrades.length, total: rowIds.length, unit: 'rows' }, reason: 'A recorded row exceeds the current contract limit. Peak position size may have been larger.' };
     }
     if (completed.status !== 'available') return base;
     if (!Number.isFinite(rule.limit) || rule.limit < 0) return { ...base, reason: 'Invalid configured threshold' };
-    if (rule.metric !== 'maxContracts' && rule.metric !== 'maxTradeLoss') return { ...base, reason: 'Full ordered session / streak evidence is not implemented in v1' };
+    if (rule.metric !== 'maxContracts' && rule.metric !== 'maxTradeLoss') return { ...base, reason: 'This check does not yet support full session or loss-streak history' };
     const groups = completed.groups;
     const observed = rule.metric === 'maxContracts' ? Math.max(...groups.map(group => group.maxPosition)) : -completed.biggestLossCents;
     let threshold: bigint | number;
@@ -52,7 +52,7 @@ export function disciplineReview(rules: readonly RiskRule[], completed: Complete
   const status: DisciplineStatus = !judgments.length ? 'unconfigured' : judgments.some(j => j.status === 'breach detected') ? 'breach detected'
     : judgments.some(j => j.status === 'insufficient evidence') ? 'insufficient evidence'
     : judgments.some(j => j.status === 'within configured limits') ? 'within configured limits' : 'not applicable';
-  return { status, score: null, judgments, basis: 'Current-rule retrospective checks; not proof of a historical pre-trade plan.' };
+  return { status, score: null, judgments, basis: 'Checked against current limits, not necessarily the limits saved before entry.' };
 }
 
 export type JournalMoneyV1 = { status: 'unavailable'; reason: string } | {

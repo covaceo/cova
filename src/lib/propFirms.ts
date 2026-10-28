@@ -19,7 +19,7 @@ export const propFirmOptions: {
     route: "Upload export",
     platforms: "TopstepX account",
     status: "guided",
-    summary: "Export completed trade history from TopstepX and upload the CSV for retrospective review.",
+    summary: "Upload your TopstepX trade-history CSV to see results and limit warnings.",
     fit: "Cova does not connect directly to TopstepX. CSV keeps account access and provider credentials outside Cova.",
     connectLabel: "Show TopstepX export steps",
     connectNotice: "TopstepX direct sync is not offered. Use the export guide below and upload the CSV to review the account.",
@@ -139,7 +139,7 @@ export const csvExportGuides: {
       "Download trades, fills, or statements as CSV.",
       "Upload the export. Cova turns it into a readable risk review.",
     ],
-    tip: "Start with the file that shows closed trades and realized P&L. That gives Cova the strongest review signal.",
+    tip: "Use a file with closed trades and realized P&L, not just an account balance.",
   },
   {
     id: "tradeify",

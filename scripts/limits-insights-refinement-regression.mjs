@@ -27,11 +27,26 @@ test('Free keeps core editable and both advanced rules locked',()=>{
 test('Limits remains editable with no history or disabled rules',()=>{
  for(const p of[props([]),props(sampleTrades,defaultRules.map(r=>({...r,enabled:false})))]){const s=html(LimitsEditor,p);assert.equal((s.match(/type="number"/g)||[]).length,6);assert.doesNotMatch(s,/No trades to review|No warnings in history/);}
 });
-test('Insights preserves numeric finding, setup evidence and disclosure',()=>{
- const s=html(InsightsView);assert.match(s,/2,640\.00/);assert.match(s,/Level reclaim/);assert.match(s,/1\.32R/);assert.equal((s.match(/data-setup-row=/g)||[]).length,4);assert.match(s,/Historical review, not a trade signal/);assert.match(s,/Three rows is the display minimum, not statistical confidence/);
+test('Insights defaults to a real setup comparison with numerical evidence and local R limitations',()=>{
+ const p=props(),s=html(InsightsView,p);
+ assert.match(s,/data-question="working"/);
+ assert.equal((s.match(/data-setup-row=/g)||[]).length,p.analysis.bySetup.length);
+ for(const setup of p.analysis.bySetup.filter(row=>row.riskCount>=3&&Number.isFinite(row.avgR))){
+  assert.ok(s.includes(`data-open-setup="${setup.name}"`));
+  assert.ok(s.includes(`data-r-bar="${setup.avgR}"`),'Use the model result, not a copied headline number');
+ }
+ assert.match(s,/data-insight="notes"/);
+ assert.match(s,/display minimum, not proof of a reliable pattern/);
+ assert.match(s,/Sample sizes and missing risk can affect the comparison/);
+ assert.doesNotMatch(s,/Historical review, not a trade signal/);
 });
-test('Free gets exactly two insights and an upgrade, not the Pro brief',()=>{
- const s=html(InsightsView,props(sampleTrades,defaultRules,{...entitlements,plan:'free',insightLimit:2}));assert.equal((s.match(/data-insight="/g)||[]).length,2);assert.match(s,/data-insights-locked/);assert.doesNotMatch(s,/data-insight="status"/);
+test('Free keeps setup comparison and actual notes; the status summary remains entitlement-gated',()=>{
+ const s=html(InsightsView,props(sampleTrades,defaultRules,{...entitlements,plan:'free',insightLimit:2}));
+ assert.match(s,/data-insight="setups"/);assert.match(s,/data-insight="notes"/);assert.doesNotMatch(s,/data-insight="status"/);
+ const source=read('src/components/InsightsView.tsx');
+ assert.match(source,/\["finding", "setups", "status"\]\.slice\(0, entitlements\.insightLimit\)/);
+ assert.match(source,/visible\.includes\("status"\)[\s\S]*data-insight="status"/);
+ assert.match(source,/locked > 0[\s\S]*data-insights-locked[\s\S]*onClick=\{upgradeToPro\}/);
 });
 test('empty, missing-risk and disabled-rule states remain honest',()=>{
  assert.match(html(InsightsView,props([])),/data-insights-empty/);

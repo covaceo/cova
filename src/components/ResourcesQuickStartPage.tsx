@@ -42,7 +42,7 @@ export function ResourcesPage({ go }: { go: (section: Section) => void; openAuth
     {
       number: "05",
       title: "Share your Passport",
-      body: "Choose privacy settings, then export the gains and discipline proof you want to share.",
+      body: "Choose privacy settings, then export the results you want to share.",
       action: "Open Passport",
       onClick: () => go("passport"),
     },
@@ -76,7 +76,7 @@ export function ResourcesPage({ go }: { go: (section: Section) => void; openAuth
                 <span className="resources-guide-context">Quick start</span>
                 <strong>From export to proof</strong>
               </div>
-              <span>5 steps · completed history only</span>
+              <span>5 steps · completed trades</span>
             </div>
 
             <div className="resources-oa-content">
@@ -140,7 +140,7 @@ export function ResourcesPage({ go }: { go: (section: Section) => void; openAuth
             </div>
 
             <div className="resources-oa-boundary">
-              <strong>Cova reviews completed history.</strong>
+              <strong>Cova reviews completed trades.</strong>
               <span>No orders. No money movement.</span>
             </div>
           </div>

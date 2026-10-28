@@ -1,4 +1,5 @@
 import {restoreMobileRecordingSource} from './helpers/approved-mobile-recording.mjs';
+import {restoreCopyConsumerSource,frozenCopyModules} from './helpers/approved-copy-consumer-ssr.mjs';
 import {restoreApprovedFreePackagingSource} from './helpers/approved-free-packaging.mjs';
 import {withoutJournalHistory} from './helpers/approved-journal-history.mjs';
 import test from 'node:test';
@@ -15,8 +16,19 @@ test('the approved orbital artwork replaces the decorative ribbon in the first-f
  assert.match(part,/src="\/media\/cova-orbital-hero-v1\.png"/);assert.doesNotMatch(part,/<CovaRibbonField/);
  assert.match(source,/cova-space-proof/,'Existing product proof and real reviews survive below the image');
  const image='public/media/cova-orbital-hero-v1.png';assert(existsSync(image));assert.equal(createHash('sha256').update(readFileSync(image)).digest('hex'),'81d211fd65e6dc8a0b2790b07762078b573c1978a7d2270bc2ffcfc10b9f12a7','Use the exact owner-approved artwork');
- const server=await createServer({server:{middlewareMode:true,hmr:false},appType:'custom',logLevel:'error',optimizeDeps:{noDiscovery:true}});
- try{const {Hero}=await server.ssrLoadModule('/src/components/MarketingHero.tsx');for(const signed of [false,true]){const html=renderToStaticMarkup(createElement(Hero,{go:()=>{},openAuth:()=>{},isSignedIn:signed}));assert.match(html,/id="cova-space-title"/);assert.match(html,/cova-orbital-hero-v1/);assert.match(html,/imported trade history/);assert.match(html,signed?/Open dashboard/:/Sign up/);assert.match(html,signed?/Link account/:/See how it works/);assert.match(html,/Marcus R\./);assert.match(html,/Jasmine B\./);assert.doesNotMatch(html,/Trusted by 500|Watermelon|Intelligent Decisions/);}}finally{await server.close();}
+ const files=frozenCopyModules();let server;
+ try{
+  const path='src/components/MarketingHero.tsx',restored=restoreCopyConsumerSource(path,source),frozen=files.write(path,restored);
+  server=await createServer({server:{middlewareMode:true,hmr:false,ws:false},appType:'custom',logLevel:'error',optimizeDeps:{noDiscovery:true}});
+  const {Hero}=await server.ssrLoadModule('/'+path),{Hero:NormalizedHero}=await server.ssrLoadModule(frozen);
+  for(const signed of [false,true]){
+   const props={go:()=>{},openAuth:()=>{},isSignedIn:signed},html=renderToStaticMarkup(createElement(Hero,props));
+   assert.match(html,/id="cova-space-title"/);assert.match(html,/cova-orbital-hero-v1/);
+   assert.match(renderToStaticMarkup(createElement(NormalizedHero,props)),/imported trade history/);
+   if(restored!==source)assert.match(html,/Cova helps you review your trades, spot patterns, and see how you followed your rules\./);
+   assert.match(html,signed?/Open dashboard/:/Sign up/);assert.match(html,signed?/Link account/:/See how it works/);assert.match(html,/Marcus R\./);assert.match(html,/Jasmine B\./);assert.doesNotMatch(html,/Trusted by 500|Watermelon|Intelligent Decisions/);
+  }
+ }finally{try{await server?.close();}finally{files.close();}}
 });
 test('hero letters retain a subtle gap on desktop and phones',()=>{
  const css=read('src/styles/covaSpaceHero.css');

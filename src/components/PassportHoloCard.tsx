@@ -23,7 +23,7 @@ export const PassportHoloCard = forwardRef<HTMLDivElement, { model: HoloPassport
   useEffect(() => {
     if (face.current && canvas.current) return mountPassportOptics(face.current, canvas.current, materialUrl, engraved ? { ...(appearance ?? { film: 1, refraction: 1, gloss: 48, finishIndex: 0 }), engraved: true, onPose: pose => { if (face.current) paintEngravingLight(face.current, pose); } } : appearance);
   }, [materialUrl, appearance, engraved]);
-  return <div ref={face} className="passport-card-face passport-holo-face" data-appearance={appearance?.id} data-passport-tier={model.rank.toLowerCase()} data-passport-mode={model.mode} tabIndex={0} role="group" aria-label="Interactive Passport. Move your pointer or drag to tilt. Arrow keys tilt; Home resets. Reduced motion keeps the clean base material.">
+  return <div ref={face} className="passport-card-face passport-holo-face" data-appearance={appearance?.id} data-passport-tier={model.rank.toLowerCase()} data-passport-mode={model.mode} tabIndex={0} role="group" aria-label="Move your pointer, drag or use arrow keys to tilt the Passport. Home resets it. Tilt is disabled with reduced motion.">
     <canvas ref={canvas} className="passport-optics-canvas" aria-hidden="true" style={{ clipPath: `url(#${id}-material-mask)` }}/>
     <svg className="passport-holo-art" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1672 941" width="1672" height="941" role="img" aria-labelledby={`${id}-title ${id}-description`}>
       <title id={`${id}-title`}>{`Cova Risk Passport · ${model.modeLabel}`}</title>

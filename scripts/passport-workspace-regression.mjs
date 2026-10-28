@@ -355,9 +355,9 @@ test('Passport workspace binds one Standard engraved card to the current review 
     assert.deepEqual(card.props.model, buildHoloPassportModel(props().analysis, 'Silver', 'flex', true));
     const html = text(tree);
     assert.ok(html.indexOf('passport-holo-art') < html.indexOf('aria-label="Card view"'), 'Modes sit below the card');
-    assert.match(html, /<details[^>]*>[\s\S]*Review detail/);
+    assert.match(html, /<details[^>]*>[\s\S]*Rank details/);
     assert.doesNotMatch(html, /<details[^>]*\sopen(?:=|>)/);
-    for (const label of ['Flex', 'Discipline', 'Ghost', 'Coach', 'Review receipt', 'Cumulative reviewed trade result', 'Next up', 'Risk review', 'Setup context', 'Not account verified']) assert.ok(html.includes(label), label);
+    for (const label of ['Flex', 'Discipline', 'Ghost', 'Coach', 'Rule checks', 'Cumulative reported P&amp;L', 'Next up', 'Risk review', 'Markets and setups', 'Not account verified']) assert.ok(html.includes(label), label);
     assert.doesNotMatch(html.replace(/data:image\/[^\"]+/g, ''), /Rank visual samples|Cosmetic finish|Market Maker|90d|180d|365d/, 'Check customer copy, not accidental substrings inside encoded artwork');
     let destination;
     tree = h.render({ ...props(), go: section => { destination = section; } });

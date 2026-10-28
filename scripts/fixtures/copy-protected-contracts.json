@@ -1,0 +1,12 @@
+{
+  "src/lib/appRoutes.ts": "56e45c3851f0926bb35f732a1dd9c82ae50b6795f10ff53e3851e4afa6d7cbfc",
+  "src/lib/vendorCompliance.ts": "931af7a2683d72b9d71f22326fb8925e89269cf5c62ba5becec572bc5a2cb0ca",
+  "src/components/LegalPages.tsx": "791df684c04fda183529bdd80bdbbfd2ed031aa4519fc9d9e83657a94c3bdbc2",
+  "src/components/RiskDisclosureFooter.tsx": "9d351e3b138894f39b78fd1c85a3e11f40935c73d1007207caf312f039e00d37",
+  "src/components/RithmicAttribution.tsx": "5dd4efda61cc0b141cf03b5fdae8353dad2d2c645906e6d3bd04287a4fde3f03",
+  "src/lib/storageScope.ts": "7fc8dac806a656d320dd2c658ca45d979207aa66f003b729cfb4a758f27573b4",
+  "src/lib/workspaceModel.ts": "8767f1f74b8d86f56e106c1b848519bda1f1f2d775a0454d7a68f38a7ed05d47",
+  "src/lib/workspaceHydration.ts": "30d5ff95bbb098d73ca67826232c1b5dd8cd33593ed300043e6ea50f4c02ed5b",
+  "src/lib/dashboardTradeNotes.ts": "4a0330a9831c2eb543ebc6c68d441a2a78f2030a255379d21187b7b9bc09654e",
+  "src/lib/dailyJournal.ts": "24ca9522f20d3299bc385beb961d8c090a512d47767136a5b7abda05b1819c50"
+}

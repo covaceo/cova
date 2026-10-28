@@ -5,8 +5,8 @@ import { tradeAverages } from '../lib/tradeAverages';
 
 export function TradeAverageStats({ trades, selectedTrades, detailsOnly = false }: { trades: readonly Trade[]; selectedTrades: readonly Trade[]; detailsOnly?: boolean }) {
   const averages = useMemo(() => tradeAverages(trades, selectedTrades), [trades, selectedTrades]);
-  const basis = trades.every(row => row.source?.provider === 'Tradovate') ? 'Before fees' : 'Reported P&L; fee attribution unverified';
-  const explanation = `${basis}. Known partial exits combined by opening fill; other rows counted separately. Range follows the last observed exit. Breakevens excluded. Rounded to cents. Full flat-to-flat coverage is not certified.`;
+  const basis = trades.every(row => row.source?.provider === 'Tradovate') ? 'Before fees' : 'Reported P&L; fees unverified';
+  const explanation = `${basis}. Known partial exits combined by opening fill; other rows counted separately. Range follows the last observed exit. Breakevens excluded. Rounded to cents. Complete position history is not verified.`;
   const cells = [
     { id: 'average-winner', label: 'Average winner', amount: averages.winnerCents, count: averages.winners, population: 'winning' },
     { id: 'average-loser', label: 'Average loser', amount: averages.loserCents, count: averages.losers, population: 'losing' },

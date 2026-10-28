@@ -39,7 +39,7 @@ export function ScoreExplanationStrip({ analysis }: { analysis: ReturnType<typeo
           <div className="flex flex-wrap items-center gap-3">
             <span className="inline-flex items-center gap-2 rounded-full border border-[#4f7dff]/24 bg-[#4f7dff]/10 px-3 py-1.5 font-body text-xs text-[#6f96ff]">
               <CircleDot className="h-3.5 w-3.5" />
-              Score logic
+              About your score
             </span>
             <span className="font-mono text-xs uppercase tracking-[0.18em] text-white/36">
               {analysis.evidenceQuality.label}
@@ -49,11 +49,11 @@ export function ScoreExplanationStrip({ analysis }: { analysis: ReturnType<typeo
             {analysis.score === null ? "Performance score unavailable." : `Why Cova scored this ${analysis.score}/100.`}
           </h3>
           <p className="mt-3 font-body text-sm font-light leading-relaxed text-white/56">
-            Cova weighs limit discipline, recent R, drawdown, and sample quality. It is a review system, not a signal.
+            See the factors behind your score below.
           </p>
           {topFlag && (
             <div className="mt-4 rounded-[22px] border border-white/10 bg-white/[0.025] p-4">
-              <p className="font-body text-xs uppercase tracking-[0.18em] text-white/34">Most useful note</p>
+              <p className="font-body text-xs uppercase tracking-[0.18em] text-white/34">Top finding</p>
               <p className="mt-2 font-body text-sm font-medium text-white/80">{topFlag.label}</p>
               <p className="mt-1 font-body text-xs leading-relaxed text-white/46">{topFlag.summary}</p>
             </div>
@@ -105,7 +105,7 @@ export function NextSessionBriefCard({ analysis, go }: { analysis: ReturnType<ty
     },
     ready: {
       icon: ShieldCheck,
-      label: "Within limits",
+      label: "Summary ready",
       tone: "border-[#4f7dff]/24 bg-[#4f7dff]/10 text-[#6f96ff]",
       dot: "bg-[#6f96ff]",
     },
@@ -127,13 +127,13 @@ export function NextSessionBriefCard({ analysis, go }: { analysis: ReturnType<ty
               <span className={`h-2 w-2 rounded-full ${config.dot}`} />
               {config.label}
             </span>
-            <span className="font-body text-xs uppercase tracking-[0.22em] text-white/68">Historical risk summary</span>
+            <span className="font-body text-xs uppercase tracking-[0.22em] text-white/68">Risk summary</span>
           </div>
           <h3 className="mt-5 max-w-2xl font-heading text-4xl italic leading-[1.02] tracking-normal md:text-5xl">
             {brief.headline}
           </h3>
           <p className="mt-4 max-w-2xl font-body text-sm leading-relaxed text-white/58">{brief.summary}</p>
-          <p className="mt-3 max-w-2xl font-body text-xs leading-relaxed text-white/38">Retrospective analysis only. Not financial advice, a trade signal, or a prediction of future results.</p>
+
           <div className="mt-6 flex flex-wrap gap-3">
             <GlassButton strong onClick={() => go("coach")}>Insights <ArrowUpRight className="h-4 w-4" /></GlassButton>
             <GlassButton onClick={() => go("rules")}>Limits</GlassButton>

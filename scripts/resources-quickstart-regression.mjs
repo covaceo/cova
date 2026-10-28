@@ -57,7 +57,7 @@ assert.doesNotMatch(resources, /READY TO REVIEW|trades_august\.csv/, "Do not mis
 assert.match(resources, /<span>trades\.csv<\/span>/, "Sample filenames should be neutral rather than hand-updated dates.");
 assert.match(resources, /2 warnings[\s\S]*2 rows need review[\s\S]*Nothing imports until you confirm the file\./, "The sample must preserve the warning and member-confirmation truth.");
 assert.match(resources, /<p>Check your file, review the account, and choose what to share\.<\/p>/, "The intro should orient without repeating the upload heading and action.");
-assert.match(resources, /Choose privacy settings, then export the gains and discipline proof you want to share\./, "The Share step must preserve export and privacy meaning.");
+assert.match(resources, /Choose privacy settings, then export the results you want to share\./, "The Share step must preserve export and privacy meaning.");
 assert.match(resources, /No orders\. No money movement\./, "Resources must preserve the product boundary beside the import path.");
 assert.match(resources, /useReducedMotion/, "Resources motion must honor reduced-motion preference.");
 

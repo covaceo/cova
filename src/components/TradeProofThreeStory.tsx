@@ -179,7 +179,7 @@ function TradeProofThreeStory({ progress }: TradeProofThreeStoryProps) {
 
       <motion.div className="proof-review-panel" style={{ opacity: noteOpacity, x: noteX, y: noteY }}>
         <span>Review note</span>
-        <p>Size up only after two clean sessions.</p>
+        <p>Compare size across recent sessions.</p>
         <i />
       </motion.div>
 

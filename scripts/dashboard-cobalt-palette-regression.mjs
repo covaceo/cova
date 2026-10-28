@@ -15,7 +15,7 @@ const dashboardBriefs = read("src", "components", "DashboardBriefs.tsx");
 const workspaceShell = read("src", "components", "WorkspaceShell.tsx");
 const main = read("src", "main.tsx");
 // The approved equity-only green exception is explained in prose, not a new dashboard palette token.
-const equityColorExplanation = 'Curve color follows the selected range: red below the displayed $0 P&amp;L line, green above. Colors use the plotted gross/reported or reconciled daily-net basis, not earlier account profits or drawdown from a previous peak.';
+const equityColorExplanation = 'Red is below $0 P&amp;L; green is above. Colors follow the selected range and its gross, reported or daily-net basis, not earlier profits or drawdown.';
 assert.ok(dashboardView.includes(equityColorExplanation), 'Historical chart color semantics remain explicit in Data details');
 const liveDashboardSource = [dashboardView.replace(equityColorExplanation, ''), dashboardCards, dashboardBriefs, workspaceShell, review, miniJournal].join("\n");
 

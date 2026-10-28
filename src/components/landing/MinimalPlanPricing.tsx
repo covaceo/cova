@@ -40,8 +40,8 @@ export function MinimalPlanPricing({ plans, currentPlan, go, openAuth, proChecko
   return (
     <section id="plans" className="deferred-paint-section plans-section pricing-showcase cova-minimal-pricing" data-pricing-layout="minimal" data-pricing-page={page || undefined} aria-labelledby="minimal-pricing-title">
       <header className="minimal-pricing-header">
-        <Heading id="minimal-pricing-title">Try the review flow before you pay.</Heading>
-        <p>Start small enough to prove the workflow. Upgrade when Cova becomes part of every session review.</p>
+        <Heading id="minimal-pricing-title">Try Cova before you pay.</Heading>
+        <p>Start with 25 trades. Upgrade for unlimited imports and Passport exports.</p>
       </header>
       <div className="minimal-pricing-grid">
         {plans.map((plan) => {

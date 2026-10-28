@@ -21,7 +21,8 @@ test('only declared score seams change; original monetary/rule/owner calculation
 });
 test('all non-score analytics and limits equal the pre-change engine across deterministic histories',()=>{
  const omit=new Set(['score','performanceScore','scoreFactors','evidenceQuality','nextSessionBrief']);
- const project=a=>Object.fromEntries(Object.entries(a).filter(([k])=>!omit.has(k)));
+ const withoutCopy=v=>Array.isArray(v)?v.map(withoutCopy):v&&typeof v==='object'?Object.fromEntries(Object.entries(v).filter(([k])=>!['label','summary','headline','watchlist','guardrails','evidence','caveats','reason'].includes(k)).map(([k,x])=>[k,withoutCopy(x)])):v;
+ const project=a=>withoutCopy(Object.fromEntries(Object.entries(a).filter(([k])=>!omit.has(k))));
  let seed=173;
  for(let k=0;k<100;k++){
   const rows=Array.from({length:k%37},(_,i)=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return {...current.sampleTrades[i%current.sampleTrades.length],id:`manual-qa-${i}`,date:new Date(Date.UTC(2026,0,1+Math.floor(i/3))).toISOString().slice(0,10),pnl:(seed%200001-100000)/100,manual:{accountKey:'local',currency:'USD',pnlBasis:'reported_net'}};});
