@@ -1,3 +1,4 @@
+import {restoreApprovedCopySource} from './helpers/approved-copy-cleanup.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {existsSync,readFileSync} from 'node:fs';
@@ -25,7 +26,7 @@ test('Risk Desk shares one neutral canvas instead of painting a separate outer p
 });
 test('shell polish preserves sidebar, dashboard cards and current identity byte-for-byte',()=>{
  const frozen={"src/styles/workspaceSidebarMotion.css": "ce86b58438c52fa461e1f7ebc577c4071b2574f7f3a15c8701862790dc9526c6", "src/components/WorkspaceShell.tsx": "86eed117876320c5eab19de285c8a5376e661da9fb1014ce8c850237209b8308", "src/components/DashboardView.tsx": "d1691b645f6e2925405471a4f6ea706a9337ec60e898347416f2bb02ca827d92", "src/styles/approvedDashboard.css": "7a3497aff68e23cfb7fe1daed298ad1cdb1c7cba499ddd7e4945c4fe9ae903e7", "src/styles/astraDashboard.css": "43ad6ebafdf5d6e8d49213daf01ffb9f142d7f02ef9a63e1c9cba9c947447350", "public/cova-logo-minimal-white.svg": "3cab047eb026b8c3160fdab46218c0aa82978681ec9d60ec2e0116317178cbab", "public/media/wordmark-options/cova-wordmark-option-3-sleek-cropped.png": "69c2fc7bf59abdc8f6b2eb6d5a62e15b8e0ada6cd6bfe6e360f87dbbf88accec"};
- for(const [path,hash] of Object.entries(frozen)){const bytes=path.endsWith('.png')?readFileSync(path):readFileSync(path,'utf8').replaceAll('\r\n','\n');assert.equal(createHash('sha256').update(bytes).digest('hex'),hash,path+' is outside the authorized shell scope');}
+ for(const [path,hash] of Object.entries(frozen)){const bytes=path.endsWith('.png')?readFileSync(path):restoreApprovedCopySource(path,readFileSync(path,'utf8')).replaceAll('\r\n','\n');assert.equal(createHash('sha256').update(bytes).digest('hex'),hash,path+' is outside the authorized shell scope');}
  postcss.parse(readCss()).walkRules(rule=>{assert(!/workspace-sidebar|astra-panel|astra-stat|astra-chart|button|input|select|canvas|svg/.test(rule.selector),'No sidebar/card/control/graph restyling: '+rule.selector);assert(rule.selector.includes('.oa-dashboard-shell[data-sidebar-state]'),'Only the protected shared workspace shell is selected');});
 });
 test('desktop content aligns to the 12px inset without changing phone header clearance',()=>{

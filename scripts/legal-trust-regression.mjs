@@ -131,9 +131,17 @@ const vercelConfig = read("vercel.json");
 const securityTxt = read("public", ".well-known", "security.txt");
 
 assert.match(marketingHero, /Marcus R\.[\s\S]*Daniel C\.[\s\S]*Jasmine B\./, "Permissioned customer testimonials should remain present.");
-assert.match(dashboardBriefs, /Retrospective analysis only\. Not financial advice/i, "Advice-like analytics need a point-of-use disclaimer.");
+// The approved cleanup removes repetitive panel disclaimers, not the legal boundary.
+const riskDisclosures = read("src", "components", "RiskDisclosureFooter.tsx");
+assert.match(workspaceShell, /<SiteFooter go=\{go\} \/>/, "Member routes retain the full legal footer.");
+assert.match(footer, /<InlineRiskDisclosures \/>/, "The site footer must render the expanded risk notices.");
+assert.match(riskDisclosures, /FUTURES_RISK_DISCLOSURE/);
+assert.match(riskDisclosures, /HYPOTHETICAL_PERFORMANCE_DISCLOSURE/);
+assert.match(riskDisclosures, /does not execute trades or provide trading signals/);
+assert.match(legalPages, /Not financial advice/);
+assert.match(dashboardBriefs, /scoreFactors|ScoreFactor/, "The score still exposes its actual factors and limitations.");
 assert.doesNotMatch(workspaceSections, /setVisibility|setExpiry|No expiry|24 hours/, "A local Passport PNG must not expose fake privacy or expiry controls.");
-assert.match(workspaceSections, /Cova does not host, revoke, or expire the file/i, "Passport export behavior should be explicit.");
+assert.match(workspaceSections, /Shared PNGs do not expire and cannot be revoked by Cova/i, "Passport export behavior should be explicit.");
 assert.match(app, /scopedStorageKey\(STORAGE_KEY\)/, "Member journal state should use an identity-scoped key.");
 assert.match(app, /setActiveStorageIdentity/, "Verified sign-in should select the member storage namespace.");
 assert.match(storageScope, /ACTIVE_STORAGE_IDENTITY_KEY/, "The storage namespace helper should exist.");

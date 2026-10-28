@@ -1,3 +1,4 @@
+import {restoreApprovedCopySource} from './approved-copy-cleanup.mjs';
 import {restoreApprovedHeroCtaSource} from './approved-hero-cta.mjs';
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
@@ -6,6 +7,7 @@ const baseline=JSON.parse(readFileSync(new URL("../fixtures/landing-testimonials
 const importLine='import { TraderTestimonials } from "./landing/TraderTestimonials";';
 const approvedSlot='          <TraderTestimonials reviews={followerReviews} />';
 export function restoreApprovedTestimonialSource(source) {
+ source=restoreApprovedCopySource("src/components/MarketingHero.tsx",source);
  source=restoreApprovedHeroCtaSource("src/components/MarketingHero.tsx",source);
  const crlf=source.includes("\r\n");const lf=source.replaceAll("\r\n","\n");
  if(!lf.includes(importLine)) return source;

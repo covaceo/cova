@@ -36,7 +36,7 @@ assert.match(workspace, /workspace-account-menu/, "account identity and account 
 assert.match(workspace, /const riskScoreLabel = typeof riskScore === "number" && Number\.isFinite\(riskScore\) \? String\(riskScore\) : "--";/, "zero must remain valid while unavailable accounts render a placeholder");
 assert.match(navbar, /const riskScoreLabel = typeof riskScore === "number" && Number\.isFinite\(riskScore\) \? String\(riskScore\) : "--";/, "tablet and mobile fallback chrome must distinguish zero from unavailable");
 assert.match(app, /const visibleRiskScore = visibleTrades\.length \? analysis\.score : null;/, "selected accounts without trade history must not publish a derived risk score");
-assert.match(dashboard, /data-dashboard-empty="true"[\s\S]*?Import trade history to start your review/, "the Risk Desk must render an import-first empty state before analytics");
+assert.match(dashboard, /data-dashboard-empty="true"[\s\S]*?Import trades to see your results/, "the Risk Desk must render an import-first empty state before analytics");
 assert.doesNotMatch(navbar, /riskScore \|\| "--"/, "fallback header must not collapse zero into an unavailable placeholder");
 assert.match(workspace, /aria-label=\{`Cova risk score \$\{riskScoreLabel === "--" \? "not available" : riskScoreLabel\}`\}/, "risk-score accessibility copy must preserve zero and distinguish unavailable values");
 assert.doesNotMatch(workspace, /riskScore \|\|/, "risk score rendering must not erase a valid zero");

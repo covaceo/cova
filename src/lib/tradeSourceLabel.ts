@@ -17,14 +17,14 @@ export function getTradeSourceLabel(trades: Trade[]) {
   if (!sourceLabels.length) return "No trade history";
 
   const singleSourceLabels: Record<string, string> = {
-    Sample: "Sample review",
-    Manual: "Manual trade review",
+    Sample: "Sample data",
+    Manual: "Manual trades",
     Rithmic: "Rithmic history",
     Tradovate: "Tradovate history",
-    CSV: "Imported CSV review",
+    CSV: "CSV import",
   };
   if (sourceLabels.length === 1) return singleSourceLabels[sourceLabels[0]];
-  return `${sourceLabels.join(" + ")} review`;
+  return `${sourceLabels.join(" + ")} data`;
 }
 
 export function getAccountSourceLabel(trades: Trade[], brokerStatus: Pick<BrokerStatus, "provider" | "connected"> | null) {

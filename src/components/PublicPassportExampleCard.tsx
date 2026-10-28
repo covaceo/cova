@@ -5,7 +5,7 @@ import type { HoloPassportModel } from "../lib/passportHolo";
 
 export const publicDiamondExample: HoloPassportModel = {
   mode: "flex", modeLabel: "Flex", identity: "Trader 6714", rank: "Diamond",
-  marketLine: "NQ / ES · 25 reviewed trades", heroValue: "+$1,008", heroLabel: "Reported P&L",
+  marketLine: "NQ / ES · 25 trades", heroValue: "+$1,008", heroLabel: "Reported P&L",
   support: ["4/6 rules held"], ruleSummary: "4/6 rules held",
   provenance: "Sample data · Not account verified", sample: true,
 };

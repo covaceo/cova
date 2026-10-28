@@ -119,7 +119,7 @@ test('discipline withholds numeric verdicts when rules or completion evidence ar
   assert.deepEqual(result.judgments[0].rowIds, ['row-a','row-b']);
   assert.deepEqual(result.judgments[0].coverage, {checked:0,total:2,unit:'rows'});
   assert.match(result.judgments[0].reason, /boundar/i);
-  assert.match(result.basis, /retrospective.*not.*plan/i);
+  assert.match(result.basis, /current limits, not necessarily the limits saved before entry/i);
 });
 
 test('a single matched quantity above the limit proves a size breach without inventing trade grouping', () => {

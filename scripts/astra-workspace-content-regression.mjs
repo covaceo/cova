@@ -72,7 +72,7 @@ test('OA Limits uses two soft grouped plates, pill values, distinct states and p
   assert.equal(value(tree,'.oa-review-page :is(button,input):disabled','cursor'),'not-allowed');
   assert.equal(value(tree,'.oa-review-page :is(button,summary,input,select):focus-visible','outline'),'2px solid #83aaff');
   assert.equal(value(tree,'.oa-limit-row','grid-template-columns','(max-width:620px)'),'minmax(0,1fr) 88px 44px');
-  assert.match(workspaceSource,/never blocks orders or changes broker settings/);
+  assert.match(workspaceSource,/does not block orders or change broker settings/);
   assert.match(workspaceSource,/disabled=\{locked\}/);
   assert.match(workspaceSource,/oa-limit-adjust/);assert.match(workspaceSource,/oa-advanced-limits/);
 });
@@ -109,7 +109,7 @@ test('Passport changes only named external chrome, never the card or composer', 
   assert.doesNotMatch(workspaceSource, /className="passport-workspace-toolbar"/);
   assert.match(workspaceSource, /className="passport-utility-controls"/);
   assert.match(read('src/styles/workspaceUtility.css'), /@media\(max-width:760px\)\{\.passport-utility-layout\{grid-template-columns:1fr/);
-  assert.match(workspaceSource, /Shared PNGs are permanent local still images/);
+  assert.match(workspaceSource, /Shared PNGs do not expire and cannot be revoked by Cova/);
   assert.match(workspaceSource, /PassportHoloCard key=\{appearance.id\}/);
   assert.match(workspaceSource, /PassportShareComposer face=\{faceRef\}/);
 });

@@ -45,7 +45,7 @@ const featureSystems = [
     route: "import",
     action: "Upload trades",
     outcome: "Keep one clean record of what actually happened.",
-    summary: "Bring completed trades into one review trail with source, execution, notes, and setup context intact.",
+    summary: "Keep completed trades, sources, execution details, notes, and setups together.",
     evidence: ["CSV-first import with a review step", "Trade rows stay tied to their source"],
     trust: "Cova reviews imported history. It does not place orders or move money.",
     Icon: BookOpen,
@@ -56,9 +56,9 @@ const featureSystems = [
     route: "dashboard",
     action: "Review account",
     outcome: "See the habit costing the account.",
-    summary: "Turn imported history into a focused account review with performance, drawdown, and rule evidence in one place.",
-    evidence: ["Reported P&L and drawdown context", "Rule warnings linked to reviewed history"],
-    trust: "Sample review shown. Actual results come only from the member's imported history.",
+    summary: "See performance, drawdown, and rule warnings for your imported trades.",
+    evidence: ["Reported P&L and drawdown context", "Rule warnings linked to your trades"],
+    trust: "Sample shown. Your results use your imported trades.",
     Icon: Gauge,
   },
   {
@@ -67,8 +67,8 @@ const featureSystems = [
     route: "rules",
     action: "Set limits",
     outcome: "Turn repeated mistakes into visible guardrails.",
-    summary: "Set review thresholds for daily loss, trade loss, size, streaks, and consistency, then re-check the history against them.",
-    evidence: ["Editable retrospective thresholds", "Historical warnings remain visible"],
+    summary: "Set limits for daily loss, trade loss, size, streaks, and consistency. Check your trades against them.",
+    evidence: ["Adjustable limits", "Past warnings remain visible"],
     trust: "Limits review history. They do not block orders or alter broker settings.",
     Icon: SlidersHorizontal,
   },
@@ -78,9 +78,9 @@ const featureSystems = [
     route: "coach",
     action: "See insights",
     outcome: "Know what deserves review before the next session.",
-    summary: "Read one direct briefing that names the active problem, shows the evidence, and points back to the relevant guardrail.",
-    evidence: ["Evidence-linked review notes", "No signals or live-trading permission"],
-    trust: "Insights summarize reviewed history. They are not financial advice or trade calls.",
+    summary: "See what needs attention, the trades behind it, and the limits to check.",
+    evidence: ["Notes linked to your trades", "Trade and limit context"],
+    trust: "Insights summarize completed trades. They are not financial advice or trade calls.",
     Icon: ClipboardCheck,
   },
 
@@ -90,9 +90,9 @@ const featureSystems = [
     route: "passport",
     action: "Open Passport",
     outcome: "Build proof of discipline worth sharing.",
-    summary: "Turn one reviewed account into a privacy-aware credential that balances reported gains with rule and discipline evidence.",
-    evidence: ["Editable privacy and share modes", "Exportable sample or member review proof"],
-    trust: "Sample preview shown. A member Passport reflects only that member's reviewed data and settings.",
+    summary: "Share your account results and how you followed your rules. Choose what stays private.",
+    evidence: ["Editable privacy and share modes", "Exportable trading cards"],
+    trust: "Sample preview shown. Your Passport uses your data and privacy settings.",
     Icon: Fingerprint,
   },
 ] satisfies FeatureSystem[];
@@ -165,7 +165,7 @@ function LimitsInstrument() {
   ];
   return (
     <div className="features-instrument features-limits-instrument">
-      <InstrumentHeader label="SAMPLE LIMIT SET" meta="RETROSPECTIVE REVIEW" />
+      <InstrumentHeader label="SAMPLE LIMITS" meta="COMPLETED TRADES" />
       <div className="features-limits-summary">
         <div><span>Active thresholds</span><strong>04</strong></div>
         <div><span>Warnings found</span><strong>04</strong></div>
@@ -187,18 +187,18 @@ function LimitsInstrument() {
 function InsightsInstrument() {
   return (
     <div className="features-instrument features-insights-instrument">
-      <InstrumentHeader label="SAMPLE REVIEW NOTE" meta="EVIDENCE-LINKED" />
+      <InstrumentHeader label="SAMPLE REVIEW NOTE" meta="TRADES & LIMITS" />
       <div className="features-insight-priority">
-        <span>Current risk review</span>
+        <span>Size warning</span>
         <h3>Size increased after the first losing trade.</h3>
-        <p>The largest reviewed loss came after quantity moved above the session baseline.</p>
+        <p>The largest loss came after size increased above the session baseline.</p>
       </div>
       <div className="features-insight-grid">
         <div><span>Evidence</span><strong>3 imported trades</strong><p>Quantity moved from 1 to 2 contracts after the first loss.</p></div>
-        <div><span>Review next</span><strong>Maximum size threshold</strong><p>Compare the warning against the active Limits review.</p></div>
+        <div><span>Review next</span><strong>Maximum size threshold</strong><p>Compare the warning with your size limit.</p></div>
       </div>
-      <div className="features-insight-action"><span>Review note</span><strong>Check size drift before the next session review.</strong></div>
-      <footer className="features-instrument-footer"><span>IMPORTED HISTORY</span><span>No signals, trade permission, or financial advice.</span></footer>
+      <div className="features-insight-action"><span>Review note</span><strong>Review the trades where size increased.</strong></div>
+      <footer className="features-instrument-footer"><span>IMPORTED HISTORY</span><span>No trade signals or financial advice.</span></footer>
     </div>
   );
 }
@@ -209,7 +209,7 @@ function PassportInstrument({ active }: { active: boolean }) {
     <div className="features-instrument features-passport-instrument">
       <InstrumentHeader label="SAMPLE / NOT VERIFIED" meta="RISK PASSPORT" />
       <div className="features-passport-preview"><PublicPassportExampleCard active={active} /></div>
-      <footer className="features-instrument-footer"><span>SAMPLE REVIEW</span><span>Member exports use that member's reviewed data and privacy settings.</span></footer>
+      <footer className="features-instrument-footer"><span>SAMPLE REVIEW</span><span>Your exports use your data and privacy settings.</span></footer>
     </div>
   );
 }
@@ -360,7 +360,7 @@ export function FeaturesPage({ go, openAuth, isSignedIn = false }: { go: (sectio
 
         <footer className="features-showcase-trust">
           <span>Cova reviews history only. No orders. No money movement.</span>
-          <span>Sample instruments · actual member results require imported history</span>
+          <span>Sample data · import your trades to see your results</span>
         </footer>
       </div>
     </section>

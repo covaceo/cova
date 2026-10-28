@@ -299,7 +299,7 @@ test('Integrated review detail preserves setup context without adding it to shar
         const html = renderToStaticMarkup(React.createElement(Passport, {analysis, entitlements: {plan: 'pro', canExportPassport: true, canEditAdvancedLimits: true, insightLimit: 99}, isSampleReview: true, go() {}, upgradeToPro() {}}));
         const detail = html.match(/<details class="passport-review-detail[^\"]*">[\s\S]*?<\/details>/)?.[0] ?? '';
         assert.ok(html.includes('passport-workspace-placeholder'), 'An unresolved rank material must not render a stale card');
-        assert.ok(detail.includes(mode === 'private' ? 'Markets and setups hidden in Ghost view.' : empty ? 'No setup reviewed' : 'SETUP-CONTEXT-ONLY'), mode + ' must retain setup context outside artwork, with the Ghost privacy boundary');
+        assert.ok(detail.includes(mode === 'private' ? 'Markets and setups hidden in Ghost view.' : empty ? 'No setup recorded' : 'SETUP-CONTEXT-ONLY'), mode + ' must retain setup context outside artwork, with the Ghost privacy boundary');
         const { PassportHoloCard } = load('src/components/PassportHoloCard.tsx');
         const { buildHoloPassportModel } = load('src/lib/passportHolo.ts');
         const artwork = renderToStaticMarkup(React.createElement(PassportHoloCard,{model:buildHoloPassportModel(analysis,'Gold',mode,true),engraved:true}));

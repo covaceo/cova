@@ -4,8 +4,8 @@ export function MetricDock({ analysis }: { analysis: ReturnType<typeof analyze> 
   const metrics = [
     ["Score", analysis.score === null ? "—" : `${analysis.score}/100`],
     ["Reported P&L", formatMoney(analysis.totalPnl)],
-    ["Biggest Dip", formatMoney(-analysis.maxDrawdown)],
-    ["Profit Factor", Number.isFinite(analysis.profitFactor) ? analysis.profitFactor.toFixed(2) : "∞"],
+    ["Max drawdown", formatMoney(-analysis.maxDrawdown)],
+    ["Profit factor", Number.isFinite(analysis.profitFactor) ? analysis.profitFactor.toFixed(2) : "∞"],
     [`Average R (${analysis.riskCount}/${analysis.trades.length} rows)`, formatR(analysis.avgR)],
   ];
   return (
@@ -30,7 +30,7 @@ export function ScoreCard({ analysis }: { analysis: ReturnType<typeof analyze> }
       <div className="oa-card-inset oa-score-inset">
         <div className="oa-score-reading">
           <p className="oa-score-value">{analysis.score ?? "—"}{analysis.score !== null && <span>/100</span>}</p>
-          <p className="oa-score-caption">{analysis.score === null ? "Score unavailable" : analysis.score >= 80 ? "Strong recorded performance" : analysis.score >= 50 ? "Positive or balanced results" : "Negative recorded results"}</p>
+          <p className="oa-score-caption">{analysis.score === null ? "Score unavailable" : analysis.score >= 80 ? "Strong results" : analysis.score >= 50 ? "Positive or balanced results" : "Negative results"}</p>
           <p className="oa-score-sample">{analysis.tradeCount} trades checked</p>
         </div>
         <div className="oa-factor-list">
@@ -95,7 +95,7 @@ export function SetupQuality({ analysis }: { analysis: ReturnType<typeof analyze
         {analysis.bySetup.slice(0, 4).map((setup) => (
           <div className="grid grid-cols-[1fr_auto_auto] items-center gap-4 font-body text-sm" key={setup.name}>
             <span>{setup.name}</span>
-            <span className="text-white/50">{setup.riskCount}/{setup.count} rows with risk</span>
+            <span className="text-white/50">{setup.riskCount}/{setup.count} rows with planned risk</span>
             <span className={setup.pnl >= 0 ? "oa-tone-positive" : "oa-tone-negative"}>{formatR(setup.avgR)}</span>
           </div>
         ))}

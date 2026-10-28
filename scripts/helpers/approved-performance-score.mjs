@@ -1,8 +1,10 @@
+import {restoreApprovedCopySource} from './approved-copy-cleanup.mjs';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 const approved=JSON.parse(readFileSync(new URL('../fixtures/performance-score-approved.json',import.meta.url),'utf8'));
 /** Reverse only the explicit score migration, never an entire financial module. */
 export function restorePerformanceScoreSource(path, source) {
+ source=restoreApprovedCopySource(path,source);
  if(!approved[path]) return source;
  let value=source.toString().replaceAll('\r\n','\n');
  for(const seam of approved[path].seams.toReversed()) {

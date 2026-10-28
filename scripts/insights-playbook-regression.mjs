@@ -1,0 +1,16 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import React from 'react';
+import {renderToStaticMarkup} from 'react-dom/server';
+import load from './helpers/load-ts.cjs';
+const {InsightsView}=load('src/components/InsightsView.tsx');
+const {analyze,sampleTrades,defaultRules}=load('src/lib/risk.ts');
+const a=analyze(sampleTrades,defaultRules),e={plan:'pro',canEditAdvancedLimits:true,canExportPassport:true,insightLimit:Infinity};
+const render=(analysis,entitlements=e)=>renderToStaticMarkup(React.createElement(InsightsView,{analysis,entitlements,go(){},upgradeToPro(){}}));
+test('ties and a single eligible setup do not invent a winner',()=>{const row=a.bySetup[0];assert.match(render({...a,bySetup:[{...row,name:'A',riskCount:3,avgR:1},{...row,name:'B',riskCount:3,avgR:1}]}),/joint-highest/);assert.match(render({...a,bySetup:[{...row,riskCount:3,avgR:1}]}),/No cross-setup R comparison yet/);});
+test('null nonfinite and sparse R never substitute zero',()=>{const row=a.bySetup[0];const s=render({...a,bySetup:[{...row,name:'Null',riskCount:3,avgR:null},{...row,name:'Infinite',riskCount:3,avgR:Infinity},{...row,name:'Sparse',riskCount:2,avgR:2}]});assert.doesNotMatch(s,/data-r-bar=|Infinity|NaN|0\.00R/);assert.match(s,/Average R unavailable/);});
+test('zero is a real zero with a zero width mark',()=>{const s=render({...a,bySetup:[{...a.bySetup[0],riskCount:3,avgR:0}]});assert.match(s,/data-r-bar="0" style="width:0%;left:50%"/);});
+test('remaining setups remain reachable with complete data',()=>{const s=render({...a,bySetup:Array.from({length:7},(_,i)=>({...a.bySetup[0],name:'Setup '+i}))});assert.equal((s.match(/data-open-setup=/g)||[]).length,7);assert.match(s,/data-more-setups/);});
+test('legacy and missing risk caveats remain visible on Free',()=>{const s=render({...a,legacyRiskCount:2,missingRiskCount:1},{...e,plan:'free',insightLimit:2});assert.match(s,/data-legacy-risk-caveat/);assert.match(s,/data-planned-risk-coverage/);assert.doesNotMatch(s,/data-review-context/);});
+test('disabled limits cannot claim a clean check',()=>assert.match(render(analyze(sampleTrades,defaultRules.map(r=>({...r,enabled:false})))),/No enabled limits\. Your trades have not been checked/));
+test('empty history offers import without invented discoveries',()=>{const s=render(analyze([],defaultRules));assert.match(s,/Import trades/);assert.doesNotMatch(s,/data-r-bar|data-open-setup/);});

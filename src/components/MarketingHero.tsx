@@ -162,7 +162,7 @@ export function Hero({ go, openAuth, isSignedIn }: HeroProps) {
             <span>behind your risk.</span>
           </h1>
           <p className="cova-space-subline">
-            Cova turns imported trade history into retrospective summaries of behavior, performance, and rule adherence.
+            Cova helps you review your trades, spot patterns, and see how you followed your rules.
           </p>
           <div className="cova-space-actions" data-auth-state={isSignedIn ? "signed-in" : "signed-out"}>
             <span className="cova-space-primary">
@@ -204,7 +204,7 @@ function HeroMobileDossier() {
       <div className="mobile-hero-dossier-head">
         <div>
           <span>COVA / REVIEW 04</span>
-          <strong>Funded account dossier</strong>
+          <strong>Funded account summary</strong>
         </div>
         <small>Sample</small>
       </div>
@@ -212,7 +212,7 @@ function HeroMobileDossier() {
       <div className="mobile-hero-alert">
         <div className="mobile-hero-alert-code">02</div>
         <div>
-          <span>Rule pressure detected</span>
+          <span>Size warning</span>
           <strong>Size increased after a red trade.</strong>
           <p>Three occurrences across the last seven sessions.</p>
         </div>
@@ -226,7 +226,7 @@ function HeroMobileDossier() {
 
       <div className="mobile-hero-next-action">
         <div>
-          <span>Configured review limit</span>
+          <span>Your size limit</span>
           <strong>Size cap: 2 contracts.</strong>
         </div>
         <ArrowUpRight className="h-4 w-4" />

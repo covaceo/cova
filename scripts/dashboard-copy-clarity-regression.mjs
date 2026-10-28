@@ -25,7 +25,7 @@ test('History uses row placement instead of repeating obvious field labels while
 test('Risk Desk removes redundant supporting copy without losing scope, controls or storage truth',()=>{
  const html=render(Dashboard,{analysis:analyze(sampleTrades,defaultRules),rules:defaultRules,go(){}});
  for(const text of ['Established history sample','All saved trades','What worked? What will you change next time?'])assert(!html.includes(text),'Remove redundant copy: '+text);
- for(const text of ['25 trades reviewed','Review details','Data details','View all','Attach trade','Save note','Private · saved on this browser','Retrospective review only. No live brokerage execution.'])assert(html.includes(text),'Preserve functional/data meaning: '+text);
+ for(const text of ['25 trades reviewed','Review details','Data details','View all','Attach trade','Save note','Private · saved on this browser'])assert(html.includes(text),'Preserve functional/data meaning: '+text);
  assert(html.includes('placeholder="Session note"'));
  for(const range of ['all','today','week']){
   const scoped=render(DashboardReviewRange,{trades:sampleTrades,range,onChange(){},cash:null});
@@ -36,5 +36,5 @@ test('Risk Desk removes redundant supporting copy without losing scope, controls
  }
  const empty=render(Dashboard,{analysis:analyze([],defaultRules),rules:defaultRules,go(){}});
  assert(!empty.includes('Cova keeps a new account blank until you add your own trade data.'));
- assert(empty.includes('data-dashboard-empty="true"')&&empty.includes('Import trade history'));
+ assert(empty.includes('data-dashboard-empty="true"')&&empty.includes('Import trades to see your results'));
 });

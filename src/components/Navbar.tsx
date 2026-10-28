@@ -17,8 +17,8 @@ function isProtectedSection(section: Section) {
 const appNav = [
   { id: "dashboard", label: "Risk Desk" },
 
-  { id: "rules", label: "Limits" },
   { id: "coach", label: "Insights" },
+  { id: "rules", label: "Limits" },
   { id: "passport", label: "Passport" },
 ] satisfies { id: Section; label: string }[];
 

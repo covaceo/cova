@@ -134,7 +134,7 @@ export function PassportShareComposer({ face, mode, onModeChange, rank, finish, 
         <p className="passport-share-sr">{mode === 'private' ? 'Ghost hides identity, markets and sensitive stats.' : 'Choose Ghost to hide sensitive stats.'}</p>
       </div>
       <footer className="passport-share-footer">
-        <p className={`passport-share-notice${notice ? ' is-visible' : ''}${noticeError ? ' is-error' : ''}`} role="status" aria-live="polite">{notice || (current?.error ? 'Retry the preview to enable sharing.' : !tile ? 'Preparing a privacy-safe image…' : `${format.width} × ${format.height} · PNG ready`)}</p>
+        <p className={`passport-share-notice${notice ? ' is-visible' : ''}${noticeError ? ' is-error' : ''}`} role="status" aria-live="polite">{notice || (current?.error ? 'Retry the preview to enable sharing.' : !tile ? 'Applying your privacy settings…' : `${format.width} × ${format.height} · PNG ready`)}</p>
         <div className="passport-share-actions">
           <button type="button" disabled={busy} onClick={() => deliver('share')}><span><Share size={23}/></span>Share</button>
           <button type="button" disabled={busy} onClick={() => deliver('copy')}><span>{notice === 'Image copied.' ? <Check size={23}/> : <Copy size={23}/>}</span>Copy image</button>

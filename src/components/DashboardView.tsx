@@ -95,13 +95,13 @@ export function Dashboard({ noteDraftOwner, analysis, rules, go, rithmicSyncAvai
 
         <details className="astra-data-details"><summary>Data details <ChevronDown aria-hidden="true" /></summary>
           <div className="astra-data-content">
-            <p>{netCash ? `Cash report ${shortDate(netCash.startDate)} – ${shortDate(netCash.endDate)} · UTC · End exclusive` : hasTradeHistory ? "Your selected trade history" : "Import trade history to begin your first risk review."}</p>
+            <p>{netCash ? `Cash report ${shortDate(netCash.startDate)} – ${shortDate(netCash.endDate)} · UTC · End exclusive` : hasTradeHistory ? "Your selected trade history" : "Import trades to see your results."}</p>
             <span className="astra-source-label" aria-label={`Review source: ${sourceLabel}`} title={`Review source: ${sourceLabel}`}>{sourceLabel} / {journalReview ? scopedTrades.length : scopedAnalysis.tradeCount} {journalReview ? 'matched rows' : 'trades'}</span>
-            {tradovateOnly && <p data-cash-coverage>{netCash ? `Broker cash movements · ${netCash.startDate} to ${netCash.endDate} exclusive, UTC · Synced ${new Date(netCash.asOf).toLocaleString()}. Funding excluded. Fees are not allocated to individual trades; win rate, trade statistics and discipline remain before fees.` : cash.status === 'unavailable' ? cash.reason : 'Account review uses gross trade results.'}</p>}
+            {tradovateOnly && <p data-cash-coverage>{netCash ? `Broker cash movements · ${netCash.startDate} to ${netCash.endDate} exclusive, UTC · Synced ${new Date(netCash.asOf).toLocaleString()}. Funding excluded. Fees are not allocated to individual trades; win rate, trade statistics and discipline remain before fees.` : cash.status === 'unavailable' ? cash.reason : 'Trade results are before fees.'}</p>}
             {hasTradeHistory && !journalReview && <DashboardStats analysis={scopedAnalysis} cash={cash} tradovateOnly={tradovateOnly} detailsOnly />}
             {hasTradeHistory && !journalReview && <TradeAverageStats trades={analysis.trades} selectedTrades={scopedTrades} detailsOnly />}
             {analysis.trades.some(trade=>trade.manual) && <p>Manual entries are self-reported gross USD results, not broker-verified records. Combined results do not include reconciled account fees. Remove a manual copy if that trade imports later.</p>}
-            {hasTradeHistory && <p>Curve color follows the selected range: red below the displayed $0 P&amp;L line, green above. Colors use the plotted gross/reported or reconciled daily-net basis, not earlier account profits or drawdown from a previous peak.</p>}
+            {hasTradeHistory && <p>Red is below $0 P&amp;L; green is above. Colors follow the selected range and its gross, reported or daily-net basis, not earlier profits or drawdown.</p>}
             {hasTradeHistory && <p>{netCash ? "Daily cumulative · USD · UTC" : "Cumulative gross / reported P&L from the selected trade history."}</p>}
           </div>
         </details>
@@ -112,11 +112,11 @@ export function Dashboard({ noteDraftOwner, analysis, rules, go, rithmicSyncAvai
     {!hasTradeHistory ? <section className="dashboard-empty-state" data-dashboard-empty="true" aria-labelledby="dashboard-empty-title">
       <div className="dashboard-empty-panel">
         <span className="dashboard-empty-icon" aria-hidden="true"><FileUp /></span>
-        <h2 id="dashboard-empty-title">Import trade history to start your review</h2>
+        <h2 id="dashboard-empty-title">Import trades to see your results</h2>
         <button className="dashboard-empty-action" onClick={() => go("import")} type="button">Import trade history <ArrowUpRight aria-hidden="true" /></button>
       </div>
     </section> : <>
-      {journalReview ? <><p className="astra-mini-note">Account accuracy review · Beta · Your saved history is unchanged.</p><JournalHeadlineStats journal={journal} /></> : <div className="astra-stats-panel"><DashboardStats analysis={scopedAnalysis} cash={cash} tradovateOnly={tradovateOnly} /><TradeAverageStats trades={analysis.trades} selectedTrades={scopedTrades} /></div>}
+      {journalReview ? <><p className="astra-mini-note">Data checks · Beta · Your saved history is unchanged.</p><JournalHeadlineStats journal={journal} /></> : <div className="astra-stats-panel"><DashboardStats analysis={scopedAnalysis} cash={cash} tradovateOnly={tradovateOnly} /><TradeAverageStats trades={analysis.trades} selectedTrades={scopedTrades} /></div>}
 
       {hasRithmicSource && <div className="dashboard-attribution-row"><RithmicAttribution compact /></div>}
       <div className="astra-desk-grid">
@@ -147,7 +147,7 @@ export function Dashboard({ noteDraftOwner, analysis, rules, go, rithmicSyncAvai
 
     </>}
     <TradingCalendar key={selectedAccount} trades={analysis.trades} />
-    <footer className="astra-dashboard-footer"><span>Retrospective review only. No live brokerage execution.</span></footer>
+
     {manualOpen && onAddManualTrade && <ManualTradeDialog owner={noteDraftOwner} accounts={manualAccounts} selected={selectedAccount} onSave={onAddManualTrade} onClose={() => setManualOpen(false)} />}
     {!hasTradeHistory && <MiniJournal initialDate={new Date().toLocaleDateString("en-CA")} actions={journalActions} trades={analysis.trades} onOpenTrade={id => { setAttachedTradeId(id); setHistoryOpen(true); }} />}
     {historyOpen && <TradeHistoryDialog attachedTradeId={attachedTradeId} trades={analysis.trades} journalReview={journalReview} onClose={() => setHistoryOpen(false)} />}

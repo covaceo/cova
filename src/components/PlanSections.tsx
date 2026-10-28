@@ -20,7 +20,7 @@ export const planOptions = [
     priceNote: ["limited", "account"],
     badge: "Limited",
     index: "DEMO / 01",
-    description: "For testing Cova with a small sample before committing to a review workflow.",
+    description: "Try Cova with a small set of trades.",
     included: [
       "1 workspace",
       "25 stored trades total",
@@ -70,9 +70,9 @@ export function PlanStrip({ compact = false, currentPlan, go, openAuth, proCheck
       <div aria-hidden="true" className="pricing-showcase-bottom-fade" />
       <div className="pricing-showcase-inner">
         <div className="pricing-showcase-header">
-          <HeadingTag className="pricing-showcase-title">Try the review flow before you pay.</HeadingTag>
+          <HeadingTag className="pricing-showcase-title">Try Cova before you pay.</HeadingTag>
           <p className="pricing-showcase-summary">
-            Start small enough to prove the workflow. Upgrade when Cova becomes part of every session review.
+            Start with 25 trades. Upgrade for unlimited imports and Passport exports.
           </p>
         </div>
 
@@ -204,7 +204,7 @@ export function SiteFooter({ go }: { go: (section: "privacy" | "terms" | "securi
       <footer className="cova-site-footer">
         <InlineRiskDisclosures />
         <div className="cova-site-footer-inner">
-          <span>© 2026 Cova. Built for risk review, not trade signals.</span>
+          <span>© 2026 Cova.</span>
           <div className="cova-site-footer-meta">
             <nav aria-label="Legal and support">
               <a href="#disclosures">Risk disclosures</a>
