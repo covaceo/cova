@@ -62,7 +62,9 @@ import { AuthGate, AuthSheet } from "./components/AuthPanels";
 import { CommunityPage, FeaturesPage, PricingPage, ResourcesPage } from "./components/MarketingPages";
 import { PrivacyPage, SecurityPage, TermsPage } from "./components/LegalPages";
 
-import { Coach, Passport, RulesEngine } from "./components/WorkspaceSections";
+import { Passport } from "./components/WorkspaceSections";
+import { LimitsEditor as RulesEngine } from "./components/LimitsEditor";
+import { InsightsView as Coach } from "./components/InsightsView";
 import { Dashboard } from "./components/DashboardView";
 import { ImportDesk } from "./components/ImportDesk";
 import { PassportPlanSync } from "./components/PassportProgress";
