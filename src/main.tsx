@@ -64,6 +64,10 @@ import "./styles/mobileWorkspace.css";
 import "./styles/dashboardRefinement.css";
 import "./styles/riskDeskPresentation.css";
 import "./styles/riskDeskControls.css";
+import "./styles/limitsInsightsShared.css";
+import "./styles/limitsEditor.css";
+import "./styles/insightsView.css";
+import "./styles/workspaceStatusRefinement.css";
 
 if (navigator.platform.startsWith("Win")) {
   document.documentElement.classList.add("cova-platform-windows");

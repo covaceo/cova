@@ -1,0 +1,30 @@
+/* Shared workspace status: quiet but readable, without a disclosure arrow.
+   The native summary retains keyboard expansion and all storage explanations.
+   Error/setup panels are deliberately unaffected. */
+.oa-dashboard-app .workspace-sync-panel.workspace-sync-compact summary {
+ display:flex;align-items:center;list-style:none;
+ color:#858b95;font:400 12px/20px Inter,Arial,sans-serif;
+ min-height:36px;padding:8px 0;background:transparent;
+}
+.oa-dashboard-app .workspace-sync-panel.workspace-sync-compact summary::marker { content:""; }
+.oa-dashboard-app .workspace-sync-panel.workspace-sync-compact summary::-webkit-details-marker { display:none; }
+.oa-dashboard-app .workspace-sync-panel.workspace-sync-compact summary:hover { color:#b5bfce;text-decoration:none; }
+.oa-dashboard-app .workspace-sync-panel.workspace-sync-compact summary:focus-visible { outline:2px solid #92b7ff;outline-offset:3px;border-radius:4px; }
+.oa-dashboard-app .workspace-sync-panel.workspace-sync-compact .workspace-storage-desktop-label { display:inline; }
+.oa-dashboard-app .workspace-sync-panel.workspace-sync-compact .workspace-storage-mobile-label { display:none; }
+
+/* One editor, not a review dashboard. */
+.oa-dashboard-app .li-page.limits-preview { max-width:880px;margin:14px auto 0; }
+.oa-dashboard-app .limits-preview .limits-layout { grid-template-columns:minmax(0,1fr); }
+.oa-dashboard-app .limits-preview .limits-value { background:rgba(255,255,255,.025);border-color:#343a44; }
+/* Legacy global number-field CSS supplied a dark inner rectangle. */
+.oa-dashboard-app .limits-preview .limits-value input[type="number"] {
+ background:transparent!important;background-image:none!important;box-shadow:none!important;
+ border:0!important;border-radius:0!important;
+}
+.oa-dashboard-app .limits-preview .limits-about { padding:0 4px; }
+.oa-dashboard-app .limits-preview .limits-about>summary { justify-content:flex-start;width:fit-content;color:#aab4c3;gap:8px; }
+@media(max-width:850px) {
+ .oa-dashboard-app .workspace-sync-panel.workspace-sync-compact summary { min-height:44px; }
+ .oa-dashboard-app .li-page.limits-preview { margin-top:8px; }
+}
