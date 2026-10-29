@@ -21,7 +21,7 @@ html:root:has(.astra-dashboard[data-dashboard-visual]) {
       text-shadow:none !important;
       transition:background-color 120ms ease,border-color 120ms ease,color 120ms ease !important;
     }
-    & button:not(:where(.workspace-brand-button,.header-mobile-brand,.workspace-sidebar-link,.astra-rail-account,.cova-profile-trigger,.astra-trade-link,.calendar-day-content,[data-journal-trade-option],[data-journal-saved-date],[data-journal-linked-trade],.recap-backgrounds button)) {
+    & button:not(:where(.workspace-brand-button,.header-mobile-brand,.workspace-sidebar-link,.astra-rail-account,.cova-profile-trigger,.workspace-top-header .operator-mobile-menu-link,.workspace-top-header .operator-mobile-menu-toggle,.cova-profile-mobile .cova-profile-popup button,.astra-trade-link,.calendar-day-content,[data-journal-trade-option],[data-journal-saved-date],[data-journal-linked-trade],.recap-backgrounds button)) {
       display:inline-flex; align-items:center; justify-content:center;
       position:relative; isolation:isolate; box-sizing:border-box;
       min-height:36px !important; height:36px !important;
@@ -112,9 +112,12 @@ html:root:has(.astra-dashboard[data-dashboard-visual]) {
 @media(max-width:850px) {
   html:root:has(.astra-dashboard[data-dashboard-visual]) :is(.oa-dashboard-app .astra-dashboard[data-dashboard-visual], .oa-dashboard-app, dialog, [role="dialog"]) {
     /* Transparent extensions retain 44px vertical hit areas around compact 36px faces. */
-    & button:not(:where(.calendar-day-content,.workspace-brand-button,.header-mobile-brand,.workspace-sidebar-link,.astra-rail-account,.cova-profile-trigger,.astra-trade-link,[data-journal-trade-option],[data-journal-saved-date],[data-journal-linked-trade],.recap-backgrounds button))::after {
+    & button:not(:where(.calendar-day-content,.workspace-brand-button,.header-mobile-brand,.workspace-sidebar-link,.astra-rail-account,.cova-profile-trigger,.workspace-top-header .operator-mobile-menu-link,.workspace-top-header .operator-mobile-menu-toggle,.cova-profile-mobile .cova-profile-popup button,.astra-trade-link,[data-journal-trade-option],[data-journal-saved-date],[data-journal-linked-trade],.recap-backgrounds button))::after {
       content:""; position:absolute; inset:-5px 0; background:transparent; pointer-events:auto;
     }
+    /* Menu/account rows own full targets, not overlapping compact-button extensions. */
+    & .workspace-top-header .operator-mobile-account-actions button { height:44px !important; min-height:44px !important; }
+    & .workspace-top-header .operator-mobile-account-actions button::after { content:none !important; }
     & .astra-header-controls button { padding-inline:8px !important; font-size:12px !important; }
     & .astra-header-controls button svg { width:14px !important; height:14px !important; }
     & .astra-segmented { gap:6px !important; }
@@ -139,4 +142,23 @@ html:root:has(.astra-dashboard[data-dashboard-visual]) .oa-dashboard-app .astra-
 }
 @media(prefers-reduced-motion:reduce) {
   html:root:has(.astra-dashboard[data-dashboard-visual]) :is(.oa-dashboard-app .astra-dashboard[data-dashboard-visual], .oa-dashboard-app, .cova-account-menu-content, dialog, [role="dialog"]) button { transition:none !important; }
+}
+/* Workspace navigation owns its row layout on every route, not just Risk Desk.
+   Keep public navigation and the approved desktop/control layers unchanged. */
+@media(max-width:850px) {
+  .oa-dashboard-app .workspace-top-header .operator-mobile-menu-link {
+    display:flex; align-items:center; justify-content:flex-start;
+    min-height:48px; height:auto; margin:0 0 4px; padding:12px;
+    border:0 !important; border-radius:6px !important; text-align:left;
+  }
+  .oa-dashboard-app .workspace-top-header .operator-mobile-menu-link-active {
+    background:#ffffff0d !important; color:#ededed !important;
+  }
+  .oa-dashboard-app .workspace-top-header .operator-mobile-menu-panel button:focus-visible,
+  .oa-dashboard-app .workspace-top-header .operator-mobile-menu-toggle:focus-visible {
+    outline:2px solid #92b7ff !important; outline-offset:-3px !important; box-shadow:none !important;
+  }
+  .oa-dashboard-app .workspace-top-header .operator-mobile-account-actions button {
+    min-height:44px; border-radius:6px !important;
+  }
 }

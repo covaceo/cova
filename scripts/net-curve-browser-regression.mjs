@@ -51,7 +51,21 @@ try{
   await send('Input.dispatchMouseEvent',{type:'mouseMoved',x,y});await wait(`Boolean(document.querySelector('.astra-chart-tooltip'))`);await contained();
   await send('Input.dispatchMouseEvent',{type:'mousePressed',x,y,button:'left',clickCount:1});await send('Input.dispatchMouseEvent',{type:'mouseReleased',x,y,button:'left',clickCount:1});
   await wait(`document.querySelector('.astra-chart-main').dataset.chartPinned==='true'`);await key('Escape',27);
-  if(mobile){await send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:box.x+12,y}]});await send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x,y}]});await wait(`Boolean(document.querySelector('.astra-chart-tooltip'))`);await contained();await send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});}
+  if(mobile){
+   // Approved touch contract: move is not hover; completed taps pin/toggle.
+   const tap=async()=>{await send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y}]});await send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});};
+   const cleared=()=>evaluate(`document.querySelector('.astra-chart-main').dataset.chartSelected===''&&document.querySelector('.astra-chart-main').dataset.chartPinned==='false'&&!document.querySelector('.astra-chart-tooltip')`);
+   await send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:box.x+12,y}]});await send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x,y}]});
+   await sleep(80);assert(await cleared(),'finger movement must not create hover detail');
+   await send('Input.dispatchTouchEvent',{type:'touchCancel',touchPoints:[]});await tap();await wait(`document.querySelector('.astra-chart-main').dataset.chartPinned==='true'&&Boolean(document.querySelector('.astra-chart-tooltip'))`);
+   await contained();
+   assert((await evaluate(`document.querySelector('.astra-chart-tooltip').innerText`)).includes('Tap again to dismiss'));
+   await tap();await wait(`!document.querySelector('.astra-chart-tooltip')`);assert(await cleared(),'same-point touch dismisses both selection and pin');
+   await tap();await wait(`Boolean(document.querySelector('.astra-chart-tooltip'))`);
+   await send('Input.dispatchMouseEvent',{type:'mousePressed',x:2,y:2,button:'left',clickCount:1});await send('Input.dispatchMouseEvent',{type:'mouseReleased',x:2,y:2,button:'left',clickCount:1});
+   await wait(`!document.querySelector('.astra-chart-tooltip')`);assert(await cleared(),'outside pointer dismisses without requiring Escape');
+   await tap();await wait(`document.querySelector('.astra-chart-main').dataset.chartPinned==='true'`);
+  }
   await evaluate(`document.querySelector('#range').click()`);await wait(`document.querySelector('.astra-chart-main').dataset.chartSelected===''`);
   receipts.push({name,width,height,points:points.length,keyboard:true,pointer:true,touch:mobile,tooltipContained:true,rangeReset:true});
  }

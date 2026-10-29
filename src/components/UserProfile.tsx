@@ -95,12 +95,19 @@ export function ProfileMenu({ signOut, deleteAccount, manageAccounts, mobile = f
   useIdentityEffect(() => { setOpen(false); setDialog(null); setNotice(""); }, [profile.identity]);
   useEffect(() => {
     if (!open) return;
-    const dismiss = (event: PointerEvent) => { if (!root.current?.contains(event.target as Node)) setOpen(false); };
-    document.addEventListener("pointerdown", dismiss);
-    return () => document.removeEventListener("pointerdown", dismiss);
-  }, [open]);
+    // On mobile the popup is in flow. Closing on pointerdown would move the
+    // following account actions before their click can reach the pressed button.
+    const dismiss = (event: MouseEvent) => { if (!root.current?.contains(event.target as Node)) setOpen(false); };
+    const outsideEvent = mobile ? "click" : "pointerdown";
+    document.addEventListener(outsideEvent, dismiss);
+    return () => document.removeEventListener(outsideEvent, dismiss);
+  }, [open, mobile]);
   const name = profile.profile ? `@${profile.profile.username}` : profile.loading ? "Loading profile…" : "Set username";
   return <div className={`cova-profile ${mobile ? "cova-profile-mobile" : ""}`} ref={root}>
+    <button type="button" ref={trigger} className="cova-profile-trigger" aria-label="Profile menu" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(value => !value)} onKeyDown={event => {
+      if (event.key === "Escape") setOpen(false);
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") { event.preventDefault(); setOpen(true); requestAnimationFrame(() => root.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus()); }
+    }}><Avatar data={profile.profile?.avatar_data || null} /><span>{name}</span><ChevronDown aria-hidden="true" /></button>
     <div className="cova-profile-popup" role="menu" aria-label="Profile actions" hidden={!open} onKeyDown={event => {
       if (event.key === "Escape") { setOpen(false); trigger.current?.focus(); }
       if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
@@ -114,10 +121,6 @@ export function ProfileMenu({ signOut, deleteAccount, manageAccounts, mobile = f
       <button type="button" role="menuitem" onClick={() => { setOpen(false); setDialog("settings"); }}><Settings aria-hidden="true" />Settings</button>
       <button type="button" role="menuitem" aria-label="Sign out" onClick={() => { setOpen(false); signOut(); }}><LogOut aria-hidden="true" />Sign out</button>
     </div>
-    <button type="button" ref={trigger} className="cova-profile-trigger" aria-label="Profile menu" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(value => !value)} onKeyDown={event => {
-      if (event.key === "Escape") setOpen(false);
-      if (event.key === "ArrowDown" || event.key === "ArrowUp") { event.preventDefault(); setOpen(true); requestAnimationFrame(() => root.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus()); }
-    }}><Avatar data={profile.profile?.avatar_data || null} /><span>{name}</span><ChevronDown aria-hidden="true" /></button>
     {notice && <span className="cova-profile-notice" role="status">{notice}</span>}
     {dialog && <ProfileDialog key={dialog} mode={dialog} email={profile.email || email} deleteAccount={deleteAccount} signOut={signOut} manageAccounts={manageAccounts} close={(saved = false) => { setDialog(null); if (saved) setNotice("Profile saved"); requestAnimationFrame(() => trigger.current?.focus()); }} />}
   </div>;
