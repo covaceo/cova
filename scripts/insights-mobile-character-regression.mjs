@@ -183,10 +183,10 @@ try{
   check(width+' all edge setups accessible',await p.locator('[data-open-setup]:visible').count()===9);
   for(const name of ['Missing','Sparse','Nonfinite','NaN'])check(width+' no invented R '+name,await p.locator(`[data-open-setup="${name}"] [data-r-bar]`).count()===0);
   check(width+' invalid money and rate unavailable',!(await p.locator('[data-open-setup="Nonfinite"]').innerText()).includes('NaN')&&!(await p.locator('[data-open-setup="Nonfinite"]').innerText()).includes('Infinity'));
-  check(width+' coverage caveats retained',await p.locator('[data-planned-risk-coverage]').isVisible()&&await p.locator('[data-legacy-risk-caveat]').isVisible());
+  await p.locator('[data-setup-method] summary').click();check(width+' coverage caveats retained in calculation disclosure',await p.locator('[data-planned-risk-coverage]').isVisible()&&await p.locator('[data-legacy-risk-caveat]').isVisible());
   await p.locator('[data-open-setup="Tie A"]').click();check(width+' missing note honest',await p.locator('[data-trade-note]').innerText()==='No note on this trade.');
   if(phone)await p.getByRole('button',{name:'Back to setups',exact:true}).click();
-  await p.locator('[data-open-setup="Missing"]').click();check(width+' null planned risk honest',(await p.locator('.ip-note > .ip-caption').innerText()).includes('Planned risk: not provided'));
+  await p.locator('[data-open-setup="Missing"]').click();await p.locator('[data-trade-details] summary').click();check(width+' null planned risk honest',(await p.locator('[data-trade-details]').innerText()).includes('Planned risk: not provided'));
   // Change accounts while detail is mounted; Back must not target a detached old setup.
   await p.evaluate(()=>window.showHistory('New account'));await p.waitForFunction(()=>document.querySelector('[data-trade-note]')?.textContent.startsWith('New account note'));
   if(phone){await p.getByRole('button',{name:'Back to setups',exact:true}).click();check(width+' stale opener falls back to current selected setup',await p.locator('[data-open-setup][aria-pressed="true"]').evaluate(e=>document.activeElement===e));}

@@ -42,7 +42,7 @@
     "test:score": "node --test scripts/performance-score-regression.mjs scripts/performance-score-preservation.mjs && node scripts/performance-score-browser.mjs",
     "test:risk": "node scripts/risk-regression.mjs && node --test scripts/missing-risk-regression.mjs scripts/performance-score-regression.mjs scripts/performance-score-preservation.mjs",
     "test:copy-cleanup": "node --test scripts/copy-analysis-regression.mjs scripts/copy-insights-regression.mjs scripts/copy-preservation-regression.mjs scripts/copy-public-regression.mjs scripts/copy-workspace-regression.mjs",
-    "test:insights": "node --test scripts/insights-character-regression.mjs scripts/insights-playbook-regression.mjs scripts/insights-nav-order-regression.mjs scripts/limits-insights-refinement-regression.mjs && node scripts/insights-interaction-regression.mjs && node scripts/insights-mobile-character-regression.mjs",
+    "test:insights": "node --test scripts/insights-character-regression.mjs scripts/insights-playbook-regression.mjs scripts/insights-nav-order-regression.mjs scripts/limits-insights-refinement-regression.mjs && node scripts/insights-interaction-regression.mjs && node scripts/insights-mobile-character-regression.mjs && node scripts/insights-sparse-density-regression.mjs",
     "test:ui-content": "npm run test:copy-cleanup && npm run test:insights && node --test scripts/accounts-cleanup-regression.mjs && node scripts/accounts-browser-regression.mjs && node scripts/oa-review-contract-regression.mjs && node scripts/limits-insights-browser-regression.mjs && node scripts/ui-content-regression.mjs",
     "test:dashboard-shell": "node scripts/dashboard-left-rail-regression.mjs",
     "test:dashboard-palette": "node scripts/dashboard-cobalt-palette-regression.mjs",
