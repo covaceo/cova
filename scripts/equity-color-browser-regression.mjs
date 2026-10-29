@@ -46,7 +46,20 @@ for(const[name,width,height,mobile]of[['desktop',1440,1000,false],['laptop',1280
 
   await evaluate(`document.querySelector('.astra-chart-svg').scrollIntoView({block:'center',behavior:'instant'})`);const box=await evaluate(`(()=>{const b=document.querySelector('.astra-chart-svg').getBoundingClientRect();return{x:b.x,y:b.y,w:b.width,h:b.height}})()`);const x=box.x+box.w-70,y=box.y+box.h/2;
   await send('Input.dispatchMouseEvent',{type:'mouseMoved',x,y});await wait(`Boolean(document.querySelector('.astra-chart-tooltip'))`);assert(await contained());await key('Escape',27);
-  if(mobile){await send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:box.x+12,y}]});await send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x,y}]});await wait(`Boolean(document.querySelector('.astra-chart-tooltip'))`);assert(await contained());await send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await key('Escape',27);}
+  if(mobile){
+   // Approved touch contract: move is not hover; completed taps pin/toggle.
+   const tap=async()=>{await send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y}]});await send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});};
+   const cleared=()=>evaluate(`document.querySelector('.astra-chart-main').dataset.chartSelected===''&&document.querySelector('.astra-chart-main').dataset.chartPinned==='false'&&!document.querySelector('.astra-chart-tooltip')`);
+   await send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:box.x+12,y}]});await send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x,y}]});
+   await sleep(80);assert(await cleared(),'finger movement must not create hover detail');
+   await send('Input.dispatchTouchEvent',{type:'touchCancel',touchPoints:[]});await tap();await wait(`document.querySelector('.astra-chart-main').dataset.chartPinned==='true'&&Boolean(document.querySelector('.astra-chart-tooltip'))`);
+   assert(await contained());
+   assert((await evaluate(`document.querySelector('.astra-chart-tooltip').innerText`)).includes('Tap again to dismiss'));
+   await tap();await wait(`!document.querySelector('.astra-chart-tooltip')`);assert(await cleared(),'same-point touch dismisses both selection and pin');
+   await tap();await wait(`Boolean(document.querySelector('.astra-chart-tooltip'))`);
+   await send('Input.dispatchMouseEvent',{type:'mousePressed',x:2,y:2,button:'left',clickCount:1});await send('Input.dispatchMouseEvent',{type:'mouseReleased',x:2,y:2,button:'left',clickCount:1});
+   await wait(`!document.querySelector('.astra-chart-tooltip')`);assert(await cleared(),'outside pointer dismisses without requiring Escape');
+  }
   for(const index of [1,2,3]){await evaluate(`document.querySelector('.astra-segmented').scrollIntoView({block:'center',behavior:'instant'})`);await click('.astra-segmented button:nth-child('+index+')');await wait(`document.querySelector('.astra-segmented button:nth-child(${index})').getAttribute('aria-pressed')==='true'`);const all=mode==='session'?[400,100,-180,330]:deltas;const visible=index===3?all:index===1?(mode==='session'?all.slice(1):all.slice(-1)):(mode==='session'?all.slice(1):all.slice(-3));const cumulative=[0];for(const value of visible)cumulative.push(cumulative.at(-1)+value);const expectedTone=cumulative.at(-1)<0?'loss':cumulative.at(-1)>0?'profit':'neutral';assert.equal(await evaluate(`document.querySelector('.astra-chart-main').dataset.equityTone`),expectedTone);const actualDots=await evaluate(`[...document.querySelectorAll('.astra-observation')].map(n=>n.getAttribute('fill'))`);assert.deepEqual(actualDots,cumulative.map(v=>v<0?'#e57c89':v>0?'#52c79a':'#4f7dff'));const geometry=await evaluate(`(()=>{const g=document.querySelector('[data-equity-line-gradient]'),z=document.querySelector('.astra-chart-zero');return{zero:z?+z.getAttribute('y1'):null,boundary:+g.getAttribute('y1')+(+g.getAttribute('y2')-+g.getAttribute('y1'))*(+g.firstElementChild.getAttribute('offset'))}})()`);if(cumulative.some(v=>v<0)&&cumulative.some(v=>v>0))assert(Math.abs(geometry.zero-geometry.boundary)<1e-8,'Color crosses at the displayed zero line');await capture(name+'-'+mode+'-range-'+index,await panelClip());assert.equal(await evaluate(`document.querySelector('.astra-chart-main').dataset.chartSelected`),'');}
  }
 }

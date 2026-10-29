@@ -69,6 +69,12 @@ html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-vis
   html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .calendar-day-content { min-height:56px; padding:7px 1px; gap:8px; }
   html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .calendar-pnl { font-size:12px; }
 }
+@media(max-width:620px) {
+  /* Keep phone metric labels with their values, not at opposite row edges. */
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] [data-astra-stat="drawdown"] { display:block; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] [data-astra-stat="drawdown"] .astra-stat-value { margin:4px 0 0; text-align:left; }
+  html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-average-cell { display:grid; grid-template-columns:minmax(0,1fr); grid-template-rows:auto auto; gap:4px; align-items:start; justify-items:start; }
+}
 @media(min-width:621px) and (max-width:850px) {
   html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-stat-strip { grid-template-columns:minmax(0,1.5fr) repeat(3,minmax(0,1fr)); grid-template-rows:auto; column-gap:18px; align-items:start; padding:12px 0; }
   html:has(.astra-dashboard) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .astra-stat-cell,

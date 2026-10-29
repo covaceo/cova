@@ -16,6 +16,7 @@ export function AstraEquityCurve({ points, basis = "trades", accountPnlCents = n
   const tone = result === null || result === 0 ? "neutral" : result < 0 ? "loss" : "profit";
 
   const svgRef = useRef<SVGSVGElement>(null);
+  const tooltipRef = useRef<HTMLOutputElement>(null);
   const [width, setWidth] = useState(680);
   const chart = useMemo(() => buildEquityGeometry(points, width), [points, width]);
   useEffect(() => {
@@ -30,8 +31,32 @@ export function AstraEquityCurve({ points, basis = "trades", accountPnlCents = n
   const gradient = `astra-equity-${useId().replace(/:/g, "")}`;
   const [selected, setSelected] = useState<number | null>(null);
   const [pinned, setPinned] = useState(false);
-  useEffect(() => { setSelected(null); setPinned(false); }, [points]);
+  const pointerType = useRef("");
+  const [touchSelection, setTouchSelection] = useState(false);
+  useEffect(() => { setSelected(null); setPinned(false); }, [points, basis]);
+  useEffect(() => {
+    function dismissOutside(event: globalThis.PointerEvent) {
+      if (event.target instanceof Node && !svgRef.current?.contains(event.target)) {
+        setSelected(null); setPinned(false);
+      }
+    }
+    document.addEventListener("pointerdown", dismissOutside, true);
+    return () => document.removeEventListener("pointerdown", dismissOutside, true);
+  }, []);
   const active = selected === null ? null : chart.points[Math.min(selected, chart.points.length - 1)];
+  const tooltipTop = active ? Math.max(5, Math.min(25, active.y / chart.height * 100 - 20)) : 5;
+  useEffect(() => {
+    const tooltip = tooltipRef.current;
+    const parent = tooltip?.offsetParent;
+    if (!active || !tooltip || !(parent instanceof HTMLElement)) return;
+    const rect = parent.getBoundingClientRect();
+    const viewport = window.visualViewport;
+    const top = (viewport?.offsetTop ?? 0) + 8;
+    const bottom = (viewport?.offsetTop ?? 0) + (viewport?.height ?? window.innerHeight) - 8;
+    const preferred = rect.top + rect.height * tooltipTop / 100;
+    // Keep the existing chart placement unless a partially visible plot clips the card.
+    tooltip.style.top = `${Math.max(top, Math.min(preferred, bottom - tooltip.offsetHeight)) - rect.top}px`;
+  }, [active, tooltipTop, touchSelection]);
   const last = chart.points[chart.points.length - 1];
   // Color and axis share the selected range's displayed $0 P&L baseline.
   // Account evidence gates availability only; older profits cannot recolor this range.
@@ -60,6 +85,7 @@ export function AstraEquityCurve({ points, basis = "trades", accountPnlCents = n
   function onKeyDown(event: KeyboardEvent<SVGSVGElement>) {
     if (!["ArrowLeft", "ArrowRight", "Home", "End", "Escape", "Enter", " "].includes(event.key)) return;
     event.preventDefault();
+    setTouchSelection(false);
     if (event.key === "Escape") { setSelected(null); setPinned(false); return; }
     if (event.key === "Enter" || event.key === " ") { setSelected(selected ?? chart.points.length - 1); setPinned(!pinned); return; }
     setPinned(true);
@@ -68,8 +94,21 @@ export function AstraEquityCurve({ points, basis = "trades", accountPnlCents = n
   return <div className="astra-chart-main" data-equity-tone={tone} data-equity-history={historyTone} style={{ "--astra-equity-accent": linePaint } as CSSProperties} data-chart-selected={selected ?? ""} data-chart-pinned={pinned}>
     <svg ref={svgRef} className="astra-chart-svg" style={{ touchAction: "pan-y" }} viewBox={`0 0 ${chart.width} ${chart.height}`} role="img" tabIndex={0}
       aria-label={`${dailyNet ? "Daily cumulative net P&L" : "Cumulative reported P&L equity curve"}, ending ${money(last.value)}. Curve interpolated between recorded results. ${result === null ? "Account color unavailable." : "Red below the displayed zero P&L baseline for the selected range; green above. Dots mark recorded results."} Arrow keys explore ${dailyNet ? "days" : "trades"}, Enter pins a point, Escape clears.`}
-      onKeyDown={onKeyDown} onPointerMove={event => { if (!pinned) setSelected(pointIndex(event)); }} onPointerLeave={() => { if (!pinned) setSelected(null); }}
-      onClick={event => { const index = pointIndex(event); setSelected(index); setPinned(selected === index ? !pinned : true); }}>
+      onPointerDown={event => { pointerType.current = event.pointerType; }}
+      onPointerCancel={() => { setSelected(null); setPinned(false); }}
+      onKeyDown={onKeyDown}
+      onPointerMove={event => {
+        if (event.pointerType !== "touch" && !pinned) { setTouchSelection(false); setSelected(pointIndex(event)); }
+      }}
+      onPointerLeave={event => { if (event.pointerType !== "touch" && !pinned) setSelected(null); }}
+      onClick={event => {
+        const index = pointIndex(event);
+        const touch = pointerType.current === "touch";
+        setTouchSelection(touch);
+        // Touch has no hover to leave: a second tap must clear both states.
+        if (touch && selected === index) { setSelected(null); setPinned(false); return; }
+        setSelected(index); setPinned(selected === index ? !pinned : true);
+      }}>
       <defs>
         <linearGradient id={`${gradient}-line`} data-equity-line-gradient="true" gradientUnits="userSpaceOnUse" x1="0" y1={chart.top} x2="0" y2={chart.height - chart.bottom}>
           <stop offset={boundary} stopColor="#52c79a" /><stop offset={boundary} stopColor="#e57c89" />
@@ -89,12 +128,12 @@ export function AstraEquityCurve({ points, basis = "trades", accountPnlCents = n
 
       {active && <g aria-hidden="true"><line x1={active.x} x2={active.x} y1={chart.top} y2={chart.height - chart.bottom} className="astra-crosshair" /><circle cx={active.x} cy={active.y} r="4" fill="#e8eeff" /></g>}
     </svg>
-    {active && <output className="astra-chart-tooltip" aria-live="polite" style={{ left: `clamp(95px, ${active.x / chart.width * 100}%, calc(100% - 95px))`, top: `${Math.max(5, Math.min(25, active.y / chart.height * 100 - 20))}%` }}>
+    {active && <output ref={tooltipRef} className="astra-chart-tooltip" aria-live="polite" style={{ left: `clamp(95px, ${active.x / chart.width * 100}%, calc(100% - 95px))`, top: `${tooltipTop}%` }}>
       <span>{active.label === "Start" ? "Range start · $0 P&L" : dailyNet ? `${dateLabel(active.label)} · UTC` : `Trade ${selected} · ${active.label}`}</span>
       <strong>{active.label === "Start" ? money(0) : signedMoney(selectedDelta)}</strong>
       {active.label !== "Start" && <small>{dailyNet ? "Day net" : "Trade P&L"}</small>}
       <small>{dailyNet ? "Cumulative net" : "Cumulative P&L"} {signedMoney(active.value)}</small>
-      <small>{pinned ? "Pinned · Escape to clear" : "Click to pin"}</small>
+      <small>{touchSelection ? "Tap again to dismiss" : pinned ? "Pinned · Escape to clear" : "Click to pin"}</small>
     </output>}
   </div>;
 }
