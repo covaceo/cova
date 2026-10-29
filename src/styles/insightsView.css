@@ -9,7 +9,7 @@
 .insights-preview.li-page .ip-question[aria-pressed="true"] { color:var(--ip-ink); border-bottom-color:var(--ip-accent); }
 .insights-preview.li-page .ip-question:hover { color:var(--ip-ink); }
 .insights-preview.li-page .ip-workbench { display:grid; gap:16px; align-items:start; }
-.insights-preview.li-page .ip-workbench:is([data-question="working"],[data-question="tripping"]) { grid-template-columns:minmax(0,1.35fr) minmax(0,1fr); }
+.insights-preview.li-page .ip-workbench[data-question="working"] { grid-template-columns:minmax(0,1.35fr) minmax(0,1fr); }
 .insights-preview.li-page .ip-workbench > :is(article,.ip-context) { min-width:0; padding:20px; border:1px solid var(--ip-line); border-radius:8px; background:var(--ip-surface); box-shadow:none; }
 .insights-preview.li-page .ip-setup-finding { margin-top:6px; color:var(--ip-muted); font-size:13px; }
 .insights-preview.li-page .ip-setup-finding strong { color:var(--ip-ink); font-weight:500; }

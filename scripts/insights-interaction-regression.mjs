@@ -66,11 +66,11 @@ try{
  check('Free gates the Pro summary, not the finding',await page.locator('[data-insight="status"]').count()===0&&await page.locator('[data-insight="finding"]').isVisible());
  await page.getByRole('button',{name:'Unlock Pro',exact:true}).click();check('upgrade action calls the real supplied callback',await page.evaluate(()=>window.upgraded===true));
  await page.getByRole('button',{name:'What’s working?',exact:true}).click();check('Free retains setup comparison',await page.locator('[data-insight="setups"]').isVisible());
- await page.evaluate(()=>window.showHistory('sample','free','missing'));await page.locator('[data-planned-risk-coverage]').waitFor();
+ await page.evaluate(()=>window.showHistory('sample','free','missing'));await page.locator('[data-setup-method] summary').click();await page.locator('[data-planned-risk-coverage]').waitFor();
  check('missing planned risk renders no invented R marks',await page.locator('[data-r-bar]').count()===0);
- await page.evaluate(()=>window.showHistory('sample','free','disabled'));await page.locator('[data-rules-unchecked]').waitFor();
- check('disabled rules explicitly remain unchecked',(await page.locator('[data-rules-unchecked]').innerText()).includes('have not been checked'));
- await page.evaluate(()=>window.showHistory('A'));await page.locator('[data-open-setup="A"]').waitFor();await page.locator('[data-open-setup="A"]').click();
+ await page.evaluate(()=>window.showHistory('sample','free','disabled'));await page.getByRole('button',{name:'What’s tripping me up?',exact:true}).click();
+ check('disabled rules explicitly remain unchecked',(await page.locator('.ip-finding-statement').innerText())==='No enabled limits to check.'&&(await page.locator('[data-limit-evidence] summary').innerText()).includes('0 of 0 checked'));
+ await page.getByRole('button',{name:'What’s working?',exact:true}).click();await page.evaluate(()=>window.showHistory('A'));await page.locator('[data-open-setup="A"]').waitFor();await page.locator('[data-open-setup="A"]').click();
  await page.evaluate(()=>window.showHistory('B'));await page.waitForFunction(()=>document.querySelector('[data-trade-note]')?.textContent.startsWith('B note '));
  check('account/history update resolves stale setup and trade selections',await page.locator('[data-open-setup][aria-pressed="true"]').count()===1);
  await page.locator('.ip-note-filters select').selectOption({label:'All setups'});await page.evaluate(()=>window.showHistory('C'));await page.waitForFunction(()=>document.querySelector('[data-trade-note]')?.textContent.startsWith('C note '));
@@ -87,8 +87,8 @@ try{
  await page.evaluate(()=>window.showHistory('Small wins','pro','info-breach'));
  await page.getByRole('button',{name:'What’s tripping me up?',exact:true}).click();
  check('informational breach fixture retains actual ready model semantics',await page.evaluate(()=>{const a=window.fixture.analysis,s=a.ruleStatuses.find(s=>s.rule.metric==='minAvgR');return a.tradeCount===3&&Math.abs(a.avgR-.05)<1e-10&&s.rule.enabled&&s.rule.limit===.1&&s.rule.severity==='info'&&s.evaluated&&s.breached&&a.nextSessionBrief.status==='ready';}));
- await page.getByRole('button',{name:'Review details',exact:true}).click();await page.locator('[data-discipline-details]').waitFor();
- report.readyLabels={insights:await page.locator('[data-insight="status"] > .li-muted').innerText(),dashboard:await page.locator('[data-dashboard-brief] .inline-flex').first().innerText(),discipline:await page.locator('.oa-next-review > span').innerText()};
+ await page.locator('[data-review-context] summary').click();await page.getByRole('button',{name:'Review details',exact:true}).click();await page.locator('[data-discipline-details]').waitFor();
+ report.readyLabels={insights:await page.locator('[data-insight="status"] > .ip-detail-body > .li-muted').first().innerText(),dashboard:await page.locator('[data-dashboard-brief] .inline-flex').first().innerText(),discipline:await page.locator('.oa-next-review > span').innerText()};
  check('all three ready displays are neutral, never an all-limits-passed claim: '+JSON.stringify(report.readyLabels),Object.values(report.readyLabels).every(label=>label==='Summary ready'));
  check('ready display correction leaves model and trade inputs unchanged',await page.evaluate(()=>JSON.stringify({trades:window.fixture.trades,analysis:window.fixture.analysis})===window.fixture.held));
  await page.getByRole('button',{name:'Close review details',exact:true}).click();

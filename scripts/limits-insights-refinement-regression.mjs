@@ -51,7 +51,10 @@ test('Free keeps setup comparison and actual notes; the status summary remains e
 test('empty, missing-risk and disabled-rule states remain honest',()=>{
  assert.match(html(InsightsView,props([])),/data-insights-empty/);
  const s=html(InsightsView,props(sampleTrades.map(t=>({...t,risk:0,riskStatus:'missing'}))));assert.match(s,/data-planned-risk-coverage/);assert.doesNotMatch(s,/data-r-eligible="true"/);
- assert.match(html(InsightsView,props(sampleTrades,defaultRules.map(r=>({...r,enabled:false})))),/No enabled limits/);
+ const disabled=props(sampleTrades,defaultRules.map(r=>({...r,enabled:false})));
+ assert.equal(disabled.analysis.ruleStatuses.filter(s=>s.rule.enabled).length,0);
+ assert.doesNotMatch(html(InsightsView,disabled),/No enabled limits|data-rules-unchecked|No breaches found/);
+ assert.match(read('src/components/InsightsView.tsx'),/!enabled\.length\s*\? "No enabled limits to check\."/);
 });
 test('browser CSS removes nested number fills and keeps native disclosure usable',async()=>{
  const b=await chromium.launch({channel:'chrome',headless:true});try{const p=await b.newPage();const css=['workspaceStorage','mobileWorkspace','limitsInsightsShared','limitsEditor','workspaceStatusRefinement'].map(n=>read(`src/styles/${n}.css`)).join('\n');

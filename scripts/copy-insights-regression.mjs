@@ -12,10 +12,12 @@ test('Insights removes defensive boilerplate rather than replacing it with sloga
  assert.doesNotMatch(source,/Historical review|historical review|recorded rows|risk-provided rows|Model evidence|Model state:|nothing is saved or inferred|Leave the motive unknown|No story to invent|There’s more here than the P&L|A note is a clue/);
  assert.doesNotMatch(render(analyze(sampleTrades,defaultRules)),/not a trade signal|historical review/i);
 });
-test('Insights copy cleanup preserves uncertain R, missing risk and unchecked limit warnings',()=>{
+test('Insights preserves uncertain R and local missing-risk coverage without global limit warnings',()=>{
  const a=analyze(sampleTrades.map(t=>({...t,risk:0,riskStatus:'missing'})),defaultRules.map(r=>({...r,enabled:false})));
  const html=render(a);
- assert.match(html,/data-planned-risk-coverage/);assert.match(html,/data-rules-unchecked/);
- assert.doesNotMatch(html,/data-r-bar=/);assert.match(html,/No enabled limits/);
+ assert.match(html,/<details[^>]*data-setup-method[^>]*><summary>How R is calculated[\s\S]*data-planned-risk-coverage/);
+ assert.doesNotMatch(html,/data-r-bar=|data-rules-unchecked|No enabled limits/);
+ assert.equal(a.ruleStatuses.filter(s=>s.rule.enabled).length,0);
+ assert.match(readFileSync('src/components/InsightsView.tsx','utf8'),/!enabled\.length\s*\? "No enabled limits to check\."/);
  assert.match(html,/Share Risk Passport/);
 });

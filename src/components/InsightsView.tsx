@@ -28,13 +28,13 @@ function Evidence({ lines }: { lines: string[] }) {
   return <ul className="ip-evidence-list">{lines.map((line, index) => <li key={`${index}-${line}`}>{line}</li>)}</ul>;
 }
 
-function SetupComparison({ rows, label, scale, selected, onSelect }: { rows: Setup[]; label: string; scale: number; selected: string | null; onSelect: (name: string, opener: HTMLButtonElement) => void }) {
+function SetupComparison({ rows, label, scale, selected, legacySetups, onSelect }: { rows: Setup[]; label: string; scale: number; selected: string | null; legacySetups: Set<string>; onSelect: (name: string, opener: HTMLButtonElement) => void }) {
   return <div className="ip-comparison" role="group" aria-label={label}>
     <div className="ip-r-axis" data-r-axis aria-label={`Average R scale: minus ${scale} to plus ${scale} R`}><span>−{scale}R</span><span>0R</span><span>+{scale}R</span></div>
     {rows.map((setup) => <button key={setup.name} type="button" className="ip-setup-choice" aria-pressed={selected === setup.name} aria-controls="ip-setup-evidence" data-setup-row data-r-eligible={eligible(setup)} data-open-setup={setup.name} onClick={event => onSelect(setup.name, event.currentTarget)}>
       <span className="ip-setup-identity"><strong>{setup.name || "Untagged"}</strong><span className="ip-r-value" data-negative={eligible(setup) && setup.avgR! < 0}>{eligible(setup) ? rValue(setup.avgR) : <span aria-label="Average R unavailable">—</span>}</span></span>
       <span className="ip-r-track" aria-hidden="true">{eligible(setup) && <i data-r-bar={setup.avgR} style={{ width: `${Math.abs(setup.avgR!) / scale * 50}%`, left: `${setup.avgR! < 0 ? 50 - Math.abs(setup.avgR!) / scale * 50 : 50}%` }} />}</span>
-      <span className="ip-setup-metrics"><span>{setup.count} rows · {setup.riskCount} with risk{!eligible(setup) && <span className="ip-row-note">{setup.riskCount < 3 ? "Needs 3 rows for R" : "R unavailable"}</span>}</span><span>P&amp;L <b>{money(setup.pnl)}</b></span><span>Win <b>{finite(setup.winRate) ? formatPercent(setup.winRate) : "—"}</b></span></span>
+      <span className="ip-setup-metrics"><span>{setup.riskCount}/{setup.count} with planned risk{!eligible(setup) && <span className="ip-row-note">{setup.riskCount < 3 ? "R needs 3" : "R unavailable"}</span>}{legacySetups.has(setup.name) && <span className="ip-row-note">Includes unverified risk</span>}</span><span>P&amp;L <b>{money(setup.pnl)}</b></span><span>Win <b>{finite(setup.winRate) ? formatPercent(setup.winRate) : "—"}</b></span></span>
     </button>)}
   </div>;
 }
@@ -125,20 +125,19 @@ export function InsightsView({ analysis, entitlements, go, upgradeToPro, account
     ?? analysis.breaches[0];
   const rScale = Math.ceil(ranked.reduce((max, setup) => Math.max(max, Math.abs(setup.avgR!)), 1) * 2) / 2;
   const setups = [...ranked, ...analysis.bySetup.filter((setup) => !eligible(setup))];
+  const legacySetups = new Set(analysis.trades.filter(trade => trade.id.startsWith("csv-") && trade.riskStatus === undefined && finite(trade.risk) && trade.risk > 0).map(trade => trade.setup));
   const best = ranked[0];
   const tied = best ? ranked.filter((setup) => setup.avgR === best.avgR).length > 1 : false;
   const setupFinding = ranked.length > 1 && best
     ? `${best.name || "Untagged"}: ${rValue(best.avgR)}, ${tied ? "joint-highest" : "highest"} average R across ${ranked.length} eligible setups.`
     : best
-      ? `${best.name || "Untagged"} is the only setup with 3+ records with planned risk. No cross-setup R comparison yet.`
-      : "Each setup needs at least 3 records with planned risk to compare R.";
-  const finding = breach?.summary ?? (best ? setupFinding : !enabled.length
+      ? "Only one setup has enough planned risk to compare R."
+      : "Not enough planned risk to compare R.";
+  const finding = breach?.summary ?? (!enabled.length
     ? "No enabled limits to check."
     : !checked.length ? "Enabled limits could not be evaluated."
-    : `${checked.length} enabled limit${checked.length === 1 ? " was" : "s were"} checked; no breaches found.`);
-  const findingEvidence = breach?.evidence ?? (best
-    ? [`${best.riskCount}/${best.count} rows with planned risk`, `Average result: ${rValue(best.avgR)}`]
-    : [`${analysis.tradeCount} trades in the imported history`, `${analysis.riskCount}/${analysis.trades.length} rows with planned risk`]);
+    : "No breaches found.");
+  const findingEvidence = breach?.evidence ?? [];
   const brief = analysis.nextSessionBrief;
   const statusLabel = !checked.length ? "Limits not checked" : brief.status === "locked" ? "Review needed" : brief.status === "ready" ? "Summary ready" : "Needs attention";
   const visible = ["finding", "setups", "status"].slice(0, entitlements.insightLimit);
@@ -159,31 +158,29 @@ export function InsightsView({ analysis, entitlements, go, upgradeToPro, account
           {question === "working" && visible.includes("setups") && <article className="ip-setups" data-insight="setups">
             <h2>Your setups</h2>
             <p className="ip-setup-finding">{ranked.length > 1 && best ? <><strong>{best.name || "Untagged"}</strong> has the {tied ? "joint-highest" : "highest"} average R.</> : setupFinding}</p>
-            {setups.length ? <SetupComparison selected={selectedSetup} rows={setups.slice(0, 4)} label="Setup comparison" scale={rScale} onSelect={selectSetup} /> : <p className="li-muted">No setup summaries are available for this history.</p>}
-            {setups.length > 4 && <details className="li-details ip-details" data-more-setups><summary>All remaining setups<span className="li-muted">{setups.length - 4} more</span><ChevronDown aria-hidden="true" /></summary><SetupComparison selected={selectedSetup} rows={setups.slice(4)} label="Remaining setup comparison" scale={rScale} onSelect={selectSetup} /></details>}
-            <p className="ip-caption">Avg. R: 3+ risk rows per setup. P&amp;L and win rate: all rows.</p>
-            <details className="li-details ip-details" data-setup-method><summary>How R is calculated<ChevronDown aria-hidden="true" /></summary><div className="ip-detail-body"><p>R is P&amp;L divided by planned risk for each record. Setups are sorted by average R, with all bars on the same scale.</p><p>At least three records with planned risk are needed. That is a display minimum, not proof of a reliable pattern. Sample sizes and missing risk can affect the comparison.</p></div></details>
+            {setups.length ? <SetupComparison legacySetups={legacySetups} selected={selectedSetup} rows={setups.slice(0, 4)} label="Setup comparison" scale={rScale} onSelect={selectSetup} /> : <p className="li-muted">No setup summaries are available for this history.</p>}
+            {setups.length > 4 && <details className="li-details ip-details" data-more-setups><summary>All remaining setups<span className="li-muted">{setups.length - 4} more</span><ChevronDown aria-hidden="true" /></summary><SetupComparison legacySetups={legacySetups} selected={selectedSetup} rows={setups.slice(4)} label="Remaining setup comparison" scale={rScale} onSelect={selectSetup} /></details>}
+            <details className="li-details ip-details" data-setup-method><summary>How R is calculated<ChevronDown aria-hidden="true" /></summary><div className="ip-detail-body"><p>R is P&amp;L divided by planned risk for each entry. Setups are sorted by average R, with all bars on the same scale. P&amp;L and win rate include every entry.</p><p>At least three entries with planned risk are needed. That is a display minimum, not proof of a reliable pattern. Sample sizes and missing risk can affect the comparison.</p>{analysis.missingRiskCount > 0 && <p data-planned-risk-coverage>{analysis.missingRiskCount} of {analysis.trades.length} entries have no planned risk. R uses the {analysis.riskCount} usable entries; P&amp;L is unchanged.</p>}{analysis.legacyRiskCount > 0 && <p data-legacy-risk-caveat>{analysis.legacyRiskCount} older CSV entries have unverified risk. Check the original planned-risk amounts before relying on R.</p>}</div></details>
           </article>}
         {(question === "why" || question === "working" && visible.includes("setups")) && <article id="ip-setup-evidence" data-insight="notes">
           {question === "working" && <button className="li-button li-button-quiet ip-back-setups" type="button" onClick={backToSetups}>Back to setups</button>}
           <div className="ip-panel-heading"><h2 ref={noteHeading} tabIndex={-1}>Your trade notes</h2><button className="li-button li-button-quiet" type="button" onClick={() => go("dashboard")}>Open Risk Desk<ArrowUpRight aria-hidden="true" /></button></div>
-          <div className="ip-note-filters"><label><span className="ip-filter-label">Setup</span><select value={JSON.stringify(selectedSetup)} onChange={event => { setSelectedSetup(JSON.parse(event.target.value)); setTradeId(null); setReflect(false); setRecordsExpanded(false); }}><option value="null">All setups</option>{analysis.bySetup.map(setup => <option key={setup.name} value={JSON.stringify(setup.name)}>{setup.name || "Untagged"}</option>)}</select></label><span className="li-muted">{rows.length} trade records</span></div>
+          <div className="ip-note-filters"><label><span className="ip-filter-label">Setup</span><select value={JSON.stringify(selectedSetup)} onChange={event => { setSelectedSetup(JSON.parse(event.target.value)); setTradeId(null); setReflect(false); setRecordsExpanded(false); }}><option value="null">All setups</option>{analysis.bySetup.map(setup => <option key={setup.name} value={JSON.stringify(setup.name)}>{setup.name || "Untagged"}</option>)}</select></label></div>
           <div className="ip-notebook" data-records-expanded={recordsExpanded}>
           {trade && <button ref={recordToggle} className="ip-record-toggle" type="button" aria-expanded={recordsExpanded} aria-controls="ip-records" aria-label={`Choose trade record: ${trade.date}, ${trade.market}, ${trade.side}, ${money(trade.pnl)}`} onClick={() => setRecordsExpanded(!recordsExpanded)}><span>{trade.date}<span className="ip-row-note">{trade.market} · {trade.side}</span></span><span>{money(trade.pnl)}<ChevronDown aria-hidden="true" /></span></button>}
           <div id="ip-records" className="ip-trades" role="group" aria-label="Recorded trades">{rows.map(row => <button className="ip-trade" key={row.id} type="button" aria-pressed={trade?.id === row.id} onClick={() => { setTradeId(row.id); setReflect(false); setRecordsExpanded(false); if (window.matchMedia("(max-width: 600px)").matches) recordToggle.current?.focus({ preventScroll: true }); }}><span>{row.date}<span className="ip-row-note">{row.market} · {row.side}</span></span><span>{money(row.pnl)}</span></button>)}</div>
           {trade ? <div className="ip-note" key={trade.id}>
-            <p className="ip-trade-facts">{trade.market} · {trade.side} · {trade.contracts} {trade.contracts === 1 ? "contract" : "contracts"} · {trade.date}</p>
             <blockquote data-trade-note>{trade.notes.trim() ? trade.notes : "No note on this trade."}</blockquote>
-            <p className="ip-caption">P&amp;L: {money(trade.pnl)} · Planned risk: {trade.riskStatus !== "missing" && finite(trade.risk) && trade.risk > 0 ? money(trade.risk) : "not provided"}</p>
             <button className="li-button" type="button" aria-expanded={reflect} aria-controls="ip-reflection" onClick={() => setReflect(!reflect)}>{reflect ? "Close reflection" : "Try a reflection"}</button>
             {reflect && <div id="ip-reflection" className="ip-reflection"><p>What did you know before the outcome?</p><p className="li-muted">{trade.notes.trim() ? "Which part of your note explains the entry, rather than the result?" : "What made you enter, and what would have invalidated the setup?"}</p><button className="li-button li-button-quiet" type="button" onClick={() => go("dashboard")}>Open journal<ArrowUpRight aria-hidden="true" /></button></div>}
+            <details className="li-details ip-details" data-trade-details><summary>Trade details<ChevronDown aria-hidden="true" /></summary><div className="ip-detail-body"><p>{trade.contracts} {trade.contracts === 1 ? "contract" : "contracts"}</p><p>Planned risk: {trade.riskStatus !== "missing" && finite(trade.risk) && trade.risk > 0 ? money(trade.risk) : "not provided"}</p>{trade.id.startsWith("csv-") && trade.riskStatus === undefined && finite(trade.risk) && trade.risk > 0 && <p className="li-muted">Unverified risk from an older CSV. Check the original planned-risk amount before relying on R.</p>}</div></details>
           </div> : <p>No trade records match this setup.</p>}</div>
         </article>}
           {question === "tripping" && visible.includes("finding") && <article className="li-panel ip-finding" data-insight="finding">
             <div className="ip-finding-top"><div className="ip-finding-copy">
 
               <p className="ip-finding-statement">{finding}</p>
-              <div className="ip-visible-evidence" aria-label="Finding evidence"><Evidence lines={findingEvidence.slice(0, 2)} /></div>
+              {findingEvidence.length > 0 && <div className="ip-visible-evidence" aria-label="Finding evidence"><Evidence lines={findingEvidence.slice(0, 2)} /></div>}
             </div><div className="ip-actions"><button className="li-button li-button-primary" type="button" onClick={() => go(breach || !enabled.length || !checked.length ? "rules" : "dashboard")}>{breach || !enabled.length || !checked.length ? "Review limits" : "Review trades"}<ArrowUpRight aria-hidden="true" /></button></div></div>
             <details className="li-details ip-details" data-limit-evidence><summary>Limit checks<span className="li-muted">{checked.length} of {enabled.length} checked</span><ChevronDown aria-hidden="true" /></summary>
               <div className="ip-detail-body">
@@ -195,28 +192,19 @@ export function InsightsView({ analysis, entitlements, go, upgradeToPro, account
                 </section>)}
               </div>
             </details>
-          </article>}
-        {question === "tripping" && <div className="ip-context">          {visible.includes("status") && <article className="ip-review" data-insight="status">
-            <p className="li-muted">{statusLabel}</p>
-            <p className="ip-review-headline">{!enabled.length ? "No enabled limits to check." : !checked.length ? "More trade data is needed to check your limits." : brief.headline}</p>
-            <Evidence lines={brief.evidence.slice(0, 1)} />
-            {!enabled.length && <p className="ip-caption">The summary below uses default thresholds, not enabled limits.</p>}
-            <details className="li-details ip-details" data-review-context><summary>More details<ChevronDown aria-hidden="true" /></summary><div className="ip-detail-body">
+            {visible.includes("status") && <details className="li-details ip-details" data-review-context data-insight="status"><summary>More details<ChevronDown aria-hidden="true" /></summary><div className="ip-detail-body">
+              <p className="li-muted">{statusLabel}</p>
+              <p>{!enabled.length ? "No enabled limits to check." : !checked.length ? "More trade data is needed to check your limits." : brief.headline}</p>
               <p>{brief.summary}</p><Evidence lines={brief.evidence} />
               {brief.watchlist.length > 0 && <><h3>Watchlist</h3><Evidence lines={brief.watchlist} /></>}
               <h3>Thresholds used</h3><p className="li-muted">The summary can use defaults when a limit is disabled. See Limit checks for your enabled limits.</p><Evidence lines={brief.guardrails} />
               {analysis.behaviorFlags.map((flag) => <section className="ip-evidence-entry" key={flag.id}><h3>{flag.label}</h3><p>{flag.summary}</p><Evidence lines={flag.evidence} /></section>)}
-            </div></details>
+            </div></details>}
+            {locked > 0 && <div data-insights-locked><p className="li-muted">Get the full breakdown with Pro.</p><button className="li-button" onClick={upgradeToPro} type="button">Unlock Pro<LockKeyhole aria-hidden="true" /></button></div>}
           </article>}
-        {locked > 0 && <div data-insights-locked><p className="li-muted">Get the full breakdown with Pro.</p><button className="li-button" onClick={upgradeToPro} type="button">Unlock Pro<LockKeyhole aria-hidden="true" /></button></div>}</div>}
       </div>
-          <div className="ip-coverage">
 
-            {analysis.missingRiskCount > 0 && <p className="ip-caption" data-planned-risk-coverage>{analysis.missingRiskCount} of {analysis.trades.length} rows have no planned risk. R uses only the {analysis.riskCount} usable rows; P&amp;L is unchanged.</p>}
-            {analysis.legacyRiskCount > 0 && <p className="ip-caption" data-legacy-risk-caveat>{analysis.legacyRiskCount} older CSV rows have unverified risk values. Check the original planned-risk amounts before relying on R.</p>}
-            {!enabled.length ? <p className="ip-caption" data-rules-unchecked>No enabled limits. Your trades have not been checked against limits.</p> : checked.length < enabled.length ? <p className="ip-caption" data-rules-unchecked>{enabled.length - checked.length} enabled limit{enabled.length - checked.length === 1 ? " was" : "s were"} not checked. See Limit checks for details.</p> : null}
-          </div>
     </>}
-    <footer className="ip-footer">{analysis.tradeCount > 0 && <><button className="li-button li-button-quiet" type="button" onClick={() => go("passport")}>Share Risk Passport<ArrowUpRight aria-hidden="true" /></button><span>Through {analysis.latestDate}</span></>}</footer>
+    <footer className="ip-footer">{analysis.tradeCount > 0 && <button className="li-button li-button-quiet" type="button" onClick={() => go("passport")}>Share Risk Passport<ArrowUpRight aria-hidden="true" /></button>}</footer>
   </section>;
 }
