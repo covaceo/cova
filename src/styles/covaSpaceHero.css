@@ -1,5 +1,12 @@
 /* The approved orbital artwork, centered Hero 38 composition, and existing Cova actions.
    All header material overrides apply only while the public home hero is mounted. */
+@font-face {
+  font-family: "Geist Serif";
+  src: url("/fonts/geist-serif-v1.9.0/GeistSerif-Regular.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
 .cova-space-hero {
   position: relative;
   isolation: isolate;
@@ -22,9 +29,10 @@
 .cova-space-copy { width: 100%; max-width: 850px; text-align: center; align-self: flex-start; }
 .cova-space-copy .cova-space-title {
   margin: 0;
-  font-family: "Inter Tight Variable", "Inter Tight", "Inter", sans-serif;
+  font-family: "Geist Serif", "Inter Tight Variable", "Inter Tight", "Inter", sans-serif;
   font-size: clamp(50px, 5.45vw, 84px);
-  font-weight: 500;
+  font-weight: 400;
+  font-synthesis: none;
   line-height: 1.02;
   letter-spacing: -.035em;
   color: #fff;
