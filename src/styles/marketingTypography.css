@@ -17,9 +17,12 @@
   font-family: var(--cova-marketing-display-font) !important;
   font-weight: 400 !important;
   font-synthesis: none;
+  /* Natural serif spacing: legacy sans tracking made adjacent letters collide. */
+  letter-spacing: 0 !important;
+  word-spacing: normal;
 }
 
-/* One-pixel optical fit retains the existing three-line close on narrow phones. */
+/* Retain the narrow-phone optical size; natural spacing may reflow the close. */
 @media (max-width: 360px) {
   .cova-home-landing .cova-closing-title {
     font-size: 39px !important;

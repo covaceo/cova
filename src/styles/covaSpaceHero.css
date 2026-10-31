@@ -34,7 +34,7 @@
   font-weight: 400;
   font-synthesis: none;
   line-height: 1.02;
-  letter-spacing: -.035em;
+  letter-spacing: 0;
   color: #fff;
   text-wrap: balance;
   text-shadow: 0 2px 18px rgba(0,0,0,.24);
@@ -86,7 +86,7 @@ body:has(.cova-space-hero) .cova-site-header[data-section="overview"] .brand-loc
 @media (max-width: 767px) {
   .cova-space-hero { padding: 112px 20px 20px; min-height: 720px; }
   .cova-space-hero:has(.cova-space-actions[data-auth-state="signed-in"]) { min-height: 860px; }
-  .cova-space-copy .cova-space-title { font-size: clamp(39px, 11.9vw, 54px); letter-spacing: -.035em; }
+  .cova-space-copy .cova-space-title { font-size: clamp(35px, 10.5vw, 54px); letter-spacing: 0; }
   .cova-space-copy .cova-space-subline { margin-top: 20px; max-width: 365px; font-size: 16px; line-height: 1.5; }
   .cova-space-actions { gap: 16px; margin-top: 25px; }
   .cova-space-actions .dark-glass-secondary { gap: 9px; }
