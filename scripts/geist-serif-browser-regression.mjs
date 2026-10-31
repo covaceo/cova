@@ -72,8 +72,39 @@ try{
  const motion=await browser.newContext({viewport:{width:1440,height:900},reducedMotion:'no-preference'});
  await motion.route('**/*',route=>{const url=route.request().url();if(url.startsWith(base+'/')||url.startsWith('data:'))return route.continue();report.external.push(url);return route.abort();});
  const moving=await motion.newPage();moving.on('pageerror',e=>report.errors.push({motion:true,message:e.message}));await moving.goto(base,{waitUntil:'networkidle'});await moving.evaluate(()=>document.fonts.ready);
- await moving.locator('#cova-space-title .cova-hero-hover').waitFor();await moving.locator('#cova-space-title').hover();
- await moving.waitForFunction(()=>document.querySelector('.cova-hero-hover')?.getAttribute('data-active')==='true');
+ await moving.locator('#cova-space-title .cova-hero-hover').waitFor();
+ // locator.hover's stability retries can scrollIntoView({block:'start'}) while
+ // the entrance transform settles. With smooth scrolling, input precedes scroll
+ // completion and the headline leaves the pointer (or moves behind the header).
+ // Establish the normal, unobscured top-of-page view before ONE real mouse move.
+ await moving.evaluate(()=>window.scrollTo({top:0,left:0,behavior:'instant'}));
+ report.hover={before:await moving.evaluate(()=>new Promise((resolve,reject)=>{
+  const title=document.querySelector('#cova-space-title');let previous='',since=performance.now(),frames=0,last;
+  const timer=setTimeout(()=>{cancelAnimationFrame(frame);reject(new Error('Hover precondition did not settle: '+JSON.stringify(last)));},10000);
+  let frame=requestAnimationFrame(sample);
+  function sample(now){
+   const spans=[...title.querySelectorAll(':scope > span')],nodes=[title,...spans];
+   const rects=nodes.map(el=>{const r=el.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height};});
+   const unobscured=spans.length===2&&rects.every(r=>r.width>0&&r.height>0&&r.x>=0&&r.y>=0&&r.x+r.width<=innerWidth&&r.y+r.height<=innerHeight&&[1,r.width/2,r.width-1].every(x=>[1,r.height/2,r.height-1].every(y=>title.contains(document.elementFromPoint(r.x+x,r.y+y)))));
+   let animating=false;for(let el=title;el;el=el.parentElement)animating ||= el.getAnimations().some(a=>a.pending||a.playState==='running');
+   const geometry=JSON.stringify({rects,scrollX,scrollY});
+   last={rects,scrollX,scrollY,unobscured,animating};
+   if(!unobscured||animating||scrollX!==0||scrollY!==0||geometry!==previous){since=now;frames=0;}else frames++;
+   previous=geometry;
+   if(frames>=3&&now-since>=200){clearTimeout(timer);const r=rects[1];resolve({...last,stableMs:now-since,stableFrames:frames,point:{x:r.x+r.width/2,y:r.y+r.height/2}});return;}
+   frame=requestAnimationFrame(sample);
+  }
+ }))};
+ const hoverPoint=report.hover.before.point;
+ await moving.mouse.move(hoverPoint.x,hoverPoint.y);
+ await moving.waitForFunction(({point,rects})=>{
+  const title=document.querySelector('#cova-space-title'),overlay=title?.querySelector('.cova-hero-hover');
+  const nodes=title?[title,...title.querySelectorAll(':scope > span')]:[];
+  return nodes.length===rects.length&&nodes.every((el,i)=>{const r=el.getBoundingClientRect();return ['x','y','width','height'].every(k=>Math.abs(r[k]-rects[i][k])<.01);})&&scrollX===0&&scrollY===0&&title.matches(':hover')&&title.contains(document.elementFromPoint(point.x,point.y))&&overlay?.getAttribute('data-active')==='true'&&Number(getComputedStyle(overlay).opacity)>=.99;
+ },report.hover.before);
+ report.hover.after=await moving.locator('#cova-space-title').evaluate(el=>({hovered:el.matches(':hover'),active:el.querySelector('.cova-hero-hover').dataset.active,opacity:Number(getComputedStyle(el.querySelector('.cova-hero-hover')).opacity),scrollX,scrollY,rect:el.getBoundingClientRect().toJSON()}));
+ const alignment=await moving.locator('#cova-space-title').evaluate(el=>[...el.querySelectorAll(':scope > span')].map((span,i)=>{const range=document.createRange();range.selectNodeContents(span);const a=range.getBoundingClientRect(),b=el.querySelectorAll('.cova-hero-hover text')[i].getBoundingClientRect();return {text:span.textContent,left:Math.abs(a.left-b.left),right:Math.abs(a.right-b.right),top:Math.abs(a.top-b.top),bottom:Math.abs(a.bottom-b.bottom)};}));
+ check('normal motion: overlay aligns without doubled text',alignment.length===2&&alignment.every(a=>a.left<1&&a.right<1&&a.top<1&&a.bottom<1),alignment);
  const overlay=await moving.locator('.cova-hero-hover text').evaluateAll(nodes=>nodes.map(n=>({family:getComputedStyle(n).fontFamily,weight:getComputedStyle(n).fontWeight,text:n.textContent})));
  check('normal motion: hover overlay uses the same regular headline font',overlay.length===2&&overlay.every(n=>n.family.includes('Geist Serif')&&n.weight==='400'),overlay);
  await moving.screenshot({path:resolve(out,'landing-hover-1440.png')});await moving.mouse.move(0,0);
