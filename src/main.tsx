@@ -68,6 +68,7 @@ import "./styles/limitsInsightsShared.css";
 import "./styles/limitsEditor.css";
 import "./styles/insightsView.css";
 import "./styles/workspaceStatusRefinement.css";
+import "./styles/marketingTypography.css";
 
 if (navigator.platform.startsWith("Win")) {
   document.documentElement.classList.add("cova-platform-windows");
