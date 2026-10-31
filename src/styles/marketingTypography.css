@@ -1,0 +1,28 @@
+/* Display headlines only. Reuse the self-hosted face from covaSpaceHero.css.
+   Important is scoped here to supersede existing headline-only legacy rules;
+   body copy, smaller headings, controls and workspace typography are untouched. */
+:root {
+  --cova-marketing-display-font: "Geist Serif", "Inter Tight Variable", "Inter Tight", "Inter", sans-serif;
+}
+
+.cova-home-landing .cova-risk-feature #landing-product-title,
+.cova-home-landing #cova-trader-reviews-title,
+.cova-home-landing .home-story.cova-passport-feature #home-story-title,
+.cova-minimal-pricing #minimal-pricing-title,
+.cova-home-landing .cova-closing-title,
+.features-showcase-page[data-public-refresh] .features-showcase-intro h1,
+.features-showcase-page[data-public-refresh] .features-showcase-intro h1 em,
+.resources-oa-page[data-public-refresh] .resources-oa-intro h1,
+.community-oa-page .community-oa-intro h1 {
+  font-family: var(--cova-marketing-display-font) !important;
+  font-weight: 400 !important;
+  font-synthesis: none;
+}
+
+/* One-pixel optical fit retains the existing three-line close on narrow phones. */
+@media (max-width: 360px) {
+  .cova-home-landing .cova-closing-title {
+    font-size: 39px !important;
+    line-height: 44px !important;
+  }
+}
