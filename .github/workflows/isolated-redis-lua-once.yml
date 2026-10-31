@@ -1,0 +1,93 @@
+# Authorized one-off reference Redis 7.2 Lua test; no deployment or provider calls.
+name: Ask Cova isolated Redis Lua gate
+on:
+  push:
+    tags:
+      - 'ask-cova-redis-lua-once-20261031T193823Z-84f23d22'
+permissions:
+  contents: read
+jobs:
+  redis-lua:
+    if: github.repository == 'covaceo/cova' && github.event_name == 'push' && github.ref == 'refs/tags/ask-cova-redis-lua-once-20261031T193823Z-84f23d22' && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    container:
+      image: redis:7.2.17-bookworm@sha256:0312984fbfeb2ff1d4382ecef45b50e7d65478a6a58cf12ce28d6de7a4142e45
+      options: --cpus 2 --memory 2g
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24.22.2'
+          package-manager-cache: false
+      - name: Validate frozen payload and install only locked TypeScript
+        env:
+          CANDIDATE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          # A disposable fixture avoids full-site install/build/lifecycle scripts.
+          env -i PATH="$PATH" RUNNER_TEMP="$RUNNER_TEMP" node --input-type=commonjs <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const root = path.join(process.env.RUNNER_TEMP, 'ask-cova-lua-only');
+          fs.mkdirSync(root, {recursive: false});
+          const lockBytes = fs.readFileSync('package-lock.json');
+          if (require('node:crypto').createHash('sha256').update(lockBytes).digest('hex') !== '3f182ba299dcdc34191ec394e8bd9b9d0c9aaab65eefe8b6200ef35fe5d7ad11') throw Error('Frozen lockfile mismatch');
+          const pkg = JSON.parse(lockBytes).packages['node_modules/typescript'];
+          if (pkg.version !== '5.9.3' || pkg.resolved !== 'https://registry.npmjs.org/typescript/-/typescript-5.9.3.tgz' || pkg.integrity !== 'sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==') throw Error('Reviewed dependency changed');
+          const manifest = {name:'ask-cova-lua-only', version:'0.0.0', private:true, type:'module', dependencies:{typescript:pkg.version}};
+          const dep = {...pkg}; delete dep.dev;
+          fs.writeFileSync(path.join(root,'package.json'), JSON.stringify(manifest));
+          fs.writeFileSync(path.join(root,'package-lock.json'), JSON.stringify({name:manifest.name,version:manifest.version,lockfileVersion:3,requires:true,packages:{'':{name:manifest.name,version:manifest.version,dependencies:manifest.dependencies},'node_modules/typescript':dep}}));
+          const files = ['scripts/ask-cova-budget-regression.mjs','scripts/helpers/load-ts.cjs','server/askCovaBudget.ts','src/lib/workspaceValidation.ts','src/lib/manualAccountKeys.ts','src/lib/tradovateHistory.ts','src/lib/risk.ts'];
+          const crypto = require('node:crypto');
+          const expected = {
+            'scripts/ask-cova-budget-regression.mjs':'d2e8514be5d109af2a4419d754230731e02285fbb1c0a364a559a120eab24395',
+            'scripts/helpers/load-ts.cjs':'27aaaece0874c0a2f00cf4aa3d5c977b1babfc12f9e1006a30ce7102258ed512',
+            'server/askCovaBudget.ts':'0a1d57d36eaf455a28727ec860e555bfc01b82a8f84b5df9ba6a53b2ef456420',
+            'src/lib/workspaceValidation.ts':'7fbb09367555d865d0a3a63c64c8a620b9b4a4ce0165f1f686fe9cd04de6e94c',
+            'src/lib/manualAccountKeys.ts':'ea4a2a139e12a1289c9850a0c56765d9504f1700204e808aa6ace10efc101719',
+            'src/lib/tradovateHistory.ts':'c22f5007a715024bf0b8a2e8dcc6d9dfeb0754129143b27d1cba2df3cb84b421',
+            'src/lib/risk.ts':'832edf23ec0c52cec13790c602b8d32a3bb25ed45a614d0d23ae28eba290dae8'
+          };
+          for (const file of files) {
+            const dest = path.join(root,file); fs.mkdirSync(path.dirname(dest),{recursive:true}); fs.copyFileSync(file,dest);
+            const sha = crypto.createHash('sha256').update(fs.readFileSync(dest)).digest('hex');
+            if (sha !== expected[file]) throw Error('Frozen source mismatch: '+file);
+            console.log(sha+'  '+file);
+          }
+          NODE
+          mkdir -p "$RUNNER_TEMP/redis-clean-home"
+          cd "$RUNNER_TEMP/ask-cova-lua-only"
+          env -i PATH="$PATH" HOME="$RUNNER_TEMP/redis-clean-home" \
+            npm ci --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org \
+            --userconfig="$RUNNER_TEMP/redis-clean-home/user.npmrc" \
+            --globalconfig="$RUNNER_TEMP/redis-clean-home/global.npmrc"
+      - name: Run actual child Redis and reject any skipped gate
+        run: |
+          set -euo pipefail
+          redis_bin="$(command -v redis-server)"
+          "$redis_bin" --version
+          node --version
+          cd "$RUNNER_TEMP/ask-cova-lua-only"
+          env -i PATH="$PATH" HOME="$RUNNER_TEMP/redis-clean-home" TMPDIR="$RUNNER_TEMP" \
+            COVA_TEST_REDIS_SERVER="$redis_bin" \
+            node --test --test-reporter=tap scripts/ask-cova-budget-regression.mjs \
+            | tee "$RUNNER_TEMP/ask-cova-redis-lua.tap"
+          env -i PATH="$PATH" node --input-type=commonjs - "$RUNNER_TEMP/ask-cova-redis-lua.tap" <<'NODE'
+          const fs = require('node:fs');
+          const text = fs.readFileSync(process.argv[2], 'utf8');
+          const actual = text.split(/\r?\n/).filter(line => /^ok \d+ - actual Redis Lua: concurrency, near-cap, durable replay, campaign pin and unknown outcomes$/.test(line));
+          if (actual.length !== 1 || !/^# tests 14\s*$/m.test(text) || !/^# pass 14\s*$/m.test(text) || !/^# cancelled 0\s*$/m.test(text) || !/^# todo 0\s*$/m.test(text) || /^(?:not )?ok [^\r\n]*#\s*(SKIP|TODO)\b/im.test(text) || !/^# fail 0\s*$/m.test(text) || !/^# skipped 0\s*$/m.test(text)) {
+            throw Error('Actual Redis/Lua gate did not pass unskipped');
+          }
+          console.log('UNSKIPPED_REAL_REDIS_LUA_GATE_PASSED');
+          NODE

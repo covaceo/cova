@@ -1,0 +1,1237 @@
+export type Trade = {
+  id: string;
+  date: string;
+  market: string;
+  side: "Long" | "Short";
+  contracts: number;
+  entry: number;
+  exit: number;
+  pnl: number;
+  /** Zero means unavailable, never infer planned risk from realized P&L. */
+  risk: number;
+  riskStatus?: "provided" | "missing";
+  setup: string;
+  notes: string;
+  manual?: { accountKey: string; currency: "USD"; pnlBasis: "gross_before_fees" | "reported_net" };
+  source?:
+    | {
+        provider: "Rithmic";
+        accountKey: string;
+        accountId: string;
+        currency: string;
+      }
+    | {
+        provider: "Tradovate";
+        accountId: string;
+        openedAt?: string;
+        closedAt?: string;
+        timeZone?: "UTC";
+        pnlBasis?: "gross_before_fees";
+      };
+};
+
+export type RiskRule = {
+  id: string;
+  name: string;
+  metric: "maxDailyLoss" | "maxTradeLoss" | "maxContracts" | "maxLossStreak" | "minProfitFactor" | "minAvgR";
+  limit: number;
+  severity: "critical" | "warning" | "info";
+  enabled: boolean;
+};
+
+export type RuleStatus = {
+  rule: RiskRule;
+  breached: boolean;
+  evaluated: boolean;
+  summary: string;
+  evidence: string[];
+};
+
+export type SessionSummary = {
+  date: string;
+  pnl: number;
+  trades: number;
+  wins: number;
+  losses: number;
+  maxContracts: number;
+  largestWin: number;
+  largestLoss: number;
+  netR: number | null;
+  riskCount: number;
+  avgR: number | null;
+  worstCumulativePnl: number;
+};
+
+export type BehaviorFlag = {
+  id: string;
+  label: string;
+  severity: "critical" | "warning" | "info" | "positive";
+  summary: string;
+  evidence: string[];
+};
+
+export type NextSessionBrief = {
+  status: "locked" | "caution" | "ready";
+  headline: string;
+  summary: string;
+  watchlist: string[];
+  guardrails: string[];
+  evidence: string[];
+};
+
+export type EvidenceQuality = {
+  label: "No sample" | "Unavailable" | "Early history" | "Developing history" | "Broader history";
+  level: "none" | "low" | "medium" | "high";
+  summary: string;
+  caveats: string[];
+};
+
+export type ScoreFactor = {
+  label: string;
+  impact: "positive" | "negative" | "neutral";
+  summary: string;
+  evidence: string;
+  points?: number;
+  maximum?: number;
+};
+
+export type CsvParseIssue = {
+  row: number;
+  message: string;
+};
+
+export type CsvParseResult = {
+  trades: Trade[];
+  issues: CsvParseIssue[];
+  headers: string[];
+  rowCount: number;
+};
+
+export type TradeMergeResult = {
+  trades: Trade[];
+  receipt: {
+    added: number;
+    corrected: number;
+    unchanged: number;
+  };
+};
+
+export function mergeTradeLedger(existing: Trade[], incoming: Trade[]): TradeMergeResult {
+  const trades = [...existing];
+  const indexes = new Map<string, number>();
+  for (const [index, trade] of trades.entries()) {
+    if (indexes.has(trade.id)) {
+      throw new Error(`Existing ledger contains duplicate trade id ${trade.id}.`);
+    }
+    indexes.set(trade.id, index);
+  }
+  const receipt = { added: 0, corrected: 0, unchanged: 0 };
+  const incomingIds = new Set<string>();
+  for (const trade of incoming) {
+    if (incomingIds.has(trade.id)) throw new Error("duplicate incoming trade identity");
+    incomingIds.add(trade.id);
+  }
+
+  for (const trade of incoming) {
+    const index = indexes.get(trade.id);
+    if (index === undefined) {
+      indexes.set(trade.id, trades.length);
+      trades.push(trade);
+      receipt.added += 1;
+      continue;
+    }
+
+    const existingTrade = trades[index];
+    const existingAccount = existingTrade.source?.provider === "Rithmic"
+      ? `Rithmic:${existingTrade.source.accountKey}:${existingTrade.source.accountId}`
+      : existingTrade.source
+        ? `${existingTrade.source.provider}:${existingTrade.source.accountId}`
+        : "local";
+    const incomingAccount = trade.source?.provider === "Rithmic"
+      ? `Rithmic:${trade.source.accountKey}:${trade.source.accountId}`
+      : trade.source
+        ? `${trade.source.provider}:${trade.source.accountId}`
+        : "local";
+    if (existingAccount !== incomingAccount) {
+      throw new Error(`Trade ${trade.id} belongs to a different provider account.`);
+    }
+
+    // Notes, setup and planned risk belong to the member, not the provider.
+    const corrected = trade.source ? { ...trade, notes: existingTrade.notes, setup: existingTrade.setup, risk: existingTrade.risk, riskStatus: existingTrade.riskStatus } : trade;
+    if (JSON.stringify(existingTrade) === JSON.stringify(corrected)) {
+      receipt.unchanged += 1;
+      continue;
+    }
+
+    trades[index] = corrected;
+    receipt.corrected += 1;
+  }
+
+  return { trades, receipt };
+}
+
+export const defaultRules: RiskRule[] = [
+  { id: "daily-loss", name: "Daily loss limit", metric: "maxDailyLoss", limit: 2500, severity: "critical", enabled: true },
+  { id: "trade-loss", name: "Single-trade loss limit", metric: "maxTradeLoss", limit: 1600, severity: "critical", enabled: true },
+  { id: "size", name: "Max contracts", metric: "maxContracts", limit: 5, severity: "warning", enabled: true },
+  { id: "streak", name: "Pause after loss streak", metric: "maxLossStreak", limit: 3, severity: "warning", enabled: true },
+  { id: "profit-factor", name: "Minimum profit factor", metric: "minProfitFactor", limit: 1.05, severity: "info", enabled: true },
+  { id: "average-r", name: "Minimum average R", metric: "minAvgR", limit: 0.1, severity: "info", enabled: true },
+];
+
+export const sampleTrades: Trade[] = [
+  ["2026-04-17", "NQ", "Long", 2, 18460.25, 18483.75, 940, 500, "Opening range", "Waited for first pullback."],
+  ["2026-04-17", "ES", "Short", 3, 5235.5, 5229.25, 937.5, 540, "VWAP rejection", "Clean rejection after failed high."],
+  ["2026-04-18", "NQ", "Long", 2, 18512, 18493, -760, 520, "Opening range", "Late entry after extension."],
+  ["2026-04-18", "NQ", "Long", 4, 18498.5, 18484.25, -1140, 600, "Breakout continuation", "Added size after first loss."],
+  ["2026-04-21", "CL", "Short", 2, 81.24, 80.92, 640, 460, "Level reclaim", "Oil inventory fade."],
+  ["2026-04-21", "NQ", "Short", 1, 18420.75, 18406, 295, 350, "VWAP rejection", "Reduced size into chop."],
+  ["2026-04-22", "ES", "Long", 4, 5216.25, 5211.75, -900, 500, "Breakout continuation", "Breakout failed under prior high."],
+  ["2026-04-22", "ES", "Long", 6, 5214.75, 5209.5, -1575, 650, "Breakout continuation", "Size exceeded plan."],
+  ["2026-04-23", "GC", "Long", 1, 2398.1, 2407.4, 930, 420, "Level reclaim", "Held through retest."],
+  ["2026-04-24", "NQ", "Short", 3, 18610.5, 18620.75, -615, 510, "VWAP rejection", "Invalidation respected."],
+  ["2026-04-24", "NQ", "Short", 3, 18618, 18629.25, -675, 500, "VWAP rejection", "Second attempt was lower quality."],
+  ["2026-04-24", "NQ", "Short", 5, 18625, 18638.5, -1350, 650, "Opening range", "Third attempt after two losses."],
+  ["2026-04-25", "ES", "Short", 2, 5254.75, 5248.25, 650, 420, "Opening range", "Smaller size after drawdown."],
+  ["2026-04-28", "NQ", "Long", 2, 18704.25, 18726.75, 900, 520, "Opening range", "Good stop discipline."],
+  ["2026-04-28", "NQ", "Long", 2, 18735, 18745.25, 410, 450, "Breakout continuation", "Scaled quickly near target."],
+  ["2026-04-29", "CL", "Long", 1, 80.44, 80.07, -370, 360, "Level reclaim", "No follow-through."],
+  ["2026-04-30", "GC", "Short", 1, 2412.5, 2402.9, 960, 430, "VWAP rejection", "Best execution of week."],
+  ["2026-05-01", "ES", "Long", 3, 5260.25, 5256.75, -525, 390, "Opening range", "No second entry taken."],
+  ["2026-05-01", "NQ", "Long", 2, 18820.5, 18843.75, 930, 510, "Level reclaim", "Followed higher low."],
+  ["2026-05-04", "NQ", "Short", 3, 18880, 18861.25, 1125, 540, "VWAP rejection", "Let winner reach planned target."],
+  ["2026-05-04", "ES", "Short", 2, 5282, 5278, 400, 340, "VWAP rejection", "Partial near prior low."],
+  ["2026-05-05", "NQ", "Long", 4, 18905.5, 18897.75, -620, 500, "Breakout continuation", "Small false break."],
+  ["2026-05-05", "NQ", "Long", 4, 18900, 18888.25, -940, 520, "Breakout continuation", "Repeated setup without confirmation."],
+  ["2026-05-06", "GC", "Long", 1, 2421.7, 2430.3, 860, 390, "Level reclaim", "Clean reclaim after London low."],
+  ["2026-05-06", "NQ", "Short", 2, 18862.5, 18850, 500, 440, "Opening range", "Stopped trading after target window."],
+].map(([date, market, side, contracts, entry, exit, pnl, risk, setup, notes], index) => ({
+  id: `demo-${index + 1}`,
+  date: String(date),
+  market: String(market),
+  side: side as "Long" | "Short",
+  contracts: Number(contracts),
+  entry: Number(entry),
+  exit: Number(exit),
+  pnl: Number(pnl),
+  risk: Number(risk),
+  setup: String(setup),
+  notes: String(notes),
+}));
+
+export type JournalEntryGroup = { id: string; rows: Trade[]; pnl: number; contracts: number; entryIdentified: boolean };
+/** Same broker opening fill, not a claim of a fully flat position or shared order. Never groups by timestamp alone. */
+export function groupJournalEntries(trades: readonly Trade[]): JournalEntryGroup[] {
+  const buckets = new Map<string, Trade[]>();
+  const raw = (row: Trade, index: number): JournalEntryGroup => ({ id: `row:${index}:${row.id}`, rows: [row], pnl: row.pnl, contracts: row.contracts, entryIdentified: false });
+  for (const [index, row] of trades.entries()) {
+    const pair = /^tradovate-([1-9]\d{0,19}):([1-9]\d{0,19}):([1-9]\d{0,19})$/.exec(row.id);
+    const source = row.source;
+    const valid = source?.provider === 'Tradovate' && pair && pair[1] === source.accountId && pair[2] !== pair[3]
+      && source.timeZone === 'UTC' && source.pnlBasis === 'gross_before_fees' && source.openedAt && source.closedAt
+      && source.openedAt < source.closedAt && Number.isFinite(Date.parse(source.openedAt)) && Number.isFinite(Date.parse(source.closedAt));
+    const key = valid ? JSON.stringify(['Tradovate', source.accountId, row.side, pair[row.side === 'Long' ? 2 : 3]]) : `raw:${index}`;
+    const bucket = buckets.get(key);
+    if (bucket) bucket.push(row); else buckets.set(key, [row]);
+  }
+  const groups: JournalEntryGroup[] = [];
+  for (const [id, rows] of buckets) {
+    const first = rows[0];
+    let total = 0n, contracts = 0;
+    let valid = !id.startsWith('raw:') && new Set(rows.map(row => row.id)).size === rows.length;
+    for (const row of rows) {
+      const amount = /^(-?)(\d+)(?:\.(\d{1,2}))?$/.exec(String(row.pnl));
+      valid &&= row.market === first.market && row.side === first.side && row.entry === first.entry
+        && row.source?.provider === 'Tradovate' && first.source?.provider === 'Tradovate' && row.source.openedAt === first.source.openedAt
+        && Number.isSafeInteger(row.contracts) && row.contracts > 0 && !!amount;
+      if (amount) total += (amount[1] ? -1n : 1n) * (BigInt(amount[2]) * 100n + BigInt((amount[3] ?? '').padEnd(2, '0')));
+      contracts += row.contracts;
+    }
+    valid &&= Number.isSafeInteger(contracts) && total <= BigInt(Number.MAX_SAFE_INTEGER) && total >= -BigInt(Number.MAX_SAFE_INTEGER);
+    if (valid) groups.push({ id, rows: [...rows], pnl: Number(total) / 100, contracts, entryIdentified: true });
+    else rows.forEach((row, index) => groups.push(raw(row, index)));
+  }
+  const closed = (group: JournalEntryGroup) => group.rows.reduce((latest, row) => {
+    const at = row.source?.provider === 'Tradovate' && row.source.closedAt ? row.source.closedAt : `${row.date}T00:00:00.000Z`;
+    return at > latest ? at : latest;
+  }, '');
+  return groups.sort((a, b) => closed(a).localeCompare(closed(b)));
+}
+
+export function analyze(trades: Trade[], rules: RiskRule[]) {
+  const sorted = [...trades].sort((a, b) => {
+    const time = (trade: Trade) => trade.source?.provider === "Tradovate" && trade.source.closedAt ? trade.source.closedAt : `${trade.date}T00:00:00.000Z`;
+    return time(a).localeCompare(time(b));
+  });
+  const totalPnl = sorted.reduce((sum, trade) => sum + trade.pnl, 0);
+  const grossProfit = sorted.filter((trade) => trade.pnl > 0).reduce((sum, trade) => sum + trade.pnl, 0);
+  const grossLoss = Math.abs(sorted.filter((trade) => trade.pnl < 0).reduce((sum, trade) => sum + trade.pnl, 0));
+  const profitFactor = grossLoss ? grossProfit / grossLoss : grossProfit ? Infinity : 0;
+  const entryGroups = groupJournalEntries(sorted);
+  const tradeCount = entryGroups.length;
+  const winningTradeCount = entryGroups.filter(group => group.pnl > 0).length;
+  const winRate = tradeCount ? winningTradeCount / tradeCount : 0;
+  const legacyRiskCount = sorted.filter(trade => trade.id.startsWith("csv-") && trade.riskStatus === undefined && hasPlannedRisk(trade)).length;
+  const riskCount = sorted.filter(trade => rMultiple(trade) !== null).length;
+  const missingRiskCount = sorted.filter(trade => !hasPlannedRisk(trade)).length;
+  const avgR = averageR(sorted);
+  const recentTrades = sorted.slice(-7);
+  const recentPnl = recentTrades.reduce((sum, trade) => sum + trade.pnl, 0);
+  const recentAvgR = averageR(recentTrades);
+  const midpoint = Math.floor(sorted.length / 2);
+  const firstHalfAvgR = averageR(sorted.slice(0, midpoint));
+  const secondHalfAvgR = averageR(sorted.slice(midpoint));
+  const avgRTrend = sorted.length >= 12 && firstHalfAvgR !== null && secondHalfAvgR !== null ? secondHalfAvgR - firstHalfAvgR : null;
+
+  let equity = 0;
+  let peak = 0;
+  let maxDrawdown = 0;
+  let lossStreak = 0;
+  let worstLossStreak = 0;
+  const equityPoints = [{ label: "Start", value: 0 }];
+  for (const trade of sorted) {
+    equity += trade.pnl;
+    peak = Math.max(peak, equity);
+    maxDrawdown = Math.max(maxDrawdown, peak - equity);
+    equityPoints.push({ label: trade.date, value: equity });
+    if (trade.pnl < 0) {
+      lossStreak += 1;
+      worstLossStreak = Math.max(worstLossStreak, lossStreak);
+    } else {
+      lossStreak = 0;
+    }
+  }
+
+  const sessions = buildSessionSummaries(sorted);
+  const latestSession = sessions[sessions.length - 1] ?? null;
+  const daily = sessions.map((session) => ({
+    date: session.date,
+    pnl: session.pnl,
+    trades: session.trades,
+  }));
+
+  const ruleStatuses = rules.filter((rule) => rule.enabled).map((rule) => evaluateRule(rule, sorted, sessions, { profitFactor, avgR, worstLossStreak }));
+  const breaches = ruleStatuses.filter((status) => status.breached);
+  const evaluatedRules = ruleStatuses.filter(status => status.evaluated);
+  const compliance = evaluatedRules.length ? (evaluatedRules.length - breaches.length) / evaluatedRules.length : 1;
+  const bySetup = summarize(sorted, (trade) => trade.setup);
+  const byMarket = summarize(sorted, (trade) => trade.market);
+  const setupConcentration = getConcentration(bySetup, sorted.length);
+  const performanceScore = calculatePerformanceScore(sorted);
+  const score = performanceScore.score;
+  const evidenceQuality = buildEvidenceQuality(tradeCount, rules.filter((rule) => rule.enabled).length, sorted, performanceScore);
+  const scoreFactors = buildScoreFactors(performanceScore);
+  const behaviorFlags = buildBehaviorFlags({
+    bySetup,
+    maxDrawdown,
+    recentAvgR,
+    recentPnl,
+    rules,
+    sessions,
+    sorted,
+    breaches,
+    setupConcentration,
+  });
+  const nextSessionBrief = buildNextSessionBrief({
+    behaviorFlags,
+    breaches,
+    latestSession,
+    maxDrawdown,
+    recentAvgR,
+    recentPnl,
+    rules,
+    score,
+    sorted,
+  });
+
+  return {
+    trades: sorted,
+    entryGroups,
+    tradeCount,
+    winningTradeCount,
+    totalPnl,
+    grossProfit,
+    grossLoss,
+    profitFactor,
+    winRate,
+    riskCount,
+    missingRiskCount,
+    legacyRiskCount,
+    avgR,
+    avgRTrend,
+    firstHalfAvgR,
+    secondHalfAvgR,
+    equityPoints,
+    maxDrawdown,
+    worstLossStreak,
+    recentAvgR,
+    recentPnl,
+    recentTrades,
+    sessions,
+    latestSession,
+    daily,
+    ruleStatuses,
+    breaches,
+    behaviorFlags,
+    nextSessionBrief,
+    compliance,
+    score,
+    performanceScore,
+    evidenceQuality,
+    scoreFactors,
+    bySetup,
+    byMarket,
+    setupConcentration,
+    latestDate: sorted[sorted.length - 1]?.date ?? "No trades yet",
+  };
+}
+
+function buildSessionSummaries(sorted: Trade[]): SessionSummary[] {
+  return Object.entries(groupBy(sorted, (trade) => trade.date))
+    .map(([date, rows]) => {
+      const pnl = rows.reduce((sum, trade) => sum + trade.pnl, 0);
+      const rValues = rows.map(rMultiple).filter((value): value is number => value !== null);
+      const sumR = rValues.reduce((sum, value) => sum + value, 0);
+      const netR = rValues.length && Number.isFinite(sumR) ? sumR : null;
+      let runningPnl = 0;
+      let worstCumulativePnl = 0;
+      for (const trade of rows) {
+        runningPnl += trade.pnl;
+        worstCumulativePnl = Math.min(worstCumulativePnl, runningPnl);
+      }
+      return {
+        date,
+        pnl,
+        trades: rows.length,
+        wins: rows.filter((trade) => trade.pnl > 0).length,
+        losses: rows.filter((trade) => trade.pnl < 0).length,
+        maxContracts: Math.max(...rows.map((trade) => trade.contracts)),
+        largestWin: Math.max(0, ...rows.map((trade) => trade.pnl)),
+        largestLoss: Math.min(0, ...rows.map((trade) => trade.pnl)),
+        netR,
+        riskCount: rValues.length,
+        avgR: averageR(rows),
+        worstCumulativePnl,
+      };
+    })
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function buildBehaviorFlags({
+  breaches,
+  bySetup,
+  maxDrawdown,
+  recentAvgR,
+  recentPnl,
+  rules,
+  sessions,
+  setupConcentration,
+  sorted,
+}: {
+  breaches: RuleStatus[];
+  bySetup: ReturnType<typeof summarize>;
+  maxDrawdown: number;
+  recentAvgR: number | null;
+  recentPnl: number;
+  rules: RiskRule[];
+  sessions: SessionSummary[];
+  setupConcentration: ReturnType<typeof getConcentration>;
+  sorted: Trade[];
+}): BehaviorFlag[] {
+  const flags: BehaviorFlag[] = [];
+  const latestSession = sessions[sessions.length - 1] ?? null;
+  const dailyLimit = getRuleLimit(rules, "maxDailyLoss", 2500);
+  const maxContracts = getRuleLimit(rules, "maxContracts", 5);
+  const lossStreakLimit = getRuleLimit(rules, "maxLossStreak", 3);
+  const sizeOffenders = sorted.filter((trade) => trade.contracts > maxContracts);
+  const weakestSetup = bySetup.filter((setup) => setup.riskCount >= 3 && setup.avgR !== null).sort((a, b) => a.avgR! - b.avgR!)[0];
+  const bestSetup = bySetup.filter((setup) => setup.riskCount >= 3 && setup.avgR !== null).sort((a, b) => b.avgR! - a.avgR!)[0];
+  const criticalBreach = breaches.find((status) => status.rule.severity === "critical");
+  const recentDates = new Set(sorted.slice(-7).map((trade) => trade.date));
+  const negativeOvertradingSession = sessions
+    .filter((session) => session.riskCount >= 8 && session.avgR !== null && session.avgR < 0)
+    .sort((a, b) => a.avgR! - b.avgR! || b.trades - a.trades)[0];
+  const sizeUpAfterLoss = sorted.find((trade, index) => {
+    const previous = sorted[index - 1];
+    return Boolean(previous && previous.pnl < 0 && trade.contracts > previous.contracts && trade.pnl < 0);
+  });
+  const rOutlierLoss = sorted
+    .filter((trade) => hasPlannedRisk(trade) && rMultiple(trade)! <= -2)
+    .sort((a, b) => rMultiple(a)! - rMultiple(b)!)[0];
+
+  if (criticalBreach) {
+    const evidence = criticalBreach.evidence.slice(0, 2);
+    const recent = evidence.some((line) => recentDates.has(line.slice(0, 10)));
+    flags.push({
+      id: "critical-limit",
+      label: recent ? "Limit crossed" : "Old limit breach",
+      severity: recent ? "critical" : "warning",
+      summary: recent ? criticalBreach.summary : "An earlier result breached a critical limit. The affected dates are listed below.",
+      evidence,
+    });
+  }
+
+  if (latestSession && latestSession.pnl <= -dailyLimit * 0.7) {
+    flags.push({
+      id: "daily-loss-pressure",
+      label: "Daily loss pressure",
+      severity: latestSession.pnl <= -dailyLimit ? "critical" : "warning",
+      summary: "The latest session lost at least 70% of the daily-loss threshold.",
+      evidence: [`${latestSession.date}: ${formatMoney(latestSession.pnl)}`, `Daily-loss threshold (active limit or default): ${formatMoney(-dailyLimit)}`],
+    });
+  }
+
+  if (sizeOffenders.length) {
+    const recentSizeOffenders = sizeOffenders.filter((trade) => recentDates.has(trade.date));
+    const largest = sizeOffenders.reduce((max, trade) => Math.max(max, trade.contracts), 0);
+    flags.push({
+      id: "size-drift",
+      label: recentSizeOffenders.length ? "Size above threshold" : "Earlier size above threshold",
+      severity: recentSizeOffenders.length ? "warning" : "info",
+      summary: recentSizeOffenders.length ? "Recent rows exceed the contract threshold." : "Older rows exceed the contract threshold.",
+      evidence: [`Largest recorded row: ${largest} contracts`, `Size threshold (active limit or default): ${maxContracts} contracts`],
+    });
+  }
+
+  if (sizeUpAfterLoss) {
+    const previous = sorted[sorted.indexOf(sizeUpAfterLoss) - 1];
+    flags.push({
+      id: "size-up-after-loss",
+      label: recentDates.has(sizeUpAfterLoss.date) ? "Larger size after a loss" : "Earlier size increase after a loss",
+      severity: recentDates.has(sizeUpAfterLoss.date) ? "warning" : "info",
+      summary: "Two consecutive rows show losses, with more contracts on the second row. Rows may include partial exits.",
+      evidence: [
+        `${previous.date} ${previous.market}: ${previous.contracts} contract${previous.contracts === 1 ? "" : "s"}, ${formatMoney(previous.pnl)}`,
+        `${sizeUpAfterLoss.date} ${sizeUpAfterLoss.market}: ${sizeUpAfterLoss.contracts} contract${sizeUpAfterLoss.contracts === 1 ? "" : "s"}, ${formatMoney(sizeUpAfterLoss.pnl)}`,
+      ],
+    });
+  }
+
+  if (rOutlierLoss) {
+    const lossR = rMultiple(rOutlierLoss)!;
+    flags.push({
+      id: "r-outlier-loss",
+      label: "Large R loss",
+      severity: recentDates.has(rOutlierLoss.date) ? "warning" : "info",
+      summary: "One recorded loss was at least twice its planned risk.",
+      evidence: [
+        `${rOutlierLoss.date} ${rOutlierLoss.market}: ${lossR.toFixed(2)}R`,
+        `${formatMoney(rOutlierLoss.pnl)} loss on ${formatMoney(rOutlierLoss.risk)} planned risk`,
+      ],
+    });
+  }
+
+  if (recentAvgR !== null && recentAvgR < -0.1) {
+    flags.push({
+      id: "recent-expectancy",
+      label: "Recent average R is negative",
+      severity: "warning",
+      summary: "Average R is negative across rows with planned risk in the latest seven rows, or all rows if fewer.",
+      evidence: [`Recent average (rows with planned risk): ${recentAvgR.toFixed(2)}R`, `Recent P&L (all recent rows): ${formatMoney(recentPnl)}`],
+    });
+  }
+
+  if (negativeOvertradingSession) {
+    flags.push({
+      id: "overtrading-session",
+      label: "High activity with negative average R",
+      severity: recentDates.has(negativeOvertradingSession.date) ? "warning" : "info",
+      summary: "One session has at least eight rows with planned risk and a negative average R. Rows may include partial exits.",
+      evidence: [
+        `${negativeOvertradingSession.date}: ${negativeOvertradingSession.trades} rows`,
+        `${formatR(negativeOvertradingSession.avgR)} average (rows with planned risk), ${formatMoney(negativeOvertradingSession.pnl)} total P&L`,
+      ],
+    });
+  }
+
+  if (setupConcentration && setupConcentration.share >= 0.45 && setupConcentration.riskCount >= 8 && setupConcentration.avgR !== null && setupConcentration.avgR < 0.08) {
+    const isNegative = setupConcentration.avgR < 0;
+    flags.push({
+      id: "setup-concentration",
+      label: isNegative ? "Frequent setup with negative average R" : "Results concentrated in one setup",
+      severity: isNegative ? "warning" : "info",
+      summary: isNegative
+        ? `${setupConcentration.name} accounts for at least 45% of rows and has a negative average R where planned risk is recorded.`
+        : `${setupConcentration.name} accounts for at least 45% of rows. Overall results depend heavily on this setup.`,
+      evidence: [
+        `${setupConcentration.count}/${sorted.length} rows (${formatPercent(setupConcentration.share)})`,
+        `${setupConcentration.avgR.toFixed(2)}R average (rows with planned risk)`,
+      ],
+    });
+  }
+
+  if (breaches.some((status) => status.rule.metric === "maxLossStreak")) {
+    flags.push({
+      id: "loss-streak",
+      label: "Loss streak",
+      severity: "warning",
+      summary: "Consecutive losing rows exceeded the loss-streak limit. Rows may include partial exits.",
+      evidence: [`Configured threshold: ${lossStreakLimit} losses`, `Worst streak: ${breaches.find((status) => status.rule.metric === "maxLossStreak")?.evidence[0]?.replace("Worst loss streak: ", "") ?? "review"}`],
+    });
+  }
+
+  if (weakestSetup && weakestSetup.avgR !== null && weakestSetup.avgR < -0.15) {
+    flags.push({
+      id: "weak-setup",
+      label: `${weakestSetup.name} has negative average R`,
+      severity: "info",
+      summary: "Average R is below -0.15 across at least three rows with planned risk. Rows without planned risk are excluded.",
+      evidence: [`${weakestSetup.riskCount}/${weakestSetup.count} rows with planned risk`, `${weakestSetup.avgR.toFixed(2)}R average result`],
+    });
+  }
+
+  if (!flags.some((flag) => flag.severity === "critical" || flag.severity === "warning") && bestSetup) {
+    flags.push({
+      id: "stable-setup",
+      label: `${bestSetup.name} has the highest average R`,
+      severity: "positive",
+      summary: "Highest average R among setups with at least three rows with planned risk. This is a comparison, not proof of an edge.",
+      evidence: [`${bestSetup.riskCount}/${bestSetup.count} rows with planned risk`, `${formatR(bestSetup.avgR)} average result`],
+    });
+  }
+
+  const missingRiskCount = sorted.filter(trade => !hasPlannedRisk(trade)).length;
+  if (missingRiskCount) flags.unshift({
+    id: "missing-planned-risk", label: "Planned risk missing", severity: "info",
+    summary: "Rows without a positive planned-risk amount are excluded from R-based results.",
+    evidence: [`${missingRiskCount}/${sorted.length} rows have no planned risk`],
+  });
+
+  if (!flags.length && sorted.length) {
+    flags.push({
+      id: "steady",
+      label: "No major warnings",
+      severity: "positive",
+      summary: "No tracked warning was found in the selected rows. Only enabled rules are checked.",
+      evidence: [`${sorted.length} trade records`, `Drawdown in recorded P&L: ${formatMoney(-maxDrawdown)}`],
+    });
+  }
+
+  return dedupeFlags(flags).slice(0, 5);
+}
+
+function buildNextSessionBrief({
+  behaviorFlags,
+  breaches,
+  latestSession,
+  maxDrawdown,
+  recentAvgR,
+  recentPnl,
+  rules,
+  score,
+  sorted,
+}: {
+  behaviorFlags: BehaviorFlag[];
+  breaches: RuleStatus[];
+  latestSession: SessionSummary | null;
+  maxDrawdown: number;
+  recentAvgR: number | null;
+  recentPnl: number;
+  rules: RiskRule[];
+  score: number | null;
+  sorted: Trade[];
+}): NextSessionBrief {
+  const dailyLimit = getRuleLimit(rules, "maxDailyLoss", 2500);
+  const maxContracts = getRuleLimit(rules, "maxContracts", 5);
+  const lossStreakLimit = getRuleLimit(rules, "maxLossStreak", 3);
+  const recentDates = new Set(sorted.slice(-7).map((trade) => trade.date));
+  const hasRecentCriticalBreach = breaches.some((status) => status.rule.severity === "critical" && status.evidence.some((line) => recentDates.has(line.slice(0, 10))));
+  const hasRecentWarningBreach = breaches.some((status) => status.rule.severity === "warning" && status.evidence.some((line) => recentDates.has(line.slice(0, 10))));
+  const latestDailyBreach = Boolean(latestSession && latestSession.pnl <= -dailyLimit);
+  const hasCritical = latestDailyBreach || hasRecentCriticalBreach || behaviorFlags.some((flag) => flag.severity === "critical");
+  const hasWarning = hasRecentWarningBreach || behaviorFlags.some((flag) => flag.severity === "warning");
+  const watchlist = behaviorFlags
+    .filter((flag) => flag.severity !== "positive")
+    .map((flag) => flag.label)
+    .slice(0, 3);
+  const guardrails = [
+    `Daily-loss threshold: ${formatMoney(dailyLimit)} (active limit or default).`,
+    `Size threshold: ${maxContracts} contract${maxContracts === 1 ? "" : "s"} (active limit or default).`,
+    `Loss-streak threshold: ${lossStreakLimit} row${lossStreakLimit === 1 ? "" : "s"} (active limit or default).`,
+  ];
+  const evidence = [
+    latestSession ? `Latest session: ${formatMoney(latestSession.pnl)} across ${latestSession.trades} row${latestSession.trades === 1 ? "" : "s"}` : "No latest session yet",
+    recentAvgR !== null ? `Recent average: ${formatR(recentAvgR)} (${sorted.slice(-7).filter(hasPlannedRisk).length}/${sorted.slice(-7).length} rows with planned risk)` : "Recent R unavailable: planned risk not provided",
+    `Drawdown in recorded P&L: ${formatMoney(-maxDrawdown)}`,
+  ];
+
+  if (!sorted.length) {
+    return {
+      status: "caution",
+      headline: "Add trade history to see results.",
+      summary: "Import trades or add them manually to check results against your limits.",
+      watchlist: ["No trade history yet"],
+      guardrails,
+      evidence,
+    };
+  }
+
+  if (hasCritical) {
+    return {
+      status: "locked",
+      headline: "A critical threshold was reached.",
+      summary: "See the flagged rows and session losses below. Thresholds use active limits, or defaults when no active limit is set.",
+      watchlist: watchlist.length ? watchlist : ["Critical limit warning"],
+      guardrails,
+      evidence: [...evidence, `${breaches.length} active limit warning${breaches.length === 1 ? "" : "s"}`],
+    };
+  }
+
+  if (!hasWarning && score === null) return {
+    status: "caution", headline: "Performance score unavailable.",
+    summary: "Score details explain which data is missing or incompatible. Limit checks remain separate.",
+    watchlist, guardrails, evidence,
+  };
+  if (!hasWarning && score !== null && score < 50 && !(recentAvgR !== null && recentAvgR < 0)) return {
+    status: "caution", headline: "Recorded results are negative.",
+    summary: "Losses outweigh gains in the selected history. Check the losing days and setups below.",
+    watchlist, guardrails, evidence,
+  };
+  if (hasWarning || (recentAvgR !== null && recentAvgR < 0)) {
+    const recentPressure = (recentAvgR !== null && recentAvgR < 0) || hasRecentWarningBreach || behaviorFlags.some((flag) => flag.severity === "warning" && flag.id !== "critical-limit");
+    return {
+      status: "caution",
+      headline: recentPressure ? "Risk warnings need attention." : "Older limit warnings remain.",
+      summary: recentPressure
+        ? "Check the flagged rows and recent average R below. A warning can come from a single result."
+        : "Older breaches remain listed even when recent results differ.",
+      watchlist: watchlist.length ? watchlist : ["Recent trades need review"],
+      guardrails,
+      evidence: [...evidence, `Recent P&L: ${formatMoney(recentPnl)}`],
+    };
+  }
+
+  if (sorted.some(trade => !hasPlannedRisk(trade))) return {
+    status: "caution", headline: "Some rows are missing planned risk.",
+    summary: "Average R excludes rows without positive planned risk. Add the original risk amounts to include those rows.",
+    watchlist: ["Missing planned risk"], guardrails, evidence,
+  };
+
+  return {
+    status: "ready",
+    headline: "No recent limit warnings detected.",
+    summary: "No recent warnings in the selected history. Older breaches may still appear in the detailed checks.",
+    watchlist: behaviorFlags.length ? behaviorFlags.map((flag) => flag.label).slice(0, 3) : ["No current warning pattern detected"],
+    guardrails,
+    evidence,
+  };
+}
+
+function getRuleLimit(rules: RiskRule[], metric: RiskRule["metric"], fallback: number) {
+  return rules.find((rule) => rule.metric === metric && rule.enabled)?.limit ?? fallback;
+}
+
+function dedupeFlags(flags: BehaviorFlag[]) {
+  const seen = new Set<string>();
+  return flags.filter((flag) => {
+    if (seen.has(flag.id)) {
+      return false;
+    }
+    seen.add(flag.id);
+    return true;
+  });
+}
+
+function evaluateRule(rule: RiskRule, trades: Trade[], sessions: SessionSummary[], metrics: { profitFactor: number; avgR: number | null; worstLossStreak: number }): RuleStatus {
+  let breached = false;
+  let summary = "Looks within your limits.";
+  let evidence: string[] = [];
+  if (rule.metric === "maxDailyLoss") {
+    const offenders = sessions.filter((session) => session.pnl <= -rule.limit || session.worstCumulativePnl <= -rule.limit);
+    breached = offenders.length > 0;
+    evidence = offenders.map((session) => {
+      const intradayLow = session.worstCumulativePnl < session.pnl ? `, intraday low ${formatMoney(session.worstCumulativePnl)}` : "";
+      return `${session.date}: closed ${formatMoney(session.pnl)}${intradayLow}`;
+    });
+    summary = breached ? `${offenders.length} session${offenders.length === 1 ? "" : "s"} reached the ${formatMoney(rule.limit)} daily-loss limit.` : `Recorded session P&L stayed above ${formatMoney(-rule.limit)}.`;
+  }
+  if (rule.metric === "maxTradeLoss") {
+    const offenders = trades.filter((trade) => trade.pnl <= -rule.limit);
+    breached = offenders.length > 0;
+    evidence = offenders.map((trade) => `${trade.date} ${trade.market}: ${formatMoney(trade.pnl)}`);
+    summary = breached ? `${offenders.length} row${offenders.length === 1 ? "" : "s"} lost at least ${formatMoney(rule.limit)}.` : `Recorded losses per row stayed under ${formatMoney(rule.limit)}.`;
+  }
+  if (rule.metric === "maxContracts") {
+    const offenders = trades.filter((trade) => trade.contracts > rule.limit);
+    breached = offenders.length > 0;
+    evidence = offenders.map((trade) => `${trade.date} ${trade.market}: ${trade.contracts} contracts`);
+    summary = breached ? `${offenders.length} row${offenders.length === 1 ? "" : "s"} recorded more than ${rule.limit} contracts.` : `Recorded size per row stayed at or below ${rule.limit} contracts.`;
+  }
+  if (rule.metric === "maxLossStreak") {
+    breached = metrics.worstLossStreak > rule.limit;
+    evidence = [`Worst loss streak: ${metrics.worstLossStreak}`];
+    summary = breached ? `Consecutive losing rows exceeded ${rule.limit}.` : `Consecutive losing rows stayed at or below ${rule.limit}.`;
+  }
+  if (rule.metric === "minProfitFactor") {
+    breached = metrics.profitFactor < rule.limit;
+    evidence = [`Profit factor: ${Number.isFinite(metrics.profitFactor) ? metrics.profitFactor.toFixed(2) : "∞"}`];
+    summary = breached ? `Profit factor is below ${rule.limit}.` : `Profit factor is at or above ${rule.limit}.`;
+  }
+  if (rule.metric === "minAvgR") {
+    if (metrics.avgR === null) return { rule, breached: false, evaluated: false, summary: "Not evaluated: planned risk not provided.", evidence: ["Average R unavailable; no rows with positive planned risk."] };
+    breached = metrics.avgR < rule.limit;
+    evidence = [`Average R: ${formatR(metrics.avgR)}`, `${trades.filter(hasPlannedRisk).length}/${trades.length} rows with planned risk`];
+    summary = breached ? `Average R is below ${rule.limit}.` : `Average R is at or above ${rule.limit}.`;
+  }
+  return { rule, breached, evaluated: true, summary, evidence };
+}
+
+function summarize(trades: Trade[], getKey: (trade: Trade) => string) {
+  return Object.entries(groupBy(trades, getKey))
+    .map(([name, rows]) => {
+      const pnl = rows.reduce((sum, trade) => sum + trade.pnl, 0);
+      return {
+        name,
+        count: rows.length,
+        pnl,
+        winRate: rows.filter((trade) => trade.pnl > 0).length / rows.length,
+        avgR: averageR(rows),
+        riskCount: rows.filter(trade => rMultiple(trade) !== null).length,
+      };
+    })
+    .sort((a, b) => b.count - a.count || b.pnl - a.pnl);
+}
+
+function getConcentration(rows: ReturnType<typeof summarize>, totalTrades: number) {
+  if (!totalTrades || !rows.length) {
+    return null;
+  }
+  const [top] = [...rows].sort((a, b) => b.count - a.count || (a.avgR ?? 0) - (b.avgR ?? 0));
+  return {
+    ...top,
+    share: top.count / totalTrades,
+  };
+}
+
+/** Preserve positive legacy values; old CSVs lack provenance to distinguish genuine risk from the former fallback. */
+export function hasPlannedRisk(trade: Trade): boolean {
+  return trade.riskStatus !== "missing" && Number.isFinite(trade.risk) && trade.risk > 0;
+}
+
+export function formatR(value: number | null): string {
+  return value === null ? "Not available" : `${value.toFixed(2)}R`;
+}
+
+function averageR(trades: Trade[]): number | null {
+  const values = trades.map(rMultiple).filter((value): value is number => value !== null);
+  if (!values.length) return null;
+  const mean = values.reduce((sum, value) => sum + value / values.length, 0);
+  return Number.isFinite(mean) ? mean : null;
+}
+
+function rMultiple(trade: Trade): number | null {
+  if (!hasPlannedRisk(trade)) return null;
+  const value = trade.pnl / trade.risk;
+  return Number.isFinite(value) ? value : null;
+}
+
+export const PERFORMANCE_SCORE_VERSION = "cova-performance-v2" as const;
+// Versioned product policy, not fitted coefficients or a probability of future profit.
+export const PERFORMANCE_SCORE_POLICY = /* @__PURE__ */ Object.freeze({ balance: .4, consistency: .3, recovery: .3, supportPriorDays: 10 });
+export type PerformanceScoreComponent = { label: string; value: number; weight: number; points: number; summary: string; evidence: string };
+export type PerformanceScore = {
+  version: typeof PERFORMANCE_SCORE_VERSION;
+  status: "available" | "unavailable";
+  score: number | null;
+  rawScore: number | null;
+  unroundedScore: number | null;
+  evidenceAdjustment: number;
+  reason: string;
+  basis: string;
+  days: { date: string; pnlCents: string }[];
+  nonzeroDays: number;
+  supportDays: number;
+  supportWeight: number;
+  netCents: string | null;
+  maxDrawdownCents: string | null;
+  components: PerformanceScoreComponent[];
+};
+
+/** Realized, recorded-day performance. No inferred capital, planned risk, fees or positions.
+ * Keep the financial core self-contained: existing client/server and isolated TS consumers
+ * execute this same source. See docs/performance-score-v2.md for the exact model contract.
+ */
+export function calculatePerformanceScore(trades: readonly Trade[]): PerformanceScore {
+  const unavailable = (reason: string): PerformanceScore => ({
+    version: PERFORMANCE_SCORE_VERSION, status: "unavailable", score: null, rawScore: null,
+    unroundedScore: null, evidenceAdjustment: 0, reason, basis: "Unavailable", days: [],
+    nonzeroDays: 0, supportDays: 0, supportWeight: 0, netCents: null, maxDrawdownCents: null, components: [],
+  });
+  if (!trades.length) return unavailable("No trade history");
+  const max = BigInt(Number.MAX_SAFE_INTEGER);
+  const abs = (n: bigint) => n < 0n ? -n : n;
+  const ids = new Set<string>(), bases = new Set<string>();
+  const daily = new Map<string, bigint>();
+  const usdFutures = new Set(["NQ","MNQ","ES","MES","YM","MYM","RTY","M2K","CL","MCL","GC","MGC","SI","SIL","HG","ZB","ZN","ZF","ZT"]);
+  let absoluteRowTotal = 0n;
+  for (const row of trades) {
+    if (!row.id || ids.has(row.id)) return unavailable("A row ID is missing or duplicated");
+    ids.add(row.id);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(row.date) || !Number.isFinite(Date.parse(row.date + "T00:00:00.000Z")) ||
+        new Date(row.date + "T00:00:00.000Z").toISOString().slice(0, 10) !== row.date) return unavailable("A recorded close date is invalid");
+    if (row.manual && row.source) return unavailable("A row has both manual and broker source details");
+    let basis: string;
+    if (row.manual && row.manual.currency === "USD" && row.manual.accountKey &&
+        ["reported_net", "gross_before_fees"].includes(row.manual.pnlBasis)) {
+      basis = row.manual.pnlBasis === "reported_net" ? "Reported net P&L" : "Recorded gross P&L";
+    } else if (!row.manual && row.source?.provider === "Tradovate" && row.source.accountId && row.source.pnlBasis === "gross_before_fees" && usdFutures.has(row.market)) {
+      basis = "Recorded gross P&L";
+    } else if (!row.manual && row.source?.provider === "Rithmic" && row.source.currency === "USD" && row.source.accountKey && row.source.accountId) {
+      basis = "Reported P&L";
+    } else if (!row.manual && !row.source && sampleTrades.some(t => t.id === row.id && t.date === row.date && t.market === row.market && t.pnl === row.pnl)) {
+      basis = "Sample P&L";
+    } else return unavailable("USD currency and P&L source are not confirmed");
+    bases.add(basis);
+    if (bases.size > 1) return unavailable("P&L types differ; select one compatible account");
+    // Do not round unsupported precision, convert NaN, or silently drop a bad row.
+    const amount = /^(-?)(\d+)(?:\.(\d{1,2}))?$/.exec(String(row.pnl));
+    if (typeof row.pnl !== "number" || !Number.isFinite(row.pnl) || !amount) return unavailable("P&L must be a valid amount with no fractions of a cent");
+    const value = (amount[1] ? -1n : 1n) * (BigInt(amount[2]) * 100n + BigInt((amount[3] ?? "").padEnd(2, "0")));
+    absoluteRowTotal += abs(value);
+    if (absoluteRowTotal > max) return unavailable("P&L exceeds the supported amount range");
+    daily.set(row.date, (daily.get(row.date) ?? 0n) + value);
+  }
+  const ordered = [...daily].sort(([a], [b]) => a.localeCompare(b));
+  const active = ordered.map(([, value]) => value).filter(value => value !== 0n);
+  if (!active.length) return unavailable("Every recorded day has zero P&L");
+  let net = 0n, peak = 0n, drawdown = 0n, positive = 0n, negative = 0n, squares = 0n;
+  for (const value of active) {
+    net += value;
+    peak = net > peak ? net : peak;
+    drawdown = peak - net > drawdown ? peak - net : drawdown;
+    if (value > 0n) positive += value; else negative -= value;
+    squares += value * value;
+  }
+  const magnitude = positive + negative;
+  const n = active.length;
+  const policy = PERFORMANCE_SCORE_POLICY;
+  const balance = Number(positive) / Number(magnitude);
+  // Bounded signed mean/RMS, not Sharpe and not a return on account capital.
+  const consistency = clamp((1 + Number(net) / Math.sqrt(n * Number(squares))) / 2, 0, 1);
+  const recovery = (1 + Number(net) / Number(abs(net) + drawdown)) / 2;
+  // Inverse magnitude concentration: 30 tiny days plus one windfall are NOT 31
+  // equally supportive observations. This is not statistical effective sample size.
+  const supportDays = clamp(Number(magnitude * magnitude) / Number(squares), 1, n);
+  const supportWeight = supportDays / (supportDays + policy.supportPriorDays);
+  const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
+  const usd = (v: bigint) => `${v < 0n ? "-" : ""}$${(Number(abs(v)) / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const component = (label: string, value: number, weight: number, summary: string, evidence: string): PerformanceScoreComponent =>
+    ({ label, value, weight, points: Math.round(value * weight * 10000) / 100, summary, evidence });
+  const components = [
+    component("P&L balance", balance, policy.balance, "The share of total daily gains and losses that came from profitable days.", `${usd(positive)} gains / ${usd(magnitude)} gains plus losses · ${pct(balance)}`),
+    component("Daily consistency", consistency, policy.consistency, "Uses the direction and size of daily results. Positive, evenly distributed results score higher.", `${n} days with nonzero P&L · ${pct(consistency)} component score`),
+    component("Drawdown recovery", recovery, policy.recovery, "Compares net P&L with the largest day-end drop from a prior peak. Intraday and open-position losses are not included.", `${usd(net)} net / (${usd(abs(net))} + ${usd(drawdown)} day-end drawdown)`),
+  ];
+  const rawScore = components.reduce((sum, c) => sum + Math.round(c.points * 100), 0) / 100;
+  // Only discount favorable evidence. Shrinking a loss toward 50 would reward an
+  // outsized loss for reducing supportDays. Loss-making evidence gets no upgrade.
+  const evidenceAdjustment = rawScore > 50 ? -Math.round((rawScore - 50) * (1 - supportWeight) * 100) / 100 : 0;
+  const unroundedScore = clamp(Math.round((rawScore + evidenceAdjustment) * 100) / 100, 0, 100);
+  return { version: PERFORMANCE_SCORE_VERSION, status: "available", score: Math.round(unroundedScore * 10) / 10,
+    rawScore, unroundedScore, evidenceAdjustment, reason: "", basis: [...bases][0],
+    days: ordered.map(([date, value]) => ({ date, pnlCents: value.toString() })), nonzeroDays: n, supportDays, supportWeight,
+    netCents: net.toString(), maxDrawdownCents: drawdown.toString(), components };
+}
+
+function buildEvidenceQuality(tradeCount: number, activeRuleCount: number, trades: Trade[], performance: PerformanceScore): EvidenceQuality {
+  const caveats = [
+    "Selected history only; not a forecast or a complete account record.",
+    trades.some(t => t.id.startsWith("csv-") && t.riskStatus === undefined && hasPlannedRisk(t)) ? "Older CSV planned-risk values remain unverified; check the original plan." : "",
+    "Day-end P&L excludes intraday exposure and open-position losses. Missing fees are not estimated.",
+    "Cova defines the score weights and history adjustment. This is not an independently validated rating.",
+    !activeRuleCount ? "No active risk rules. Enabling limits does not add score points." : "Limit checks do not change the performance score.",
+    trades.some(t => !hasPlannedRisk(t)) ? "Some rows are missing planned risk. R-based results exclude those rows; the performance score does not use planned risk." : "",
+  ].filter(Boolean);
+  if (performance.status === "unavailable") return {
+    label: tradeCount ? "Unavailable" : "No sample", level: "none", summary: performance.reason, caveats,
+  };
+  const support = performance.supportDays;
+  return {
+    label: support < 10 ? "Early history" : support < 30 ? "Developing history" : "Broader history",
+    level: support < 10 ? "low" : support < 30 ? "medium" : "high",
+    summary: `${performance.days.length} recorded day${performance.days.length === 1 ? "" : "s"} · ${performance.basis}`,
+    caveats,
+  };
+}
+
+function buildScoreFactors(performance: PerformanceScore): ScoreFactor[] {
+  if (performance.status === "unavailable") return [{ label: performance.reason, impact: "neutral", summary: "These results cannot be scored. Check the reason above.", evidence: "Score unavailable" }];
+  return [
+    ...performance.components.map(c => ({ label: c.label,
+      impact: (c.value > .5 ? "positive" : c.value < .5 ? "negative" : "neutral") as ScoreFactor["impact"],
+      points: c.points, maximum: c.weight * 100, summary: c.summary, evidence: `${c.points.toFixed(2)} / ${(c.weight * 100).toFixed(0)} points · ${c.evidence}` })),
+    { label: "History adjustment", points: performance.evidenceAdjustment, impact: performance.evidenceAdjustment < 0 ? "negative" : "neutral",
+      summary: "Scores above 50 are reduced when history is short or P&L is concentrated in a few days. Scores of 50 or less are unchanged.",
+      evidence: `${performance.supportDays.toFixed(2)} weighted days (not a calendar-day count) · ${performance.evidenceAdjustment.toFixed(2)} points` },
+  ];
+}
+
+function groupBy<T>(items: T[], getKey: (item: T) => string) {
+  return items.reduce<Record<string, T[]>>((acc, item) => {
+    const key = getKey(item);
+    acc[key] = acc[key] ?? [];
+    acc[key].push(item);
+    return acc;
+  }, Object.create(null) as Record<string, T[]>);
+}
+
+export function parseCsv(text: string): Trade[] {
+  return parseCsvDetailed(text).trades;
+}
+
+export function parseCsvDetailed(text: string): CsvParseResult {
+  const lines = text.trim().split(/\r?\n/).filter((line) => line.trim().length);
+  if (!lines.length) {
+    return { trades: [], issues: [{ row: 0, message: "CSV is empty." }], headers: [], rowCount: 0 };
+  }
+
+  const delimiter = detectDelimiter(lines[0]);
+  const rawHeaders = splitCsvLine(lines[0], delimiter);
+  const headers = rawHeaders.map(normalizeHeader);
+  const issues: CsvParseIssue[] = [];
+  const trades: Trade[] = [];
+  const providerTradeIds = new Set<string>();
+  const now = Date.now();
+
+  lines.slice(1).forEach((line, index) => {
+    const rowNumber = index + 2;
+    const row = splitCsvLine(line, delimiter);
+    const record = Object.fromEntries(headers.map((header, i) => [header, row[i] ?? ""]));
+    const pnlRaw = valueFrom(record, [
+      "pnl",
+      "pl",
+      "netpnl",
+      "netpl",
+      "netprofitloss",
+      "netprofit",
+      "realizedpnl",
+      "realizedpl",
+      "realizedprofitloss",
+      "closedpnl",
+      "closedpl",
+      "profitloss",
+      "profitandloss",
+      "profit",
+      "loss",
+      "amount",
+      "net",
+    ]);
+    const contractsRaw = valueFrom(record, [
+      "contracts",
+      "contract",
+      "qty",
+      "quantity",
+      "size",
+      "filled",
+      "filledqty",
+      "filledquantity",
+      "fillqty",
+      "qtyfilled",
+      "orderqty",
+      "numberofcontracts",
+      "lots",
+    ]);
+    const entryRaw = valueFrom(record, ["entry", "entryprice", "avgentry", "averageentry", "entryavg", "buyprice", "openprice", "open", "entryfillprice"]);
+    const exitRaw = valueFrom(record, ["exit", "exitprice", "avgexit", "averageexit", "exitavg", "sellprice", "closeprice", "close", "exitfillprice"]);
+    const market = valueFrom(record, ["market", "symbol", "instrument", "instrumentname", "contract", "contractname", "product", "ticker"]).trim().toUpperCase();
+    const date = parseDateValue(valueFrom(record, ["date", "tradedate", "closedate", "exitdate", "timestamp", "datetime", "time", "filltime", "executiontime", "closetime", "opentime"]));
+    const sourceProvider = valueFrom(record, ["sourceprovider"]).trim();
+    const sourceAccountKey = valueFrom(record, ["sourceaccountkey"]).trim();
+    const sourceAccountId = valueFrom(record, ["sourceaccountid"]).trim();
+    const sourceCurrency = valueFrom(record, ["sourcecurrency"]).trim();
+    const sourceTradeId = valueFrom(record, ["sourcetradeid"]).trim();
+    const isRithmic = sourceProvider.toLowerCase() === "rithmic";
+    const isTradovate = sourceProvider.toLowerCase() === "tradovate";
+    const openedAt = valueFrom(record, ["sourceopenedat"]);
+    const closedAt = valueFrom(record, ["sourceclosedat"]);
+    const hasHistoryTime = isTradovate && Boolean(openedAt || closedAt);
+    const validUtc = (value: string) => /^20\d{2}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.000Z$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString() === value;
+    const pnl = parseNumber(pnlRaw);
+    const contracts = parseNumber(contractsRaw || "1");
+    const entry = parseNumber(entryRaw);
+    const exit = parseNumber(exitRaw);
+
+    const rowIssues = [
+      !date ? "missing date" : "",
+      !market ? "missing market/symbol" : "",
+      !pnlRaw ? "missing P&L" : "",
+      pnlRaw && !Number.isFinite(pnl) ? "invalid P&L" : "",
+      !Number.isFinite(contracts) || contracts <= 0 ? "invalid contracts" : "",
+      isRithmic && !/^[A-Za-z0-9_-]{20,64}$/.test(sourceAccountKey) ? "invalid Rithmic source account key" : "",
+      isRithmic && !sourceAccountId ? "missing Rithmic source account" : "",
+      isRithmic && !sourceCurrency ? "missing Rithmic source currency" : "",
+      isRithmic && !/^rithmic-[a-z0-9-]{1,72}$/i.test(sourceTradeId) ? "invalid Rithmic source trade id" : "",
+      isTradovate && !/^[A-Za-z0-9._:-]{1,128}$/.test(sourceAccountId) ? "invalid Tradovate source account" : "",
+      isTradovate && !/^tradovate-[A-Za-z0-9._:-]{1,128}$/.test(sourceTradeId) ? "invalid Tradovate source trade id" : "",
+      hasHistoryTime && (!validUtc(openedAt) || !validUtc(closedAt) || openedAt >= closedAt || closedAt.slice(0, 10) !== date || valueFrom(record, ["sourcetimezone"]) !== "UTC" || valueFrom(record, ["sourcepnlbasis"]) !== "gross_before_fees") ? "invalid Tradovate UTC provenance" : "",
+    ].filter(Boolean);
+
+    if (rowIssues.length) {
+      issues.push({ row: rowNumber, message: rowIssues.join(", ") });
+      return;
+    }
+
+    const providerImport = isRithmic || isTradovate;
+    if (providerImport && providerTradeIds.has(sourceTradeId)) {
+      issues.push({ row: rowNumber, message: "duplicate provider source trade id" });
+      return;
+    }
+    if (providerImport) providerTradeIds.add(sourceTradeId);
+    const riskRaw = valueFrom(record, ["risk", "plannedrisk", "initialrisk", "maxrisk", "rmultiplebase", "riskamount", "plannedloss"]);
+    const parsedRisk = parsePlannedRisk(riskRaw);
+    const risk = parsedRisk ?? 0;
+    const side = parseSide(valueFrom(record, ["side", "direction", "buysell", "action", "position", "tradeaction"]));
+    trades.push({
+      id: providerImport ? sourceTradeId : `csv-${now}-${index}`,
+      date,
+      market,
+      side,
+      contracts: Math.max(1, contracts),
+      entry: Number.isFinite(entry) ? entry : 0,
+      exit: Number.isFinite(exit) ? exit : 0,
+      pnl,
+      risk,
+      riskStatus: parsedRisk === null ? "missing" : "provided",
+      setup: valueFrom(record, ["setup", "strategy", "playbook", "tag", "label", "tradetype", "category"]) || "Imported",
+      notes: valueFrom(record, ["notes", "note", "comment", "comments", "journal", "description"]),
+      ...(isRithmic
+        ? { source: { provider: "Rithmic" as const, accountKey: sourceAccountKey, accountId: sourceAccountId, currency: sourceCurrency } }
+        : isTradovate
+          ? { source: { provider: "Tradovate" as const, accountId: sourceAccountId, ...(hasHistoryTime ? { openedAt, closedAt, timeZone: "UTC" as const, pnlBasis: "gross_before_fees" as const } : {}) } }
+          : {}),
+    });
+  });
+
+  return { trades, issues, headers: rawHeaders, rowCount: Math.max(0, lines.length - 1) };
+}
+
+function parsePlannedRisk(raw: string): number | null {
+  const normalized = raw.trim().replace(/[−–—]/g, "-").replace(/[$,\s]/g, "");
+  if (!/^\+?(?:\d+(?:\.\d+)?|\.\d+)$/.test(normalized)) return null;
+  const value = Number(normalized);
+  return Number.isFinite(value) && value > 0 && Number.isSafeInteger(Math.round(value * 100)) ? value : null;
+}
+
+export function formatMoney(value: number) {
+  const sign = value < 0 ? "-" : "";
+  return `${sign}$${Math.abs(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+export function formatPercent(value: number) {
+  return `${Math.round(value * 100)}%`;
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function normalizeHeader(header: string) {
+  return header.replace(/^\uFEFF/, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function valueFrom(record: Record<string, string>, keys: string[]) {
+  for (const key of keys) {
+    const value = record[key];
+    if (value && value.trim()) {
+      return value.trim();
+    }
+  }
+  return "";
+}
+
+function parseNumber(value: string | number) {
+  if (typeof value === "number") {
+    return value;
+  }
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === "-" || trimmed === "--") {
+    return Number.NaN;
+  }
+
+  const isParenthesized = /^\(.*\)$/.test(trimmed);
+  const normalized = trimmed
+    .replace(/[−–—]/g, "-")
+    .replace(/^\((.*)\)$/, "$1")
+    .replace(/[,$%\s]/g, "")
+    .replace(/[^0-9.+-]/g, "");
+  if (!normalized || normalized === "-" || normalized === "+") {
+    return Number.NaN;
+  }
+
+  const trailingMinus = normalized.endsWith("-");
+  const numeric = Number(trailingMinus ? normalized.slice(0, -1) : normalized);
+  if (!Number.isFinite(numeric)) {
+    return Number.NaN;
+  }
+  return isParenthesized || trailingMinus ? -Math.abs(numeric) : numeric;
+}
+
+function parseDateValue(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  const iso = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (iso) {
+    return `${iso[1]}-${iso[2].padStart(2, "0")}-${iso[3].padStart(2, "0")}`;
+  }
+
+  const slashDate = trimmed.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})/);
+  if (slashDate) {
+    const year = slashDate[3].length === 2 ? `20${slashDate[3]}` : slashDate[3];
+    return `${year}-${slashDate[1].padStart(2, "0")}-${slashDate[2].padStart(2, "0")}`;
+  }
+
+  const excelSerial = Number(trimmed);
+  if (Number.isFinite(excelSerial) && excelSerial > 20_000 && excelSerial < 80_000) {
+    return new Date((excelSerial - 25_569) * 86_400_000).toISOString().slice(0, 10);
+  }
+
+  const timestamp = Date.parse(trimmed);
+  return Number.isFinite(timestamp) ? new Date(timestamp).toISOString().slice(0, 10) : "";
+}
+
+function parseSide(value: string): "Long" | "Short" {
+  const side = value.trim().toLowerCase();
+  if (["short", "sell", "sold", "s", "sl", "sld", "sellshort", "selltoclose", "selltoopen"].includes(side)) {
+    return "Short";
+  }
+  return "Long";
+}
+
+function detectDelimiter(headerLine: string) {
+  const candidates = [",", "\t", ";"];
+  return candidates
+    .map((delimiter) => ({ delimiter, count: splitCsvLine(headerLine, delimiter).length }))
+    .sort((a, b) => b.count - a.count)[0]?.delimiter ?? ",";
+}
+
+function splitCsvLine(line: string, delimiter = ",") {
+  const cells: string[] = [];
+  let cell = "";
+  let quoted = false;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    const next = line[index + 1];
+    if (char === '"' && quoted && next === '"') {
+      cell += '"';
+      index += 1;
+      continue;
+    }
+    if (char === '"') {
+      quoted = !quoted;
+      continue;
+    }
+    if (char === delimiter && !quoted) {
+      cells.push(cell.trim());
+      cell = "";
+      continue;
+    }
+    cell += char;
+  }
+
+  cells.push(cell.trim());
+  return cells;
+}
