@@ -18,9 +18,10 @@ function extractAdvanceAuthGeneration(app) {
   const source = matches[0][0];
   const parsed = ts.createSourceFile("advanceAuthGeneration.ts", source, ts.ScriptTarget.Latest, true);
   assert.deepEqual(Array.from(parsed.statements[0].body.statements, (statement) => statement.getText(parsed)), [
+    "workspaceSearchRef.current?.revoke();",
     "revokeAskCovaAccess();",
     "authGenerationRef.current += 1;",
-  ], "the helper must synchronously revoke access before its original generation increment");
+  ], "search and beta access must synchronously revoke before the original generation increment");
   return source;
 }
 
@@ -670,6 +671,7 @@ test("identity preparation synchronously invalidates in-flight deletion cleanup 
     passwordRecoveryUserIdRef: { current: null },
     authCeremonyActiveRef: { current: true },
     providerAuthAttemptIdRef: { current: 4 },
+    workspaceSearchRef: { current: { revoke: () => events.push(`search:${context.authGenerationRef.current}`) } },
     revokeAskCovaAccess: () => events.push(`revoke:${context.authGenerationRef.current}`),
     hideWorkspaceForAuthCheck: () => events.push("hide-workspace"),
     setPendingSupabaseSession: (value) => events.push(`pending:${value?.user?.id || "none"}`),
@@ -691,7 +693,7 @@ test("identity preparation synchronously invalidates in-flight deletion cleanup 
     context.authGenerationRef.current === 11 && context.providerSessionRef.current?.user.id === "user-A",
     false,
   );
-  assert.deepEqual(events, ["revoke:11", "hide-workspace", "pending:none", "recovery:none", "mode:none"]);
+  assert.deepEqual(events, ["search:11", "revoke:11", "hide-workspace", "pending:none", "recovery:none", "mode:none"]);
 });
 
 test("password recovery pins the mutation to the captured bearer and aborts on identity switch", async () => {
@@ -864,6 +866,7 @@ test("same-user refresh and sign-out preserve confirmed deletion cleanup while a
   assert.ok(continuitySource);
 
   const revocations = [];
+  const searchRevocations = [];
   const context = {
     authGenerationRef: { current: 11 },
     identitySwitchGenerationRef: { current: 5 },
@@ -878,6 +881,10 @@ test("same-user refresh and sign-out preserve confirmed deletion cleanup while a
     authCeremonyActiveRef: { current: true },
     providerAuthAttemptIdRef: { current: 4 },
     activeProviderUserIdRef: { current: "user-A" },
+    workspaceSearchRef: { current: { revoke: () => searchRevocations.push([
+      context.authGenerationRef.current,
+      context.providerSessionRef.current?.access_token,
+    ]) } },
     revokeAskCovaAccess: () => revocations.push([
       context.authGenerationRef.current,
       context.providerSessionRef.current?.access_token,
@@ -917,6 +924,7 @@ test("same-user refresh and sign-out preserve confirmed deletion cleanup while a
   assert.equal(context.identitySwitchGenerationRef.current, 7);
   assert.equal(context.hasDeletionIdentityContinuity("user-A", 5), false);
   assert.deepEqual(revocations, [[11, "token-A"], [12, "token-A-refreshed"], [13, "token-B"]]);
+  assert.deepEqual(searchRevocations, revocations, "search revokes under the same old identity and generation as beta access");
 
   const normalDeletion = app.match(/async function deleteAccount\(\)\s*\{([\s\S]*?)\r?\n  \}\r?\n\r?\n  function signInAsDevPreview/)?.[1] || "";
   const pendingDeletion = app.match(/async function deletePendingAccount\(\)\s*\{([\s\S]*?)\r?\n  \}\r?\n\r?\n  function handleSupabaseAuthFailure/)?.[1] || "";
@@ -958,11 +966,12 @@ test("account deletion pins the validated identity and bearer across the request
       get current() { return generation; },
       set current(value) { events.push(`generation:${value}`); generation = value; },
     },
+    workspaceSearchRef: { current: { revoke: () => events.push(`search:${generation}`) } },
     revokeAskCovaAccess: () => events.push(`revoke:${generation}`),
   };
   runInNewContext(`${advanceSource}\nadvanceAuthGeneration();`, context);
   assert.equal(generation, 12);
-  assert.deepEqual(events, ["revoke:11", "generation:12"]);
+  assert.deepEqual(events, ["search:11", "revoke:11", "generation:12"]);
   const body = app.match(/async function deleteAccount\(\)\s*\{([\s\S]*?)\r?\n  \}\r?\n\r?\n  function signInAsDevPreview/)?.[1] || "";
   assert.match(body, /const deletingUserId = authSession\.userId/);
   assert.match(body, /const deletionSession = providerSessionRef\.current/);

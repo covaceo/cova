@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test:workspace-search": "node --test scripts/workspace-search-regression.mjs && node --test --test-name-pattern=\"identity preparation synchronously|same-user refresh and sign-out|account deletion pins\" scripts/auth-regression.mjs && node scripts/workspace-search-browser.mjs",
     "test:ask-cova": "node --test scripts/ask-cova-intent-regression.mjs scripts/ask-cova-core-regression.mjs scripts/ask-cova-client-regression.mjs scripts/ask-cova-wiring-regression.mjs scripts/ask-cova-budget-regression.mjs scripts/ask-cova-server-regression.mjs scripts/ask-cova-native-auth-regression.mjs scripts/ask-cova-beta-server-regression.mjs scripts/ask-cova-beta-client-regression.mjs && node scripts/ask-cova-ui-regression.mjs && node scripts/ask-cova-chat-regression.mjs && node scripts/ask-cova-beta-browser.mjs && node scripts/ask-cova-app-browser.mjs",
     "test:marketing-typography": "npm run build && node scripts/marketing-typography-browser.mjs",
     "test:geist-serif": "npm run build && node scripts/geist-serif-browser-regression.mjs",

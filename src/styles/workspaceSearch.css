@@ -1,0 +1,84 @@
+/* Scoped search surface; Cova's existing Inter / slate / cobalt workspace. */
+.workspace-search-dialog {
+  color: #f1f5f9; background: #151a23; border: 1px solid #3b4659; border-radius: 14px;
+  width: min(640px, calc(100vw - 32px)); max-width: none; max-height: min(760px, calc(100dvh - 32px));
+  padding: 0; margin: auto; font: 14px/1.5 Inter, sans-serif; overflow: hidden;
+  box-shadow: 0 24px 80px #0008;
+}
+.workspace-search-dialog[open] { display: flex; flex-direction: column; }
+.workspace-search-dialog::backdrop { background: #0009; }
+.workspace-search-dialog button { font: inherit; color: inherit; cursor: pointer; }
+.workspace-search-dialog button:disabled { color: #aeb8ca; cursor: default; }
+.workspace-search-dialog button:focus-visible, .workspace-search-dialog input:focus-visible,
+.workspace-search-dialog [tabindex="0"]:focus-visible { outline: 2px solid #8eaaff; outline-offset: -3px; }
+.workspace-search-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px 12px; flex-shrink: 0; }
+.workspace-search-header h2 { margin: 0; color: #f1f5f9; font: 600 18px/1.4 Inter, sans-serif; letter-spacing: 0; }
+.workspace-search-header p { margin: 4px 0 0; color: #b3bfd0; font-size: 12px; }
+.workspace-search-header button, .workspace-search-field button { display: grid; place-items: center; width: 44px; height: 44px; flex-shrink: 0; background: transparent; border: 0; border-radius: 6px; }
+.workspace-search-dialog svg { width: 18px; height: 18px; flex-shrink: 0; }
+.workspace-search-field { display: flex; align-items: center; gap: 10px; margin: 0 20px; border: 1px solid #61718a; border-radius: 8px; background: #10141c; padding: 0 0 0 12px; flex-shrink: 0; }
+.workspace-search-dialog .workspace-search-field input { min-width: 0; width: 100%; height: 48px; margin: 0; padding: 8px 4px; border: 0; border-radius: 4px; background: transparent; color: #f1f5f9; font: 16px/1.5 Inter,sans-serif; box-shadow: none; }
+.workspace-search-field input::placeholder { color: #aebbd0; opacity: 1; }
+.workspace-search-count { color: #b3bfd0; margin: 12px 20px 8px; font-size: 12px; flex-shrink: 0; }
+.workspace-search-results { overflow: auto; overscroll-behavior: contain; min-height: 0; padding: 0 8px; }
+.workspace-search-results > button { display: block; text-align: left; width: 100%; min-height: 64px; padding: 10px 12px; border: 1px solid transparent; border-radius: 8px; background: transparent; overflow-wrap: anywhere; }
+.workspace-search-results > button[aria-selected="true"] { background: #252f43; border-color: #667ba4; }
+.workspace-search-result-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.workspace-search-result-heading strong { font-weight: 500; }
+.workspace-search-result-heading small { color: #bec9db; font-size: 12px; flex-shrink: 0; }
+.workspace-search-meta { display: block; font-size: 12px; color: #b3bfd0; margin: 3px 0; overflow-wrap: anywhere; }
+.workspace-search-snippet { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-top: 4px; color: #e2e8f0; line-height: 1.5; }
+.workspace-search-empty { margin: 8px 20px 24px; color: #b3bfd0; }
+.workspace-search-help { padding: 12px 20px; margin: 0; font-size: 12px; color: #b3bfd0; flex-shrink: 0; }
+.workspace-search-pagination { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 20px 0; flex-shrink: 0; }
+.workspace-search-pagination button, .workspace-search-back, .workspace-search-attachment button { min-height: 44px; border: 1px solid #61718a; border-radius: 6px; background: #202938; padding: 8px 12px; }
+.workspace-search-pagination span { color: #b3bfd0; font-size: 12px; font-variant-numeric: tabular-nums; }
+.workspace-search-detail { overflow: auto; overscroll-behavior: contain; padding: 0 20px 20px; }
+.workspace-search-back { display: flex; align-items: center; gap: 8px; margin: 0 0 16px; }
+.workspace-search-detail h3 { font: 600 18px/1.4 Inter,sans-serif; color: #f1f5f9; overflow-wrap: anywhere; margin: 4px 0; }
+.workspace-search-detail dl { margin: 18px 0 0; }
+.workspace-search-detail dl > div { display: grid; grid-template-columns: 150px minmax(0,1fr); gap: 12px; padding: 8px 0; }
+.workspace-search-detail dt { color: #b3bfd0; }
+.workspace-search-detail dd { margin: 0; color: #f1f5f9; white-space: pre-wrap; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.workspace-search-note { white-space: pre-wrap; overflow-wrap: anywhere; margin: 20px 0; font-size: 14px; }
+.workspace-search-attachment { margin-top: 20px; }
+.workspace-search-attachment button { text-align: left; overflow-wrap: anywhere; }
+.workspace-mobile-search { display: none; }
+@media(max-width:1023px) {
+  .workspace-top-header .workspace-mobile-search { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin-left: auto; margin-right: 8px; background: #202938; color: #f1f5f9; border: 1px solid #61718a; border-radius: 8px; }
+  .workspace-mobile-search svg { width: 18px; height: 18px; }
+  .workspace-mobile-search:focus-visible { outline: 2px solid #8eaaff; outline-offset: 2px; }
+}
+@media(max-width:480px) {
+  .workspace-search-dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); border-radius: 12px; }
+  .workspace-search-header { padding: 12px; }
+  .workspace-search-header p { max-width: 210px; }
+  .workspace-search-field { margin: 0 12px; }
+  .workspace-search-count { margin-left: 12px; margin-right: 12px; }
+  .workspace-search-result-heading { flex-wrap: wrap; gap: 2px 8px; }
+  .workspace-search-detail { padding: 0 12px 16px; }
+  .workspace-search-detail dl > div { grid-template-columns: 1fr; gap: 2px; }
+  .workspace-search-help { padding: 12px; }
+}
+/* Keep the existing rail toggle anchored; the generic Risk Desk button reset
+   otherwise makes it relative and covers the compact search in collapsed mode. */
+.oa-dashboard-app .oa-dashboard-shell[data-sidebar-state] .workspace-sidebar-toggle { position: absolute !important; }
+/* The shared Risk Desk control layer styles every dialog button. Own this dialog's
+   row geometry without changing that approved layer or other workspace controls. */
+#cova-workspace-search button {
+  height: auto !important; min-height: 44px !important; padding: 8px 12px !important;
+  white-space: normal; color: #f1f5f9 !important; font-size: 14px !important; line-height: 1.5 !important;
+  border-color: #61718a !important; background: #202938 !important;
+}
+#cova-workspace-search button:disabled { color: #b3bfd0 !important; }
+#cova-workspace-search button::after { content: none !important; }
+#cova-workspace-search button:focus-visible, #cova-workspace-search input:focus-visible, #cova-workspace-search [tabindex="0"]:focus-visible { outline: 2px solid #8eaaff !important; outline-offset: -3px !important; box-shadow: none !important; }
+#cova-workspace-search .workspace-search-results > button { display: block; height: auto !important; min-height: 64px !important; padding: 10px 12px !important; background: transparent !important; border-color: transparent !important; }
+#cova-workspace-search .workspace-search-results > button[aria-selected="true"] { background: #252f43 !important; border-color: #667ba4 !important; }
+#cova-workspace-search .workspace-search-header button, #cova-workspace-search .workspace-search-field button { display: grid; width: 44px !important; height: 44px !important; padding: 0 !important; border: 0 !important; background: transparent !important; }
+#cova-workspace-search .workspace-search-back { display: flex; }
+#root .workspace-top-header button.workspace-mobile-search { height: 44px !important; min-height: 44px !important; padding: 0 !important; }
+#root .workspace-top-header button.workspace-mobile-search::after { content: none !important; }
+@media(prefers-reduced-motion:reduce) {
+  #cova-workspace-search, #cova-workspace-search * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}

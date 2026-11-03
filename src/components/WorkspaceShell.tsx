@@ -1,10 +1,11 @@
 import { Activity, ArrowUpRight, BarChart3, ChevronRight, FileUp, Gauge, BookUser, ArrowLeft, ArrowRight } from "lucide-react";
 import { WorkspaceNavIcon } from "./WorkspaceNavIcon";
 import { GooeyInput } from "./ui/gooey-input";
+import { WorkspaceSearch, type WorkspaceSearchSource, type WorkspaceSearchHandle } from "./WorkspaceSearch";
 import { GooeyNavSurface, gooeyTransition } from "./ui/GooeyNavSurface";
 import { ProfileMenu } from "./UserProfile";
 import { motion, useReducedMotion } from "motion/react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { isWorkspaceNavActive, type Section } from "../lib/appRoutes";
 import { SiteFooter } from "./PlanSections";
 
@@ -46,9 +47,11 @@ type WorkspaceShellProps = {
   riskScore: number | null;
   section: Section;
   signOut: () => void;
+  searchSource?: WorkspaceSearchSource;
+  searchRef?: RefObject<WorkspaceSearchHandle>;
 };
 
-export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go, riskScore, section, signOut }: WorkspaceShellProps) {
+export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go, riskScore, section, signOut, searchSource, searchRef }: WorkspaceShellProps) {
   const reducedMotion = useReducedMotion();
   const [collapsed, setCollapsed] = useState(() => {
     try { return window.localStorage.getItem("cova-workspace-sidebar-collapsed-v1") === "true"; }
@@ -58,7 +61,8 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
     try { window.localStorage.setItem("cova-workspace-sidebar-collapsed-v1", String(collapsed)); }
     catch { /* The rail still works when browser storage is unavailable. */ }
   }, [collapsed]);
-  const [search, setSearch] = useState("");
+  const fallbackSearchRef = useRef<WorkspaceSearchHandle>(null);
+  const searchController = searchRef || fallbackSearchRef;
   const [searchOpen, setSearchOpen] = useState(false);
   const [focusSource, setFocusSource] = useState<"pointer" | "keyboard">("keyboard");
   useEffect(() => {
@@ -69,17 +73,7 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
     document.addEventListener("keydown", keyboard, true);
     return () => document.removeEventListener("keydown", keyboard, true);
   }, []);
-  const filteredGroups = useMemo(() => {
-    const query = collapsed ? "" : search.trim().toLowerCase();
-    if (!query) return workspaceNavGroups;
-    return workspaceNavGroups
-      .map((group) => ({
-        ...group,
-        items: group.items.filter((item) => `${group.label} ${item.label}`.toLowerCase().includes(query)),
-      }))
-      .filter((group) => group.items.length > 0);
-  }, [search, collapsed]);
-  const showAccounts = collapsed || !search.trim() || "accounts tradovate ninjatrader rithmic csv".includes(search.trim().toLowerCase());
+
   const riskScoreLabel = typeof riskScore === "number" && Number.isFinite(riskScore) ? String(riskScore) : "--";
 
   return (
@@ -91,16 +85,16 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
             <img className="workspace-brand-mark" src="/cova-logo-minimal-white.svg" alt="" aria-hidden="true" />
           </button>
         </div>
-        <button className="workspace-sidebar-toggle" type="button" aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!collapsed} aria-controls="cova-workspace-sidebar" title={collapsed ? "Expand sidebar" : "Collapse sidebar"} onClick={() => { if (!collapsed) { setSearchOpen(false); setSearch(""); } setCollapsed(value => !value); }}>
+        <button className="workspace-sidebar-toggle" type="button" aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!collapsed} aria-controls="cova-workspace-sidebar" title={collapsed ? "Expand sidebar" : "Collapse sidebar"} onClick={() => setCollapsed(value => !value)}>
           {collapsed ? <ArrowRight aria-hidden="true" /> : <ArrowLeft aria-hidden="true" />}
         </button>
-        <GooeyInput open={searchOpen} value={search} onValueChange={setSearch} placeholder="Search" collapsedWidth={collapsed ? 40 : 164} expandedWidth={152} onOpenChange={open => { setSearchOpen(open); if (open) setCollapsed(false); else setSearch(""); }} className="cova-gooey-search" classNames={{trigger:"cova-gooey-search-surface",input:"cova-gooey-search-input",bubbleSurface:"cova-gooey-search-bubble"}} />
+        <GooeyInput open={searchOpen} onActivate={() => searchController.current?.open()} placeholder="Search" collapsedWidth={collapsed ? 40 : 164} expandedWidth={collapsed ? 40 : 152} className="cova-gooey-search" classNames={{trigger:"cova-gooey-search-surface",input:"cova-gooey-search-input",bubbleSurface:"cova-gooey-search-bubble"}} />
 
-        {showAccounts && <button className="astra-rail-account" aria-label="Accounts" title={`Accounts: ${brokerLabel}`} aria-current={isWorkspaceNavActive(section, "import") ? "page" : undefined} onClick={() => go("import")} type="button"><WorkspaceNavIcon section="import" /><span className="astra-rail-account-copy"><strong>Accounts</strong><small>{brokerLabel}</small></span><ChevronRight aria-hidden="true" /></button>}
+        <button className="astra-rail-account" aria-label="Accounts" title={`Accounts: ${brokerLabel}`} aria-current={isWorkspaceNavActive(section, "import") ? "page" : undefined} onClick={() => go("import")} type="button"><WorkspaceNavIcon section="import" /><span className="astra-rail-account-copy"><strong>Accounts</strong><small>{brokerLabel}</small></span><ChevronRight aria-hidden="true" /></button>
 
         <nav className="workspace-sidebar-nav">
           <GooeyNavSurface active={section === "oauth" ? "import" : section} className="cova-gooey-sidebar">
-          {filteredGroups.map((group) => (
+          {workspaceNavGroups.map((group) => (
             <div className="workspace-sidebar-group" key={group.label}>
               <p className="workspace-sidebar-group-label">{({ Review: "Workspace", Proof: "Your record" }[group.label] || group.label)}</p>
               <div className="workspace-sidebar-group-links">
@@ -126,7 +120,6 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
               </div>
             </div>
           ))}
-          {filteredGroups.length === 0 && !showAccounts && <p className="workspace-sidebar-empty">No matching page.</p>}
           </GooeyNavSurface>
         </nav>
 
@@ -142,6 +135,7 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
         </div>
       </aside>
 
+      <WorkspaceSearch ref={searchController} source={searchSource} go={go} onOpenChange={setSearchOpen} />
       <motion.div
         className="workspace-content"
         key={section}

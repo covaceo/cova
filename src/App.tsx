@@ -73,6 +73,7 @@ import { Navbar } from "./components/Navbar";
 import { OAuthConnectPage } from "./components/OAuthConnectPage";
 import { Toast } from "./components/Toast";
 import { WorkspaceShell } from "./components/WorkspaceShell";
+import type { WorkspaceSearchHandle } from "./components/WorkspaceSearch";
 import { BillingProvider, openBilling } from "./components/Billing";
 import { UserProfileProvider } from "./components/UserProfile";
 import { HomeScreenInstall } from "./components/HomeScreenInstall";
@@ -151,6 +152,7 @@ export default function App() {
   const [authMode, setAuthMode] = useState<AuthMode | null>(null);
   const [authSession, setAuthSession] = useState<AuthSession | null>(() => loadAuthSession());
   const authSessionRef = useRef(authSession);
+  const workspaceSearchRef = useRef<WorkspaceSearchHandle>(null);
   const [oauthFirmId, setOauthFirmId] = useState<PropFirmId>(() => readOAuthFirmId() ?? "tradovate");
   const [toast, setToast] = useState<ToastState>(null);
   const [status, setStatus] = useState("Trade history ready.");
@@ -160,6 +162,7 @@ export default function App() {
     return savedSession ? initialTradesForSession(loadState()?.trades, savedSession.source) : [];
   });
   const tradesRef = useRef(trades);
+  const searchLedgerOwnerRef = useRef(toImportPrincipalIdentity(authSession));
   const [tradeAccount, setTradeAccount] = useState(() => loadState()?.tradeAccount || "all");
   const historySelection = useRef(new HistorySelectionEpoch());
   function selectTradeAccount(account: string) {
@@ -222,6 +225,7 @@ export default function App() {
   }, [trades]);
 
   const workspaceSync = useWorkspaceSync(authSession?.source === 'supabase' ? authSession.userId : undefined, trades, rules, (nextTrades, nextRules) => {
+    searchLedgerOwnerRef.current = toImportPrincipalIdentity(authSession);
     tradesRef.current = nextTrades;
     setTrades(nextTrades);
     setRules(nextRules);
@@ -547,6 +551,7 @@ export default function App() {
     setBrokerStatus(readBrokerStatus());
     localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
     localStorage.removeItem(AUTH_INTENT_KEY);
+    searchLedgerOwnerRef.current = toImportPrincipalIdentity(session);
     setTrades(initialTradesForSession(saved?.trades, source));
     setTradeAccount(saved?.tradeAccount || "all");
     setRules(saved?.rules ?? defaultRules);
@@ -570,6 +575,7 @@ export default function App() {
   }
 
   function advanceAuthGeneration() {
+    workspaceSearchRef.current?.revoke();
     // Remove the previous beta grant synchronously, not at the next queued App render.
     revokeAskCovaAccess();
     authGenerationRef.current += 1;
@@ -1227,6 +1233,28 @@ export default function App() {
     };
   }
 
+  const workspaceSearchSource = {
+    owner: searchLedgerOwnerRef.current,
+    scopeKey: JSON.stringify(dashboardPrincipal),
+    trades,
+    names: accountNames,
+    isCurrent: () => {
+      if (!dashboardPrincipal || searchLedgerOwnerRef.current !== dashboardPrincipal.identity
+        || !isImportPrincipalCurrent(dashboardPrincipal, getCurrentImportPrincipal())
+        || providerSessionsBlockedRef.current || authCeremonyActiveRef.current
+        || pendingPolicyUserIdRef.current || passwordRecoveryUserIdRef.current) return false;
+      if (authSessionRef.current?.source !== 'supabase') return true;
+      try {
+        const saved = JSON.parse(localStorage.getItem(AUTH_SESSION_KEY) || 'null');
+        return activeProviderUserIdRef.current === dashboardPrincipal.identity
+          && providerSessionRef.current?.user.id === dashboardPrincipal.identity
+          && !!validatedAccessTokenRef.current
+          && validatedAccessTokenRef.current === providerSessionRef.current?.access_token
+          && saved?.userId === dashboardPrincipal.identity
+          && saved?.providerSessionId === getSupabaseAuthSessionId(providerSessionRef.current?.access_token || '');
+      } catch { return false; }
+    },
+  };
   const dashboardSelectionCurrent = historySelection.current.capture();
   const manualTradePrincipal = manualTradeAuth.current.capture(dashboardPrincipal);
   const journalActions = {
@@ -1451,7 +1479,7 @@ export default function App() {
       <main className="relative z-10">
         {isProtectedSection(section) ? (
           isSignedIn ? (
-            <WorkspaceShell brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={visibleRiskScore} section={section} signOut={signOut}>
+            <WorkspaceShell searchRef={workspaceSearchRef} searchSource={workspaceSearchSource} brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={visibleRiskScore} section={section} signOut={signOut}>
               <WorkspaceSyncPanel sync={workspaceSync} />
               {workspaceSync.hasWorkspace && <div {...(!workspaceSync.allowEdit ? { inert: '' } as any : {})} aria-busy={!workspaceSync.allowEdit}>
               {tradeAccounts.some(account => account !== "local") && section !== "oauth" && section !== "dashboard" && section !== "rules" && section !== "coach" && section !== "passport" && section !== "import" && (

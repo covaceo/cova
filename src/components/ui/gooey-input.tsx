@@ -96,6 +96,8 @@ export interface GooeyInputProps {
   /** Optional controlled open state for a containing rail or toolbar. */
   open?: boolean;
   disabled?: boolean;
+  /** Open a full search dialog instead of the standalone inline field. */
+  onActivate?: () => void;
 }
 
 export function GooeyInput({
@@ -112,6 +114,7 @@ export function GooeyInput({
   onOpenChange,
   open: openProp,
   disabled = false,
+  onActivate,
 }: GooeyInputProps) {
   const reducedMotion = useReducedMotion();
   const motionTransition = reducedMotion ? { duration: 0 } : transition;
@@ -169,8 +172,8 @@ export function GooeyInput({
   );
 
   const handleExpand = useCallback(() => {
-    if (!disabled) setExpanded(true);
-  }, [disabled, setExpanded]);
+    if (!disabled) { if (onActivate) onActivate(); else setExpanded(true); }
+  }, [disabled, setExpanded, onActivate]);
 
   const handleChange = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
@@ -212,14 +215,14 @@ export function GooeyInput({
           animate={isExpanded ? "expanded" : "collapsed"}
           transition={motionTransition}
         >
-          {isExpanded ? (
+          {isExpanded && !onActivate ? (
             <div className={cn("flex h-10 w-full items-center gap-2 rounded-full px-4", surfaceClass, classNames?.trigger)}>
               <motion.input layoutId={inputLayoutId} ref={inputRef} type="search" aria-label={placeholder === "Search" ? "Search workspace" : placeholder} enterKeyHint="search" autoComplete="off" value={searchText} onChange={handleChange} onBlur={handleBlur} disabled={disabled} placeholder={placeholder}
                 onKeyDown={event => { if (event.key === "Escape") { event.preventDefault(); returnFocusRef.current = true; setSearchText(""); setExpanded(false); } }}
                 className={cn("h-full min-w-0 flex-1 bg-transparent text-sm text-background outline-none placeholder:text-background/50", classNames?.input)} />
             </div>
           ) : (
-            <button type="button" disabled={disabled} onClick={handleExpand} aria-label={placeholder === "Search" ? "Search workspace" : placeholder} aria-expanded={isExpanded}
+            <button type="button" disabled={disabled} onClick={handleExpand} aria-label={placeholder === "Search" ? "Search workspace" : placeholder} aria-expanded={isExpanded} aria-haspopup={onActivate ? "dialog" : undefined}
               className={cn("flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-full px-4 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50", surfaceClass, classNames?.trigger)}>
               <SearchIcon layoutId={iconLayoutId} /><span>{placeholder}</span>
             </button>
