@@ -1,0 +1,336 @@
+// Isolated full-App QA. Synthetic auth/cloud/provider selection only; no external calls.
+// Run with native node.exe scripts/ask-cova-app-browser.mjs from this checkout.
+import assert from 'node:assert/strict';
+import {build} from 'vite';
+import react from '@vitejs/plugin-react';
+import {chromium} from 'playwright';
+import {readFileSync,writeFileSync,mkdirSync,existsSync} from 'node:fs';
+import {execFileSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
+import {createServer} from 'node:http';
+import {fileURLToPath,pathToFileURL} from 'node:url';
+import path from 'node:path';
+import load from './helpers/load-ts.cjs';
+import {chooseAccount,accountValue} from './helpers/account-picker.mjs';
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+process.chdir(root);
+const out=path.resolve(root,'../ask-cova-beta-evidence/app'); // Never overwrite approved-integration evidence.
+mkdirSync(out,{recursive:true});
+const {defaultRules}=load('src/lib/risk.ts');
+const owner='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const other='Manual:bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+const names={local:'Sample review',[other]:'Sample second account'};
+const row=(pnl,index,account='local')=>({id:`manual-app-${account==='local'?'a':'b'}-${index}`,date:['2026-10-20','2026-10-24','2026-10-28','2026-10-30'][index],market:account==='local'?'NQ':'ES',side:'Long',contracts:1,entry:100,exit:101,pnl,risk:100,riskStatus:'provided',setup:'Sample pullback',notes:`Synthetic private note ${account==='local'?'A':'B'}${index}; never sent to selection.`,manual:{accountKey:account,currency:'USD',pnlBasis:'reported_net'}});
+const trades=[...[825,-275,450,350].map((v,i)=>row(v,i)),...[-900,75].map((v,i)=>row(v,i,other))];
+const euroAccount='Rithmic:synthetic_eur_account_key:EUR-SAMPLE';
+const euroTrade={id:'rithmic-app-eur-0',date:'2026-10-30',market:'FDAX',side:'Long',contracts:1,entry:100,exit:101,pnl:12.5,risk:25,riskStatus:'provided',setup:'Synthetic EUR review',notes:'Synthetic EUR private note',source:{provider:'Rithmic',accountKey:'synthetic_eur_account_key',accountId:'EUR-SAMPLE',currency:'EUR'}};
+const stamp='2026-10-30T16:00:00.000Z';
+const record=(kind,recordId,accountId,payload)=>({kind,recordId,accountId,schemaVersion:1,payload,revision:1,createdAt:stamp,updatedAt:stamp,deletedAt:null});
+const cloud=[...trades.map(t=>record('trade',t.id,t.manual.accountKey,t)),record('rules','current','all',{rules:defaultRules}),...Object.entries(names).map(([account,name])=>record('account',account,account,{name}))];
+const report={disclosure:'LOCAL FULL-APP PRODUCTION-MODE FIXTURE: synthetic manual USD records; mocked auth, saved-cloud snapshot, profile and provider SELECTION. Real App, canonical entry/CSS, workspace sync, client transport and shared deterministic core. No provider/backend execution, paid calls, customer records, credentials or deployment.',base:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),samples:[...trades,euroTrade],sourceHashes:{},builds:[],checks:[],failures:[],errors:[],externalBlocked:[],requests:[],screenshots:[],measurements:[],comparisons:[]};
+const hashFile=file=>createHash('sha256').update(readFileSync(file)).digest('hex');
+for(const f of ['src/App.tsx','src/components/DashboardView.tsx','src/components/AskCova.tsx','src/components/TradeHistoryDialog.tsx','src/lib/askCova.ts','src/lib/askCovaClient.ts','src/lib/askCovaIntent.ts','src/styles/askCova.css','src/main.tsx','scripts/ask-cova-app-browser.mjs','scripts/helpers/load-ts.cjs','scripts/helpers/account-picker.mjs'])report.sourceHashes[f]=hashFile(path.join(root,f));
+report.buildSourceHashes={};report.baselineSourceHashes={};
+const save=()=>writeFileSync(path.join(out,'results.json'),JSON.stringify(report,null,2));
+function check(name,condition,detail){(condition?report.checks:report.failures).push({name,...(detail===undefined?{}:{detail})});save();return condition;}
+function hasVisibleFocus(focus){
+ // This site's computed focus ring is opaque RGB and solid; fail closed otherwise.
+ const color=/^rgb\((\d+), (\d+), (\d+)\)$/.exec(focus.outlineColor);
+ const width=/^(\d+(?:\.\d+)?)px$/.exec(focus.outlineWidth);
+ return Boolean(focus.active===true&&focus.visible===true&&focus.outlineStyle==='solid'&&width&&Number.isFinite(Number(width[1]))&&Number(width[1])>=1&&color&&color.slice(1).every(channel=>Number(channel)<=255));
+}
+const baselineFiles=['src/App.tsx','src/components/DashboardView.tsx','src/components/TradeHistoryDialog.tsx'];
+const fixtureLabel='LOCAL QA · Synthetic trades · Mock auth/cloud/AI selection · No paid calls';
+function isolation(variant){return {name:'ask-cova-full-app-isolation',enforce:'pre',load(id){
+ const rel=path.relative(root,id).replaceAll('\\','/');
+ // Record every local module/asset actually loaded, including transitive canonical CSS.
+ const clean=id.split('?')[0],file=path.relative(root,clean).replaceAll('\\','/');
+ if((file.startsWith('src/')||file==='index.html')&&existsSync(clean)){
+  const hash=hashFile(clean);report.sourceHashes[file]??=hash;
+  (report.buildSourceHashes[variant]??={})[file]=hash;
+ }
+ if(rel==='src/lib/supabaseClient.ts')return readFileSync(id,'utf8').replace('export function getSupabaseClient() {','function unusedRealSupabaseClient() {').replace('export function getSupabaseAuthSessionId(accessToken: string)','function unusedRealSessionId(accessToken: string)')+'\nexport const getSupabaseAuthSessionId=()=>"qa-session";export const getSupabaseClient=()=>({auth:{getSession:async()=>({data:{session:window.__qaSession}}),onAuthStateChange:()=>({data:{subscription:{unsubscribe(){}}}}),signOut:async()=>({error:null})}});';
+ if(rel==='src/lib/profileRepository.ts')return `export const createProfileRepository=()=>({load:async(user_id)=>({user_id,username:'sample_review',avatar_data:null,username_changed_at:'2020-01-01T00:00:00Z'}),save:async()=>{throw Error('Read-only isolated fixture')}});`;
+ if(variant==='baseline'&&baselineFiles.includes(rel)){const source=execFileSync('git',['show',`HEAD:${rel}`],{cwd:root,encoding:'utf8'});report.baselineSourceHashes[rel]=createHash('sha256').update(source).digest('hex');return source;}
+ },transformIndexHtml(){return [{tag:'div',attrs:{id:'qa-disclosure',style:'position:fixed;bottom:0;left:0;right:0;z-index:2147483647;pointer-events:none;padding:5px 12px;background:#202020;color:#eee;font:12px/1.5 sans-serif;text-align:center;overflow-wrap:anywhere'},children:fixtureLabel,injectTo:'body-prepend'}];}};}
+let browser,server,core;
+try{
+ for(const variant of ['enabled','disabled','baseline']){
+  await build({root,base:'/',configFile:false,envDir:false,logLevel:'error',plugins:[isolation(variant),react()],define:{'import.meta.env.VITE_WORKSPACE_SYNC_ENABLED':'"true"','import.meta.env.VITE_ASK_COVA_ENABLED':JSON.stringify(variant==='enabled'?'true':'false')},build:{outDir:path.join(out,'site',variant),emptyOutDir:true}});
+  report.builds.push({variant,mode:'production',entry:'index.html -> src/main.tsx -> actual App',canonicalCSS:true,envFiles:false});save();
+ }
+ await build({root,configFile:false,envDir:false,logLevel:'error',build:{ssr:'src/lib/askCova.ts',outDir:path.join(out,'core'),emptyOutDir:true,rollupOptions:{output:{entryFileNames:'ask-core.mjs'}}}});
+ core=await import(pathToFileURL(path.join(out,'core','ask-core.mjs')).href);
+ // Static server serves built artifacts only, never forwards API requests.
+ server=createServer((req,res)=>{const parts=new URL(req.url,'http://127.0.0.1').pathname.split('/').filter(Boolean);const variant=parts.shift();if(!['enabled','disabled','baseline'].includes(variant)){res.writeHead(404);return res.end();}let rel=parts.join('/')||'index.html';const file=path.resolve(out,'site',variant,rel);if(!file.startsWith(path.resolve(out,'site',variant)+path.sep)){res.writeHead(403);return res.end();}if(!existsSync(file)){res.writeHead(404);return res.end();}const type={'.js':'text/javascript','.css':'text/css','.html':'text/html','.svg':'image/svg+xml','.png':'image/png','.woff':'font/woff','.woff2':'font/woff2'}[path.extname(file)]||'application/octet-stream';res.writeHead(200,{'Content-Type':type,'Cache-Control':'no-store','Content-Security-Policy':"default-src 'self' data: blob:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data: blob:; font-src 'self' data:; frame-src 'none'; object-src 'none'"});res.end(readFileSync(file));});
+ await new Promise(r=>server.listen(0,'127.0.0.1',r));
+ const origin=`http://127.0.0.1:${server.address().port}`;
+ browser=await chromium.launch({channel:'chrome',headless:true});
+ async function open({variant='enabled',width=1440,plan='pro',local=false,euro=false,scenario=''}={}){
+  const id=`${variant}-${plan}-${local?'browser':'saved'}-${width}${euro?'-eur':''}${scenario?'-'+scenario:''}`;
+  const scenarioTrades=euro?[...trades,euroTrade]:trades;
+  const scenarioCloud=euro?[...cloud,record('trade',euroTrade.id,euroAccount,euroTrade)]:cloud;
+  const context=await browser.newContext({viewport:{width,height:width<768?844:1000},deviceScaleFactor:1,isMobile:width<768,hasTouch:width<768,reducedMotion:'reduce',timezoneId:'UTC',locale:'en-US',// No app service-worker registration exists; routing blocks all external requests.
+   acceptDownloads:false});
+  const state={id,asks:[],capabilities:[],writes:[],api:[],context,variant,width,plan,local};
+  await context.addInitScript(({owner,plan,local,trades,defaultRules,names,stamp})=>{
+   if(location.origin==='null')return;
+   window.__qaSession={user:{id:owner,email:'ask-fixture@example.invalid',app_metadata:{plan}},access_token:'synthetic-qa-token'};
+   if(sessionStorage.getItem('ask-fixture-seeded'))return;
+   sessionStorage.setItem('ask-fixture-seeded','true');
+   localStorage.setItem('cova-auth-session-v1',JSON.stringify({source:'supabase',userId:owner,providerSessionId:'qa-session',plan,email:'ask-fixture@example.invalid',signedInAt:stamp}));
+   if(local)localStorage.setItem('cova-workspace-mode-v2:'+owner,'local');
+   localStorage.setItem('cova-react-risk-os-v2:'+owner,JSON.stringify({trades,rules:defaultRules,tradeAccount:'local'}));
+   localStorage.setItem('cova-workspace-aux-v1:'+owner,JSON.stringify({version:1,names,notes:{},cash:{}}));
+   localStorage.setItem('cova-dashboard-range-v1','all');
+  },{owner,plan,local,trades:scenarioTrades,defaultRules,names,stamp});
+  await context.route('**/*',async route=>{
+   const req=route.request(),url=new URL(req.url());
+   if(url.origin!==origin){report.externalBlocked.push({id,url:url.href});return route.abort();}
+   if(url.pathname.startsWith('/api/')){
+    state.api.push({url:url.pathname,method:req.method()});
+    if(url.pathname==='/api/workspace'&&req.method()==='GET')return route.fulfill({json:{owner,consent:true,revision:1,pendingWrite:null,chunk:Buffer.from(scenarioCloud.map(r=>JSON.stringify(r)).join('\n')+'\n').toString('base64'),next:null}});
+    if(url.pathname==='/api/workspace'&&req.method()==='POST'){
+     const body=req.postDataJSON();
+     if(body.action==='ask_cova_access'){
+      assert.deepEqual(body,{action:'ask_cova_access',owner});
+      assert.equal(req.headers().authorization,'Bearer synthetic-qa-token');
+      state.capabilities.push(body);
+      return route.fulfill({json:{owner,enabled:true}});
+     }
+     if(body.action!=='ask_cova'){state.writes.push(body);return route.fulfill({status:403,json:{error:'Read-only QA; unintended write blocked'}});}
+     try{
+      assert.equal(body.owner,owner);assert.equal(body.consentVersion,'ask-cova-v1');
+      assert.equal(req.headers().authorization,'Bearer synthetic-qa-token');
+      assert.deepEqual(Object.keys(body).sort(),['action','owner','account','range','question','contextDigest','requestId','consentVersion'].sort());
+      const catalog=await core.buildAskCovaCatalog({ownerId:owner,account:body.account,range:body.range,question:body.question,trades:scenarioCloud.filter(r=>r.kind==='trade').map(r=>r.payload)});
+      assert.equal(body.contextDigest,catalog.contextDigest,'Shared core recomputes digest from complete synthetic cloud snapshot');
+      const choice=catalog.candidates.find(c=>c.id==='result')||catalog.candidates[0];
+      const selection={choice_id:choice.id,style:'warm'};
+      const reply=core.renderAskCovaSelection(catalog,selection);assert(reply);
+      state.asks.push({body,selection,reply});
+      if(state.holdNextAsk){state.holdNextAsk=false;state.requestHeld=true;await new Promise(resolve=>{state.releaseHeld=resolve;});state.requestHeld=false;state.releaseHeld=null;}
+      return route.fulfill({json:{status:'ok',aiResponseUsed:true,contextDigest:catalog.contextDigest,selection},headers:{'X-Cova-QA':'mock-provider-selection-no-paid-call'}});
+     }catch(error){report.failures.push({name:id+' mock boundary validation',detail:String(error)});return route.fulfill({status:409,json:{error:'Fixture shared-core validation failed'}});}
+    }
+    if(req.method()!=='GET'){state.writes.push({url:url.pathname,body:req.postData()});return route.fulfill({status:403,json:{error:'Read-only fixture'}});}
+    if(url.pathname==='/api/auth/consent')return route.fulfill({json:{accepted:true}});
+    return route.fulfill({status:200,json:{connected:false,accounts:[],available:false,status:'disconnected'}});
+   }
+   const routed=url.pathname.startsWith('/'+variant+'/')?url.pathname:`/${variant}${url.pathname}`;
+   return route.continue({url:origin+routed+url.search});
+  });
+  const page=await context.newPage();state.page=page;
+  page.setDefaultTimeout(10000);
+  page.on('pageerror',e=>report.errors.push({id,error:e.message}));
+  await page.clock.setFixedTime(new Date(stamp));
+  await page.goto(origin+`/${variant}/#dashboard`);
+  await page.locator('.astra-dashboard').waitFor({timeout:20000});
+  await page.evaluate(()=>document.fonts.ready);
+  await page.locator('[data-toast-kind="sign-in"]').waitFor({state:'hidden',timeout:12000});
+  if(!local)await page.waitForFunction(()=>document.body.innerText.includes('Saved to your account'),{},{timeout:10000}).catch(()=>{});
+  await page.waitForTimeout(300);
+  check(id+' actual Risk Desk route',new URL(page.url()).hash==='#dashboard'&&await page.getByRole('heading',{name:'Risk Desk',exact:true}).isVisible());
+  check(id+' actual auth plan retained',await page.evaluate(()=>JSON.parse(localStorage.getItem('cova-auth-session-v1')).plan)===plan);
+  return state;
+ }
+ async function finish(s){
+  s.releaseHeld?.();
+  const known=s.writes.filter(w=>w.url==='/api/passport'&&w.body===JSON.stringify({action:'plan',limits:{maxDailyLoss:2500,maxTradeLoss:1600,maxContracts:5,maxLossStreak:3},owner}));
+  check(s.id+' no new writes beyond HEAD plan-sync attempt',s.writes.length===known.length&&known.length===(s.local?0:1),s.writes);
+  check(s.id+' exact discovery count',s.capabilities.length===(s.variant==='enabled'?1:0),s.capabilities);
+  report.requests.push({id:s.id,api:s.api,capabilities:s.capabilities,asks:s.asks,blockedBaselinePlanWrites:known});await s.context.close();save();
+ }
+ async function screenshot(s,label,selector){await s.page.mouse.move(0,0);await s.page.waitForTimeout(200);
+ // A route may commit before the inert nav plate's motion frame; assert settled geometry before byte parity.
+ await s.page.waitForFunction(()=>{const nav=document.querySelector('.cova-gooey-sidebar');if(!nav||!nav.checkVisibility())return true;const active=nav.querySelector('[aria-current="page"]'),plate=nav.querySelector('.cova-gooey-plate');if(!active)return !plate;if(!plate)return false;const a=active.getBoundingClientRect(),b=plate.getBoundingClientRect();return Math.abs(a.x-b.x)<1&&Math.abs(a.y-b.y)<1&&Math.abs(a.width-b.width)<1&&Math.abs(a.height-b.height)<1;},{},{timeout:10000});
+ const name=s.id+'-'+label+'.png';if(selector)await s.page.locator(selector).screenshot({path:path.join(out,name),style:'#qa-disclosure{visibility:hidden!important}'});else {await s.page.evaluate(()=>scrollTo(0,0));await s.page.screenshot({path:path.join(out,name),fullPage:true});if(['default','answer'].includes(label)){const view=s.id+'-'+label+'-viewport.png';await s.page.screenshot({path:path.join(out,view)});report.screenshots.push(view);}}report.screenshots.push(name);save();return name;}
+ async function measure(s,label){const value=await s.page.evaluate(()=>{
+  const visible=el=>el.checkVisibility()&&el.getBoundingClientRect().width>0;
+  const box=el=>{const r=el.getBoundingClientRect(),c=getComputedStyle(el),p=getComputedStyle(el,'::after');return {text:el.textContent.trim(),left:r.left,right:r.right,width:r.width,height:r.height,scrollOverflow:el.scrollWidth-el.clientWidth,font:c.fontSize,color:c.color,background:c.backgroundColor,border:c.borderColor,radius:c.borderRadius,shadow:c.boxShadow,outline:c.outline,after:{content:p.content,top:p.top,bottom:p.bottom,height:p.height}};};
+  return {width:innerWidth,stats:[...document.querySelectorAll('dialog[open] .astra-stat-cell')].map(el=>{const v=el.querySelector('.astra-stat-value')?.getBoundingClientRect(),d=el.querySelector('.astra-stat-detail')?.getBoundingClientRect();return {text:el.textContent.trim(),detailWidth:d?.width,detailHeight:d?.height,overlap:!!v&&!!d&&Math.min(v.bottom,d.bottom)>Math.max(v.top,d.top)+1&&Math.min(v.right,d.right)>Math.max(v.left,d.left)+1};}),documentOverflow:document.documentElement.scrollWidth-document.documentElement.clientWidth,buttons:[...document.querySelectorAll('[data-ask-cova] button,dialog[open] button,.astra-add-trade,.astra-import-action')].filter(visible).map(box),panel:[...document.querySelectorAll('[data-ask-cova],.ask-cova-reply,.ask-cova-consent,dialog[open]')].filter(visible).map(box),brokenImages:[...document.images].filter(i=>i.complete&&!i.naturalWidth).map(i=>i.src)};
+ });report.measurements.push({id:s.id,label,...value});if(value.stats.length)check(s.id+' '+label+' summary text readable without overlap',value.stats.every(cell=>cell.detailWidth>=80&&!cell.overlap),value.stats);check(s.id+' '+label+' no document overflow',value.documentOverflow<=1,value.documentOverflow);check(s.id+' '+label+' panel content fits',value.panel.every(b=>b.scrollOverflow<=1),value.panel);check(s.id+' '+label+' buttons fit',value.buttons.every(b=>b.left>=-1&&b.right<=s.width+1&&b.scrollOverflow<=1));return value;}
+ async function hitTargets(s,label){
+  const controls=s.page.locator('[data-ask-cova] button');const metrics=[];
+  for(let i=0;i<await controls.count();i++){
+   const el=controls.nth(i);if(!await el.isVisible())continue;
+   // Visibility of the 36px face alone does not put its 44px hit extension in the viewport.
+   // Center before probing; keep both real elementFromPoint checks strict (no clipping/overlap exemption).
+   await el.evaluate(el=>el.scrollIntoView({block:'center',inline:'nearest',behavior:'instant'}));
+   const metric=await el.evaluate(el=>{const r=el.getBoundingClientRect(),c=getComputedStyle(el),pseudo=getComputedStyle(el,'::after');const h=pseudo.content!=='none'?Math.max(r.height,parseFloat(pseudo.height)||0):r.height;const center=r.left+r.width/2;const hit=y=>{const t=document.elementFromPoint(center,y);return !!t&&(t===el||el.contains(t));};return {text:el.textContent.trim(),paintedHeight:r.height,effectiveHeight:h,topHit:hit(r.top-3),bottomHit:hit(r.bottom+3),font:c.fontSize};});metrics.push(metric);
+  }
+  report.measurements.push({id:s.id,label:label+'-hit-targets',metrics});
+  if(s.width<=768)check(s.id+' '+label+' actual 44px touch surfaces',metrics.every(m=>m.effectiveHeight>=44&&(m.paintedHeight>=44||(m.topHit&&m.bottomHit))),metrics);
+  const primary=metrics.filter(m=>['Review my results','Explain my drawdown','What stands out?','Show trades'].includes(m.text));check(s.id+' '+label+' compact 36px Risk Desk button faces',primary.every(m=>m.paintedHeight===36),primary);
+ }
+ async function ask(s,name='Review my results'){
+  const p=s.page,before=s.asks.length,beforeAnswers=await p.locator('[data-cova-answer]').count();
+  await p.getByRole('button',{name,exact:true}).click();
+  const consent=p.getByRole('button',{name:'Use AI for this review',exact:true});
+  if(await consent.isVisible()){check(s.id+' consent precedes request',s.asks.length===before);await consent.click();}
+  await p.waitForFunction(count=>document.querySelectorAll('[data-cova-answer]').length===count,beforeAnswers+1,{timeout:10000});
+  const reply=s.asks.at(-1)?.reply;
+  check(s.id+' answer matches checked shared core',s.asks.length===before+1&&reply&&await p.locator('[data-cova-answer]').nth(beforeAnswers).innerText()===reply.answer);
+  return reply;
+ }
+ async function evidence(s,reply,label,{opener=s.page.getByRole('button',{name:'Show trades',exact:true}),alreadyOpen=false}={}){const p=s.page;const show=opener;if(!alreadyOpen)await show.click();const dialog=p.getByRole('dialog',{name:'Trades behind this answer'});await dialog.waitFor();
+  const ids=await dialog.locator('[data-history-trade]').evaluateAll(rows=>rows.map(r=>r.dataset.historyTrade).sort());
+  check(s.id+' '+label+' exact evidence IDs',JSON.stringify(ids)===JSON.stringify([...reply.tradeIds].sort()),{expected:reply.tradeIds,actual:ids});
+  check(s.id+' evidence no broad-scope label',!(await dialog.innerText()).includes('All dates'));
+  check(s.id+' '+label+' no unrelated summary metrics',await dialog.locator('.astra-stat-cell').count()===0);
+  await p.keyboard.press('Tab');const close=dialog.getByRole('button',{name:'Close trade history'});await close.focus();
+  const focus=await close.evaluate(el=>{const style=getComputedStyle(el);return {active:document.activeElement===el,visible:el.matches(':focus-visible'),outline:style.outline,shadow:style.boxShadow,outlineStyle:style.outlineStyle,outlineWidth:style.outlineWidth,outlineColor:style.outlineColor};});
+  check(s.id+' dialog keyboard focus visible',hasVisibleFocus(focus),focus);
+  await p.keyboard.press('Shift+Tab');check(s.id+' dialog traps reverse Tab',await p.evaluate(()=>!!document.activeElement.closest('dialog[open]')));
+  await measure(s,label+'-dialog');await screenshot(s,label+'-trades','dialog[open]');
+  if(s.width<768){const region=dialog.getByRole('region',{name:'Trade history records'});await region.evaluate(el=>{el.scrollTop=el.scrollHeight;});const last=dialog.locator('[data-history-trade]').last();const reachable=await last.evaluate(el=>{const r=el.getBoundingClientRect(),parent=el.closest('.astra-history-scroll').getBoundingClientRect();return r.bottom<=parent.bottom+1&&r.bottom>parent.top;});check(s.id+' '+label+' mobile final record reachable by scroll',reachable);await screenshot(s,label+'-trades-bottom','dialog[open]');}
+  await p.keyboard.press('Escape');await dialog.waitFor({state:'detached'});await p.waitForTimeout(50);
+  check(s.id+' close restores '+(alreadyOpen?'composer':'Show trades')+' focus',await show.evaluate(el=>document.activeElement===el));
+ }
+ for(const width of [1440,768,390,320]){
+  let s;try{
+   s=await open({width});const p=s.page;
+   const preset=p.getByRole('button',{name:'Review my results',exact:true});
+   await p.waitForFunction(()=>!document.querySelector('.ask-cova-questions button')?.disabled,{},{timeout:15000});
+   check(s.id+' saved cloud readiness via actual hook',await preset.isEnabled()&&s.api.some(r=>r.url==='/api/workspace'&&r.method==='GET'));
+   await measure(s,'default');await hitTargets(s,'default');await screenshot(s,'default');
+   if(width<=768){await preset.scrollIntoViewIfNeeded();const b=await preset.boundingBox();if(width<768)await p.touchscreen.tap(b.x+b.width/2,b.y-3);else await p.mouse.click(b.x+b.width/2,b.y-3);check(s.id+' outside painted face activates preset',await p.getByRole('button',{name:'Use AI for this review',exact:true}).isVisible());await p.getByRole('button',{name:'Not now',exact:true}).click();check(s.id+' declining consent makes no request',s.asks.length===0);}
+   await p.keyboard.press('Tab');await preset.focus();
+   const focus=await preset.evaluate(el=>{const style=getComputedStyle(el);return {active:document.activeElement===el,visible:el.matches(':focus-visible'),shadow:style.boxShadow,outline:style.outline,outlineStyle:style.outlineStyle,outlineWidth:style.outlineWidth,outlineColor:style.outlineColor};});check(s.id+' preset keyboard indicator',hasVisibleFocus(focus),focus);
+   await screenshot(s,'focus','[data-ask-cova]');
+   await preset.press('Enter');check(s.id+' preset opens consent without call',s.asks.length===0&&await p.getByRole('button',{name:'Use AI for this review',exact:true}).isVisible());
+   await screenshot(s,'consent','[data-ask-cova]');await p.getByRole('button',{name:'Use AI for this review',exact:true}).click();await p.locator('[data-cova-answer]').waitFor({timeout:10000});
+   const reply=s.asks.at(-1).reply;check(s.id+' initial result is exact',await p.locator('[data-cova-answer]').innerText()===reply.answer,reply);
+   await measure(s,'answer');await hitTargets(s,'answer');await screenshot(s,'answer');
+   const calls=s.asks.length;await p.getByRole('button',{name:'Tell me more',exact:true}).click();check(s.id+' deterministic detail no second request',await p.locator('[data-cova-detail]').innerText()===reply.detail&&s.asks.length===calls);
+   await screenshot(s,'expanded','[data-ask-cova]');await evidence(s,reply,'all');
+   await p.getByRole('button',{name:'Latest session',exact:true}).click();check(s.id+' date invalidates answer and detail',await p.locator('[data-cova-answer],[data-cova-detail]').count()===0);
+   const latest=await ask(s);check(s.id+' latest scope one exact trade',JSON.stringify(latest.tradeIds)===JSON.stringify(['manual-app-a-3']));await evidence(s,latest,'latest');
+   await p.getByRole('button',{name:'Last 7 days',exact:true}).click();check(s.id+' week invalidates answer',await p.locator('[data-cova-answer]').count()===0);const week=await ask(s,'Explain my drawdown');check(s.id+' week uses inclusive seven-calendar-day window',week.tradeIds.length===3);await screenshot(s,'drawdown','[data-ask-cova]');
+   await chooseAccount(p,other);check(s.id+' account invalidates answer',await accountValue(p)===other&&await p.locator('[data-cova-answer]').count()===0);
+   const second=await ask(s,'What stands out?');check(s.id+' second account excludes first account',second.tradeIds.length>0&&second.tradeIds.every(id=>id.startsWith('manual-app-b-')));await evidence(s,second,'second-account');
+   await p.getByRole('button',{name:'Clear conversation',exact:true}).click();check(s.id+' clear removes answer and detail',await p.locator('[data-cova-answer],[data-cova-detail]').count()===0);
+   const saved=await p.evaluate(owner=>JSON.parse(localStorage.getItem('cova-react-risk-os-v2:'+owner)),owner);check(s.id+' all original trades unchanged',JSON.stringify(saved.trades)===JSON.stringify(trades));
+  }catch(error){check(`enabled-${width} completed workflow`,false,String(error));if(s){writeFileSync(path.join(out,s.id+'-failure.txt'),await s.page.locator('body').innerText());await screenshot(s,'failure');}}
+  finally{if(s)await finish(s);}
+ }
+ // Independent typed-thread scenarios: failures here never skip the legacy scope/currency/parity cases.
+ async function sendTyped(s,text,{touch=false,enter=false}={}){
+  const composer=s.page.getByRole('textbox',{name:/^Message Cova$/i}),send=s.page.getByRole('button',{name:/^Send message$/i});
+  await composer.fill('');
+  if(touch){await composer.scrollIntoViewIfNeeded();const b=await composer.boundingBox();await s.page.touchscreen.tap(b.x+b.width/2,b.y+b.height/2);check(s.id+' trusted touch focuses composer',await composer.evaluate(el=>document.activeElement===el));await s.page.keyboard.type(text);}
+  else await composer.fill(text);
+  if(enter)await composer.press('Enter');
+  else if(touch){await send.scrollIntoViewIfNeeded();const b=await send.boundingBox();const hit=await send.evaluate(el=>{const r=el.getBoundingClientRect(),pseudo=getComputedStyle(el,'::after');const effectiveHeight=pseudo.content!=='none'?Math.max(r.height,parseFloat(pseudo.height)||0):r.height;const hits=y=>{const target=document.elementFromPoint(r.left+r.width/2,y);return !!target&&(target===el||el.contains(target));};return {width:r.width,paintedHeight:r.height,effectiveHeight,topHit:hits(r.top-3),bottomHit:hits(r.bottom+3)};});check(s.id+' send actual 44px touch surface',hit.width>=44&&hit.effectiveHeight>=44&&(hit.paintedHeight>=44||(hit.topHit&&hit.bottomHit)),hit);await s.page.touchscreen.tap(b.x+b.width/2,b.y+b.height/2);}
+  else await send.click();
+ }
+ for(const width of [1440,768,390,320]){let s;try{
+  s=await open({width,scenario:'thread'});const p=s.page,panel=p.locator('[data-ask-cova]');
+  const composer=p.getByRole('textbox',{name:/^Message Cova$/i}),send=p.getByRole('button',{name:/^Send message$/i});
+  if(!check(s.id+' named composer and send control exist',await composer.count()===1&&await send.count()===1))throw Error('Threaded/composer UI contract not yet present in built source');
+  await p.waitForFunction(()=>{const el=document.querySelector('[data-ask-cova] textarea');return el&&!el.disabled;},{},{timeout:15000});
+  check(s.id+' composer 500-character limit',await composer.getAttribute('maxlength')==='500');
+  check(s.id+' three presets and one Cova heading',await panel.locator('.ask-cova-questions button').count()===3&&await panel.getByRole('heading',{name:/^(Ask )?Cova$/i}).count()===1);
+  check(s.id+' empty composer cannot send',await send.isDisabled());
+  check(s.id+' composer follows presets in DOM',await composer.evaluate(el=>Boolean(document.querySelector('.ask-cova-questions').compareDocumentPosition(el)&Node.DOCUMENT_POSITION_FOLLOWING)));
+  await p.keyboard.press('Tab');await composer.focus();
+  const focus=await composer.evaluate(el=>{const c=getComputedStyle(el);return {active:document.activeElement===el,visible:el.matches(':focus-visible'),outline:c.outline,outlineStyle:c.outlineStyle,outlineWidth:c.outlineWidth,outlineColor:c.outlineColor};});
+  check(s.id+' composer visible keyboard focus',hasVisibleFocus(focus),focus);
+  await screenshot(s,'composer-focus','[data-ask-cova]');await screenshot(s,'default');
+  await sendTyped(s,'how did i do?',{touch:width<768});
+  const consent=p.getByRole('button',{name:'Use AI for this review',exact:true});await consent.waitFor();
+  check(s.id+' typed question requires consent before transport',s.asks.length===0&&await p.locator('[data-cova-answer]').count()===0);
+  s.holdNextAsk=true;await consent.click();
+  const deadline=Date.now()+10000;while(!s.requestHeld&&Date.now()<deadline)await new Promise(resolve=>setTimeout(resolve,25));
+  assert(s.requestHeld,'Mock response is genuinely held for typing-state evidence');
+  check(s.id+' held request has visible checking status',await panel.getByRole('status').filter({hasText:/checking/i}).isVisible());
+  check(s.id+' pending response not fabricated',await p.locator('[data-cova-answer]').count()===0);
+  check(s.id+' pending composer cannot duplicate send',await send.isDisabled());
+  await screenshot(s,'typing','[data-ask-cova]');s.releaseHeld();
+  await p.locator('[data-cova-answer]').waitFor();const first=s.asks[0].reply;
+  check(s.id+' typed result exact and raw message stays local',s.asks.length===1&&s.asks[0].body.question==='review_results'&&await p.locator('[data-cova-answer]').innerText()===first.answer&&!JSON.stringify(s.asks[0].body).includes('how did i do?'));
+  check(s.id+' sent composer cleared',await composer.inputValue()==='');
+  await screenshot(s,'answer');
+  await sendTyped(s,'explain my drawdown');
+  await p.waitForFunction(()=>document.querySelectorAll('[data-cova-answer]').length===2,{},{timeout:10000});const second=s.asks[1].reply;
+  const replies=p.locator('[data-cova-reply]');
+  check(s.id+' exactly two preserved replies for two requests',s.asks.length===2&&await replies.count()===2&&s.asks[1].body.question==='explain_drawdown'&&JSON.stringify(await p.locator('[data-cova-answer]').allInnerTexts())===JSON.stringify([first.answer,second.answer]));
+  check(s.id+' distinct per-answer content prevents latest-reply aliasing',first.answer!==second.answer&&first.detail!==second.detail,{first,second});
+  check(s.id+' consent not repeated in same scope',!await consent.isVisible());
+  check(s.id+' persistent reply buttons are individually present',await replies.nth(0).getByRole('button',{name:'Show trades',exact:true}).count()===1&&await replies.nth(1).getByRole('button',{name:'Show trades',exact:true}).count()===1);
+  check(s.id+' composer remains after thread in DOM',await composer.evaluate(el=>Boolean(document.querySelector('[data-cova-reply]').compareDocumentPosition(el)&Node.DOCUMENT_POSITION_FOLLOWING)));
+  await measure(s,'thread');await hitTargets(s,'thread');await screenshot(s,'thread');await screenshot(s,'thread-panel','[data-ask-cova]');
+  const calls=s.asks.length;
+  await sendTyped(s,'which trades?',{enter:true});await evidence(s,second,'typed-current',{opener:composer,alreadyOpen:true});
+  check(s.id+' typed evidence adds no AI call or answer',s.asks.length===calls&&await replies.count()===2);
+  await evidence(s,first,'earlier-reply',{opener:replies.nth(0).getByRole('button',{name:'Show trades',exact:true})});
+  check(s.id+' earlier evidence adds no AI request',s.asks.length===calls);
+  // Follow-ups are appended exchanges, not nested inside their originating reply.
+  // Check exact cardinality and ordered deterministic content, never hide duplicates with last().
+  await replies.nth(0).getByRole('button',{name:'Tell me more',exact:true}).click();
+  await p.locator('[data-cova-detail]').waitFor();
+  check(s.id+' earlier reply detail belongs to earlier answer',JSON.stringify(await p.locator('[data-cova-detail]').allInnerTexts())===JSON.stringify([first.detail])&&s.asks.length===calls);
+  await sendTyped(s,'tell me more');await p.waitForFunction(()=>document.querySelectorAll('[data-cova-detail]').length===2,{},{timeout:10000});
+  check(s.id+' typed detail belongs to current answer without AI call',JSON.stringify(await p.locator('[data-cova-detail]').allInnerTexts())===JSON.stringify([first.detail,second.detail])&&s.asks.length===calls);
+  for(const text of ['unknown question PRIVATE-LOCAL-MARKER','should I buy NQ?']){
+   const before=await panel.locator('[data-cova-local]').count(),beforeApi=s.api.length;
+   await sendTyped(s,text);
+   await p.waitForFunction(count=>document.querySelectorAll('[data-cova-local]').length===count,before+1,{timeout:10000});
+   const help=await panel.locator('[data-cova-local]').nth(before).innerText();
+   check(s.id+' unsupported input gets explicit scoped help: '+text,/review your results.*explain your drawdown.*what stands out/i.test(help)&&/(starter questions|account|date range|selected scope)/i.test(help),help);
+   check(s.id+' unsupported input is not an AI answer or request: '+text,s.api.length===beforeApi&&s.asks.length===calls&&await replies.count()===2&&await p.locator('[data-cova-answer]').count()===2);
+  }
+  check(s.id+' all typed text excluded from transport',!['how did i do?','explain my drawdown','which trades?','tell me more','PRIVATE-LOCAL-MARKER','should I buy NQ?'].some(text=>JSON.stringify(s.asks.map(a=>a.body)).includes(text)));
+  await screenshot(s,'thread-context','[data-ask-cova]');
+  await composer.fill('unsent local draft');await p.getByRole('button',{name:'Latest session',exact:true}).click();
+  check(s.id+' date clears whole thread draft detail and local help',await p.locator('[data-cova-reply],[data-cova-detail],[data-cova-local]').count()===0&&await composer.inputValue()==='');
+  await sendTyped(s,'how did i do?');await consent.waitFor();check(s.id+' date scope requires fresh consent without AI call',s.asks.length===calls);await p.getByRole('button',{name:'Not now',exact:true}).click();
+  await chooseAccount(p,other);await sendTyped(s,'what stands out?');await consent.waitFor();check(s.id+' account scope requires fresh consent',s.asks.length===calls&&await p.locator('[data-cova-answer]').count()===0);await consent.click();
+  await p.locator('[data-cova-answer]').waitFor();const scoped=s.asks.at(-1).reply;
+  check(s.id+' new account reply never reuses prior thread',await p.locator('[data-cova-answer]').count()===1&&scoped.tradeIds.length>0&&scoped.tradeIds.every(id=>id.startsWith('manual-app-b-')));
+  await p.getByRole('button',{name:'Clear conversation',exact:true}).click();
+  check(s.id+' clear removes entire conversation and draft',await p.locator('[data-cova-answer],[data-cova-detail],[data-cova-local]').count()===0&&await composer.inputValue()==='');
+  await sendTyped(s,'how did i do?');await consent.waitFor();check(s.id+' clear resets consent',s.asks.length===calls+1);await p.getByRole('button',{name:'Not now',exact:true}).click();
+ }catch(error){check(`thread-${width} completed workflow`,false,String(error));if(s){s.releaseHeld?.();writeFileSync(path.join(out,s.id+'-failure.txt'),await s.page.locator('body').innerText());await screenshot(s,'failure');}}
+ finally{if(s)await finish(s);}}
+ // Additional synthetic foreign-currency evidence case, never broker connected.
+ for(const width of [1440,390]){let s;try{s=await open({width,euro:true});await chooseAccount(s.page,euroAccount);await s.page.waitForFunction(()=>!document.querySelector('.ask-cova-questions button')?.disabled,{},{timeout:15000});const reply=await ask(s);check(s.id+' EUR brief retains source currency',reply.answer.includes('12.50 EUR'));await s.page.getByRole('button',{name:'Show trades',exact:true}).click();const dialog=s.page.getByRole('dialog',{name:'Trades behind this answer'});await dialog.waitFor();const pnl=await dialog.locator('[data-history-field="pnl"]').innerText(),risk=await dialog.locator('[data-history-field="risk"]').innerText();check(s.id+' EUR evidence never relabeled USD',pnl.includes('EUR')&&!pnl.includes('$')&&risk.includes('EUR')&&!risk.includes('$'),{pnl,risk});await measure(s,'eur-evidence');await screenshot(s,'eur-evidence','dialog[open]');await s.page.keyboard.press('Escape');}catch(error){check(`EUR-${width} completed`,false,String(error));}finally{if(s)await finish(s);}}
+ // Storage gate is actual local mode; no fake ready prop or mock Dashboard.
+ for(const plan of ['free','pro']){const s=await open({plan,local:true,width:390});try{check(s.id+' browser-only gate disables all presets',await s.page.locator('.ask-cova-questions button:disabled').count()===3);const composer=s.page.getByRole('textbox',{name:/^Message Cova$/i}),send=s.page.getByRole('button',{name:/^Send message$/i});check(s.id+' browser-only gate disables composer and send',await composer.count()===1&&await send.count()===1&&await composer.isDisabled()&&await send.isDisabled());check(s.id+' browser-only explanation',await s.page.getByText('Save your account workspace before asking Cova.',{exact:true}).isVisible());await screenshot(s,'gate');check(s.id+' browser gate never asks',s.asks.length===0);}finally{await finish(s);}}
+ // Fresh documents, same clock/fonts/sample data. HEAD reference loads real old components.
+ for(const plan of ['free','pro'])for(const width of [1440,768,390,320]){
+  let baseline,disabled,enabled;
+  try{
+   baseline=await open({variant:'baseline',plan,width});disabled=await open({variant:'disabled',plan,width});
+   check(disabled.id+' disabled build has no Ask Cova',await disabled.page.locator('[data-ask-cova]').count()===0);
+   const a=await screenshot(baseline,'default'),b=await screenshot(disabled,'default');
+   const equal=readFileSync(path.join(out,a)).equals(readFileSync(path.join(out,b)));
+   check(disabled.id+' screenshot identical to HEAD',equal,{baseline:a,candidate:b});report.comparisons.push({plan,width,baseline:a,disabled:b,byteIdentical:equal});
+   // Existing plan-specific Rules and Insights UI remain exactly as HEAD; do not trigger paid upgrades.
+   if(width===1440||width===390){
+    enabled=await open({variant:'enabled',plan,width});
+    await enabled.page.waitForFunction(()=>!document.querySelector('.ask-cova-questions button')?.disabled,{},{timeout:15000});
+    const reply=await ask(enabled);check(enabled.id+' Ask works for existing '+plan+' plan',!!reply);
+    for(const route of ['rules','coach','import']){
+     for(const s of [baseline,enabled]){await s.page.evaluate(route=>{location.hash='#'+route;},route);await s.page.waitForTimeout(600);await s.page.evaluate(()=>document.fonts.ready);}
+     const beforeText=await baseline.page.locator('#root').innerText(),afterText=await enabled.page.locator('#root').innerText();
+     check(enabled.id+' '+route+' final destination',new URL(enabled.page.url()).hash==='#'+route);
+     check(enabled.id+' existing '+plan+' '+route+' text unchanged',beforeText===afterText,{baseline:beforeText,candidate:afterText});
+     const a=await screenshot(baseline,route),b=await screenshot(enabled,route);check(enabled.id+' '+route+' screenshot identical to HEAD',readFileSync(path.join(out,a)).equals(readFileSync(path.join(out,b))),{baseline:a,candidate:b});
+    }
+   }
+  }catch(error){check(`${plan}-${width} parity/gates completed`,false,String(error));}
+  finally{for(const s of [baseline,disabled,enabled])if(s)await finish(s);}
+ }
+ check('No browser page errors',report.errors.length===0,report.errors);
+ check('No external network attempts',report.externalBlocked.length===0,report.externalBlocked);
+ report.completed=true;
+ report.notes=['HEAD and candidate both automatically attempt one Passport plan-sync POST after cloud readiness. Every attempt was blocked with HTTP 403; no real plan was written. This is existing App behavior, not an Ask Cova write.','Original approved-integration evidence remains in ../ask-cova-evidence/app and is never written by this harness. Composer/thread scenarios are additive, not replacements for existing scope, currency, storage, touch and pixel-parity gates.','Typing screenshots are captured only while the real client awaits a deliberately held local mock response. No typing preview is fabricated.','Result and drawdown answers intentionally use the same four scoped IDs; distinct checked details additionally prove earlier-reply actions do not alias the latest answer.','sourceHashes and buildSourceHashes include transitive local canonical CSS/modules. Baseline source overrides remain only the original HEAD App/Dashboard/TradeHistory seams; no App or ownerCurrent replacement is introduced. Browser Enter/Shift+Enter/IME edge cases beyond this real-App flow belong to the separately owned component suite.'];
+}catch(error){report.fatal=String(error);console.error(error);process.exitCode=1;}
+finally{if(browser)await browser.close();if(server)await new Promise(r=>server.close(r));report.endSourceHashes={};for(const [file,hash] of Object.entries(report.sourceHashes)){const current=existsSync(path.join(root,file))?hashFile(path.join(root,file)):null;report.endSourceHashes[file]=current;const buildHashes=Object.fromEntries(Object.entries(report.buildSourceHashes).filter(([,files])=>file in files).map(([variant,files])=>[variant,files[file]]));check('Candidate stayed fixed: '+file,current===hash&&Object.values(buildHashes).every(value=>value===hash),{start:hash,end:current,builds:buildHashes});}save();}
+writeFileSync(path.join(out,'README.md'),`# Ask Cova full-App QA\n\n${report.disclosure}\n\nSource base: ${report.base}. Source hashes and exhaustive assertions: results.json.\n\nSample account A: four manual self-reported net USD trades (825, -275, 450, 350), October 20/24/28/30 2026. Sample account B: -900 and 75 USD, October 20/24 2026. Synthetic private notes retained locally and never included in Ask request.\n\nViewports: desktop 1440, tablet 768, phone 390, narrow 320. Screenshots use real src/main.tsx and canonical CSS from a production-mode Vite fixture with envDir:false. Disabled comparison references HEAD App/Dashboard/TradeHistory source with identical isolation. No production code changed by this script.\n\nChecks: ${report.checks.length} passed; ${report.failures.length} failed. ${report.fatal||''}\n\nNo live backend, provider quality, actual billing, or release deployment is claimed. Fixture servers and browser are shut down after execution.\n`);
+const esc=s=>String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;');
+const previews=[...new Set(report.screenshots)].filter(f=>f.startsWith('enabled-pro-saved-')).sort((a,b)=>{const width=f=>Number(f.match(/saved-(\d+)/)?.[1]);return width(b)-width(a)||a.localeCompare(b);});
+writeFileSync(path.join(out,'preview.html'),`<!doctype html><html lang="en"><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ask Cova — local mock QA previews</title><style>body{margin:24px;background:#111;color:#eee;font:16px/1.5 system-ui}h1{font-size:28px}p{max-width:1000px}main{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr));gap:24px}figure{margin:0;background:#1b1b1b;padding:12px}img{display:block;max-width:100%;max-height:650px;margin:auto;object-fit:contain}figcaption{font-size:13px;overflow-wrap:anywhere}a{color:#b9caff}</style><h1>Ask Cova local QA previews</h1><p>${esc(report.disclosure)}</p><p>${report.checks.length} checks passed; ${report.failures.length} failed. Synthetic manual self-reported net USD: account A 825, −275, 450, 350; account B −900, 75. October 2026 dates. <a href="results.json">Detailed results</a></p><p>${esc((report.notes||[]).join(' '))}</p><main>${previews.map(f=>`<figure><a href="${esc(f)}"><img loading="lazy" src="${esc(f)}" alt="${esc(f)}"></a><figcaption>${esc(f)}</figcaption></figure>`).join('')}</main></html>`);
+console.log(JSON.stringify({out,checks:report.checks.length,failures:report.failures,fatal:report.fatal,screenshots:report.screenshots.length},null,2));
+if(report.failures.length||report.fatal)process.exitCode=1;

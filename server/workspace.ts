@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { createAskCovaHandler, uniqueJson } from "./askCova";
+import { hasAskCovaAccess } from "./askCovaAccess";
 import {
   ApiError,
   requirePolicyAcceptedUser,
@@ -64,6 +66,7 @@ export function createWorkspaceHandler({
   rest = workspaceRest,
   enabled = () => process.env.WORKSPACE_SYNC_ENABLED === "true",
   environment = () => process.env,
+  askCova = createAskCovaHandler(),
 }: any = {}) {
   return async (req: any, res: any) => {
     res.setHeader("Cache-Control", "private, no-store");
@@ -75,26 +78,53 @@ export function createWorkspaceHandler({
         res.setHeader("Allow", "GET, POST");
         return res.status(405).json({ error: "Method not allowed" });
       }
-      const user = await auth(req);
-      if (!uuid(user.id)) throw new ApiError(401, "Sign in again.");
       let body = req.method === "GET" ? undefined : req.body;
-      if (typeof body === "string") {
-        if (Buffer.byteLength(body) > 4000000)
-          throw new ApiError(413, "Too many changes for one request.");
-        try {
-          body = JSON.parse(body);
-        } catch {
-          throw new ApiError(400, "Invalid request.");
+      let bodyError: unknown;
+      // Inspect only the bounded routing body before auth. Defer parse errors so
+      // authentication still wins; this never authorizes a caller or dispatches.
+      try {
+        if (typeof body === "string") {
+          if (Buffer.byteLength(body) > 4000000)
+            throw new ApiError(413, "Too many changes for one request.");
+          try {
+            body = JSON.parse(body);
+          } catch {
+            throw new ApiError(400, "Invalid request.");
+          }
         }
+        if (body && Buffer.byteLength(JSON.stringify(body)) > 4000000)
+          throw new ApiError(413, "Too many changes for one request.");
+      } catch (error) {
+        bodyError = error;
       }
-      if (body && Buffer.byteLength(JSON.stringify(body)) > 4000000)
-        throw new ApiError(413, "Too many changes for one request.");
+      const askAction = req.method === "POST" &&
+        (body?.action === "ask_cova" || body?.action === "ask_cova_access");
+      // These actions require verified identity/current policy, not billing.
+      // Keep the original default billing auth for GET, consent and apply.
+      const user = await (askAction ? auth(req, { billing: false }) : auth(req));
+      if (!uuid(user.id)) throw new ApiError(401, "Sign in again.");
+      if (bodyError) throw bodyError;
       const url = new URL(req.url || "/api/workspace", "https://cova.invalid");
       if (
         (req.method === "GET" ? url.searchParams.get("owner") : body?.owner) !==
         user.id
       )
         throw new ApiError(409, "Your session changed. Sign in again.");
+      if (req.method === "POST" && body?.action === "ask_cova_access") {
+        if (Array.isArray(body) || Object.keys(body).length !== 2 ||
+            Object.keys(body).some(key => !["action", "owner"].includes(key)))
+          throw new ApiError(400, "Invalid request.");
+        if (typeof req.body === "string") {
+          try { uniqueJson(req.body); } catch { throw new ApiError(400, "Invalid request."); }
+        }
+        return res.status(200).json({ owner: user.id, enabled: hasAskCovaAccess(environment(), user) });
+      }
+      if (body?.action === "ask_cova") {
+        if (!hasAskCovaAccess(environment(), user))
+          return res.status(404).json({ status: "unavailable", error: "ask_cova_unavailable" });
+        return await askCova({ body, rawBody: req.body, user,
+          environment: environment(), rest: rest === workspaceRest ? undefined : rest }, res);
+      }
       const settings = async () => {
         const rows = await rest("workspace_settings", {
           query: {

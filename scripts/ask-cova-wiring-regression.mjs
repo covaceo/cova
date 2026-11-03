@@ -1,0 +1,20 @@
+import test from 'node:test';import assert from 'node:assert/strict';import{readFileSync}from'node:fs';
+test('Ask Cova is mounted in Risk Desk with actual owner, scoped ledger, range and saved-workspace gate',()=>{
+ const dashboard=readFileSync('src/components/DashboardView.tsx','utf8'),app=readFileSync('src/App.tsx','utf8');
+ assert.match(dashboard,/<AskCova /);assert.match(dashboard,/range=\{range\}/);assert.match(dashboard,/trades=\{analysis.trades\}/);assert.match(app,/VITE_ASK_COVA_ENABLED/);assert.match(dashboard,/askCovaEnabled && askCovaOwner/);
+ assert.match(app,/askCovaOwner=\{authSession\?\.userId\}/);
+ assert.match(app,/askCovaEnabled=\{askCovaEnabled\}/);
+ assert.match(app,/const \{ enabled: askCovaEnabled, revoke: revokeAskCovaAccess \} = useAskCovaAccess\(/);
+ assert.match(app,/authGenerationRef\.current === authority\.generation/);
+ assert.match(app,/providerSessionRef\.current\?\.access_token === authority\.token/);
+ assert.match(app,/activeProviderUserIdRef\.current === authority\.owner/);
+ const hook=readFileSync('src/lib/useAskCovaAccess.ts','utf8');
+ assert.match(hook,/useState<Authority \| null>\(null\)/);
+ assert.match(hook,/enabled: grant !== null && valid\(grant\)/);
+ assert.match(hook,/cancel\(\);\s*flushSync\(\(\) => setGrant\(null\)\)/);
+ assert.match(app,/function advanceAuthGeneration\(\) \{[\s\S]*?revokeAskCovaAccess\(\);\s*authGenerationRef\.current \+= 1;/);
+ assert.equal((app.match(/authGenerationRef\.current \+= 1/g)||[]).length,1,'all generation advances use the synchronous beta boundary');
+ assert.match(app,/function hideWorkspaceForAuthCheck\(\) \{\s*revokeAskCovaAccess\(\);/);
+ assert.doesNotMatch(hook,/localStorage|sessionStorage|VITE_.*(?:USER|EMAIL|ALLOWLIST)/);
+ assert.match(app,/askCovaReady=\{workspaceSync.enabled && workspaceSync.phase === 'saved' && workspaceSync.allowEdit\}/);
+});

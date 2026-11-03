@@ -1,4 +1,5 @@
 import { useAccountNames } from './lib/useAccountNames';
+import { useAskCovaAccess } from './lib/useAskCovaAccess';
 import { saveManualAccountName } from './lib/accountNames';
 import { newManualAccountKey } from './lib/manualAccountKeys';
 import { ManualAccountManager } from './components/ManualAccountManager';
@@ -182,6 +183,18 @@ export default function App() {
   const authCeremonyActiveRef = useRef(false);
   const providerAuthAttemptIdRef = useRef(0);
   const validatedAccessTokenRef = useRef("");
+  const { enabled: askCovaEnabled, revoke: revokeAskCovaAccess } = useAskCovaAccess(
+    (import.meta as ImportMeta & { env?: Record<string, string> }).env?.VITE_ASK_COVA_ENABLED === 'true',
+    authSession?.source === 'supabase' ? authSession.userId : undefined,
+    authGenerationRef.current,
+    activeProviderUserIdRef.current === authSession?.userId ? providerSessionRef.current?.access_token : undefined,
+    authority => !providerSessionsBlockedRef.current && !authCeremonyActiveRef.current
+      && !pendingPolicyUserIdRef.current && !passwordRecoveryUserIdRef.current
+      && activeProviderUserIdRef.current === authority.owner
+      && authGenerationRef.current === authority.generation
+      && providerSessionRef.current?.user.id === authority.owner
+      && providerSessionRef.current?.access_token === authority.token,
+  );
   const isSignedIn = Boolean(authSession);
   const entitlements = planEntitlements[authSession?.plan ?? "free"];
   const proCheckoutAvailable = isBillingEnabled() || Boolean(getProCheckoutUrl()) || isDemoPreviewEnabled();
@@ -258,7 +271,7 @@ export default function App() {
         passwordRecoveryUserIdRef.current === session.user.id
         && passwordRecoverySessionIdRef.current === getSupabaseAuthSessionId(session.access_token)
       ) {
-        authGenerationRef.current += 1;
+        advanceAuthGeneration();
         providerSessionRef.current = session;
         validatedAccessTokenRef.current = "";
         setPasswordRecoverySession(session);
@@ -301,7 +314,7 @@ export default function App() {
         passwordRecoveryUserIdRef.current === session.user.id
         && passwordRecoverySessionIdRef.current === getSupabaseAuthSessionId(session.access_token)
       ) {
-        authGenerationRef.current += 1;
+        advanceAuthGeneration();
         providerSessionRef.current = session;
         validatedAccessTokenRef.current = "";
         setPasswordRecoverySession(session);
@@ -551,9 +564,15 @@ export default function App() {
   }
 
   function invalidateProviderSession() {
-    authGenerationRef.current += 1;
+    advanceAuthGeneration();
     providerSessionRef.current = null;
     validatedAccessTokenRef.current = "";
+  }
+
+  function advanceAuthGeneration() {
+    // Remove the previous beta grant synchronously, not at the next queued App render.
+    revokeAskCovaAccess();
+    authGenerationRef.current += 1;
   }
 
   function isCurrentSupabaseTask(session: SupabaseSession, generation: number) {
@@ -581,7 +600,7 @@ export default function App() {
     };
     const previousSessionId = providerSessionRef.current
       ? getSupabaseAuthSessionId(providerSessionRef.current.access_token) : null;
-    authGenerationRef.current += 1;
+    advanceAuthGeneration();
     manualTradeAuth.current.refresh(previous, {
       ...previous, identity: session.user.id, authGeneration: authGenerationRef.current,
     }, previousSessionId, getSupabaseAuthSessionId(session.access_token));
@@ -602,7 +621,7 @@ export default function App() {
     const switchingIdentity = Boolean(knownUserId && knownUserId !== session.user.id);
     if (switchingIdentity) {
       identitySwitchGenerationRef.current += 1;
-      authGenerationRef.current += 1;
+      advanceAuthGeneration();
       providerAuthAttemptIdRef.current += 1;
       authCeremonyActiveRef.current = false;
       providerSessionRef.current = null;
@@ -704,7 +723,7 @@ export default function App() {
     }
     authCeremonyActiveRef.current = true;
     prepareSupabaseIdentity(session);
-    authGenerationRef.current += 1;
+    advanceAuthGeneration();
     providerSessionRef.current = session;
     validatedAccessTokenRef.current = "";
     activeProviderUserIdRef.current = null;
@@ -770,7 +789,7 @@ export default function App() {
     prepareSupabaseIdentity(session);
     const current = providerSessionRef.current;
     if (current?.access_token !== session.access_token || current.user.id !== session.user.id) {
-      authGenerationRef.current += 1;
+      advanceAuthGeneration();
       providerSessionRef.current = session;
       validatedAccessTokenRef.current = "";
     }
@@ -907,7 +926,7 @@ export default function App() {
       return;
     }
     const deletionIdentityGeneration = identitySwitchGenerationRef.current;
-    authGenerationRef.current += 1;
+    advanceAuthGeneration();
     const response = await fetch("/api/account/delete", {
       method: "DELETE",
       headers: { Authorization: `Bearer ${session.access_token}` },
@@ -935,6 +954,7 @@ export default function App() {
   }
 
   function hideWorkspaceForAuthCheck() {
+    revokeAskCovaAccess();
     setAuthSession(null);
     setBrokerStatus(null);
     setMobileOpen(false);
@@ -1065,7 +1085,7 @@ export default function App() {
     }
 
     const deletionIdentityGeneration = identitySwitchGenerationRef.current;
-    authGenerationRef.current += 1;
+    advanceAuthGeneration();
 
     try {
       const response = await fetch("/api/account/delete", {
@@ -1440,7 +1460,7 @@ export default function App() {
 
                 </div>
               )}
-              {section === "dashboard" && <Dashboard noteDraftOwner={dashboardPrincipal?.identity} key={`${authSession?.userId || authSession?.email}:${tradeAccount}`} analysis={analysis} rules={rules} go={go} accountControl={ <div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={accountMenuAccounts} value={tradeAccount} onChange={selectTradeAccount} /></div>} onSaveTradeNote={saveTradeNote} journalActions={journalActions} onConfirmManualNet={confirmManualNetRows} onAddManualTrade={addManualTrade} onDeleteManualTrade={deleteManualTrade} manualAccounts={[...new Set([...tradeAccounts,"local"])]} selectedAccount={tradeAccount} rithmicSyncAvailable={brokerStatus?.provider === "Rithmic" && brokerStatus.status === "imported"} />}
+              {section === "dashboard" && <Dashboard askCovaEnabled={askCovaEnabled} askCovaOwner={authSession?.userId} askCovaReady={workspaceSync.enabled && workspaceSync.phase === 'saved' && workspaceSync.allowEdit} noteDraftOwner={dashboardPrincipal?.identity} key={`${authSession?.userId || authSession?.email}:${tradeAccount}`} analysis={analysis} rules={rules} go={go} accountControl={ <div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={accountMenuAccounts} value={tradeAccount} onChange={selectTradeAccount} /></div>} onSaveTradeNote={saveTradeNote} journalActions={journalActions} onConfirmManualNet={confirmManualNetRows} onAddManualTrade={addManualTrade} onDeleteManualTrade={deleteManualTrade} manualAccounts={[...new Set([...tradeAccounts,"local"])]} selectedAccount={tradeAccount} rithmicSyncAvailable={brokerStatus?.provider === "Rithmic" && brokerStatus.status === "imported"} />}
               {section === "import" && <ImportDesk accountManager={<ManualAccountManager accounts={accountMenuAccounts} names={accountNames} onCreate={createManualAccount} onRename={renameManualAccount} onPrepareRemove={prepareRemoveAccount} onRemove={removeTradingAccount} onOpen={account => { selectTradeAccount(account); go("dashboard"); }} />} key={authSession?.userId || authSession?.email} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} entitlements={entitlements} importCsv={importCsv} prepareImportCsv={prepareImportCsv} openFirmOAuth={openFirmOAuth} status={status} reset={() => { if (workspaceSync.enabled) { announce("Keep sample trades separate from your saved account workspace.", "info"); return; } const demoTrades = entitlements.plan === "free" ? sampleTrades.slice(0, entitlements.maxStoredTrades) : sampleTrades; tradesRef.current = demoTrades; setTrades(demoTrades); selectTradeAccount("local"); setRules(defaultRules); clearBrokerStatus(); window.dispatchEvent(new CustomEvent("cova:broker-status")); setStatus("Demo trades restored."); announce("Demo trades restored.", "success"); }} upgradeToPro={upgradeToPro} />}
               {section === "oauth" && <OAuthConnectPage firmId={oauthFirmId} onApprove={completeFirmOAuth} onCancel={cancelFirmOAuth} />}
               {section === "rules" && <RulesEngine analysis={analysis} entitlements={entitlements} rules={rules} setRules={setRules} go={go} upgradeToPro={upgradeToPro} accountControl={tradeAccounts.some(account => account !== "local") ? <div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={accountMenuAccounts} value={tradeAccount} onChange={selectTradeAccount} /></div> : undefined} />}

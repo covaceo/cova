@@ -1,0 +1,83 @@
+/* Ask Cova only: the Risk Desk palette in a softer conversation. */
+.ask-cova {
+  --ask-surface: #242830;
+  --ask-ink: #e5eaf2;
+  --ask-muted: #b5bfce;
+  --ask-rule: #343b47;
+  --ask-accent: #2864da;
+  --btn-radius: 999px;
+  color: var(--ask-ink);
+  background: #171b22;
+  margin: 0 0 20px;
+  padding: 16px 20px 20px;
+  border: 1px solid #2b313b;
+  border-radius: 24px;
+  font: 14px/1.6 Inter, Arial, sans-serif;
+  min-width: 0;
+}
+.ask-cova *, .ask-cova *::before, .ask-cova *::after { box-sizing: border-box; }
+.ask-cova-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; margin-bottom: 12px; }
+.ask-cova-heading h2 { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: -.02em; }
+.ask-cova-title { display: flex; align-items: center; gap: 8px; }
+.ask-cova-beta { color: var(--ask-muted); font: 400 11px/1.4 Inter, Arial, sans-serif; }
+.ask-cova-questions, .ask-cova-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ask-cova-conversation { display: flex; flex-direction: column; gap: 20px; max-width: 840px; margin: 8px auto 20px; }
+.ask-cova-exchange, .ask-cova-response { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; min-width: 0; width: 100%; }
+.ask-cova-response { gap: 0; }
+.ask-cova p { margin: 0; }
+.ask-cova-question, .ask-cova-reply { width: fit-content; max-width: min(88%, 640px); padding: 12px 16px; overflow-wrap: anywhere; white-space: pre-wrap; }
+.ask-cova-question { align-self: flex-end; background: var(--ask-accent); border-radius: 22px 22px 6px 22px; color: #fff; }
+.ask-cova-reply { align-self: flex-start; background: var(--ask-surface); border-radius: 22px 22px 22px 6px; color: var(--ask-ink); }
+.ask-cova-reply p { line-height: 1.65; }
+.ask-cova-actions { margin-top: 2px; }
+.ask-cova-notice { color: var(--ask-muted); margin: 12px 0 !important; }
+.ask-cova-consent { display: grid; gap: 8px; max-width: 640px; padding: 14px 16px; background: var(--ask-surface); border-radius: 22px 22px 22px 6px; }
+.ask-cova-consent details { color: var(--ask-muted); }
+.ask-cova-consent summary { cursor: pointer; width: fit-content; min-height: 44px; display: flex; align-items: center; }
+.ask-cova-consent details p { padding: 4px 0 8px; font-size: 13px; }
+.ask-cova-error { display: grid; gap: 4px; justify-items: start; color: var(--ask-muted); max-width: 840px; margin: 12px auto; }
+.ask-cova-questions { max-width: 840px; margin: 12px auto 8px; }
+.ask-cova-composer { display: flex; align-items: flex-end; gap: 8px; max-width: 840px; margin: 0 auto; padding: 6px; border: 1px solid var(--ask-rule); border-radius: 28px; background: #20252d; }
+.ask-cova-composer button { align-self: center; }
+.ask-cova .ask-cova-composer textarea { flex: 1; width: 100%; min-width: 0; min-height: 44px; max-height: 160px; height: auto; field-sizing: content; margin: 0; padding: 10px 12px; resize: none; border: 0; border-radius: 20px; box-shadow: none; background: transparent; color: var(--ask-ink); font: 14px/24px Inter, Arial, sans-serif; }
+.ask-cova .ask-cova-composer textarea::placeholder { color: var(--ask-muted); opacity: 1; }
+.ask-cova .ask-cova-composer textarea:disabled { color: var(--ask-muted); opacity: 1; cursor: not-allowed; }
+.ask-cova :is(button, textarea, summary):focus-visible { outline: 2px solid #92b7ff; outline-offset: 3px; }
+/* Match the existing control cascade's specificity, without changing any other screen. */
+:is(.ask-cova, html:root:has(.astra-dashboard[data-dashboard-visual]) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .ask-cova) button {
+  position: relative; min-height: 36px !important; height: 36px !important; min-width: 44px; padding: 4px 12px !important;
+  border: 1px solid transparent !important; border-radius: 999px !important; background: transparent !important; color: var(--ask-muted) !important;
+  font: 500 13px/20px Inter, Arial, sans-serif !important; white-space: normal; cursor: pointer; box-shadow: none !important;
+}
+:is(.ask-cova, html:root:has(.astra-dashboard[data-dashboard-visual]) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .ask-cova) button::after { content: "" !important; position: absolute; inset: -5px 0 !important; background: transparent; pointer-events: auto; }
+:is(.ask-cova, html:root:has(.astra-dashboard[data-dashboard-visual]) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .ask-cova) button:enabled:hover { background: #2c323c !important; color: var(--ask-ink) !important; border-color: transparent !important; }
+:is(.ask-cova, html:root:has(.astra-dashboard[data-dashboard-visual]) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .ask-cova) .ask-cova-questions button { background: #20252d !important; font-weight: 400 !important; }
+:is(.ask-cova, html:root:has(.astra-dashboard[data-dashboard-visual]) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .ask-cova) :is(.ask-cova-composer, .ask-cova-consent) .astra-button { background: var(--ask-accent) !important; color: #fff !important; }
+:is(.ask-cova, html:root:has(.astra-dashboard[data-dashboard-visual]) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .ask-cova) button:disabled { background: transparent !important; color: #a3afc0 !important; opacity: 1 !important; cursor: not-allowed; }
+/* Canonical workspace typography and fields are important; keep their overrides local. */
+:is(.ask-cova, html:root:has(.astra-dashboard[data-dashboard-visual]) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .ask-cova) .ask-cova-question { color: #fff !important; }
+:is(.ask-cova, html:root:has(.astra-dashboard[data-dashboard-visual]) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .ask-cova) .ask-cova-reply p { color: var(--ask-ink) !important; }
+:is(.ask-cova, html:root:has(.astra-dashboard[data-dashboard-visual]) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .ask-cova) .ask-cova-composer textarea { background: transparent !important; border: 0 !important; border-radius: 20px !important; color: var(--ask-ink) !important; box-shadow: none !important; }
+:is(.ask-cova, html:root:has(.astra-dashboard[data-dashboard-visual]) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .ask-cova) .ask-cova-composer textarea:focus-visible { outline: 2px solid #92b7ff !important; outline-offset: 3px !important; }
+:is(.ask-cova, html:root:has(.astra-dashboard[data-dashboard-visual]) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .ask-cova) .ask-cova-composer button:disabled { background: #303846 !important; color: #b5bfce !important; }
+:is(.ask-cova, html:root:has(.astra-dashboard[data-dashboard-visual]) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .ask-cova) .astra-trade-dialog.astra-history-dialog { border-radius: 24px !important; background: #171b22 !important; }
+.ask-cova .astra-history-scroll { border-radius: 16px; }
+.ask-cova .astra-history-table th { background: #242830; }
+@media (max-width: 620px) {
+  .ask-cova { padding: 12px; margin-bottom: 16px; }
+  .ask-cova-heading { gap: 6px; margin-bottom: 8px; }
+  .ask-cova-conversation { gap: 16px; }
+  .ask-cova-question, .ask-cova-reply { max-width: 94%; padding: 12px 14px; }
+  .ask-cova-questions { gap: 8px 4px; }
+  .ask-cova-composer { gap: 2px; }
+}
+.ask-cova .ask-cova-processing { display: flex; align-items: center; gap: 10px; width: fit-content; max-width: 100%; padding: 12px 16px; border-radius: 22px; background: var(--ask-surface); color: var(--ask-muted); font-size: 13px; }
+.ask-cova-dots { display: inline-flex; gap: 4px; }
+.ask-cova-dots i { display: block; width: 4px; height: 4px; background: currentColor; border-radius: 50%; animation: ask-cova-pulse 1.4s ease-in-out infinite; }
+.ask-cova-dots i:nth-child(2) { animation-delay: .16s; }
+.ask-cova-dots i:nth-child(3) { animation-delay: .32s; }
+@keyframes ask-cova-pulse { 0%, 80%, 100% { opacity: .4; } 40% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .ask-cova *, .ask-cova *::before, .ask-cova *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+

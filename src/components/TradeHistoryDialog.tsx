@@ -6,8 +6,9 @@ import { JournalHeadlineStats } from "./JournalAccuracyPanels";
 import { JournalEntryRow } from "./JournalEntryRow";
 
 /** Read-only view of the same owner/account-scoped ledger. Never writes or merges rows. */
-export function TradeHistoryDialog({ trades, journalReview, onClose, attachedTradeId }: {
+export function TradeHistoryDialog({ trades, journalReview, onClose, attachedTradeId, title, scopeLabel = 'All dates', showSummary = journalReview }: {
   trades: Trade[]; journalReview: boolean; onClose: () => void; attachedTradeId?: string | null;
+  title?: string; scopeLabel?: string; showSummary?: boolean;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const groups = useMemo(() => { const all = groupJournalEntries(trades); return attachedTradeId ? all.filter(group => group.rows.some(row => row.id === attachedTradeId)) : all; }, [trades, attachedTradeId]);
@@ -40,14 +41,14 @@ export function TradeHistoryDialog({ trades, journalReview, onClose, attachedTra
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
     }}>
     <header className="astra-history-header">
-      <div><h2 id="trade-history-title">{attachedTradeId ? "Attached trade" : "Trade history"}</h2><p>{groups.length} {groups.length === 1 ? "trade entry" : "trade entries"}{attachedTradeId ? " · Saved record" : " · All dates"}</p></div>
+      <div><h2 id="trade-history-title">{title || (attachedTradeId ? "Attached trade" : "Trade history")}</h2><p>{groups.length} {groups.length === 1 ? "trade entry" : "trade entries"}{attachedTradeId ? " · Saved record" : ` · ${scopeLabel}`}</p></div>
       <button className="astra-dialog-close" type="button" onClick={onClose} aria-label="Close trade history"><X aria-hidden="true" /></button>
     </header>
     <section aria-label="Saved trade history" className="astra-history-body">
       <div className="astra-history-meta"><span>Gross / reported P&amp;L</span><details><summary>Data details</summary>
         <p>{groups.length} trade entries from {groups.reduce((count, group) => count + group.rows.length, 0)} saved rows. Partial exits with the same broker entry ID appear together. Tradovate times are UTC and P&amp;L is gross before fees. Older saved history stays here after an empty or failed sync.</p>
       </details></div>
-      {journalReview && <JournalHeadlineStats journal={journal} />}
+      {showSummary && <JournalHeadlineStats journal={journal} />}
       <div className="astra-history-scroll" tabIndex={0} role="region" aria-label="Trade history records">
         <table className="astra-history-table" role="table"><thead role="rowgroup"><tr role="row">{['Closed','Market','Side','Contracts','Gross / reported P&L','Planned risk','Notes / partial exits'].map(label => <th role="columnheader" scope="col" key={label}>{label}</th>)}</tr></thead>
           <tbody role="rowgroup">{[...groups].reverse().slice(currentPage * 50, (currentPage + 1) * 50).map(group => <JournalEntryRow key={group.id} group={group} journalReview={journalReview} />)}</tbody>
