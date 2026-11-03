@@ -1,6 +1,6 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ProfileMenu } from "./UserProfile";
-import { Menu, X } from "lucide-react";
+import { Menu, Search, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { isWorkspaceNavActive, type Section } from "../lib/appRoutes";
 import { StartFreeButton } from "./StartFreeButton";
@@ -184,6 +184,7 @@ export function Navbar({ section, go, openAuth, mobileOpen, setMobileOpen, authS
           <img src="/media/wordmark-options/cova-wordmark-option-3-sleek-cropped.png" alt="Cova" className="header-mobile-wordmark object-contain opacity-95" />
         </button>
 
+        {usesWorkspaceChrome && <button className="workspace-mobile-search" type="button" aria-label="Search workspace" onClick={() => { setMobileOpen(false); window.dispatchEvent(new Event("cova:open-workspace-search")); }}><Search aria-hidden="true" /></button>}
         <button
           aria-controls="operator-mobile-menu"
           aria-expanded={mobileOpen}
