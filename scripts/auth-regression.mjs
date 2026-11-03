@@ -12,6 +12,18 @@ const {toImportPrincipalIdentity}=load("src/lib/importGuard.ts");
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const read = (...parts) => readFileSync(join(root, ...parts), "utf8");
 
+function extractAdvanceAuthGeneration(app) {
+  const matches = [...app.matchAll(/function advanceAuthGeneration\(\)\s*\{[\s\S]*?\n  \}/g)];
+  assert.equal(matches.length, 1, "expected the actual App auth-generation helper exactly once");
+  const source = matches[0][0];
+  const parsed = ts.createSourceFile("advanceAuthGeneration.ts", source, ts.ScriptTarget.Latest, true);
+  assert.deepEqual(Array.from(parsed.statements[0].body.statements, (statement) => statement.getText(parsed)), [
+    "revokeAskCovaAccess();",
+    "authGenerationRef.current += 1;",
+  ], "the helper must synchronously revoke access before its original generation increment");
+  return source;
+}
+
 function listFiles(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const path = join(directory, entry.name);
@@ -643,6 +655,7 @@ test("account deletion removes every Cova record scoped to the current browser i
 
 test("identity preparation synchronously invalidates in-flight deletion cleanup before deferred validation", () => {
   const app = read("src", "App.tsx");
+  const advanceSource = extractAdvanceAuthGeneration(app);
   const prepareSource = app.match(/function prepareSupabaseIdentity\(session: SupabaseSession\)\s*\{[\s\S]*?\n  \}/)?.[0] || "";
   assert.ok(prepareSource);
 
@@ -657,13 +670,14 @@ test("identity preparation synchronously invalidates in-flight deletion cleanup 
     passwordRecoveryUserIdRef: { current: null },
     authCeremonyActiveRef: { current: true },
     providerAuthAttemptIdRef: { current: 4 },
+    revokeAskCovaAccess: () => events.push(`revoke:${context.authGenerationRef.current}`),
     hideWorkspaceForAuthCheck: () => events.push("hide-workspace"),
     setPendingSupabaseSession: (value) => events.push(`pending:${value?.user?.id || "none"}`),
     setPasswordRecoverySession: (value) => events.push(`recovery:${value?.user?.id || "none"}`),
     setAuthMode: (value) => events.push(`mode:${value || "none"}`),
   };
   const executable = prepareSource.replace("session: SupabaseSession", "session");
-  runInNewContext(`${executable}; globalThis.prepareSupabaseIdentity = prepareSupabaseIdentity;`, context);
+  runInNewContext(`${advanceSource}\n${executable}; globalThis.prepareSupabaseIdentity = prepareSupabaseIdentity;`, context);
 
   context.prepareSupabaseIdentity({ access_token: "token-B", user: { id: "user-B" } });
 
@@ -677,7 +691,7 @@ test("identity preparation synchronously invalidates in-flight deletion cleanup 
     context.authGenerationRef.current === 11 && context.providerSessionRef.current?.user.id === "user-A",
     false,
   );
-  assert.deepEqual(events, ["hide-workspace", "pending:none", "recovery:none", "mode:none"]);
+  assert.deepEqual(events, ["revoke:11", "hide-workspace", "pending:none", "recovery:none", "mode:none"]);
 });
 
 test("password recovery pins the mutation to the captured bearer and aborts on identity switch", async () => {
@@ -841,6 +855,7 @@ test("token refresh adopts the new bearer without replaying login completion", (
 
 test("same-user refresh and sign-out preserve confirmed deletion cleanup while an identity switch blocks it", () => {
   const app = read("src", "App.tsx");
+  const advanceSource = extractAdvanceAuthGeneration(app);
   const adoptSource = app.match(/function adoptSupabaseSession\(session: SupabaseSession\)\s*\{[\s\S]*?\n  \}/)?.[0] || "";
   const prepareSource = app.match(/function prepareSupabaseIdentity\(session: SupabaseSession\)\s*\{[\s\S]*?\n  \}/)?.[0] || "";
   const continuitySource = app.match(/function hasDeletionIdentityContinuity\(userId: string, identityGeneration: number\)\s*\{[\s\S]*?\n  \}/)?.[0] || "";
@@ -848,6 +863,7 @@ test("same-user refresh and sign-out preserve confirmed deletion cleanup while a
   assert.ok(prepareSource);
   assert.ok(continuitySource);
 
+  const revocations = [];
   const context = {
     authGenerationRef: { current: 11 },
     identitySwitchGenerationRef: { current: 5 },
@@ -862,6 +878,10 @@ test("same-user refresh and sign-out preserve confirmed deletion cleanup while a
     authCeremonyActiveRef: { current: true },
     providerAuthAttemptIdRef: { current: 4 },
     activeProviderUserIdRef: { current: "user-A" },
+    revokeAskCovaAccess: () => revocations.push([
+      context.authGenerationRef.current,
+      context.providerSessionRef.current?.access_token,
+    ]),
     hideWorkspaceForAuthCheck: () => undefined,
     setPendingSupabaseSession: () => undefined,
     setPasswordRecoverySession: () => undefined,
@@ -871,26 +891,32 @@ test("same-user refresh and sign-out preserve confirmed deletion cleanup while a
     normalizePlan: () => "free",
   };
   const executable = `${adoptSource.replace("session: SupabaseSession", "session")}\n${prepareSource.replace("session: SupabaseSession", "session")}\n${continuitySource.replace("userId: string, identityGeneration: number", "userId, identityGeneration")}\nglobalThis.adoptSupabaseSession = adoptSupabaseSession; globalThis.prepareSupabaseIdentity = prepareSupabaseIdentity; globalThis.hasDeletionIdentityContinuity = hasDeletionIdentityContinuity;`;
-  runInNewContext(ts.transpileModule(executable,{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText, context);
+  runInNewContext(ts.transpileModule(`${advanceSource}\n${executable}`,{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText, context);
 
   context.adoptSupabaseSession({ access_token: "token-A-refreshed", user: { id: "user-A", email: "a@example.com" } });
   assert.equal(context.authGenerationRef.current, 12);
   assert.equal(context.identitySwitchGenerationRef.current, 5);
   assert.equal(context.hasDeletionIdentityContinuity("user-A", 5), true);
+  assert.deepEqual(revocations, [[11, "token-A"]], "refresh revokes before incrementing or adopting the new bearer");
 
   context.providerSessionRef.current = null;
   assert.equal(context.hasDeletionIdentityContinuity("user-A", 5), true);
+  assert.deepEqual(revocations, [[11, "token-A"]]);
 
   context.providerSessionRef.current = { access_token: "token-A-refreshed", user: { id: "user-A", email: "a@example.com" } };
   context.prepareSupabaseIdentity({ access_token: "token-B", user: { id: "user-B", email: "b@example.com" } });
+  assert.equal(context.authGenerationRef.current, 13);
   assert.equal(context.identitySwitchGenerationRef.current, 6);
   assert.equal(context.hasDeletionIdentityContinuity("user-A", 5), false);
+  assert.deepEqual(revocations, [[11, "token-A"], [12, "token-A-refreshed"]]);
 
   context.activeProviderUserIdRef.current = "user-B";
   context.providerSessionRef.current = { access_token: "token-B", user: { id: "user-B", email: "b@example.com" } };
   context.prepareSupabaseIdentity({ access_token: "token-A-new", user: { id: "user-A", email: "a@example.com" } });
+  assert.equal(context.authGenerationRef.current, 14);
   assert.equal(context.identitySwitchGenerationRef.current, 7);
   assert.equal(context.hasDeletionIdentityContinuity("user-A", 5), false);
+  assert.deepEqual(revocations, [[11, "token-A"], [12, "token-A-refreshed"], [13, "token-B"]]);
 
   const normalDeletion = app.match(/async function deleteAccount\(\)\s*\{([\s\S]*?)\r?\n  \}\r?\n\r?\n  function signInAsDevPreview/)?.[1] || "";
   const pendingDeletion = app.match(/async function deletePendingAccount\(\)\s*\{([\s\S]*?)\r?\n  \}\r?\n\r?\n  function handleSupabaseAuthFailure/)?.[1] || "";
@@ -924,6 +950,19 @@ test("confirmed account deletion locks locally before bounded SDK cleanup", () =
 
 test("account deletion pins the validated identity and bearer across the request", () => {
   const app = read("src", "App.tsx");
+  const advanceSource = extractAdvanceAuthGeneration(app);
+  const events = [];
+  let generation = 11;
+  const context = {
+    authGenerationRef: {
+      get current() { return generation; },
+      set current(value) { events.push(`generation:${value}`); generation = value; },
+    },
+    revokeAskCovaAccess: () => events.push(`revoke:${generation}`),
+  };
+  runInNewContext(`${advanceSource}\nadvanceAuthGeneration();`, context);
+  assert.equal(generation, 12);
+  assert.deepEqual(events, ["revoke:11", "generation:12"]);
   const body = app.match(/async function deleteAccount\(\)\s*\{([\s\S]*?)\r?\n  \}\r?\n\r?\n  function signInAsDevPreview/)?.[1] || "";
   assert.match(body, /const deletingUserId = authSession\.userId/);
   assert.match(body, /const deletionSession = providerSessionRef\.current/);
@@ -931,14 +970,16 @@ test("account deletion pins the validated identity and bearer across the request
   assert.match(body, /validatedAccessTokenRef\.current !== deletionSession\.access_token/);
   assert.match(body, /Authorization: `Bearer \$\{deletionSession\.access_token\}`/);
   assert.match(body, /const deletionIdentityGeneration = identitySwitchGenerationRef\.current/);
-  assert.match(body, /authGenerationRef\.current \+= 1/);
+  assert.match(body, /const deletionIdentityGeneration = identitySwitchGenerationRef\.current;\s*advanceAuthGeneration\(\);\s*try \{\s*const response = await fetch\(/);
+  assert.equal([...body.matchAll(/\badvanceAuthGeneration\(/g)].length, 1);
   assert.match(body, /!hasDeletionIdentityContinuity\(deletingUserId, deletionIdentityGeneration\)/);
   assert.doesNotMatch(body, /authGenerationRef\.current !== deletionGeneration/);
   assert.doesNotMatch(body, /authorizedFetch\(["']\/api\/account\/delete/);
 
   const pendingBody = app.match(/async function deletePendingAccount\(\)\s*\{([\s\S]*?)\r?\n  \}\r?\n\r?\n  function handleSupabaseAuthFailure/)?.[1] || "";
   assert.match(pendingBody, /const deletionIdentityGeneration = identitySwitchGenerationRef\.current/);
-  assert.match(pendingBody, /authGenerationRef\.current \+= 1/);
+  assert.match(pendingBody, /const deletionIdentityGeneration = identitySwitchGenerationRef\.current;\s*advanceAuthGeneration\(\);\s*const response = await fetch\(/);
+  assert.equal([...pendingBody.matchAll(/\badvanceAuthGeneration\(/g)].length, 1);
   assert.match(pendingBody, /!hasDeletionIdentityContinuity\(session\.user\.id, deletionIdentityGeneration\)/);
   assert.doesNotMatch(pendingBody, /authGenerationRef\.current !== deletionGeneration/);
 });

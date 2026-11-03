@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test:ask-cova": "node --test scripts/ask-cova-intent-regression.mjs scripts/ask-cova-core-regression.mjs scripts/ask-cova-client-regression.mjs scripts/ask-cova-wiring-regression.mjs scripts/ask-cova-budget-regression.mjs scripts/ask-cova-server-regression.mjs scripts/ask-cova-native-auth-regression.mjs scripts/ask-cova-beta-server-regression.mjs scripts/ask-cova-beta-client-regression.mjs && node scripts/ask-cova-ui-regression.mjs && node scripts/ask-cova-chat-regression.mjs && node scripts/ask-cova-beta-browser.mjs && node scripts/ask-cova-app-browser.mjs",
     "test:marketing-typography": "npm run build && node scripts/marketing-typography-browser.mjs",
     "test:geist-serif": "npm run build && node scripts/geist-serif-browser-regression.mjs",
     "test:approved-site": "node --test scripts/approved-site-release-regression.mjs scripts/gooey-motion-regression.mjs scripts/site-release-authority-regression.mjs && node scripts/auth-refresh-owned.mjs && node scripts/gooey-motion-owned.mjs && node --test --test-concurrency=1 scripts/public-page-refresh-regression.mjs scripts/public-page-sky-regression.mjs scripts/landing-risk-desk-regression.mjs scripts/landing-passport-regression.mjs scripts/landing-starfield-regression.mjs scripts/landing-continuity-regression.mjs scripts/landing-frame-motion-regression.mjs scripts/landing-testimonials-regression.mjs scripts/public-navbar-hover-regression.mjs && node scripts/public-release-owned.mjs",

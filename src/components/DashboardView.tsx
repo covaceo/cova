@@ -1,6 +1,6 @@
 import type { ConfirmManualNet } from '../lib/manualTrades';
 import { ArrowUpRight, ChevronDown, FileText, FileUp } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { analyze, type RiskRule, type Trade } from "../lib/risk";
 
 import { journalSummary, moneyText, rowMoneyText, journalReviewEnabled } from "../lib/journalAccuracy";
@@ -14,6 +14,7 @@ import { DashboardReviewRange } from "./DashboardReviewRange";
 import { accountEquityPnlCents } from "../lib/equityCurveState";
 import { DashboardTradeDialog } from "./DashboardTradeDialog";
 import { TradeHistoryDialog } from "./TradeHistoryDialog";
+
 import { OaDisciplineReview } from "./OaDisciplineReview";
 import { MiniJournal, type JournalActions } from "./MiniJournal";
 import { ManualTradeDialog, type AddManualTrade } from "./ManualTradeDialog";
@@ -24,13 +25,17 @@ import { signedMoney } from "../lib/dashboardPresentation";
 export { signedMoney } from "../lib/dashboardPresentation";
 
 const DASHBOARD_RANGE_KEY = "cova-dashboard-range-v1";
+const AskCova = lazy(() => import('./AskCova').then(module => ({ default: module.AskCova })));
 const IMPORT_PROVIDER_HINT_KEY = "cova-import-provider-v1";
 type Section = "overview" | "features" | "pricing" | "resources" | "community" | "dashboard" | "import" | "oauth" | "rules" | "coach" | "passport";
 type TimeRange = "today" | "week" | "all";
 type Analysis = ReturnType<typeof analyze>;
 
 
-export function Dashboard({ noteDraftOwner, analysis, rules, go, rithmicSyncAvailable = false, onSaveTradeNote, journalReview = journalReviewEnabled(), accountControl, journalActions, onConfirmManualNet, onAddManualTrade, onDeleteManualTrade, manualAccounts = ["local"], selectedAccount = "local" }: {
+export function Dashboard({ noteDraftOwner, askCovaEnabled = false, askCovaOwner, askCovaReady = false, analysis, rules, go, rithmicSyncAvailable = false, onSaveTradeNote, journalReview = journalReviewEnabled(), accountControl, journalActions, onConfirmManualNet, onAddManualTrade, onDeleteManualTrade, manualAccounts = ["local"], selectedAccount = "local" }: {
+  askCovaOwner?: string;
+  askCovaEnabled?: boolean;
+  askCovaReady?: boolean;
   noteDraftOwner?: string;
   journalActions?: JournalActions;
   onAddManualTrade?: AddManualTrade;
@@ -108,6 +113,7 @@ export function Dashboard({ noteDraftOwner, analysis, rules, go, rithmicSyncAvai
       </div>
     </header>
     {hasTradeHistory && <DashboardReviewRange trades={analysis.trades} range={range} onChange={setRange} cash={netCash} />}
+    {askCovaEnabled && askCovaOwner && <Suspense fallback={<p role="status">Loading Ask Cova…</p>}><AskCova ownerId={askCovaOwner} account={selectedAccount} range={range} trades={analysis.trades} ready={askCovaReady} /></Suspense>}
 
     {!hasTradeHistory ? <section className="dashboard-empty-state" data-dashboard-empty="true" aria-labelledby="dashboard-empty-title">
       <div className="dashboard-empty-panel">
