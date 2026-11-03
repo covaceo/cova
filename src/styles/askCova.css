@@ -31,10 +31,10 @@
 .ask-cova-reply p { line-height: 1.65; }
 .ask-cova-actions { margin-top: 2px; }
 .ask-cova-notice { color: var(--ask-muted); margin: 12px 0 !important; }
-.ask-cova-consent { display: grid; gap: 8px; max-width: 640px; padding: 14px 16px; background: var(--ask-surface); border-radius: 22px 22px 22px 6px; }
-.ask-cova-consent details { color: var(--ask-muted); }
-.ask-cova-consent summary { cursor: pointer; width: fit-content; min-height: 44px; display: flex; align-items: center; }
-.ask-cova-consent details p { padding: 4px 0 8px; font-size: 13px; }
+
+
+
+
 .ask-cova-error { display: grid; gap: 4px; justify-items: start; color: var(--ask-muted); max-width: 840px; margin: 12px auto; }
 .ask-cova-questions { max-width: 840px; margin: 12px auto 8px; }
 .ask-cova-composer { display: flex; align-items: flex-end; gap: 8px; max-width: 840px; margin: 0 auto; padding: 6px; border: 1px solid var(--ask-rule); border-radius: 28px; background: #20252d; }
@@ -52,7 +52,7 @@
 :is(.ask-cova, html:root:has(.astra-dashboard[data-dashboard-visual]) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .ask-cova) button::after { content: "" !important; position: absolute; inset: -5px 0 !important; background: transparent; pointer-events: auto; }
 :is(.ask-cova, html:root:has(.astra-dashboard[data-dashboard-visual]) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .ask-cova) button:enabled:hover { background: #2c323c !important; color: var(--ask-ink) !important; border-color: transparent !important; }
 :is(.ask-cova, html:root:has(.astra-dashboard[data-dashboard-visual]) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .ask-cova) .ask-cova-questions button { background: #20252d !important; font-weight: 400 !important; }
-:is(.ask-cova, html:root:has(.astra-dashboard[data-dashboard-visual]) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .ask-cova) :is(.ask-cova-composer, .ask-cova-consent) .astra-button { background: var(--ask-accent) !important; color: #fff !important; }
+:is(.ask-cova, html:root:has(.astra-dashboard[data-dashboard-visual]) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .ask-cova) .ask-cova-composer .astra-button { background: var(--ask-accent) !important; color: #fff !important; }
 :is(.ask-cova, html:root:has(.astra-dashboard[data-dashboard-visual]) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .ask-cova) button:disabled { background: transparent !important; color: #a3afc0 !important; opacity: 1 !important; cursor: not-allowed; }
 /* Canonical workspace typography and fields are important; keep their overrides local. */
 :is(.ask-cova, html:root:has(.astra-dashboard[data-dashboard-visual]) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .ask-cova) .ask-cova-question { color: #fff !important; }

@@ -1,8 +1,13 @@
 import type { Trade } from './risk';
-import { cents, sumCents } from './journalAccuracy';
+import { insightReview, insightComparisons, insightSubset, validatedSetup, sumAskCovaMoney } from './askCovaInsights';
+import { cents } from './journalAccuracy';
 import { filterTradeAccount, tradeAccountKey as getTradeAccountKey } from './tradovateHistory';
 
-export type AskCovaQuestion = 'review_results' | 'explain_drawdown' | 'what_stands_out';
+export const ASK_COVA_QUESTION_IDS = Object.freeze(['review_results', 'explain_drawdown', 'what_stands_out', 'holding_time', 'setup_performance', 'time_of_day', 'long_vs_short'] as const);
+export type AskCovaQuestion = typeof ASK_COVA_QUESTION_IDS[number];
+export function isAskCovaQuestion(value: unknown): value is AskCovaQuestion {
+  return typeof value === 'string' && (ASK_COVA_QUESTION_IDS as readonly string[]).includes(value);
+}
 export type AskCovaStyle = 'plain' | 'warm' | 'direct';
 export const ASK_COVA_QUESTIONS: { id: AskCovaQuestion; label: string }[] = [
   { id: 'review_results', label: 'Review my results' },
@@ -18,13 +23,17 @@ export type AskCovaCatalog = {
   end: string | null;
 };
 type Candidate = AskCovaCatalog['candidates'][number];
+type Variants = Record<AskCovaStyle, string>;
+const providerVariants = new WeakMap<Candidate, Variants>();
 type Input = { ownerId: string; account: string; range: 'today' | 'week' | 'all'; question: AskCovaQuestion; trades: readonly Trade[] };
-function candidate(id: string, plain: string, warm: string, direct: string, detail: string, tradeIds: string[] = []): Candidate {
+function candidate(id: string, plain: string, warm: string, direct: string, detail: string, tradeIds: string[] = [], safe: Variants = { plain, warm, direct }): Candidate {
   const fits = (text: string, words: number, characters: number) => text.length > 0 && text.length <= characters && text.trim().split(/\s+/).length <= words;
-  if (![plain, warm, direct].every(text => fits(text, 35, 600)) || !fits(detail, 80, 1600)) throw new Error('Engine copy bound exceeded');
-  return { id, variants: { plain, warm, direct }, detail, tradeIds: [...tradeIds] };
+  if (![plain, warm, direct, ...Object.values(safe)].every(text => fits(text, 140, 2000)) || !fits(detail, 700, 7000)) throw new Error('Engine copy bound exceeded');
+  const item = { id, variants: { plain, warm, direct }, detail, tradeIds: [...tradeIds] };
+  providerVariants.set(item, Object.freeze({ ...safe }));
+  return item;
 }
-const QUESTIONS = ['review_results', 'explain_drawdown', 'what_stands_out'] as const;
+const QUESTIONS = ASK_COVA_QUESTION_IDS;
 const boundedText = (value: unknown, max = 256): value is string => typeof value === 'string' && value.length <= max && value.trim().length > 0 && !/[\u0000-\u001f\u007f]/.test(value);
 function validDate(value: unknown): value is string {
   return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(`${value}T00:00:00Z`)) && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
@@ -79,7 +88,23 @@ function chronological(rows: Trade[]): Trade[] | null {
 }
 function compile(rows: Trade[], question: AskCovaQuestion): Candidate[] {
   const ids = rows.map(row => row.id);
-  const unavailable = (id: string, text: string, detail: string) => [candidate(id, text, text, text, detail, ids)];
+  const specific = ['holding_time', 'setup_performance', 'time_of_day', 'long_vs_short'].includes(question);
+  const unavailable = (id: string, text: string, detail: string) => {
+    if (question !== 'explain_drawdown') {
+      const subset = insightSubset(rows, { currency, basis });
+      if (subset) {
+        const review = subset.review;
+        const comparisons = insightComparisons(rows, question, { currency, basis });
+        const partialSummary = `${text} Valid subset P&L: ${money(subset.total, subset.code)} (${subset.basis}). ${review.metrics}`;
+        const answerFor = (observation: string | null) => specific && observation
+          ? `${observation}${observation.startsWith('No usable') ? ` ${partialSummary}` : ''}`
+          : `${partialSummary} ${observation ?? review.observation}`;
+        const answer = answerFor(comparisons.observation), safeAnswer = answerFor(comparisons.providerObservation);
+        return [candidate(id, answer, answer, answer, `${detail} ${partialSummary} ${subset.coverage} ${review.definitions} ${comparisons.detail}`, ids, { plain: safeAnswer, warm: safeAnswer, direct: safeAnswer })];
+      }
+    }
+    return [candidate(id, text, text, text, detail, ids)];
+  };
   if (!rows.length) return [candidate('empty', "There's nothing to review in this range yet. Log or import a completed trade to get started.",
     'Nothing to review here yet. Log or import a completed trade, and we can take a look.',
     'Log or import a completed trade to review your results here.',
@@ -89,8 +114,7 @@ function compile(rows: Trade[], question: AskCovaQuestion): Candidate[] {
   if (currencies.size !== 1) return unavailable('mixed_currencies', "These results use different currencies, so there isn't one combined result to report.", 'The currencies need to stay separate. No exchange rates are available for a combined total or drawdown.');
   let total: bigint;
   try {
-    if (rows.some(row => typeof row.pnl !== 'number' || !Number.isFinite(row.pnl))) throw new Error('Invalid money');
-    total = sumCents(rows.map(row => row.pnl));
+    total = sumAskCovaMoney(rows.map(row => row.pnl));
   } catch {
     return unavailable('invalid_money', "Some P&L is missing or invalid, so I can't give you a complete result yet.", 'Every trade record needs valid P&L in whole cents within the supported money range. Missing values are not zero; leaving them out could change the total or drawdown.');
   }
@@ -119,25 +143,25 @@ function compile(rows: Trade[], question: AskCovaQuestion): Candidate[] {
       `${path} Maximum decline: ${decline} (${qualifier}). The calculation starts at an initial zero before this range, not at your account balance. It excludes price changes while trades were open. ${caveat}`, ids)];
   }
   const amount = money(total, currency(rows[0])!);
-  const detail = `Reported P&L is ${amount} (${qualifier}). ${caveat}`;
-  const outcome = total === 0n ? 'flat' : total > 0n ? 'green' : 'red';
-  const items = [candidate('result', `You finished ${outcome}: ${amount} (${qualifier}).`,
-    total === 0n ? `No gain or loss overall: ${amount} (${qualifier}).` : `You ended this stretch in the ${outcome}, at ${amount} (${qualifier}).`,
-    `Your result was ${amount} (${qualifier}).`, detail, ids)];
-  if (question === 'what_stands_out' && total < 0n && rows.some(row => row.pnl > 0)) {
-    items.unshift(candidate('losses_outweigh_gains', `Your losses outweighed your gains (${qualifier}).`,
-      `The gains didn't cover the losses this time (${qualifier}).`,
-      `You lost more than you gained (${qualifier}).`, detail, ids));
+  const review = insightReview(rows, currency(rows[0])!);
+  const comparisons = insightComparisons(rows, question, { currency, basis });
+  const detail = `Reported P&L is ${amount} (${qualifier}). ${review.metrics} ${review.definitions} ${comparisons.detail} ${caveat}`;
+  if (specific && comparisons.observation && comparisons.providerObservation) {
+    const answerFor = (observation: string) => `${observation}${observation.startsWith('No usable') ? ` Reported P&L: ${amount} (${qualifier}). ${review.metrics}` : ''}`;
+    const answer = answerFor(comparisons.observation), safeAnswer = answerFor(comparisons.providerObservation);
+    return [candidate('result', answer, answer, answer, detail, ids, { plain: safeAnswer, warm: safeAnswer, direct: safeAnswer })];
   }
-  const missingRisk = rows.filter(row => {
-    try { return row.riskStatus === 'missing' || typeof row.risk !== 'number' || cents(row.risk) <= 0n; }
-    catch { return true; }
-  });
-  if (missingRisk.length) items.push(candidate('missing_risk', "Some trades have no usable planned risk, so a full risk comparison isn't available.",
-    'The risk comparison has gaps. Some planned-risk amounts are missing or invalid.',
-    "Missing or invalid planned risk means I can't compare all results against it.",
-    'Some trade records lack a usable positive planned-risk amount. P&L cannot substitute for planned risk. Their P&L still counts toward the result.', missingRisk.map(row => row.id)));
-  return items;
+  const outcome = total === 0n ? 'flat' : total > 0n ? 'green' : 'red';
+  const body = `${review.metrics} ${comparisons.observation ?? review.observation}`;
+  const safeBody = `${review.metrics} ${comparisons.providerObservation ?? review.observation}`;
+  return [candidate(question === 'what_stands_out' && total < 0n && rows.some(row => row.pnl > 0) ? 'losses_outweigh_gains' : 'result',
+    `You finished ${outcome}: ${amount} (${qualifier}). ${body}`,
+    `You ended this stretch ${outcome}: ${amount} (${qualifier}). ${body}`,
+    `Your result was ${amount} (${qualifier}). ${body}`, detail, ids, {
+      plain: `You finished ${outcome}: ${amount} (${qualifier}). ${safeBody}`,
+      warm: `You ended this stretch ${outcome}: ${amount} (${qualifier}). ${safeBody}`,
+      direct: `Your result was ${amount} (${qualifier}). ${safeBody}`,
+    })];
 }
 
 // Whitelist financial fields; never serialize a raw Trade or annotations.
@@ -151,7 +175,7 @@ function scalar(value: unknown): unknown {
 function financialEvidence(row: Trade) {
   return { id: row.id, date: row.date, account: getTradeAccountKey(row),
     market: scalar(row.market), side: scalar(row.side), contracts: scalar(row.contracts), entry: scalar(row.entry), exit: scalar(row.exit),
-    pnl: scalar(row.pnl), risk: scalar(row.risk), riskStatus: scalar(row.riskStatus),
+    setup: validatedSetup(row), pnl: scalar(row.pnl), risk: scalar(row.risk), riskStatus: scalar(row.riskStatus),
     manual: row.manual ? { accountKey: row.manual.accountKey, currency: scalar(row.manual.currency), pnlBasis: scalar(row.manual.pnlBasis) } : null,
     source: row.source?.provider === 'Rithmic'
       ? { provider: 'Rithmic', accountKey: row.source.accountKey, accountId: row.source.accountId, currency: scalar(row.source.currency) }
@@ -161,6 +185,7 @@ function financialEvidence(row: Trade) {
 
 // Catalogs are process-local capabilities, not client-authored documents.
 const issuedCatalogs = new WeakSet<AskCovaCatalog>();
+const providerChoices = new WeakMap<AskCovaCatalog, { id: string; variants: Variants }[]>();
 const STYLES: AskCovaStyle[] = ['plain', 'warm', 'direct'];
 
 export async function buildAskCovaCatalog(input: Input): Promise<AskCovaCatalog> {
@@ -184,8 +209,9 @@ export async function buildAskCovaCatalog(input: Input): Promise<AskCovaCatalog>
   const tradeIds = rows.map(row => row.id);
   if (new Set(tradeIds).size !== tradeIds.length) throw new Error('Duplicate scoped row identity');
   const candidates = compile(rows, input.question);
+  const safeChoices = candidates.map(item => Object.freeze({ id: item.id, variants: providerVariants.get(item)! }));
   const evidence = rows.map(financialEvidence);
-  const binding = JSON.stringify({ version: 'ask-cova-core-v1', owner: input.ownerId, account: input.account, range: input.range, question: input.question, start, end, evidence, candidates });
+  const binding = JSON.stringify({ version: 'ask-cova-core-v1', owner: input.ownerId, account: input.account, range: input.range, question: input.question, start, end, evidence, candidates, safeChoices });
   const question = input.question;
   const hash = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(binding));
   const contextDigest = Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, '0')).join('');
@@ -193,13 +219,16 @@ export async function buildAskCovaCatalog(input: Input): Promise<AskCovaCatalog>
   for (const item of candidates) { Object.freeze(item.variants); Object.freeze(item.tradeIds); Object.freeze(item); }
   Object.freeze(candidates); Object.freeze(tradeIds); Object.freeze(catalog);
   issuedCatalogs.add(catalog);
+  providerChoices.set(catalog, safeChoices);
   return catalog;
 }
 
 /** Minimal selector input. Provider/model configuration belongs to the server. */
 export function askCovaModelPayload(catalog: AskCovaCatalog): unknown {
   if (!issuedCatalogs.has(catalog)) throw new Error('Invalid engine catalog');
-  const choices = catalog.candidates.map(item => ({ id: item.id, variants: { ...item.variants } }));
+  // Checked facts with separately constructed categorical labels, never raw private prose.
+  // Return copies so a caller cannot change issued selector evidence or local render authority.
+  const choices = providerChoices.get(catalog)!.map(item => ({ id: item.id, variants: { ...item.variants } }));
   const payload = { choices };
   if (choices.length < 1 || choices.length > 3 || new TextEncoder().encode(JSON.stringify(payload)).byteLength > 8192) throw new Error('Invalid catalog payload bound');
   return payload;

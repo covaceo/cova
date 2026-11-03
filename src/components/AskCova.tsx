@@ -25,7 +25,7 @@ function AskCovaConversation({ ownerId, account, range, trades, ready, request =
   const [draft, setDraft] = useState('');
   const [exchanges, setExchanges] = useState<Exchange[]>([]);
   const [selected, setSelected] = useState<Exchange | null>(null);
-  const [consented, setConsented] = useState(false);
+
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [evidenceReply, setEvidenceReply] = useState<Reply | null>(null);
@@ -37,14 +37,14 @@ function AskCovaConversation({ ownerId, account, range, trades, ready, request =
   const pending = useRef<AbortController | null>(null);
   // Event authority is synchronous; React state below is only its rendered mirror.
   // Never copy rendered state back here: a batched handler may already have advanced it.
-  const conversation = useRef({ epoch: 0, active: true, consented: false, draft: '', exchanges: [] as Exchange[], selected: null as Exchange | null });
+  const conversation = useRef({ epoch: 0, active: true, draft: '', exchanges: [] as Exchange[], selected: null as Exchange | null });
   const epoch = conversation.current.epoch;
   const authority = useRef(ownerCurrent);
   authority.current = ownerCurrent;
   useEffect(() => {
     conversation.current.active = true;
     return () => {
-      conversation.current.active = false; conversation.current.consented = false;
+      conversation.current.active = false;
       pending.current?.abort(); pending.current = null;
     };
   }, []);
@@ -56,10 +56,10 @@ function AskCovaConversation({ ownerId, account, range, trades, ready, request =
   }, [busy]);
   function clear() {
     const current = conversation.current;
-    current.epoch++; current.consented = false; current.draft = ''; current.exchanges = []; current.selected = null;
+    current.epoch++; current.draft = ''; current.exchanges = []; current.selected = null;
     pending.current?.abort(); pending.current = null;
     restoreComposer.current = false;
-    setDraft(''); setExchanges([]); setSelected(null); setError(''); setEvidenceReply(null); setBusy(false); setConsented(false);
+    setDraft(''); setExchanges([]); setSelected(null); setError(''); setEvidenceReply(null); setBusy(false);
   }
   function currentEpoch(origin: number) {
     return conversation.current.active && conversation.current.epoch === origin;
@@ -73,7 +73,7 @@ function AskCovaConversation({ ownerId, account, range, trades, ready, request =
   }
   function canAppend() {
     const current = conversation.current;
-    return current.active && ready && !pending.current && current.exchanges.length < MAX_EXCHANGES && (current.consented || !current.selected);
+    return current.active && ready && !pending.current && current.exchanges.length < MAX_EXCHANGES;
   }
   function append(exchange: Exchange) {
     if (!canAppend()) return false;
@@ -82,7 +82,7 @@ function AskCovaConversation({ ownerId, account, range, trades, ready, request =
     return true;
   }
   async function ask(exchange: Exchange, origin: number) {
-    const ownsExchange = () => currentEpoch(origin) && conversation.current.consented && conversation.current.selected?.id === exchange.id
+    const ownsExchange = () => currentEpoch(origin) && conversation.current.selected?.id === exchange.id
       && conversation.current.exchanges.some(item => item.id === exchange.id);
     if (!exchange.question || !ownsExchange() || pending.current || conversation.current.exchanges.some(item => item.id === exchange.id && item.reply) || !checkAuthority()) return;
     restoreComposer.current = exchange.fromComposer === true;
@@ -115,24 +115,18 @@ function AskCovaConversation({ ownerId, account, range, trades, ready, request =
       }
     }
   }
-  function consent(exchange: Exchange, origin: number) {
-    const current = conversation.current;
-    if (!currentEpoch(origin) || current.consented || pending.current || current.selected?.id !== exchange.id
-      || !current.exchanges.some(item => item.id === exchange.id) || !checkAuthority()) return;
-    current.consented = true; setConsented(true);
-    void ask(exchange, origin);
-  }
+
   function choose(id: AskCovaQuestion, text = ASK_COVA_QUESTIONS.find(item => item.id === id)!.label, fromComposer = false) {
     if (!canAppend()) return;
-    if (conversation.current.consented && !checkAuthority()) return;
+    if (!currentEpoch(epoch) || !checkAuthority()) return;
     const exchange = { id: ++sequence.current, text, question: id, fromComposer };
     if (!append(exchange)) return;
     conversation.current.selected = exchange;
     setSelected(exchange); setError('');
-    if (conversation.current.consented) void ask(exchange, conversation.current.epoch);
+    void ask(exchange, epoch);
   }
   function checkedReply(exchange: Exchange, origin: number) {
-    return currentEpoch(origin) && conversation.current.consented && !!exchange.reply
+    return currentEpoch(origin) && !!exchange.reply
       && conversation.current.exchanges.some(item => item.id === exchange.id && item.reply === exchange.reply) && checkAuthority();
   }
   function followUp(exchange: Exchange, origin: number, kind: 'detail' | 'trades', text: string) {
@@ -175,24 +169,18 @@ function AskCovaConversation({ ownerId, account, range, trades, ready, request =
           </div>
         </div>}
       </div>)}
-      {!consented && selected && <div className="ask-cova-consent">
-        <p>Send checked summaries to OpenAI for this review? Your notes and account identity stay out.</p>
-        <details><summary>How this works</summary>
-          <p>AI picks an observation and tone from answers Cova has checked. It does not write trading advice. OpenAI does not train on API data by default, but may retain it for up to 30 days, or longer for legal or safety reasons. This conversation stays in memory and clears when your selection changes.</p>
-        </details>
-        <div className="ask-cova-actions"><button className="astra-button" type="button" onClick={() => consent(selected, epoch)}>Use AI for this review</button><button className="astra-text-link" type="button" onClick={() => { if (currentEpoch(epoch)) clear(); }}>Not now</button></div>
-      </div>}
+
       {busy && <p className="ask-cova-processing" role="status" data-cova-processing><span className="ask-cova-dots" aria-hidden="true"><i /><i /><i /></span>Checking your results…</p>}
     </div>}
     {error && <div className="ask-cova-error"><p role="status">{error}</p>{selected && <button className="astra-text-link" type="button" onClick={() => void ask(selected, epoch)}>Try again</button>}</div>}
     {atLimit && <p className="ask-cova-notice" role="status">This conversation has reached 20 messages. Clear it to start another review.</p>}
     <div className="ask-cova-questions" aria-label="Questions for Cova">{ASK_COVA_QUESTIONS.map(item =>
-      <button className="astra-button" type="button" key={item.id} disabled={!ready || busy || atLimit || (!consented && !!selected)} onClick={() => choose(item.id)}>{item.label}</button>)}</div>
+      <button className="astra-button" type="button" key={item.id} disabled={!ready || busy || atLimit} onClick={() => choose(item.id)}>{item.label}</button>)}</div>
     <form className="ask-cova-composer" onSubmit={event => { event.preventDefault(); send(epoch); }}>
-      <textarea ref={composer} aria-label="Message Cova" placeholder="Message Cova" rows={1} maxLength={MAX_ASK_COVA_INPUT} value={draft} disabled={!ready || busy || atLimit || (!consented && !!selected)} onChange={event => { if (currentEpoch(epoch)) { conversation.current.draft = event.target.value; setDraft(event.target.value); } }} onKeyDown={event => {
+      <textarea ref={composer} aria-label="Message Cova" placeholder="Message Cova" rows={1} maxLength={MAX_ASK_COVA_INPUT} value={draft} disabled={!ready || busy || atLimit} onChange={event => { if (currentEpoch(epoch)) { conversation.current.draft = event.target.value; setDraft(event.target.value); } }} onKeyDown={event => {
         if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing && event.keyCode !== 229) { event.preventDefault(); send(epoch); }
       }} />
-      <button className="astra-button" type="submit" aria-label="Send message" disabled={!draft.trim() || !ready || busy || atLimit || (!consented && !!selected)}>Send</button>
+      <button className="astra-button" type="submit" aria-label="Send message" disabled={!draft.trim() || !ready || busy || atLimit}>Send</button>
     </form>
     {evidenceReply && evidence.length > 0 && <TradeHistoryDialog title="Trades behind this answer" scopeLabel="Selected answer" trades={evidence} journalReview={true} showSummary={false} onClose={() => { if (currentEpoch(epoch)) setEvidenceReply(null); }} />}
   </section>;

@@ -5,7 +5,7 @@ import {build} from 'vite';
 import react from '@vitejs/plugin-react';
 import {chromium} from 'playwright';
 const root=fileURLToPath(new URL('../',import.meta.url)).replaceAll('\\','/');
-const evidence=root+'../ask-cova-beta-evidence/component-fix/green';
+const evidence=(process.env.ASK_COVA_EVIDENCE_ROOT || root+'../ask-cova-insights-evidence/interaction')+'/chat';
 mkdirSync(evidence,{recursive:true});
 assert.ok(existsSync(root+'src/components/AskCova.tsx'),'Risk Desk Ask Cova component exists');
 const id=root+'__ask_cova_ui_test__.tsx';
@@ -43,12 +43,13 @@ try{
  const send=p.getByRole('button',{name:'Send message',exact:true});
  assert.equal(await composer.count(),1,'a named bottom composer is mounted');
  assert.ok(await composer.isEnabled());
- await composer.fill('How did I do?');await composer.press('Enter');
- await p.getByRole('button',{name:'Use AI for this review',exact:true}).waitFor();
- await p.getByText('How this works',{exact:true}).click();
- assert.ok(await p.getByText('AI picks an observation and tone from answers Cova has checked. It does not write trading advice. OpenAI does not train on API data by default, but may retain it for up to 30 days, or longer for legal or safety reasons. This conversation stays in memory and clears when your selection changes.',{exact:true}).isVisible());
- assert.equal(await p.evaluate(()=>window.calls.length),0);
- await p.getByRole('button',{name:'Use AI for this review',exact:true}).click();
+ assert.equal(await p.evaluate(()=>window.calls.length),0,'mount never asks');
+ await composer.focus();await composer.fill('How did I do?');
+ assert.equal(await p.evaluate(()=>window.calls.length),0,'focus and typing never ask');
+ await composer.press('Enter');
+ assert.equal(await p.getByRole('button',{name:'Use AI for this review',exact:true}).count(),0);
+ assert.doesNotMatch(await p.locator('[data-ask-cova]').innerText(),/OpenAI|gpt-|I accept|Use AI/i);
+ await p.waitForFunction(()=>window.calls.length===1);
  await p.locator('[data-cova-answer]').waitFor();
  assert.match(await p.locator('[data-cova-answer]').innerText(),/90\.00/);
  const call=await p.evaluate(()=>window.calls[0]);
@@ -56,21 +57,22 @@ try{
  assert.deepEqual(Object.keys(call).sort(),['account','contextDigest','owner','question','range','requestId']);
  assert.ok(!JSON.stringify(call).includes('How did I do?'));
  assert.equal(await composer.inputValue(),'');
- report.checks.push('typed allowlisted question uses actual checked catalog after consent; raw text excluded');
+ report.checks.push('typed allowlisted question uses actual checked catalog after deliberate send; raw text excluded');
  await composer.fill('Buy NQ tomorrow PRIVATE-MARKER');await send.click();
  await p.locator('[data-cova-local]').waitFor();
  assert.match(await p.locator('[data-cova-local]').last().innerText(),/review your results, explain your drawdown, or show what stands out/i);
  assert.equal(await p.evaluate(()=>window.calls.length),1);
  assert.equal(await p.locator('[data-cova-answer]').count(),1);
  report.checks.push('unsupported input gets honest local scope help, preserves reply and makes no request');
- await p.evaluate(()=>window.choice='missing_risk');
- await composer.fill('Anything stand out?');await send.click();
+ // Missing risk no longer replaces a review. Use a distinct valid drawdown reply to test exact retained context.
+ await p.evaluate(()=>window.choice='drawdown');
+ await composer.fill('Explain my drawdown');await send.click();
  await p.waitForFunction(()=>document.querySelectorAll('[data-cova-answer]').length===2);
  await composer.fill('Tell me more');await send.click();
  assert.equal(await p.locator('[data-cova-detail]').count(),1,'typed follow-up resolves the latest checked reply');
- assert.match(await p.locator('[data-cova-detail]').last().innerText(),/usable positive planned-risk/);
+ assert.match(await p.locator('[data-cova-detail]').last().innerText(),/Maximum decline: 30\.00 USD/);
  await composer.fill('Which trades?');await send.click();await p.locator('dialog').waitFor();
- assert.deepEqual(await p.locator('[data-history-trade]').evaluateAll(rows=>rows.map(row=>row.dataset.historyTrade)),['manual-1']);
+ assert.deepEqual(await p.locator('[data-history-trade]').evaluateAll(rows=>rows.map(row=>row.dataset.historyTrade).sort()),['manual-0','manual-1','manual-2']);
  await p.getByRole('button',{name:'Close trade history'}).click();
  const first=p.locator('[data-cova-reply]').first();
  await first.getByRole('button',{name:'Show trades',exact:true}).click();await p.locator('dialog').waitFor();
@@ -98,8 +100,7 @@ try{
  await p.clock.install();
  await p.evaluate(()=>{window.choice=undefined;window.mode='slow';window.finish=undefined;});
  await composer.fill('Review my results');await send.click();
- assert.equal(await p.getByText('Checking your results…',{exact:true}).count(),0,'no fake processing before consent');
- await p.getByRole('button',{name:'Use AI for this review',exact:true}).click();
+ assert.equal(await p.getByText('Checking your results…',{exact:true}).count(),1,'processing begins only after deliberate send');
  await p.waitForFunction(()=>!!window.finish);
  assert.ok(await composer.isDisabled());assert.ok(await send.isDisabled());
  assert.ok(await p.getByText('Checking your results…',{exact:true}).isVisible());
@@ -114,7 +115,7 @@ try{
  assert.equal(await p.locator('[data-cova-answer]').count(),0,'late timed-out answer cannot render');
  await p.getByRole('button',{name:'Clear conversation',exact:true}).click();
  await p.evaluate(()=>window.finish=undefined);
- await composer.fill('Review my results');await send.click();await p.getByRole('button',{name:'Use AI for this review',exact:true}).click();
+ await composer.fill('Review my results');await send.click();
  await p.waitForFunction(()=>!!window.finish);
  await p.getByRole('button',{name:'Clear conversation',exact:true}).click();
  assert.ok(await p.evaluate(()=>window.lastSignal.aborted));assert.ok(await composer.isEnabled());
@@ -122,7 +123,7 @@ try{
  assert.equal(await p.locator('[role="log"]').count(),0);assert.equal(await p.locator('.ask-cova-error').count(),0);
  report.checks.push('pending-only indicator, one request, 25s abort, no automatic retry, clear abort and late completion rejection');
  await p.evaluate(()=>{window.mode='ok';window.choice=undefined;});
- await composer.fill('How did I do?');await send.click();await p.getByRole('button',{name:'Use AI for this review',exact:true}).click();await p.locator('[data-cova-answer]').waitFor();
+ await composer.fill('How did I do?');await send.click();await p.locator('[data-cova-answer]').waitFor();
  await composer.fill('Explain my drawdown');await send.click();await p.waitForFunction(()=>document.querySelectorAll('[data-cova-answer]').length===2);
  await p.locator('[data-cova-reply]').last().getByRole('button',{name:'Tell me more',exact:true}).click();
  await p.evaluate(()=>document.fonts.ready);
@@ -165,7 +166,7 @@ try{
  assert.equal(await p.locator('.ask-cova-exchange').count(),0,'IME Enter cannot dispatch');
  await composer.fill('x'.repeat(501));assert.equal((await composer.inputValue()).length,500);
  await composer.fill('Review my results');await composer.press('Enter');
- await p.getByRole('button',{name:'Use AI for this review',exact:true}).click();await p.locator('[data-cova-answer]').waitFor();
+ await p.locator('[data-cova-answer]').waitFor();
  await p.evaluate(()=>{window.mode='error';});
  await composer.fill('Explain my drawdown');await send.click();await p.getByText('Answer unavailable. Try again.',{exact:true}).waitFor();
  assert.equal(await p.locator('[data-cova-answer]').count(),1,'good messages survive a later failure');
@@ -179,7 +180,7 @@ try{
  report.checks.push('typed retained followup rechecks authority and clears the entire thread');
  await p.getByRole('button',{name:'Clear conversation',exact:true}).click();
  await p.evaluate(()=>{window.current=true;window.mode='ok';});
- await composer.fill('Review my results');await send.click();await p.getByRole('button',{name:'Use AI for this review',exact:true}).click();await p.locator('[data-cova-answer]').waitFor();
+ await composer.fill('Review my results');await send.click();await p.locator('[data-cova-answer]').waitFor();
  await p.evaluate(()=>{window.mode='slow';window.finish=undefined;});
  await composer.fill('Explain my drawdown');await send.click();await p.waitForFunction(()=>!!window.finish);
  await p.evaluate(()=>{window.current=false;window.mode='throw';window.finish();});
@@ -190,7 +191,7 @@ try{
  await p.getByRole('button',{name:'Clear conversation',exact:true}).click();
  await p.evaluate(()=>{window.current=true;window.mode='slow';window.finish=undefined;});
  await composer.fill('How did I do?');await composer.press('Enter');
- await p.getByRole('button',{name:'Use AI for this review',exact:true}).click();await p.waitForFunction(()=>!!window.finish);
+ await p.waitForFunction(()=>!!window.finish);
  assert.equal(await p.locator('[data-cova-processing]').count(),1,'processing feedback is mounted only for an actual pending request');
  await p.emulateMedia({reducedMotion:'no-preference'});
  assert.notEqual(await p.locator('.ask-cova-dots i').first().evaluate(n=>getComputedStyle(n).animationName),'none');
@@ -213,7 +214,7 @@ try{
   await p.getByRole('button',{name:'Clear conversation',exact:true}).click();
   await p.evaluate(sample=>{window.mode='stream';window.streamCase=sample;window.current=true;},sample);
   const callsBefore=await p.evaluate(()=>window.calls.length);
-  await composer.fill('How did I do?');await send.click();await p.getByRole('button',{name:'Use AI for this review',exact:true}).click();
+  await composer.fill('How did I do?');await send.click();
   if(sample==='exact')await p.locator('[data-cova-answer]').waitFor();
   else if(sample==='stalled'){
    await p.waitForFunction(()=>window.streamReads===2);await p.getByRole('button',{name:'Clear conversation',exact:true}).click();
@@ -221,8 +222,8 @@ try{
   }else await p.locator('.ask-cova-error').waitFor();
   assert.equal(await p.evaluate(()=>window.calls.length),callsBefore+1);
   const result=await p.evaluate(()=>({reads:window.streamReads,canceled:window.streamCanceled,locked:window.stream.locked,body:window.sentBody}));
-  assert.deepEqual(Object.keys(result.body).sort(),['account','action','consentVersion','contextDigest','owner','question','range','requestId']);
-  assert.equal(result.body.action,'ask_cova');assert.equal(result.body.consentVersion,'ask-cova-v1');
+  assert.deepEqual(Object.keys(result.body).sort(),['account','action','contextDigest','owner','protocolVersion','question','range','requestId']);
+  assert.equal(result.body.action,'ask_cova');assert.equal(result.body.protocolVersion,'ask-cova-v2');
   assert.ok(!JSON.stringify(result.body).includes('How did I do?'));assert.ok(!JSON.stringify(result.body).includes('Private journal note'));
   assert.equal(result.locked,false);
   if(sample==='exact')assert.match(await p.locator('[data-cova-answer]').innerText(),/90\.00/);
@@ -233,7 +234,7 @@ try{
   report.checks.push('real browser transport/body guard: '+sample);
  }
  await p.evaluate(()=>{window.mode='ok';window.current=true;});
- await p.getByRole('button',{name:'Review my results',exact:true}).click();await p.getByRole('button',{name:'Use AI for this review',exact:true}).click();await p.locator('[data-cova-answer]').waitFor();
+ await p.getByRole('button',{name:'Review my results',exact:true}).click();await p.locator('[data-cova-answer]').waitFor();
  assert.equal(await composer.evaluate(n=>document.activeElement===n),false,'preset initiation does not force keyboard focus into the composer');
  await p.evaluate(()=>{window.mode='slow';window.finish=undefined;});
  await composer.fill('Explain my drawdown');await composer.press('Enter');await p.waitForFunction(()=>!!window.finish);
@@ -263,42 +264,43 @@ try{
  const input=racePage.getByRole('textbox',{name:'Message Cova',exact:true});
  const state=()=>racePage.evaluate(()=>({count:document.querySelectorAll('.ask-cova-exchange').length,answers:document.querySelectorAll('[data-cova-answer]').length,details:document.querySelectorAll('[data-cova-detail]').length,dialog:!!document.querySelector('dialog[open]'),consent:!!document.querySelector('.ask-cova-consent'),calls:window.calls}));
  const settle=()=>racePage.waitForTimeout(100);
- async function success(){await button('Review my results').click();await button('Use AI for this review').click();await racePage.locator('[data-cova-answer]').waitFor();}
+ async function success(){await button('Review my results').click();await racePage.locator('[data-cova-answer]').waitFor();}
  async function race(name,fn){
   await racePage.goto('https://ask.test');await racePage.getByRole('heading',{name:'Ask Cova',exact:true}).waitFor();
   try{await fn();(report.races??=[]).push({name,passed:true});}
   catch(error){(report.races??=[]).push({name,passed:false,error:String(error),state:await state()});}
  }
- await race('CHAT-S01 Clear synchronously revokes real-client consent with default authority',async()=>{
+ await race('CHAT-S01 Clear synchronously revokes real-client event epoch with default authority',async()=>{
   await racePage.evaluate(()=>{localStorage.setItem('cova-active-storage-identity-v1','11111111-1111-4111-8111-111111111111');window.mode='stream';window.streamCase='exact';window.showAsk(true,'local','all',undefined,false);});
   await racePage.evaluate(()=>window.setBetaGrant(false));
   assert.equal(await racePage.evaluate(()=>window.betaCurrent('11111111-1111-4111-8111-111111111111')),false);
-  await button('Review my results').click();await button('Use AI for this review').click();
+  await button('Review my results').click();
   await racePage.getByText('Your session changed. Sign in again to ask Cova.',{exact:true}).waitFor();
   assert.equal((await state()).calls.length,0);assert.equal((await state()).answers,0);
   await button('Clear conversation').click();await racePage.evaluate(()=>window.setBetaGrant(true));
   assert.equal(await racePage.evaluate(()=>window.betaCurrent('11111111-1111-4111-8111-111111111111')),true);
-  await success();assert.equal(await racePage.evaluate(()=>window.sentBody.consentVersion),'ask-cova-v1');
+  await success();assert.equal(await racePage.evaluate(()=>window.sentBody.protocolVersion),'ask-cova-v2');
   await racePage.evaluate(()=>{[...document.querySelectorAll('button')].find(n=>n.textContent==='Clear conversation').click();document.querySelector('.ask-cova-questions button').click();});await settle();
-  const s=await state();assert.equal(s.calls.length,1);assert.equal(s.answers,0);assert.equal(s.consent,true);
-  await button('Use AI for this review').click();await racePage.locator('[data-cova-answer]').waitFor();assert.equal((await state()).calls.length,2);
+  const s=await state();assert.equal(s.calls.length,1);assert.equal(s.answers,0);assert.equal(s.consent,false);
+  await button('Review my results').click();
+  await racePage.locator('[data-cova-answer]').waitFor();assert.equal((await state()).calls.length,2);
   await racePage.evaluate(()=>{window.removeBetaGrant();[...document.querySelectorAll('button')].find(n=>n.textContent==='Show trades').click();});await settle();
   assert.equal(await racePage.evaluate(()=>window.betaCurrent('11111111-1111-4111-8111-111111111111')),false);
   const removed=await state();assert.equal(removed.calls.length,2);assert.equal(removed.answers,0);assert.equal(removed.details,0);assert.equal(removed.dialog,false);
-  await button('Clear conversation').click();await button('Review my results').click();await button('Use AI for this review').click();
+  await button('Clear conversation').click();await button('Review my results').click();
   await racePage.getByText('Your session changed. Sign in again to ask Cova.',{exact:true}).waitFor();
   assert.equal((await state()).calls.length,2);assert.equal((await state()).answers,0);
   await racePage.evaluate(()=>localStorage.removeItem('cova-active-storage-identity-v1'));
-  report.checks.push('default-authority real-client consent race requires beta grant; denied and removed grants block dispatch and retained evidence');
+  report.checks.push('default-authority real-client explicit-action race requires beta grant; denied and removed grants block dispatch and retained evidence');
  });
- await race('CHAT-S01 retained consent cannot grant a new epoch consent',async()=>{
-  await button('Review my results').click();
-  await racePage.evaluate(()=>{const consent=[...document.querySelectorAll('button')].find(n=>n.textContent==='Use AI for this review');[...document.querySelectorAll('button')].find(n=>n.textContent==='Clear conversation').click();consent.click();});await settle();
-  assert.equal((await state()).calls.length,0);assert.equal((await state()).count,0);
-  await button('Review my results').click();assert.equal((await state()).consent,true);assert.equal((await state()).calls.length,0);
+ await race('CHAT-S01 retained starter cannot dispatch in a cleared epoch',async()=>{
+  await success();
+  await racePage.evaluate(()=>{const starter=document.querySelector('.ask-cova-questions button');[...document.querySelectorAll('button')].find(n=>n.textContent==='Clear conversation').click();starter.click();});await settle();
+  assert.equal((await state()).calls.length,1);assert.equal((await state()).count,0);
+  await button('Review my results').click();await racePage.locator('[data-cova-answer]').waitFor();assert.equal((await state()).consent,false);assert.equal((await state()).calls.length,2);
  });
- await race('CHAT-L01 preconsent selection reserves one exchange synchronously',async()=>{
-  await racePage.evaluate(()=>{const b=document.querySelectorAll('.ask-cova-questions button');b[0].click();b[1].click();});await settle();assert.equal((await state()).count,1);assert.equal((await state()).calls.length,0);
+ await race('CHAT-L01 first activation synchronously reserves exactly one request',async()=>{
+  await racePage.evaluate(()=>{const b=document.querySelectorAll('.ask-cova-questions button');b[0].click();b[1].click();});await settle();assert.equal((await state()).count,1);assert.equal((await state()).calls.length,1);
  });
  await race('CHAT-L01 blocked choice cannot replace failed retry target',async()=>{
   await success();await racePage.evaluate(()=>{window.mode='slow';window.finish=undefined;const b=document.querySelectorAll('.ask-cova-questions button');b[1].click();b[2].click();});await racePage.waitForFunction(()=>!!window.finish);
@@ -316,7 +318,7 @@ try{
   const s=await state();assert.equal(s.count,0);assert.equal(s.details,0);assert.equal(s.dialog,false);assert.equal(s.calls.length,1);
  });
  await race('CHAT-S01 Clear invalidates retained retry',async()=>{
-  await racePage.evaluate(()=>window.mode='error');await button('Review my results').click();await button('Use AI for this review').click();await button('Try again').waitFor();
+  await racePage.evaluate(()=>window.mode='error');await button('Review my results').click();await button('Try again').waitFor();
   await racePage.evaluate(()=>{const retry=[...document.querySelectorAll('button')].find(n=>n.textContent==='Try again');[...document.querySelectorAll('button')].find(n=>n.textContent==='Clear conversation').click();retry.click();});await settle();assert.equal((await state()).calls.length,1);assert.equal((await state()).count,0);
  });
  for(const text of ['unsupported PRIVATE-MARKER','Tell me more','Which trades?','Explain my drawdown'])await race('CHAT-L02 consumes a draft once: '+text,async()=>{
@@ -330,6 +332,38 @@ try{
   await settle();assert.equal((await state()).count,20);assert.equal(await input.isDisabled(),true);
  });
  await racePage.close();
+ await p.goto('https://ask.test');
+ await p.getByRole('heading',{name:'Ask Cova'}).waitFor();
+ await p.evaluate(()=>window.showAsk(true,'all','all',[100,-30,20,-10].map((pnl,i)=>({id:'tradovate-7:rich-'+i,date:'2026-10-2'+(i+1),market:'NQ',side:i%2?'Short':'Long',contracts:1,entry:100,exit:101,pnl,risk:0,riskStatus:'missing',setup:i%2?'PRIVATE SETUP B':'PRIVATE SETUP A',notes:'PRIVATE RICH NOTE',source:{provider:'Tradovate',accountId:'7',pnlBasis:'gross_before_fees',timeZone:'UTC',openedAt:'2026-10-2'+(i+1)+'T'+(i<2?'14':'18')+':00:00Z',closedAt:'2026-10-2'+(i+1)+'T'+(i<2?'14':'18')+':'+[5,20,10,30][i].toString().padStart(2,'0')+':00Z'}}))));
+ await p.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+ await p.getByRole('button',{name:'Review my results',exact:true}).click();
+ await p.locator('[data-cova-answer]').waitFor();
+ const reviewAnswer=await p.locator('[data-cova-answer]').innerText();
+ assert.match(reviewAnswer,/80\.00 USD/);assert.match(reviewAnswer,/win rate 50\.0%/i);assert.match(reviewAnswer,/profit factor 3\.00/i);
+ const richQuestions=[['How does holding time affect my results?','holding_time'],['What setup works best?','setup_performance'],['When do I trade best?','time_of_day'],['Am I better at shorting or longing?','long_vs_short']];
+ for(const [text,question] of richQuestions){
+  const before=await p.evaluate(()=>window.calls.length);
+  await composer.fill(text);assert.equal(await p.evaluate(()=>window.calls.length),before);
+  await send.click();await p.waitForFunction(count=>window.calls.length===count,before+1);
+  await p.waitForFunction(count=>document.querySelectorAll('[data-cova-answer]').length===count,before+1);
+  const call=await p.evaluate(()=>window.calls.at(-1));assert.equal(call.question,question);
+  assert.deepEqual(Object.keys(call).sort(),['account','contextDigest','owner','question','range','requestId']);
+  assert.doesNotMatch(JSON.stringify(call),/PRIVATE|holding time affect|setups perform|time of day works|Am I better at shorting or longing?/);
+  const answer=await p.locator('[data-cova-answer]').last().innerText();
+  // Specific questions lead with their actual comparison, not repeated review metrics.
+  const expected=question==='time_of_day'?['35.00 USD (n=2)','5.00 USD (n=2)','Gap: 30.00 USD']:['60.00 USD (n=2)','−20.00 USD (n=2)','Gap: 80.00 USD'];
+  for(const fact of expected)assert.ok(answer.includes(fact),`${question}: missing checked comparison ${fact}`);
+  assert.match(answer,/4\/4 compared journal groups/);
+  assert.doesNotMatch(answer,/risk.*(?:required|before|can't)/i);
+ }
+ for(const width of [1440,390,320]){
+  await p.setViewportSize({width,height:1000});
+  assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+  assert.ok(await p.locator('.ask-cova-reply').evaluateAll(nodes=>nodes.every(n=>n.scrollWidth<=n.clientWidth+1&&parseFloat(getComputedStyle(n.querySelector('p')).lineHeight)>=20)));
+  await p.screenshot({path:`${evidence}/rich-analyses-${width}.png`,fullPage:true});
+ }
+ report.richQuestions=richQuestions.map(([,id])=>id);
+
  assert.deepEqual(report.races.filter(test=>!test.passed),[],'same-task race regressions');
  assert.equal(report.races.length,17,'all original same-task race cases completed');
  assert.equal(report.checks.length,19,'complete existing chat coverage plus beta lifecycle check');

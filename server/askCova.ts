@@ -1,7 +1,7 @@
 import { supabaseServiceHeaders } from '../api/_lib/supabase.js';
 import { assertRecords, WORKSPACE_DISCLOSURE, uuid, account } from '../src/lib/workspaceValidation';
 import type { Trade } from '../src/lib/risk';
-import { buildAskCovaCatalog, askCovaModelPayload, renderAskCovaSelection } from '../src/lib/askCova';
+import { buildAskCovaCatalog, askCovaModelPayload, renderAskCovaSelection, isAskCovaQuestion } from '../src/lib/askCova';
 import { acquireAskCovaPermit, askCovaBudgetConfiguration } from './askCovaBudget';
 import { hasAskCovaAccess } from './askCovaAccess';
 
@@ -139,14 +139,14 @@ export function createAskCovaHandler({ acquirePermit = acquireAskCovaPermit, fet
           env.OPENAI_API_KEY.length < 16 || env.OPENAI_API_KEY.length > 4096 || /\s/.test(env.OPENAI_API_KEY)) fail(503, 'ask_cova_unavailable');
       if (Buffer.byteLength(typeof rawBody === 'string' ? rawBody : JSON.stringify(body)) > 4096) fail(413, 'request_too_large');
       if (typeof rawBody === 'string') { try { uniqueJson(rawBody); } catch { fail(400, 'invalid_request'); } }
-      const keys = ['action', 'owner', 'account', 'range', 'question', 'contextDigest', 'consentVersion', 'requestId'];
+      const keys = ['action', 'owner', 'account', 'range', 'question', 'contextDigest', 'protocolVersion', 'requestId'];
       if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).length !== keys.length ||
           Object.keys(body).some(key => !keys.includes(key)) || body.action !== 'ask_cova' ||
           !uuid(user.id) || body.owner !== user.id || !uuid(body.requestId) || !account(body.account) ||
           !['today', 'week', 'all'].includes(body.range) ||
-          !['review_results', 'explain_drawdown', 'what_stands_out'].includes(body.question) ||
+          !isAskCovaQuestion(body.question) ||
           typeof body.contextDigest !== 'string' || !/^[a-f0-9]{64}$/.test(body.contextDigest) ||
-          body.consentVersion !== 'ask-cova-v1') fail(400, 'invalid_request');
+          body.protocolVersion !== 'ask-cova-v2') fail(400, 'invalid_request');
       askCovaBudgetConfiguration(env);
       const snapshot = await savedSnapshot(user.id, rest || storageRest(env, fetchImpl));
       const catalog = await buildAskCovaCatalog({ ownerId: user.id, account: body.account, range: body.range, question: body.question, trades: snapshot.trades });

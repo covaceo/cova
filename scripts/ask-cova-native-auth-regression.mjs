@@ -40,7 +40,7 @@ const baseEnv = {
   KV_REST_API_URL: 'https://synthetic.upstash.io', KV_REST_API_TOKEN: 'synthetic-only-not-a-credential-123456789',
 };
 const askBody = owner => ({ action: 'ask_cova', owner, account: 'all', range: 'all',
-  question: 'review_results', contextDigest: 'a'.repeat(64), consentVersion: 'ask-cova-v1', requestId: operationId });
+  question: 'review_results', contextDigest: 'a'.repeat(64), protocolVersion: 'ask-cova-v2', requestId: operationId });
 const settings = { disclosure_version: 'workspace-cloud-v1', revision: 1, pending_manifest: null };
 function fixture(t, { user = B, policy = true, validSession = true, env = {}, billingPlan = 'free' } = {}) {
   const saved = { ...process.env };
@@ -170,7 +170,7 @@ for (const [label, body, status] of [
   ['duplicate discovery owner', `{"action":"ask_cova_access","owner":"${A}","owner":"${A}"}`, 400],
   ['escaped duplicate discovery owner', String.raw`{"action":"ask_cova_access","owner":"${A}","owne\u0072":"${A}"}`, 400],
   ['duplicate discovery action', `{"action":"consent","action":"ask_cova_access","owner":"${A}"}`, 400],
-  ['invalid ask consent', { ...askBody(A), consentVersion: 'old' }, 400],
+  ['invalid ask protocol', { ...askBody(A), protocolVersion: 'old' }, 400],
   ['extra ask field', { ...askBody(A), trades: [] }, 400],
   ['duplicate ask action', JSON.stringify(askBody(A)).replace('"action":', '"action":"consent","action":'), 400],
   ['ask byte bound', ' '.repeat(4096) + JSON.stringify(askBody(A)), 413],

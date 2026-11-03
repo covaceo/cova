@@ -8,17 +8,17 @@ const source = 'src/lib/askCovaClient.ts';
 let mod;
 if (existsSync(source)) {
  const result = await build({configFile:false,envDir:false,logLevel:'error',ssr:{noExternal:true},build:{ssr:source,write:false,target:'node24'}});
- mkdirSync('../ask-cova-beta-evidence/client-runtime',{recursive:true});
- const file=resolve('../ask-cova-beta-evidence/client-runtime/client.mjs');writeFileSync(file,result.output[0].code);mod=await import(pathToFileURL(file));
+ const out=resolve(process.env.ASK_COVA_EVIDENCE_ROOT || '../ask-cova-insights-evidence/interaction','client-runtime');mkdirSync(out,{recursive:true});
+ const file=resolve(out,'client.mjs');writeFileSync(file,result.output[0].code);mod=await import(pathToFileURL(file));
 }
 const input={owner:'11111111-1111-4111-8111-111111111111',account:'local',range:'all',question:'review_results',contextDigest:'a'.repeat(64),requestId:'22222222-2222-4222-8222-222222222222'};
-test('dispatch sends only scoped identifiers and consent, never raw finance or notes',async()=>{
+test('dispatch sends only scoped identifiers and protocol version, never raw finance or notes',async()=>{
  assert.equal(typeof mod?.requestAskCova,'function','Ask Cova transport exists');
  let captured;const result=await mod.requestAskCova(input,new AbortController().signal,async(url,init)=>{
   captured={url,init};return new Response(JSON.stringify({status:'ok',aiResponseUsed:true,contextDigest:input.contextDigest,selection:{choice_id:'net',style:'warm'}}));
  },()=>true);
  assert.equal(captured.url,'/api/workspace');assert.equal(captured.init.method,'POST');assert.equal(captured.init.cache,'no-store');
- assert.deepEqual(JSON.parse(captured.init.body),{action:'ask_cova',...input,consentVersion:'ask-cova-v1'});
+ assert.deepEqual(JSON.parse(captured.init.body),{action:'ask_cova',...input,protocolVersion:'ask-cova-v2'});
  assert.equal(result.status,'ok');assert.equal(result.selection.style,'warm');
 });
 test('malformed, stale and non-AI responses are blocked without echoing provider text',async()=>{
