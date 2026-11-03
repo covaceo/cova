@@ -361,6 +361,56 @@ var isManualAccountKey = (key) => /^Manual:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-
 	setup: String(setup),
 	notes: String(notes)
 }));
+/** Same broker opening fill, not a claim of a fully flat position or shared order. Never groups by timestamp alone. */
+function groupJournalEntries(trades) {
+	const buckets = /* @__PURE__ */ new Map();
+	const raw = (row, index) => ({
+		id: `row:${index}:${row.id}`,
+		rows: [row],
+		pnl: row.pnl,
+		contracts: row.contracts,
+		entryIdentified: false
+	});
+	for (const [index, row] of trades.entries()) {
+		const pair = /^tradovate-([1-9]\d{0,19}):([1-9]\d{0,19}):([1-9]\d{0,19})$/.exec(row.id);
+		const source = row.source;
+		const key = source?.provider === "Tradovate" && pair && pair[1] === source.accountId && pair[2] !== pair[3] && source.timeZone === "UTC" && source.pnlBasis === "gross_before_fees" && source.openedAt && source.closedAt && source.openedAt < source.closedAt && Number.isFinite(Date.parse(source.openedAt)) && Number.isFinite(Date.parse(source.closedAt)) ? JSON.stringify([
+			"Tradovate",
+			source.accountId,
+			row.side,
+			pair[row.side === "Long" ? 2 : 3]
+		]) : `raw:${index}`;
+		const bucket = buckets.get(key);
+		if (bucket) bucket.push(row);
+		else buckets.set(key, [row]);
+	}
+	const groups = [];
+	for (const [id, rows] of buckets) {
+		const first = rows[0];
+		let total = 0n, contracts = 0;
+		let valid = !id.startsWith("raw:") && new Set(rows.map((row) => row.id)).size === rows.length;
+		for (const row of rows) {
+			const amount = /^(-?)(\d+)(?:\.(\d{1,2}))?$/.exec(String(row.pnl));
+			valid &&= row.market === first.market && row.side === first.side && row.entry === first.entry && row.source?.provider === "Tradovate" && first.source?.provider === "Tradovate" && row.source.openedAt === first.source.openedAt && Number.isSafeInteger(row.contracts) && row.contracts > 0 && !!amount;
+			if (amount) total += (amount[1] ? -1n : 1n) * (BigInt(amount[2]) * 100n + BigInt((amount[3] ?? "").padEnd(2, "0")));
+			contracts += row.contracts;
+		}
+		valid &&= Number.isSafeInteger(contracts) && total <= BigInt(Number.MAX_SAFE_INTEGER) && total >= -BigInt(Number.MAX_SAFE_INTEGER);
+		if (valid) groups.push({
+			id,
+			rows: [...rows],
+			pnl: Number(total) / 100,
+			contracts,
+			entryIdentified: true
+		});
+		else rows.forEach((row, index) => groups.push(raw(row, index)));
+	}
+	const closed = (group) => group.rows.reduce((latest, row) => {
+		const at = row.source?.provider === "Tradovate" && row.source.closedAt ? row.source.closedAt : `${row.date}T00:00:00.000Z`;
+		return at > latest ? at : latest;
+	}, "");
+	return groups.sort((a, b) => closed(a).localeCompare(closed(b)));
+}
 //#endregion
 //#region src/lib/tradovateHistory.ts
 function tradeAccountKey(trade) {
@@ -537,15 +587,365 @@ function sumCents(values) {
 	return checked(values.reduce((sum, value) => sum + cents(value), 0n));
 }
 //#endregion
+//#region src/lib/recapEntryGroups.ts
+/** Broker-linked recap groups, not certified flat-to-flat positions.
+* Opening-fill grouping already joins trims. A shared closing fill additionally
+* proves that distinct opening fills were reduced together (scale-ins/split fills).
+* Never join on price, timestamp, overlap or market alone, or across fill roles.
+*/
+function groupRecapEntries(trades) {
+	const groups = groupJournalEntries(trades);
+	const parents = groups.map((_, index) => index);
+	const root = (index) => {
+		while (parents[index] !== index) {
+			parents[index] = parents[parents[index]];
+			index = parents[index];
+		}
+		return index;
+	};
+	const closes = /* @__PURE__ */ new Map();
+	groups.forEach((group, index) => group.rows.forEach((row) => {
+		const pair = /^tradovate-([1-9]\d{0,19}):([1-9]\d{0,19}):([1-9]\d{0,19})$/.exec(row.id);
+		if (!pair || row.source?.provider !== "Tradovate" || pair[1] !== row.source.accountId) return;
+		const key = JSON.stringify([
+			row.source.accountId,
+			row.side,
+			pair[row.side === "Long" ? 3 : 2]
+		]);
+		const members = closes.get(key) ?? [];
+		members.push({
+			index,
+			row,
+			valid: group.entryIdentified
+		});
+		closes.set(key, members);
+	}));
+	for (const members of closes.values()) {
+		const first = members[0].row;
+		if (!members.every(({ row, valid }) => valid && row.market === first.market && row.exit === first.exit && row.source?.provider === "Tradovate" && first.source?.provider === "Tradovate" && row.source.closedAt === first.source.closedAt)) continue;
+		const parent = root(members[0].index);
+		for (const member of members) parents[root(member.index)] = parent;
+	}
+	const components = /* @__PURE__ */ new Map();
+	groups.forEach((group, index) => {
+		const key = root(index), members = components.get(key) ?? [];
+		members.push(group);
+		components.set(key, members);
+	});
+	const result = [...components.values()].flatMap((members) => {
+		if (members.length === 1) return members;
+		const rows = members.flatMap((group) => group.rows);
+		const cents = rows.reduce((sum, row) => sum + BigInt(Math.round(row.pnl * 100)), 0n);
+		const contracts = rows.reduce((sum, row) => sum + row.contracts, 0);
+		if (!Number.isSafeInteger(contracts) || cents > BigInt(Number.MAX_SAFE_INTEGER) || cents < -BigInt(Number.MAX_SAFE_INTEGER)) return members;
+		return [{
+			id: JSON.stringify(["recap-linked-fills", ...members.map((group) => group.id).sort()]),
+			rows,
+			pnl: Number(cents) / 100,
+			contracts,
+			entryIdentified: true
+		}];
+	});
+	const closed = (group) => group.rows.reduce((latest, row) => {
+		const at = row.source?.provider === "Tradovate" && row.source.closedAt ? row.source.closedAt : `${row.date}T00:00:00.000Z`;
+		return at > latest ? at : latest;
+	}, "");
+	return result.sort((a, b) => closed(a).localeCompare(closed(b)));
+}
+//#endregion
+//#region src/lib/askCovaInsights.ts
+/** One money predicate for complete results, valid subsets and comparisons. */
+function sumAskCovaMoney(values) {
+	if (values.some((value) => typeof value !== "number" || !Number.isFinite(value))) throw new Error("Invalid money");
+	return sumCents(values);
+}
+/** Explicit source instants only: never a date-at-midnight surrogate. */
+function sourceInstant(value) {
+	if (typeof value !== "string") return null;
+	const match = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,9}))?(Z|[+-]\d{2}:\d{2})$/.exec(value);
+	if (!match || +match[2] > 23 || +match[3] > 59 || +match[4] > 59) return null;
+	const date = Date.parse(`${match[1]}T00:00:00Z`);
+	if (!Number.isFinite(date) || new Date(date).toISOString().slice(0, 10) !== match[1]) return null;
+	const zone = match[6];
+	if (zone !== "Z" && (+zone.slice(1, 3) > 14 || +zone.slice(4) > 59 || +zone.slice(1, 3) === 14 && +zone.slice(4) !== 0)) return null;
+	const instant = Date.parse(value);
+	return Number.isFinite(instant) ? instant : null;
+}
+function sourcePair(row) {
+	if (row.source?.provider !== "Tradovate" || row.source.timeZone !== "UTC") return {
+		open: null,
+		close: null
+	};
+	const open = sourceInstant(row.source.openedAt), close = sourceInstant(row.source.closedAt);
+	return {
+		open,
+		close: close !== null && new Date(close).toISOString().slice(0, 10) === row.date ? close : null
+	};
+}
+/** Normalize only the grouping view; caller evidence and digest inputs stay original. */
+function insightGroups(rows) {
+	const originals = /* @__PURE__ */ new Map();
+	return groupRecapEntries(rows.map((row) => {
+		if (row.source?.provider !== "Tradovate") return row;
+		const { open, close } = sourcePair(row);
+		let valid = open !== null && close !== null && close > open;
+		try {
+			sumAskCovaMoney([row.pnl]);
+		} catch {
+			valid = false;
+		}
+		const canonical = (raw, at) => new Date(at).toISOString().replace(/\.\d{3}Z$/, `.${(/\.(\d+)/.exec(raw)?.[1] ?? "").padEnd(9, "0")}Z`);
+		const source = valid ? {
+			...row.source,
+			openedAt: canonical(row.source.openedAt, open),
+			closedAt: canonical(row.source.closedAt, close)
+		} : {
+			...row.source,
+			openedAt: void 0
+		};
+		const view = Object.create(Object.getPrototypeOf(row), {
+			...Object.getOwnPropertyDescriptors(row),
+			source: {
+				value: source,
+				enumerable: true
+			}
+		});
+		originals.set(view, row);
+		return view;
+	})).map((group) => ({
+		...group,
+		rows: group.rows.map((row) => originals.get(row) ?? row)
+	}));
+}
+function sourceTimes(rows) {
+	const pairs = rows.map(sourcePair);
+	const entry = pairs.every((pair) => pair.open !== null) ? Math.min(...pairs.map((pair) => pair.open)) : null;
+	return {
+		entry,
+		duration: entry !== null && pairs.every((pair) => pair.close !== null && pair.close > pair.open) ? Math.max(...pairs.map((pair) => pair.close)) - entry : null
+	};
+}
+var entryClock = new Intl.DateTimeFormat("en-GB", {
+	timeZone: "America/New_York",
+	hour: "2-digit",
+	minute: "2-digit",
+	hourCycle: "h23"
+});
+function entryBucket(unit) {
+	if (unit.entry === null) return null;
+	const parts = entryClock.formatToParts(new Date(unit.entry));
+	const minutes = Number(parts.find((part) => part.type === "hour").value) * 60 + Number(parts.find((part) => part.type === "minute").value);
+	return minutes < 360 ? "00:00–06:00" : minutes < 570 ? "06:00–09:30" : minutes < 720 ? "09:30–12:00" : minutes < 960 ? "12:00–16:00" : "16:00–24:00";
+}
+function validatedSetup(row) {
+	const value = Object.getOwnPropertyDescriptor(row, "setup")?.value;
+	if (typeof value !== "string" || value.length > 60 || value.trim().split(/\s+/).length > 8 || !/^[\p{L}\p{N} _.'()&/−-]+$/u.test(value)) return null;
+	const label = value.trim();
+	return !label || /^(?:imported|.* import)$/i.test(label) ? null : label;
+}
+function unitsFor(rows, policy) {
+	const groups = insightGroups(rows);
+	const units = [];
+	for (const group of groups) try {
+		const first = group.rows[0], code = policy.currency(first), reportedBasis = policy.basis(first);
+		if (!code || group.rows.some((row) => policy.currency(row) !== code || policy.basis(row) !== reportedBasis)) continue;
+		const pnl = sumAskCovaMoney(group.rows.map((row) => row.pnl));
+		const setup = validatedSetup(first);
+		const side = first.side === "Long" || first.side === "Short" ? first.side : null;
+		const size = group.rows.reduce((sum, row) => sum + row.contracts, 0);
+		const stratum = group.rows.every((row) => Number.isSafeInteger(row.contracts) && row.contracts > 0) && Number.isSafeInteger(size) && size > 0 ? JSON.stringify([
+			tradeAccountKey(first),
+			first.market,
+			size
+		]) : null;
+		units.push({
+			...sourceTimes(group.rows),
+			rows: group.rows,
+			pnl,
+			code,
+			basis: reportedBasis,
+			stratum,
+			setup: setup && group.rows.every((row) => validatedSetup(row) === setup) ? setup : null,
+			side: group.rows.every((row) => row.side === side) ? side : null
+		});
+	} catch {}
+	return {
+		units,
+		count: groups.length
+	};
+}
+function median(values) {
+	const sorted = [...values].sort((a, b) => a < b ? -1 : a > b ? 1 : 0);
+	const middle = Math.floor(sorted.length / 2);
+	return sorted.length % 2 ? fixedRatio(sorted[middle], 100n, 2) : fixedRatio(sorted[middle - 1] + sorted[middle], 200n, 2);
+}
+function compareDimension(title, all, label, privateLabels = false) {
+	const usable = all.units.filter((unit) => label(unit) !== null);
+	const coverage = `${title}: ${usable.length}/${all.count} usable journal groups; ${all.count - usable.length} excluded.`;
+	if (!usable.length) {
+		const answer = `No usable ${title.toLowerCase()} evidence in this sample.`;
+		return {
+			answer,
+			providerAnswer: answer,
+			detail: coverage,
+			compared: false
+		};
+	}
+	const cohorts = /* @__PURE__ */ new Map();
+	for (const unit of usable) {
+		const key = JSON.stringify([unit.code, unit.basis]);
+		cohorts.set(key, [...cohorts.get(key) ?? [], unit]);
+	}
+	const diverse = (units) => new Set(units.map(label)).size > 1;
+	const cohort = [...cohorts.entries()].sort((a, b) => Number(diverse(b[1])) - Number(diverse(a[1])) || b[1].length - a[1].length || a[0].localeCompare(b[0]))[0][1];
+	const strata = /* @__PURE__ */ new Map();
+	for (const unit of cohort) if (unit.stratum !== null) strata.set(unit.stratum, [...strata.get(unit.stratum) ?? [], unit]);
+	const matched = [...strata.entries()].filter(([, units]) => diverse(units)).sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]));
+	const sample = matched[0]?.[1] ?? cohort;
+	const buckets = /* @__PURE__ */ new Map();
+	for (const unit of sample) {
+		const key = label(unit);
+		buckets.set(key, [...buckets.get(key) ?? [], unit]);
+	}
+	const ranked = [...buckets.entries()].map(([name, units]) => ({
+		name,
+		count: units.length,
+		sum: units.reduce((sum, unit) => sum + unit.pnl, 0n),
+		median: median(units.map((unit) => unit.pnl))
+	}));
+	ranked.sort((a, b) => {
+		const difference = a.sum * BigInt(b.count) - b.sum * BigInt(a.count);
+		return difference > 0n ? -1 : difference < 0n ? 1 : a.name.localeCompare(b.name);
+	});
+	const describe = (item, name = item.name) => `“${name}” averaged ${fixedRatio(item.sum, BigInt(item.count) * 100n, 2)} ${sample[0].code} (n=${item.count})`;
+	const first = ranked[0], second = ranked[1];
+	const tied = second && first.sum * BigInt(second.count) === second.sum * BigInt(first.count);
+	const reason = second ? tied ? "The means tie; there is no leader." : `Gap: ${fixedRatio(first.sum * BigInt(second.count) - second.sum * BigInt(first.count), BigInt(first.count) * BigInt(second.count) * 100n, 2)} ${sample[0].code} per journal group.` : "Only one category is available; there is no comparison.";
+	const qualification = matched.length ? "These groups share market, reported size and account." : "Market, size or account differences may explain the gap.";
+	const reviewCue = title === "Setup" ? "Review the entries behind that gap." : title === "Direction" ? "Compare the execution behind each side." : title === "Holding time" ? "Review exits in each span group." : "Review entries in those clock windows.";
+	const answerFor = (provider) => {
+		const name = provider && privateLabels ? "Category A" : first.name;
+		return `${second && !tied ? `“${name}” had the higher mean P&L: averaged ${fixedRatio(first.sum, BigInt(first.count) * 100n, 2)} ${sample[0].code} (n=${first.count})` : describe(first, name)}${second ? ` versus ${describe(second, provider && privateLabels ? "Category B" : second.name)}` : ""}. ${reason}${second && !tied ? ` ${reviewCue}` : ""} Comparison: ${sample[0].basis}. Descriptive sample; ${sample.length}/${all.count} compared journal groups.${second && !matched.length ? " Unmatched groups." : ""}`;
+	};
+	const detail = `${coverage} Comparing ${sample.length}/${usable.length} usable groups (${sample[0].basis}); ${usable.length - sample.length} outside the selected comparison. ${qualification} Selection: prefer the largest same-currency/basis cohort with multiple categories, then its largest same-market/account/reported-size stratum with multiple categories; otherwise use that currency/basis cohort. Rank by mean P&L per journal group, never summed P&L. ${ranked.slice(0, 3).map((item) => `${describe(item)}, median ${item.median} ${sample[0].code}`).join("; ")}. ${ranked.length > 3 ? `${ranked.length - 3} additional categories not displayed.` : ""} Small samples and multiple comparisons do not establish an edge; reported size is not peak exposure.`;
+	return {
+		answer: answerFor(false),
+		providerAnswer: answerFor(true),
+		detail,
+		compared: !!second
+	};
+}
+/** Largest valid same-currency/basis subset, never an unsafe combined total. */
+function insightSubset(rows, policy) {
+	const all = unitsFor(rows, policy), cohorts = /* @__PURE__ */ new Map();
+	for (const unit of all.units) {
+		const key = JSON.stringify([unit.code, unit.basis]);
+		const members = cohorts.get(key) ?? [];
+		members.push(unit);
+		cohorts.set(key, members);
+	}
+	const cohort = [...cohorts.entries()].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))[0]?.[1];
+	if (!cohort) return null;
+	const total = cohort.reduce((sum, unit) => sum + unit.pnl, 0n);
+	if (total > BigInt(Number.MAX_SAFE_INTEGER) || total < -BigInt(Number.MAX_SAFE_INTEGER)) return null;
+	return {
+		review: reviewStatistics(statisticsForValues(cohort.map((unit) => unit.pnl)), cohort[0].code),
+		total,
+		code: cohort[0].code,
+		basis: cohort[0].basis,
+		coverage: `Valid subset: ${cohort.length}/${all.count} journal groups; ${all.count - cohort.length} excluded from this subtotal. Largest usable same-currency/basis subset; other currencies, bases or invalid amounts are not combined.`
+	};
+}
+function insightComparisons(rows, question, policy) {
+	const all = unitsFor(rows, policy);
+	const setup = compareDimension("Setup", all, (unit) => unit.setup, true);
+	const direction = compareDimension("Direction", all, (unit) => unit.side);
+	const durations = all.units.filter((unit) => unit.duration !== null).map((unit) => unit.duration).sort((a, b) => a - b);
+	const midpoint = Math.floor(durations.length / 2);
+	const threshold = durations.length ? durations.length % 2 ? durations[midpoint] : (durations[midpoint - 1] + durations[midpoint]) / 2 : null;
+	const holding = compareDimension("Holding time", all, (unit) => unit.duration === null || threshold === null ? null : unit.duration <= threshold ? "Shorter spans" : "Longer spans");
+	const timing = compareDimension("Entry time", all, entryBucket);
+	const selected = question === "holding_time" ? holding : question === "time_of_day" ? timing : question === "setup_performance" ? setup : question === "long_vs_short" ? direction : setup.compared ? setup : direction.compared ? direction : holding.compared ? holding : timing.compared ? timing : null;
+	const qualifier = selected === timing ? " Entry clock: America/New_York (DST-aware)." : selected === holding && threshold !== null ? ` Observed entry-to-exit spans split at ${(threshold / 6e4).toFixed(2)} minutes (shorter ≤ split; longer > split).` : "";
+	const timingMethod = `Dimensions exclude unusable money/currency/basis; setup also excludes missing, invalid or inconsistent setup labels (including import placeholders); direction excludes invalid or conflicting sides. Entry buckets use America/New_York with DST, a fixed comparison timezone, not the user's inferred timezone. Earliest verified source entry within each linked group is used; no date-midnight substitution. Holding time is the observed entry-to-exit span from earliest entry to latest exit, only when every source pair is valid and positive; it does not prove a complete position. ${threshold !== null ? `Split at the median of all ${durations.length} usable spans: ${(threshold / 6e4).toFixed(2)} minutes; shorter includes the median, longer is strictly above it.` : "No usable complete source timestamp pairs."}`;
+	const alternative = [
+		setup,
+		direction,
+		holding,
+		timing
+	].find((item) => item !== selected && item.compared);
+	const observationFor = (provider) => selected ? `${provider ? selected.providerAnswer : selected.answer}${qualifier}${!selected.compared && selected.answer.startsWith("No usable") && alternative ? ` Meanwhile, ${provider ? alternative.providerAnswer : alternative.answer}` : ""}` : null;
+	return {
+		observation: observationFor(false),
+		providerObservation: observationFor(true),
+		detail: `${setup.detail} ${direction.detail} ${holding.detail} ${timing.detail} ${timingMethod}`
+	};
+}
+/** All ratios and amounts are computed locally; no model-authored facts. */
+function fixedRatio(numerator, denominator, digits) {
+	const scale = 10n ** BigInt(digits);
+	const negative = numerator < 0n;
+	const rounded = ((negative ? -numerator : numerator) * scale + denominator / 2n) / denominator;
+	return `${negative ? "−" : ""}${rounded / scale}${digits ? `.${String(rounded % scale).padStart(digits, "0")}` : ""}`;
+}
+function insightStatistics(rows) {
+	return statisticsForValues(insightGroups(rows).map((group) => sumAskCovaMoney(group.rows.map((row) => row.pnl))));
+}
+function statisticsForValues(values) {
+	const wins = values.filter((value) => value > 0n), losses = values.filter((value) => value < 0n);
+	const profit = wins.reduce((sum, value) => sum + value, 0n);
+	const loss = -losses.reduce((sum, value) => sum + value, 0n);
+	return {
+		count: values.length,
+		wins: wins.length,
+		losses: losses.length,
+		breakeven: values.length - wins.length - losses.length,
+		profit,
+		loss,
+		winRate: fixedRatio(BigInt(wins.length) * 100n, BigInt(values.length || 1), 1),
+		profitFactor: loss > 0n ? fixedRatio(profit, loss, 2) : profit > 0n ? "undefined (no losses)" : "undefined (no gains or losses)",
+		meanWin: wins.length ? fixedRatio(profit, BigInt(wins.length) * 100n, 2) : null,
+		meanLoss: losses.length ? fixedRatio(loss, BigInt(losses.length) * 100n, 2) : null
+	};
+}
+function insightReview(rows, code) {
+	return reviewStatistics(insightStatistics(rows), code);
+}
+function reviewStatistics(stats, code) {
+	return {
+		metrics: `Win rate ${stats.winRate}% and profit factor ${stats.profitFactor}, across ${stats.count} journal groups.`,
+		observation: stats.meanWin && stats.meanLoss ? `Winning groups averaged ${stats.meanWin} ${code}; losing groups averaged ${stats.meanLoss} ${code} in losses. ${stats.profit >= stats.loss ? "Gains covered losses" : "Losses outweighed gains"}, so review the balance of win size and loss size, not win rate alone.` : stats.wins ? "Only gains or breakevens appear here; without losses, profit factor cannot show the downside. Review these outcomes alongside a broader sample before treating them as a repeatable pattern." : stats.losses ? "There are no winning groups in this sample. Review the losing outcomes for differences in setup and direction; these results alone do not explain why they lost." : "Every group broke even on the reported basis. Review the fee basis before interpreting a flat result as a cost-free outcome.",
+		definitions: `${stats.wins} wins, ${stats.losses} losses, ${stats.breakeven} breakeven; win rate includes breakevens in its denominator. Profit factor is summed positive group P&L / absolute summed negative group P&L, undefined with no losses. Verified fill links combine trims and scale-ins; journal groups are not certified completed positions. Unlinked records count individually. These are descriptive results, not a causal or durable edge. Planned risk is not required; no R is inferred.`
+	};
+}
+//#endregion
 //#region src/lib/askCova.ts
-function candidate(id, plain, warm, direct, detail, tradeIds = []) {
+var ASK_COVA_QUESTION_IDS = Object.freeze([
+	"review_results",
+	"explain_drawdown",
+	"what_stands_out",
+	"holding_time",
+	"setup_performance",
+	"time_of_day",
+	"long_vs_short"
+]);
+function isAskCovaQuestion(value) {
+	return typeof value === "string" && ASK_COVA_QUESTION_IDS.includes(value);
+}
+var providerVariants = /* @__PURE__ */ new WeakMap();
+function candidate(id, plain, warm, direct, detail, tradeIds = [], safe = {
+	plain,
+	warm,
+	direct
+}) {
 	const fits = (text, words, characters) => text.length > 0 && text.length <= characters && text.trim().split(/\s+/).length <= words;
 	if (![
 		plain,
 		warm,
-		direct
-	].every((text) => fits(text, 35, 600)) || !fits(detail, 80, 1600)) throw new Error("Engine copy bound exceeded");
-	return {
+		direct,
+		...Object.values(safe)
+	].every((text) => fits(text, 140, 2e3)) || !fits(detail, 700, 7e3)) throw new Error("Engine copy bound exceeded");
+	const item = {
 		id,
 		variants: {
 			plain,
@@ -555,12 +955,10 @@ function candidate(id, plain, warm, direct, detail, tradeIds = []) {
 		detail,
 		tradeIds: [...tradeIds]
 	};
+	providerVariants.set(item, Object.freeze({ ...safe }));
+	return item;
 }
-var QUESTIONS = [
-	"review_results",
-	"explain_drawdown",
-	"what_stands_out"
-];
+var QUESTIONS = ASK_COVA_QUESTION_IDS;
 var boundedText = (value, max = 256) => typeof value === "string" && value.length <= max && value.trim().length > 0 && !/[\u0000-\u001f\u007f]/.test(value);
 function validDate(value) {
 	return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(`${value}T00:00:00Z`)) && (/* @__PURE__ */ new Date(`${value}T00:00:00Z`)).toISOString().slice(0, 10) === value;
@@ -647,15 +1045,43 @@ function chronological(rows) {
 }
 function compile(rows, question) {
 	const ids = rows.map((row) => row.id);
-	const unavailable = (id, text, detail) => [candidate(id, text, text, text, detail, ids)];
+	const specific = [
+		"holding_time",
+		"setup_performance",
+		"time_of_day",
+		"long_vs_short"
+	].includes(question);
+	const unavailable = (id, text, detail) => {
+		if (question !== "explain_drawdown") {
+			const subset = insightSubset(rows, {
+				currency,
+				basis
+			});
+			if (subset) {
+				const review = subset.review;
+				const comparisons = insightComparisons(rows, question, {
+					currency,
+					basis
+				});
+				const partialSummary = `${text} Valid subset P&L: ${money(subset.total, subset.code)} (${subset.basis}). ${review.metrics}`;
+				const answerFor = (observation) => specific && observation ? `${observation}${observation.startsWith("No usable") ? ` ${partialSummary}` : ""}` : `${partialSummary} ${observation ?? review.observation}`;
+				const answer = answerFor(comparisons.observation), safeAnswer = answerFor(comparisons.providerObservation);
+				return [candidate(id, answer, answer, answer, `${detail} ${partialSummary} ${subset.coverage} ${review.definitions} ${comparisons.detail}`, ids, {
+					plain: safeAnswer,
+					warm: safeAnswer,
+					direct: safeAnswer
+				})];
+			}
+		}
+		return [candidate(id, text, text, text, detail, ids)];
+	};
 	if (!rows.length) return [candidate("empty", "There's nothing to review in this range yet. Log or import a completed trade to get started.", "Nothing to review here yet. Log or import a completed trade, and we can take a look.", "Log or import a completed trade to review your results here.", "No trade records match this account and date range.")];
 	const currencies = new Set(rows.map(currency));
 	if (currencies.has(null)) return unavailable("unknown_currency", "I can't combine these results yet. Their currencies aren't all supported or confirmed.", "Currency must be confirmed by the source, not guessed from a ticker. No exact total or drawdown is available until every currency is supported and confirmed.");
 	if (currencies.size !== 1) return unavailable("mixed_currencies", "These results use different currencies, so there isn't one combined result to report.", "The currencies need to stay separate. No exchange rates are available for a combined total or drawdown.");
 	let total;
 	try {
-		if (rows.some((row) => typeof row.pnl !== "number" || !Number.isFinite(row.pnl))) throw new Error("Invalid money");
-		total = sumCents(rows.map((row) => row.pnl));
+		total = sumAskCovaMoney(rows.map((row) => row.pnl));
 	} catch {
 		return unavailable("invalid_money", "Some P&L is missing or invalid, so I can't give you a complete result yet.", "Every trade record needs valid P&L in whole cents within the supported money range. Missing values are not zero; leaving them out could change the total or drawdown.");
 	}
@@ -682,19 +1108,29 @@ function compile(rows, question) {
 		return [candidate("drawdown", maximum === 0n ? `There was no drawdown between reported results: ${decline} (${qualifier}).` : `Your biggest dip was ${decline} (${qualifier}), measured between reported results.`, maximum === 0n ? `No dip between these results. Drawdown was ${decline} (${qualifier}).` : `The biggest dip was ${decline} (${qualifier}). That's how far your running result fell from an earlier peak.`, maximum === 0n ? `No drawdown between reported results: ${decline} (${qualifier}).` : `Your running result fell ${decline} from peak to trough (${qualifier}).`, `${path} Maximum decline: ${decline} (${qualifier}). The calculation starts at an initial zero before this range, not at your account balance. It excludes price changes while trades were open. ${caveat}`, ids)];
 	}
 	const amount = money(total, currency(rows[0]));
-	const detail = `Reported P&L is ${amount} (${qualifier}). ${caveat}`;
-	const outcome = total === 0n ? "flat" : total > 0n ? "green" : "red";
-	const items = [candidate("result", `You finished ${outcome}: ${amount} (${qualifier}).`, total === 0n ? `No gain or loss overall: ${amount} (${qualifier}).` : `You ended this stretch in the ${outcome}, at ${amount} (${qualifier}).`, `Your result was ${amount} (${qualifier}).`, detail, ids)];
-	if (question === "what_stands_out" && total < 0n && rows.some((row) => row.pnl > 0)) items.unshift(candidate("losses_outweigh_gains", `Your losses outweighed your gains (${qualifier}).`, `The gains didn't cover the losses this time (${qualifier}).`, `You lost more than you gained (${qualifier}).`, detail, ids));
-	const missingRisk = rows.filter((row) => {
-		try {
-			return row.riskStatus === "missing" || typeof row.risk !== "number" || cents(row.risk) <= 0n;
-		} catch {
-			return true;
-		}
+	const review = insightReview(rows, currency(rows[0]));
+	const comparisons = insightComparisons(rows, question, {
+		currency,
+		basis
 	});
-	if (missingRisk.length) items.push(candidate("missing_risk", "Some trades have no usable planned risk, so a full risk comparison isn't available.", "The risk comparison has gaps. Some planned-risk amounts are missing or invalid.", "Missing or invalid planned risk means I can't compare all results against it.", "Some trade records lack a usable positive planned-risk amount. P&L cannot substitute for planned risk. Their P&L still counts toward the result.", missingRisk.map((row) => row.id)));
-	return items;
+	const detail = `Reported P&L is ${amount} (${qualifier}). ${review.metrics} ${review.definitions} ${comparisons.detail} ${caveat}`;
+	if (specific && comparisons.observation && comparisons.providerObservation) {
+		const answerFor = (observation) => `${observation}${observation.startsWith("No usable") ? ` Reported P&L: ${amount} (${qualifier}). ${review.metrics}` : ""}`;
+		const answer = answerFor(comparisons.observation), safeAnswer = answerFor(comparisons.providerObservation);
+		return [candidate("result", answer, answer, answer, detail, ids, {
+			plain: safeAnswer,
+			warm: safeAnswer,
+			direct: safeAnswer
+		})];
+	}
+	const outcome = total === 0n ? "flat" : total > 0n ? "green" : "red";
+	const body = `${review.metrics} ${comparisons.observation ?? review.observation}`;
+	const safeBody = `${review.metrics} ${comparisons.providerObservation ?? review.observation}`;
+	return [candidate(question === "what_stands_out" && total < 0n && rows.some((row) => row.pnl > 0) ? "losses_outweigh_gains" : "result", `You finished ${outcome}: ${amount} (${qualifier}). ${body}`, `You ended this stretch ${outcome}: ${amount} (${qualifier}). ${body}`, `Your result was ${amount} (${qualifier}). ${body}`, detail, ids, {
+		plain: `You finished ${outcome}: ${amount} (${qualifier}). ${safeBody}`,
+		warm: `You ended this stretch ${outcome}: ${amount} (${qualifier}). ${safeBody}`,
+		direct: `Your result was ${amount} (${qualifier}). ${safeBody}`
+	})];
 }
 function scalar(value) {
 	if (value === void 0) return { unavailable: "undefined" };
@@ -713,6 +1149,7 @@ function financialEvidence(row) {
 		contracts: scalar(row.contracts),
 		entry: scalar(row.entry),
 		exit: scalar(row.exit),
+		setup: validatedSetup(row),
 		pnl: scalar(row.pnl),
 		risk: scalar(row.risk),
 		riskStatus: scalar(row.riskStatus),
@@ -737,6 +1174,7 @@ function financialEvidence(row) {
 	};
 }
 var issuedCatalogs = /* @__PURE__ */ new WeakSet();
+var providerChoices = /* @__PURE__ */ new WeakMap();
 var STYLES = [
 	"plain",
 	"warm",
@@ -763,6 +1201,10 @@ async function buildAskCovaCatalog(input) {
 	const tradeIds = rows.map((row) => row.id);
 	if (new Set(tradeIds).size !== tradeIds.length) throw new Error("Duplicate scoped row identity");
 	const candidates = compile(rows, input.question);
+	const safeChoices = candidates.map((item) => Object.freeze({
+		id: item.id,
+		variants: providerVariants.get(item)
+	}));
 	const evidence = rows.map(financialEvidence);
 	const binding = JSON.stringify({
 		version: "ask-cova-core-v1",
@@ -773,7 +1215,8 @@ async function buildAskCovaCatalog(input) {
 		start,
 		end,
 		evidence,
-		candidates
+		candidates,
+		safeChoices
 	});
 	const question = input.question;
 	const hash = await globalThis.crypto.subtle.digest("SHA-256", new TextEncoder().encode(binding));
@@ -794,12 +1237,13 @@ async function buildAskCovaCatalog(input) {
 	Object.freeze(tradeIds);
 	Object.freeze(catalog);
 	issuedCatalogs.add(catalog);
+	providerChoices.set(catalog, safeChoices);
 	return catalog;
 }
 /** Minimal selector input. Provider/model configuration belongs to the server. */
 function askCovaModelPayload(catalog) {
 	if (!issuedCatalogs.has(catalog)) throw new Error("Invalid engine catalog");
-	const choices = catalog.candidates.map((item) => ({
+	const choices = providerChoices.get(catalog).map((item) => ({
 		id: item.id,
 		variants: { ...item.variants }
 	}));
@@ -1228,18 +1672,14 @@ function createAskCovaHandler({ acquirePermit = acquireAskCovaPermit, fetchImpl 
 				"range",
 				"question",
 				"contextDigest",
-				"consentVersion",
+				"protocolVersion",
 				"requestId"
 			];
 			if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).length !== keys.length || Object.keys(body).some((key) => !keys.includes(key)) || body.action !== "ask_cova" || !uuid(user.id) || body.owner !== user.id || !uuid(body.requestId) || !account(body.account) || ![
 				"today",
 				"week",
 				"all"
-			].includes(body.range) || ![
-				"review_results",
-				"explain_drawdown",
-				"what_stands_out"
-			].includes(body.question) || typeof body.contextDigest !== "string" || !/^[a-f0-9]{64}$/.test(body.contextDigest) || body.consentVersion !== "ask-cova-v1") fail(400, "invalid_request");
+			].includes(body.range) || !isAskCovaQuestion(body.question) || typeof body.contextDigest !== "string" || !/^[a-f0-9]{64}$/.test(body.contextDigest) || body.protocolVersion !== "ask-cova-v2") fail(400, "invalid_request");
 			askCovaBudgetConfiguration(env);
 			const snapshot = await savedSnapshot(user.id, rest || storageRest(env, fetchImpl));
 			const catalog = await buildAskCovaCatalog({

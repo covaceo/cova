@@ -14,7 +14,7 @@ import load from './helpers/load-ts.cjs';
 import {chooseAccount,accountValue} from './helpers/account-picker.mjs';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 process.chdir(root);
-const out=path.resolve(root,'../ask-cova-beta-evidence/app'); // Never overwrite approved-integration evidence.
+const out=path.resolve(process.env.ASK_COVA_EVIDENCE_ROOT || path.resolve(root,'../ask-cova-insights-evidence/interaction'),'app'); // Redirect each verification run to preserve prior evidence.
 mkdirSync(out,{recursive:true});
 const {defaultRules}=load('src/lib/risk.ts');
 const owner='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
@@ -100,9 +100,9 @@ try{
      }
      if(body.action!=='ask_cova'){state.writes.push(body);return route.fulfill({status:403,json:{error:'Read-only QA; unintended write blocked'}});}
      try{
-      assert.equal(body.owner,owner);assert.equal(body.consentVersion,'ask-cova-v1');
+      assert.equal(body.owner,owner);assert.equal(body.protocolVersion,'ask-cova-v2');
       assert.equal(req.headers().authorization,'Bearer synthetic-qa-token');
-      assert.deepEqual(Object.keys(body).sort(),['action','owner','account','range','question','contextDigest','requestId','consentVersion'].sort());
+      assert.deepEqual(Object.keys(body).sort(),['action','owner','account','range','question','contextDigest','requestId','protocolVersion'].sort());
       const catalog=await core.buildAskCovaCatalog({ownerId:owner,account:body.account,range:body.range,question:body.question,trades:scenarioCloud.filter(r=>r.kind==='trade').map(r=>r.payload)});
       assert.equal(body.contextDigest,catalog.contextDigest,'Shared core recomputes digest from complete synthetic cloud snapshot');
       const choice=catalog.candidates.find(c=>c.id==='result')||catalog.candidates[0];
@@ -166,8 +166,7 @@ try{
  async function ask(s,name='Review my results'){
   const p=s.page,before=s.asks.length,beforeAnswers=await p.locator('[data-cova-answer]').count();
   await p.getByRole('button',{name,exact:true}).click();
-  const consent=p.getByRole('button',{name:'Use AI for this review',exact:true});
-  if(await consent.isVisible()){check(s.id+' consent precedes request',s.asks.length===before);await consent.click();}
+  check(s.id+' deliberate action has no extra consent prompt',await p.getByRole('button',{name:'Use AI for this review',exact:true}).count()===0);
   await p.waitForFunction(count=>document.querySelectorAll('[data-cova-answer]').length===count,beforeAnswers+1,{timeout:10000});
   const reply=s.asks.at(-1)?.reply;
   check(s.id+' answer matches checked shared core',s.asks.length===before+1&&reply&&await p.locator('[data-cova-answer]').nth(beforeAnswers).innerText()===reply.answer);
@@ -194,12 +193,13 @@ try{
    await p.waitForFunction(()=>!document.querySelector('.ask-cova-questions button')?.disabled,{},{timeout:15000});
    check(s.id+' saved cloud readiness via actual hook',await preset.isEnabled()&&s.api.some(r=>r.url==='/api/workspace'&&r.method==='GET'));
    await measure(s,'default');await hitTargets(s,'default');await screenshot(s,'default');
-   if(width<=768){await preset.scrollIntoViewIfNeeded();const b=await preset.boundingBox();if(width<768)await p.touchscreen.tap(b.x+b.width/2,b.y-3);else await p.mouse.click(b.x+b.width/2,b.y-3);check(s.id+' outside painted face activates preset',await p.getByRole('button',{name:'Use AI for this review',exact:true}).isVisible());await p.getByRole('button',{name:'Not now',exact:true}).click();check(s.id+' declining consent makes no request',s.asks.length===0);}
+   if(width<=768){await preset.scrollIntoViewIfNeeded();const b=await preset.boundingBox();if(width<768)await p.touchscreen.tap(b.x+b.width/2,b.y-3);else await p.mouse.click(b.x+b.width/2,b.y-3);await p.locator('[data-cova-answer]').waitFor();check(s.id+' outside painted face dispatches exactly once',s.asks.length===1);await p.getByRole('button',{name:'Clear conversation',exact:true}).click();check(s.id+' clear makes no request',s.asks.length===1);}
    await p.keyboard.press('Tab');await preset.focus();
    const focus=await preset.evaluate(el=>{const style=getComputedStyle(el);return {active:document.activeElement===el,visible:el.matches(':focus-visible'),shadow:style.boxShadow,outline:style.outline,outlineStyle:style.outlineStyle,outlineWidth:style.outlineWidth,outlineColor:style.outlineColor};});check(s.id+' preset keyboard indicator',hasVisibleFocus(focus),focus);
    await screenshot(s,'focus','[data-ask-cova]');
-   await preset.press('Enter');check(s.id+' preset opens consent without call',s.asks.length===0&&await p.getByRole('button',{name:'Use AI for this review',exact:true}).isVisible());
-   await screenshot(s,'consent','[data-ask-cova]');await p.getByRole('button',{name:'Use AI for this review',exact:true}).click();await p.locator('[data-cova-answer]').waitFor({timeout:10000});
+   const beforeKeyboard=s.asks.length;await preset.press('Enter');await p.locator('[data-cova-answer]').waitFor({timeout:10000});
+   check(s.id+' keyboard starter dispatches exactly once without consent',s.asks.length===beforeKeyboard+1&&await p.getByRole('button',{name:'Use AI for this review',exact:true}).count()===0);
+   await screenshot(s,'direct-action','[data-ask-cova]');
    const reply=s.asks.at(-1).reply;check(s.id+' initial result is exact',await p.locator('[data-cova-answer]').innerText()===reply.answer,reply);
    await measure(s,'answer');await hitTargets(s,'answer');await screenshot(s,'answer');
    const calls=s.asks.length;await p.getByRole('button',{name:'Tell me more',exact:true}).click();check(s.id+' deterministic detail no second request',await p.locator('[data-cova-detail]').innerText()===reply.detail&&s.asks.length===calls);
@@ -237,10 +237,10 @@ try{
   const focus=await composer.evaluate(el=>{const c=getComputedStyle(el);return {active:document.activeElement===el,visible:el.matches(':focus-visible'),outline:c.outline,outlineStyle:c.outlineStyle,outlineWidth:c.outlineWidth,outlineColor:c.outlineColor};});
   check(s.id+' composer visible keyboard focus',hasVisibleFocus(focus),focus);
   await screenshot(s,'composer-focus','[data-ask-cova]');await screenshot(s,'default');
-  await sendTyped(s,'how did i do?',{touch:width<768});
-  const consent=p.getByRole('button',{name:'Use AI for this review',exact:true});await consent.waitFor();
-  check(s.id+' typed question requires consent before transport',s.asks.length===0&&await p.locator('[data-cova-answer]').count()===0);
-  s.holdNextAsk=true;await consent.click();
+  check(s.id+' mount focus and typing do not dispatch',s.asks.length===0);
+  s.holdNextAsk=true;await sendTyped(s,'how did i do?',{touch:width<768});
+  const consent=p.getByRole('button',{name:'Use AI for this review',exact:true});
+  check(s.id+' deliberate Send has no extra consent prompt',await consent.count()===0);
   const deadline=Date.now()+10000;while(!s.requestHeld&&Date.now()<deadline)await new Promise(resolve=>setTimeout(resolve,25));
   assert(s.requestHeld,'Mock response is genuinely held for typing-state evidence');
   check(s.id+' held request has visible checking status',await panel.getByRole('status').filter({hasText:/checking/i}).isVisible());
@@ -256,7 +256,7 @@ try{
   const replies=p.locator('[data-cova-reply]');
   check(s.id+' exactly two preserved replies for two requests',s.asks.length===2&&await replies.count()===2&&s.asks[1].body.question==='explain_drawdown'&&JSON.stringify(await p.locator('[data-cova-answer]').allInnerTexts())===JSON.stringify([first.answer,second.answer]));
   check(s.id+' distinct per-answer content prevents latest-reply aliasing',first.answer!==second.answer&&first.detail!==second.detail,{first,second});
-  check(s.id+' consent not repeated in same scope',!await consent.isVisible());
+  check(s.id+' consent remains absent in same scope',await consent.count()===0);
   check(s.id+' persistent reply buttons are individually present',await replies.nth(0).getByRole('button',{name:'Show trades',exact:true}).count()===1&&await replies.nth(1).getByRole('button',{name:'Show trades',exact:true}).count()===1);
   check(s.id+' composer remains after thread in DOM',await composer.evaluate(el=>Boolean(document.querySelector('[data-cova-reply]').compareDocumentPosition(el)&Node.DOCUMENT_POSITION_FOLLOWING)));
   await measure(s,'thread');await hitTargets(s,'thread');await screenshot(s,'thread');await screenshot(s,'thread-panel','[data-ask-cova]');
@@ -284,13 +284,15 @@ try{
   await screenshot(s,'thread-context','[data-ask-cova]');
   await composer.fill('unsent local draft');await p.getByRole('button',{name:'Latest session',exact:true}).click();
   check(s.id+' date clears whole thread draft detail and local help',await p.locator('[data-cova-reply],[data-cova-detail],[data-cova-local]').count()===0&&await composer.inputValue()==='');
-  await sendTyped(s,'how did i do?');await consent.waitFor();check(s.id+' date scope requires fresh consent without AI call',s.asks.length===calls);await p.getByRole('button',{name:'Not now',exact:true}).click();
-  await chooseAccount(p,other);await sendTyped(s,'what stands out?');await consent.waitFor();check(s.id+' account scope requires fresh consent',s.asks.length===calls&&await p.locator('[data-cova-answer]').count()===0);await consent.click();
+  check(s.id+' changing date alone never asks',s.asks.length===calls);
+  await sendTyped(s,'how did i do?');await p.locator('[data-cova-answer]').waitFor();check(s.id+' deliberate date-scoped Send asks once',s.asks.length===calls+1);
+  await chooseAccount(p,other);check(s.id+' changing account clears without asking',s.asks.length===calls+1&&await p.locator('[data-cova-answer]').count()===0);await sendTyped(s,'what stands out?');
   await p.locator('[data-cova-answer]').waitFor();const scoped=s.asks.at(-1).reply;
   check(s.id+' new account reply never reuses prior thread',await p.locator('[data-cova-answer]').count()===1&&scoped.tradeIds.length>0&&scoped.tradeIds.every(id=>id.startsWith('manual-app-b-')));
   await p.getByRole('button',{name:'Clear conversation',exact:true}).click();
   check(s.id+' clear removes entire conversation and draft',await p.locator('[data-cova-answer],[data-cova-detail],[data-cova-local]').count()===0&&await composer.inputValue()==='');
-  await sendTyped(s,'how did i do?');await consent.waitFor();check(s.id+' clear resets consent',s.asks.length===calls+1);await p.getByRole('button',{name:'Not now',exact:true}).click();
+  check(s.id+' clear never auto-asks',s.asks.length===calls+2);
+  await sendTyped(s,'how did i do?');await p.locator('[data-cova-answer]').waitFor();check(s.id+' deliberate Send after clear asks once',s.asks.length===calls+3);await p.getByRole('button',{name:'Clear conversation',exact:true}).click();
  }catch(error){check(`thread-${width} completed workflow`,false,String(error));if(s){s.releaseHeld?.();writeFileSync(path.join(out,s.id+'-failure.txt'),await s.page.locator('body').innerText());await screenshot(s,'failure');}}
  finally{if(s)await finish(s);}}
  // Additional synthetic foreign-currency evidence case, never broker connected.

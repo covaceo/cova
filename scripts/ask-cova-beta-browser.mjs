@@ -10,7 +10,7 @@ import {fileURLToPath,pathToFileURL} from 'node:url';
 import path from 'node:path';
 import load from './helpers/load-ts.cjs';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');process.chdir(root);
-const out=path.resolve(process.env.ASK_COVA_TEST_OUT || path.resolve(root,'../ask-cova-beta-evidence/client/browser'));mkdirSync(out,{recursive:true});
+const out=path.resolve(process.env.ASK_COVA_TEST_OUT || path.resolve(process.env.ASK_COVA_EVIDENCE_ROOT || path.resolve(root,'../ask-cova-insights-evidence/interaction'),'beta-browser'));mkdirSync(out,{recursive:true});
 const phase=process.env.ASK_COVA_TEST_PHASE==='red'?'red':'green';
 const rates=process.env.ASK_COVA_TEST_CPU ? [Number(process.env.ASK_COVA_TEST_CPU)] : [1,6];
 assert(rates.every(rate=>rate===1||rate===6),'only ordinary/6x CPU scheduling');
@@ -127,22 +127,22 @@ try{
  await run('late allow after logout cannot remount',async open=>{
   const s=await open('pending');await absent(s,'before logout');await change(s,null,'');await s.held[0]();await s.page.waitForTimeout(150);await absent(s,'late logout allow');
  });
- await run('same-task stale consent cannot ask after session replacement',async open=>{
+ await run('same-task retained starter cannot ask after session replacement',async open=>{
   const s=await open('allowed');await s.page.locator('[data-ask-cova]').waitFor();
-  await s.page.getByRole('button',{name:'Review my results',exact:true}).click();await s.page.getByRole('button',{name:'Use AI for this review',exact:true}).waitFor();
+  assert.equal(s.asks.length,0,'mount never dispatches');
   s.mode='denied';await s.page.evaluate(owner=>{
-   const consent=[...document.querySelectorAll('[data-ask-cova] button')].find(el=>el.textContent==='Use AI for this review');
-   window.__qaWatch=true;window.__qaChange(owner,'synthetic-replaced');consent.click();
+   const starter=[...document.querySelectorAll('[data-ask-cova] button')].find(el=>el.textContent==='Review my results');
+   window.__qaWatch=true;window.__qaChange(owner,'synthetic-replaced');starter.click();
   },owner);
   // Retain the old DOM and click in the SAME task. Revocation must have committed
   // before returning, without relying on the later DOM/rAF samples as compositor proof.
-  await s.page.waitForTimeout(200);await absent(s,'retained same-task consent loses authority',{sameTask:true});assert.equal(s.caps.length,2);
+  await s.page.waitForTimeout(200);await absent(s,'retained same-task starter loses authority',{sameTask:true});assert.equal(s.caps.length,2);
  });
  // Fresh contexts keep the strict watcher throughout revocation, without counter resets.
  for(const rate of rates)for(let repeat=0;repeat<3;repeat++)for(const transition of ['same-owner','owner-switch','logout','invalid-callback','token-refresh','user-update'])await run(`synchronous revocation ${rate}x ${repeat} ${transition}`,async open=>{
   const answered=repeat===2,s=await open('allowed',{answered});await s.page.locator('[data-ask-cova]').waitFor();
-  if(answered){await s.page.getByRole('button',{name:'Review my results',exact:true}).click();await s.page.getByRole('button',{name:'Use AI for this review',exact:true}).click();await s.page.locator('[data-cova-answer]').waitFor();assert.equal(await s.page.locator('[data-cova-answer]').innerText(),s.reply.answer);assert.equal(s.asks.length,1);}
-  else {await s.page.getByRole('button',{name:'Review my results',exact:true}).click();await s.page.getByRole('button',{name:'Use AI for this review',exact:true}).waitFor();}
+  if(answered){await s.page.getByRole('button',{name:'Review my results',exact:true}).click();await s.page.locator('[data-cova-answer]').waitFor();assert.equal(await s.page.locator('[data-cova-answer]').innerText(),s.reply.answer);assert.equal(s.asks.length,1);}
+  else {assert.equal(s.asks.length,0,'idle panel has no question authority');}
   const before=s.asks.length,cdp=await s.context.newCDPSession(s.page);await cdp.send('Emulation.setCPUThrottlingRate',{rate});
   const id=['logout','invalid-callback'].includes(transition)?null:transition==='owner-switch'?other:owner;
   const event=transition==='invalid-callback'?'TOKEN_REFRESHED':transition==='token-refresh'?'TOKEN_REFRESHED':transition==='user-update'?'USER_UPDATED':undefined;

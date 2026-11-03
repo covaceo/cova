@@ -1,3 +1,4 @@
+import type { AskCovaQuestion } from './askCova';
 import { getSupabaseClient } from './supabaseClient';
 import { workspaceOwnerCurrent } from './workspaceClient';
 
@@ -45,10 +46,10 @@ export function createAskCovaTransport(owner: string, dependencies: {
   return transport;
 }
 
-export const ASK_COVA_CONSENT = 'ask-cova-v1';
+export const ASK_COVA_PROTOCOL = 'ask-cova-v2';
 export type AskCovaRequest = {
   owner: string; account: string; range: 'today' | 'week' | 'all';
-  question: 'review_results' | 'explain_drawdown' | 'what_stands_out';
+  question: AskCovaQuestion;
   contextDigest: string; requestId: string;
 };
 export type AskCovaResponse =
@@ -128,12 +129,12 @@ async function readBoundedResponse(response: Response, signal: AbortSignal): Pro
   } finally { signal.removeEventListener('abort', cancel); reader.releaseLock(); }
 }
 
-/** The caller has obtained explicit consent. No notes or trade payload leaves this client. */
+/** Only deliberate question/retry actions call this transport. No notes or trade payload leaves this client. */
 export async function requestAskCova(input: AskCovaRequest, signal: AbortSignal, transport: typeof fetch = authorizedTransport(input.owner),
   current: () => boolean = () => (transportAuthorities.get(transport) ?? workspaceOwnerCurrent)(input.owner)): Promise<AskCovaResponse> {
   const unavailable = (status = 0): AskCovaResponse => ({ status: 'unavailable', message:
     status === 401 ? 'Your session changed. Sign in again to ask Cova.' :
-    status === 403 ? 'Ask Cova needs saved account storage and permission to use AI.' :
+    status === 403 ? 'Ask Cova needs saved account storage and an active session.' :
     status === 409 ? 'Your saved trades changed. Let them finish syncing, then ask again.' :
     status === 429 ? 'Ask Cova has reached its limit for now. Your trades are still here.' :
     status === 404 ? 'Ask Cova is not available yet.' :
@@ -146,7 +147,7 @@ export async function requestAskCova(input: AskCovaRequest, signal: AbortSignal,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'ask_cova', owner: input.owner, account: input.account,
         range: input.range, question: input.question, contextDigest: input.contextDigest,
-        requestId: input.requestId, consentVersion: ASK_COVA_CONSENT }),
+        requestId: input.requestId, protocolVersion: ASK_COVA_PROTOCOL }),
     });
     if (!response.ok) { cancelResponse(response); return unavailable(response.status); }
     const text = await readBoundedResponse(response, signal);

@@ -5,7 +5,7 @@ import {build} from 'vite';
 import react from '@vitejs/plugin-react';
 import {chromium} from 'playwright';
 const root=fileURLToPath(new URL('../',import.meta.url)).replaceAll('\\','/');
-const evidence=root+'../ask-cova-beta-evidence/component-fix/green';
+const evidence=(process.env.ASK_COVA_EVIDENCE_ROOT || root+'../ask-cova-insights-evidence/interaction')+'/ui';
 mkdirSync(evidence,{recursive:true});
 assert.ok(existsSync(root+'src/components/AskCova.tsx'),'Risk Desk Ask Cova component exists');
 const id=root+'__ask_cova_ui_test__.tsx';
@@ -31,13 +31,13 @@ try{
  for(const name of ['Review my results','Explain my drawdown','What stands out?'])assert.ok(await p.getByRole('button',{name,exact:true}).isVisible());
  report.checks.push('three accessible full-label presets in Risk Desk panel');
  await p.getByRole('button',{name:'Review my results',exact:true}).click();
- assert.ok(await p.getByRole('button',{name:'Use AI for this review',exact:true}).isVisible());
- assert.equal(report.requests.length,0);assert.equal(await p.evaluate(()=>window.calls.length),0);report.checks.push('choosing a preset requires consent before any request');
- await p.getByRole('button',{name:'Use AI for this review',exact:true}).click();
+ assert.equal(await p.getByRole('button',{name:'Use AI for this review',exact:true}).count(),0);
+ await p.waitForFunction(()=>window.calls.length===1);
+ assert.equal(report.requests.length,0);report.checks.push('first deliberate preset dispatches exactly once without a consent UI');
  await p.locator('[data-cova-answer]').waitFor({timeout:5000}).catch(async e=>{console.log(await p.locator('body').innerText(),await p.evaluate(()=>window.calls));throw e;});
  assert.match(await p.locator('[data-cova-answer]').innerText(),/90\.00/);
  assert.ok(!JSON.stringify(await p.evaluate(()=>window.calls)).includes('Private journal note'));
- assert.equal(await p.evaluate(()=>window.calls.length),1);report.checks.push('consent -> actual catalog -> guarded selection -> concise bubble');
+ assert.equal(await p.evaluate(()=>window.calls.length),1);report.checks.push('deliberate action -> actual catalog -> guarded selection -> concise bubble');
  await p.getByRole('button',{name:'Tell me more',exact:true}).click();await p.locator('[data-cova-detail]').waitFor();
  assert.equal(await p.evaluate(()=>window.calls.length),1);report.checks.push('detail is a checked follow-up, no second paid call');
  await p.getByRole('button',{name:'Show trades',exact:true}).click();
@@ -48,14 +48,14 @@ try{
  await p.getByRole('button',{name:'Close trade history'}).click();report.checks.push('exact evidence opens a scoped read-only history dialog');
  await p.evaluate(()=>window.showAsk(true,'local','today'));await p.waitForFunction(()=>!document.querySelector('[data-cova-answer]'));
  assert.equal(await p.locator('[data-cova-detail]').count(),0);report.checks.push('range change clears prior answers and actions');
+ await p.evaluate(()=>window.mode='slow');
  await p.getByRole('button',{name:'Review my results',exact:true}).click();
- await p.evaluate(()=>window.mode='slow');await p.getByRole('button',{name:'Use AI for this review',exact:true}).click();
  await p.waitForFunction(()=>window.calls.length===2);
  assert.ok(await p.getByText('Checking your results…').isVisible());
  await p.evaluate(()=>{window.showAsk(true,'manual:other');window.finish();});
  await p.waitForTimeout(100);assert.equal(await p.locator('[data-cova-answer]').count(),0);report.checks.push('late response from previous account is discarded');
  await p.evaluate(()=>{window.mode='error';window.showAsk();});
- await p.getByRole('button',{name:'Review my results',exact:true}).click();await p.getByRole('button',{name:'Use AI for this review',exact:true}).click();
+ await p.getByRole('button',{name:'Review my results',exact:true}).click();
  await p.getByText('Answer unavailable. Try again.').waitFor();assert.equal(await p.getByRole('button',{name:'Show trades',exact:true}).count(),0);assert.equal(await p.locator('[data-cova-answer]').count(),0);
  report.checks.push('failure is visibly not an AI answer and has no actions');
  await p.evaluate(()=>window.mode='ok');await p.getByRole('button',{name:'Try again',exact:true}).click();await p.locator('[data-cova-answer]').waitFor();
@@ -67,24 +67,24 @@ try{
  report.checks.push('all three questions render actual checked results and explicit retry works; replies persist');
  await p.getByRole('button',{name:'Clear conversation',exact:true}).click();assert.equal(await p.locator('[data-cova-answer]').count(),0);
  const keyboard=p.getByRole('button',{name:'Review my results',exact:true});await keyboard.focus();await p.keyboard.press('Enter');
- await p.getByRole('button',{name:'Use AI for this review',exact:true}).waitFor();await p.getByRole('button',{name:'Not now',exact:true}).click();
- assert.equal(await p.locator('[role="log"]').count(),0);report.checks.push('clear revokes review consent; keyboard choice and Not now work');
- await p.evaluate(()=>{window.choice='empty';window.showAsk(true,'local','all',[]);});await p.getByRole('button',{name:'Review my results',exact:true}).click();await p.getByRole('button',{name:'Use AI for this review',exact:true}).click();await p.locator('[data-cova-answer]').waitFor();
+ await p.locator('[data-cova-answer]').waitFor();await p.getByRole('button',{name:'Clear conversation',exact:true}).click();
+ assert.equal(await p.locator('[role="log"]').count(),0);report.checks.push('clear revokes the prior epoch; keyboard choice dispatches without another prompt');
+ await p.evaluate(()=>{window.choice='empty';window.showAsk(true,'local','all',[]);});await p.getByRole('button',{name:'Review my results',exact:true}).click();await p.locator('[data-cova-answer]').waitFor();
  assert.match(await p.locator('[data-cova-answer]').innerText(),/Log or import a completed trade/);assert.equal(await p.getByRole('button',{name:'Show trades',exact:true}).count(),0);report.checks.push('empty data invites logging a completed trade, without invented evidence');
- await p.evaluate(()=>{window.choice='invented_choice';window.showAsk();});await p.getByRole('button',{name:'Review my results',exact:true}).click();await p.getByRole('button',{name:'Use AI for this review',exact:true}).click();
+ await p.evaluate(()=>{window.choice='invented_choice';window.showAsk();});await p.getByRole('button',{name:'Review my results',exact:true}).click();
  await p.getByText("I couldn't check that answer. Your trades are unchanged. Try again when you're ready.").waitFor();assert.equal(await p.locator('[data-cova-answer]').count(),0);report.checks.push('unknown provider selection fails closed in the renderer');
  // F-02: invalidate live authority WITHOUT updating any component props.
  const authorityFailures=[];
  await p.getByRole('button',{name:'Clear conversation',exact:true}).click();
  await p.evaluate(()=>{window.choice='result';window.mode='slow';window.current=true;window.finish=undefined;});
- await p.getByRole('button',{name:'Review my results',exact:true}).click();await p.getByRole('button',{name:'Use AI for this review',exact:true}).click();
+ await p.getByRole('button',{name:'Review my results',exact:true}).click();
  await p.waitForFunction(()=>!!window.finish);await p.evaluate(()=>{window.current=false;window.finish();});
  await p.waitForFunction(()=>!document.body.textContent.includes('Checking your results…'));
  if(await p.locator('[data-cova-answer]').count())authorityFailures.push('stale completion rendered');
  for(const action of ['Show trades','Tell me more']){
   await p.getByRole('button',{name:'Clear conversation',exact:true}).click();
   await p.evaluate(()=>{window.mode='ok';window.current=true;});
-  await p.getByRole('button',{name:'Review my results',exact:true}).click();await p.getByRole('button',{name:'Use AI for this review',exact:true}).click();await p.locator('[data-cova-answer]').waitFor();
+  await p.getByRole('button',{name:'Review my results',exact:true}).click();await p.locator('[data-cova-answer]').waitFor();
   await p.evaluate(()=>window.current=false);await p.getByRole('button',{name:action,exact:true}).click();
   if(await p.locator('dialog').count())authorityFailures.push('stale evidence opened');
   if(await p.locator('[data-cova-detail]').count())authorityFailures.push('stale detail opened');
@@ -94,14 +94,14 @@ try{
  await p.getByRole('button',{name:'Clear conversation',exact:true}).click();
  await p.evaluate(()=>{window.current=true;window.showAsk(true,'local','all',undefined,false);});
  const beforeDefaultAuthority=await p.evaluate(()=>window.calls.length);
- await p.getByRole('button',{name:'Review my results',exact:true}).click();await p.getByRole('button',{name:'Use AI for this review',exact:true}).click();
+ await p.getByRole('button',{name:'Review my results',exact:true}).click();
  await p.waitForTimeout(100);
  if(await p.evaluate(()=>window.calls.length)!==beforeDefaultAuthority)authorityFailures.push('injected request bypassed default authority');
  assert.deepEqual(authorityFailures,[]);
  report.checks.push('F-02 delayed completion, both stale actions, and production default authority fail closed');
  await p.getByRole('button',{name:'Clear conversation',exact:true}).click();await p.evaluate(()=>window.showAsk());
  await p.evaluate(()=>{window.mode='body';window.current=true;});
- await p.getByRole('button',{name:'Review my results',exact:true}).click();await p.getByRole('button',{name:'Use AI for this review',exact:true}).click();
+ await p.getByRole('button',{name:'Review my results',exact:true}).click();
  await p.waitForFunction(()=>!!window.bodyController);
  await p.evaluate(()=>{window.current=false;window.bodyController.enqueue(new TextEncoder().encode(JSON.stringify({status:'ok',aiResponseUsed:true,contextDigest:window.bodyInput.contextDigest,selection:{choice_id:'result',style:'plain'}})));window.bodyController.close();});
  await p.getByText('Your session changed. Sign in again to ask Cova.').waitFor();
@@ -111,29 +111,29 @@ try{
  await p.evaluate(()=>{window.mode='ok';window.current=true;localStorage.setItem('cova-active-storage-identity-v1','11111111-1111-4111-8111-111111111111');window.showAsk(true,'local','all',undefined,false);});
  const beforeBetaGrant=await p.evaluate(()=>{window.setBetaGrant(false);return window.calls.length;});
  assert.equal(await p.evaluate(()=>window.betaCurrent('11111111-1111-4111-8111-111111111111')),false);
- await p.getByRole('button',{name:'Review my results',exact:true}).click();await p.getByRole('button',{name:'Use AI for this review',exact:true}).click();
+ await p.getByRole('button',{name:'Review my results',exact:true}).click();
  await p.getByText('Your session changed. Sign in again to ask Cova.',{exact:true}).waitFor();
  assert.equal(await p.evaluate(()=>window.calls.length),beforeBetaGrant);assert.equal(await p.locator('[data-cova-answer]').count(),0);
  report.checks.push('default authority denies a live storage owner without a verified beta grant');
  await p.getByRole('button',{name:'Clear conversation',exact:true}).click();await p.evaluate(()=>window.setBetaGrant(true));
  assert.equal(await p.evaluate(()=>window.betaCurrent('11111111-1111-4111-8111-111111111111')),true);
- await p.getByRole('button',{name:'Review my results',exact:true}).click();await p.getByRole('button',{name:'Use AI for this review',exact:true}).click();await p.locator('[data-cova-answer]').waitFor();
+ await p.getByRole('button',{name:'Review my results',exact:true}).click();await p.locator('[data-cova-answer]').waitFor();
  await p.evaluate(()=>localStorage.removeItem('cova-active-storage-identity-v1'));await p.getByRole('button',{name:'Show trades',exact:true}).click();
  assert.equal(await p.locator('dialog').count(),0);assert.equal(await p.locator('[data-cova-answer]').count(),0);
  report.checks.push('F-02 default authority reads the live storage owner before evidence actions');
  await p.getByRole('button',{name:'Clear conversation',exact:true}).click();
  await p.evaluate(()=>localStorage.setItem('cova-active-storage-identity-v1','11111111-1111-4111-8111-111111111111'));
- await p.getByRole('button',{name:'Review my results',exact:true}).click();await p.getByRole('button',{name:'Use AI for this review',exact:true}).click();await p.locator('[data-cova-answer]').waitFor();
+ await p.getByRole('button',{name:'Review my results',exact:true}).click();await p.locator('[data-cova-answer]').waitFor();
  const beforeBetaRemoval=await p.evaluate(()=>{window.removeBetaGrant();return window.calls.length;});
  assert.equal(await p.evaluate(()=>window.betaCurrent('11111111-1111-4111-8111-111111111111')),false);
  await p.getByRole('button',{name:'Show trades',exact:true}).click();
  assert.equal(await p.locator('dialog').count(),0);assert.equal(await p.locator('[data-cova-answer]').count(),0);
  await p.getByRole('button',{name:'Clear conversation',exact:true}).click();
- await p.getByRole('button',{name:'Review my results',exact:true}).click();await p.getByRole('button',{name:'Use AI for this review',exact:true}).click();
+ await p.getByRole('button',{name:'Review my results',exact:true}).click();
  await p.getByText('Your session changed. Sign in again to ask Cova.',{exact:true}).waitFor();
  assert.equal(await p.evaluate(()=>window.calls.length),beforeBetaRemoval);assert.equal(await p.locator('[data-cova-answer]').count(),0);
  await p.evaluate(()=>localStorage.removeItem('cova-active-storage-identity-v1'));
- report.checks.push('removed beta grant blocks retained evidence and new consent without changing component props');
+ report.checks.push('removed beta grant blocks retained evidence and new deliberate questions without changing component props');
  await p.getByRole('button',{name:'Clear conversation',exact:true}).click();await p.evaluate(()=>window.showAsk());
  // F-01: exercise the actual evidence action, not only the answer bubble.
  const moneyRow=(id,pnl,extra={})=>({id,date:'2026-10-30',market:'NQ',side:'Long',contracts:1,entry:100,exit:101,pnl,risk:5,riskStatus:'provided',setup:'',notes:'SYNTHETIC note',...extra});
@@ -148,7 +148,7 @@ try{
   {choice:'invalid_money',rows:[invalid],expected:[['manual-invalid','Unavailable (invalid money)','Planned riskUnavailable (invalid money)']]},
  ]){
   await p.evaluate(({choice,rows})=>{window.choice=choice;window.showAsk(true,'all','all',rows);},sample);
-  await p.getByRole('button',{name:'Review my results',exact:true}).click();await p.getByRole('button',{name:'Use AI for this review',exact:true}).click();await p.locator('[data-cova-answer]').waitFor();
+  await p.getByRole('button',{name:'Review my results',exact:true}).click();await p.locator('[data-cova-answer]').waitFor();
   await p.getByRole('button',{name:'Show trades',exact:true}).click();await p.locator('dialog').waitFor();
   for(const [id,pnl,risk] of sample.expected){
    const row=p.locator(`[data-history-trade="${id}"]`);
@@ -160,7 +160,7 @@ try{
  }
  for(const change of ['owner','account','range','readiness','annotation']){
   await p.evaluate(()=>{window.choice='result';window.showAsk();});
-  await p.getByRole('button',{name:'Review my results',exact:true}).click();await p.getByRole('button',{name:'Use AI for this review',exact:true}).click();await p.locator('[data-cova-answer]').waitFor();
+  await p.getByRole('button',{name:'Review my results',exact:true}).click();await p.locator('[data-cova-answer]').waitFor();
   await p.getByRole('button',{name:'Tell me more',exact:true}).click();
   await p.evaluate(change=>{
    if(change==='owner')window.showAsk(true,'local','all',undefined,true,'33333333-3333-4333-8333-333333333333');

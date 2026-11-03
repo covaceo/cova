@@ -4,7 +4,7 @@ import {build} from 'vite';
 import {mkdirSync,writeFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
-const out=resolve('../ask-cova-beta-evidence/client');mkdirSync(out,{recursive:true});
+const out=resolve(process.env.ASK_COVA_EVIDENCE_ROOT || '../ask-cova-insights-evidence/interaction','beta-client');mkdirSync(out,{recursive:true});
 const result=await build({configFile:false,envDir:false,logLevel:'error',ssr:{noExternal:true},build:{ssr:'src/lib/askCovaClient.ts',write:false,target:'node24'}});
 const file=resolve(out,'beta-client.mjs');writeFileSync(file,result.output[0].code);
 const mod=await import(pathToFileURL(file));

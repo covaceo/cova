@@ -6,7 +6,7 @@ const { createWorkspaceHandler } = load('server/workspace.ts');
 const A = '11111111-1111-4111-8111-111111111111';
 const B = '22222222-2222-4222-8222-222222222222';
 const env = { WORKSPACE_SYNC_PROJECT_REF: 'aaaaaaaaaaaaaaaaaaaa', SUPABASE_URL: 'https://aaaaaaaaaaaaaaaaaaaa.supabase.co', ASK_COVA_ENABLED: 'true', OPENAI_API_KEY: 'synthetic-only-not-a-real-credential', ASK_COVA_BUDGET_ID: 'synthetic-campaign', ASK_COVA_BUDGET_MICRO_USD: '1000000', KV_REST_API_URL: 'https://synthetic.upstash.io', KV_REST_API_TOKEN: 'synthetic-only-not-a-credential-123456789' };
-const body = { action: 'ask_cova', owner: A, account: 'all', range: 'all', question: 'review_results', contextDigest: 'a'.repeat(64), consentVersion: 'ask-cova-v1', requestId: '33333333-3333-4333-8333-333333333333' };
+const body = { action: 'ask_cova', owner: A, account: 'all', range: 'all', question: 'review_results', contextDigest: 'a'.repeat(64), protocolVersion: 'ask-cova-v2', requestId: '33333333-3333-4333-8333-333333333333' };
 async function response(invoke) {
   let status, payload; const headers = {};
   await invoke({ setHeader(k, v) { headers[k] = v; }, status(n) { status = n; return this; }, json(p) { payload = p; return this; } });
@@ -208,7 +208,7 @@ test('exact authenticated beta account reaches existing snapshot validation only
   const environment = { ...env, ASK_COVA_BETA_USER_ID: A };
   const r = await direct({ environment });
   assert.equal(r.status, 503); assert.deepEqual(r.events, ['snapshot']);
-  for (const request of [{ ...body, owner: B }, { ...body, email: 'synthetic@example.invalid' }, { ...body, consentVersion: 'wrong' }]) {
+  for (const request of [{ ...body, owner: B }, { ...body, email: 'synthetic@example.invalid' }, { ...body, protocolVersion: 'wrong' }]) {
     const rejected = await direct({ environment, request });
     assert.equal(rejected.status, 400); assert.deepEqual(rejected.events, []);
   }

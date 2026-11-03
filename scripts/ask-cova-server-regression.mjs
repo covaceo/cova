@@ -9,7 +9,7 @@ const A = '11111111-1111-4111-8111-111111111111';
 const B = '22222222-2222-4222-8222-222222222222';
 const requestId = '33333333-3333-4333-8333-333333333333';
 const env = { WORKSPACE_SYNC_PROJECT_REF: 'aaaaaaaaaaaaaaaaaaaa', SUPABASE_URL: 'https://aaaaaaaaaaaaaaaaaaaa.supabase.co', ASK_COVA_ENABLED: 'true', ASK_COVA_BETA_USER_ID: A, OPENAI_API_KEY: 'synthetic-only-not-a-real-credential', ASK_COVA_BUDGET_ID: 'synthetic-campaign', ASK_COVA_BUDGET_MICRO_USD: '1000000', KV_REST_API_URL: 'https://synthetic.upstash.io', KV_REST_API_TOKEN: 'synthetic-only-not-a-credential-123456789' };
-const body = { action: 'ask_cova', owner: A, account: 'Tradovate:7', range: 'all', question: 'review_results', contextDigest: 'a'.repeat(64), consentVersion: 'ask-cova-v1', requestId };
+const body = { action: 'ask_cova', owner: A, account: 'Tradovate:7', range: 'all', question: 'review_results', contextDigest: 'a'.repeat(64), protocolVersion: 'ask-cova-v2', requestId };
 async function request(handler, bodyValue = body, method = 'POST') {
   let status, payload; const headers = {};
   await handler({ method, url: '/api/workspace', body: bodyValue }, { setHeader(k,v) { headers[k] = v; }, status(n) { status = n; return this; }, json(p) { payload = p; return this; } });
@@ -25,7 +25,7 @@ const providerResult = (choice_id = 'result') => ({ model: 'gpt-6-luna', status:
 async function fixture(options = {}) {
   const rows = options.rows || [rawRecord(savedTrade()), rawRecord(savedTrade('other', '8'))];
   const trades = rows.filter(r => !r.deleted_at && r.kind === 'trade').map(r => r.payload);
-  const catalog = await core.buildAskCovaCatalog({ ownerId: A, account: body.account, range: body.range, question: body.question, trades });
+  const catalog = await core.buildAskCovaCatalog({ ownerId: A, account: body.account, range: body.range, question: core.isAskCovaQuestion(options.body?.question) ? options.body.question : body.question, trades });
   const events = [], requests = [];
   const rest = options.rest || (async (path, o) => {
     events.push(path); assert.equal(o.query.owner_id, 'eq.' + A);
@@ -291,14 +291,32 @@ test('provider envelope rejects tools, roles, model drift, duplicate keys and un
   assert.equal((await request(f.handler, f.body)).status, 502);
 });
 
-test('request boundary rejects absent consent, forged fields and bodies over 4 KiB before storage/permit', async () => {
-  for (const change of [ { consentVersion: 'wrong' }, { consentVersion: undefined }, { trades: [] }, { metrics: {} }, { requestId: 'bad' }, { account: 'arbitrary' }, { range: 'year' }, { question: 'write_advice' }, { contextDigest: 'bad' } ]) {
+test('request boundary rejects absent protocol, legacy consent, forged fields and bodies over 4 KiB before storage/permit', async () => {
+  for (const change of [ { protocolVersion: 'wrong' }, { protocolVersion: undefined }, { consentVersion: 'ask-cova-v1' }, { trades: [] }, { metrics: {} }, { requestId: 'bad' }, { account: 'arbitrary' }, { range: 'year' }, { question: 'write_advice' }, { contextDigest: 'bad' } ]) {
     const f = await fixture({ body: change }); const r = await request(f.handler, f.body);
     assert.equal(r.status, 400, JSON.stringify(change)); assert.deepEqual(f.events, []);
   }
   const f = await fixture();
   const r = await request(f.handler, ' '.repeat(4096) + JSON.stringify(f.body));
   assert.equal(r.status, 413); assert.deepEqual(f.events, []);
+});
+
+test('all seven questions share checked saved digest, bounded provider payload and local-only setup labels', async () => {
+  for (const question of core.ASK_COVA_QUESTION_IDS) {
+    const f = await fixture({ body: { question } });
+    const result = await request(f.handler, f.body);
+    assert.equal(result.status, 200, question);
+    assert.equal(result.payload.contextDigest, f.catalog.contextDigest);
+    assert.deepEqual(result.payload.selection, { choice_id: f.catalog.candidates[0].id, style: 'warm' });
+    assert.equal(f.requests.length, 1);
+    assert.ok(Buffer.byteLength(f.requests[0].body) <= 24000);
+    const payload = JSON.parse(f.requests[0].body);
+    assert.ok(Buffer.byteLength(payload.input[1].content) <= 8192);
+    assert.ok(JSON.parse(payload.input[1].content).choices.length <= 3);
+    assert.equal(payload.max_output_tokens, 120);
+    assert.doesNotMatch(f.requests[0].body, /PRIVATE|tradovate-7|Tradovate:7|11111111/);
+    assert.equal(f.events.filter(x => x === 'permit').length, 1);
+  }
 });
 
 test('real server uses complete owner saved snapshot and returns checked selection only', async () => {
