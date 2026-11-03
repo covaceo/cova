@@ -25,7 +25,8 @@
   box-shadow: 0 8px 24px #00000038;
   font: 500 14px/20px Inter, Arial, sans-serif;
   text-align: center;
-  pointer-events: auto;
+  /* Informational only: never intercept navigation beneath this notice. */
+  pointer-events: none;
 }
 .cova-sign-in-toast-surface svg {
   flex: 0 0 16px;

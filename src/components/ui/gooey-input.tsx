@@ -189,6 +189,20 @@ export function GooeyInput({
   const surfaceClass =
     "bg-foreground text-background shadow-sm ring-1 ring-border/60";
 
+  // A dialog opener stays anchored to its rail. The inline field's detached
+  // bubble/filter and width/offset animation must not move or blur this control.
+  if (onActivate) return (
+    <div ref={hostRef} data-gooey-input className={cn("relative flex items-center", className, classNames?.root)}>
+      <button type="button" disabled={disabled} onClick={handleExpand}
+        aria-label={placeholder === "Search" ? "Search workspace" : placeholder}
+        title={placeholder === "Search" ? "Search workspace" : placeholder}
+        aria-expanded={isExpanded} aria-haspopup="dialog"
+        className={cn("flex w-full items-center gap-3", classNames?.trigger)}>
+        <SearchIcon layoutId={iconLayoutId} /><span>{placeholder}</span>
+      </button>
+    </div>
+  );
+
   return (
     <div
       ref={hostRef}

@@ -88,7 +88,7 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
         <button className="workspace-sidebar-toggle" type="button" aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!collapsed} aria-controls="cova-workspace-sidebar" title={collapsed ? "Expand sidebar" : "Collapse sidebar"} onClick={() => setCollapsed(value => !value)}>
           {collapsed ? <ArrowRight aria-hidden="true" /> : <ArrowLeft aria-hidden="true" />}
         </button>
-        <GooeyInput open={searchOpen} onActivate={() => searchController.current?.open()} placeholder="Search" collapsedWidth={collapsed ? 40 : 164} expandedWidth={collapsed ? 40 : 152} className="cova-gooey-search" classNames={{trigger:"cova-gooey-search-surface",input:"cova-gooey-search-input",bubbleSurface:"cova-gooey-search-bubble"}} />
+        <GooeyInput open={searchOpen} onActivate={() => searchController.current?.open()} placeholder="Search" className="cova-gooey-search" classNames={{trigger:"cova-gooey-search-surface",input:"cova-gooey-search-input",bubbleSurface:"cova-gooey-search-bubble"}} />
 
         <button className="astra-rail-account" aria-label="Accounts" title={`Accounts: ${brokerLabel}`} aria-current={isWorkspaceNavActive(section, "import") ? "page" : undefined} onClick={() => go("import")} type="button"><WorkspaceNavIcon section="import" /><span className="astra-rail-account-copy"><strong>Accounts</strong><small>{brokerLabel}</small></span><ChevronRight aria-hidden="true" /></button>
 
