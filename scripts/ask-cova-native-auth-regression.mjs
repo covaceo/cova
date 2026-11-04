@@ -40,7 +40,7 @@ const baseEnv = {
   KV_REST_API_URL: 'https://synthetic.upstash.io', KV_REST_API_TOKEN: 'synthetic-only-not-a-credential-123456789',
 };
 const askBody = owner => ({ action: 'ask_cova', owner, account: 'all', range: 'all',
-  question: 'review_results', contextDigest: 'a'.repeat(64), protocolVersion: 'ask-cova-v2', requestId: operationId });
+  question: 'review_results', contextDigest: 'a'.repeat(64), protocolVersion: 'ask-cova-v3', requestId: operationId });
 const settings = { disclosure_version: 'workspace-cloud-v1', revision: 1, pending_manifest: null };
 function fixture(t, { user = B, policy = true, validSession = true, env = {}, billingPlan = 'free' } = {}) {
   const saved = { ...process.env };

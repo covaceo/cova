@@ -1,4 +1,5 @@
 import type { Trade } from './risk';
+import { parseAskCovaAnswer, tokenizeAskCovaParagraph, type AskCovaFactPacket } from './askCovaVoice';
 import { insightReview, insightComparisons, insightSubset, validatedSetup, sumAskCovaMoney } from './askCovaInsights';
 import { cents } from './journalAccuracy';
 import { filterTradeAccount, tradeAccountKey as getTradeAccountKey } from './tradovateHistory';
@@ -17,6 +18,7 @@ export const ASK_COVA_QUESTIONS: { id: AskCovaQuestion; label: string }[] = [
 export type AskCovaCatalog = {
   contextDigest: string;
   question: AskCovaQuestion;
+  /** Legacy financial regression scaffolding; never provider input or live rendered copy. */
   candidates: { id: string; variants: Record<AskCovaStyle, string>; detail: string; tradeIds: string[] }[];
   tradeIds: string[];
   start: string | null;
@@ -25,6 +27,7 @@ export type AskCovaCatalog = {
 type Candidate = AskCovaCatalog['candidates'][number];
 type Variants = Record<AskCovaStyle, string>;
 const providerVariants = new WeakMap<Candidate, Variants>();
+const drawdownMirrors = new WeakMap<Candidate, {maximum:bigint; peak:bigint; trough:bigint; code:string; basis:string}>();
 type Input = { ownerId: string; account: string; range: 'today' | 'week' | 'all'; question: AskCovaQuestion; trades: readonly Trade[] };
 function candidate(id: string, plain: string, warm: string, direct: string, detail: string, tradeIds: string[] = [], safe: Variants = { plain, warm, direct }): Candidate {
   const fits = (text: string, words: number, characters: number) => text.length > 0 && text.length <= characters && text.trim().split(/\s+/).length <= words;
@@ -136,11 +139,13 @@ function compile(rows: Trade[], question: AskCovaQuestion): Candidate[] {
     const decline = money(maximum, currency(rows[0])!);
     const path = maximum === 0n ? 'The running result never fell below an earlier peak.'
       : `The running result fell from ${money(maximumPeak, currency(rows[0])!)} to ${money(maximumTrough, currency(rows[0])!)}.`;
-    return [candidate('drawdown',
+    const item = candidate('drawdown',
       maximum === 0n ? `There was no drawdown between reported results: ${decline} (${qualifier}).` : `Your biggest dip was ${decline} (${qualifier}), measured between reported results.`,
       maximum === 0n ? `No dip between these results. Drawdown was ${decline} (${qualifier}).` : `The biggest dip was ${decline} (${qualifier}). That's how far your running result fell from an earlier peak.`,
       maximum === 0n ? `No drawdown between reported results: ${decline} (${qualifier}).` : `Your running result fell ${decline} from peak to trough (${qualifier}).`,
-      `${path} Maximum decline: ${decline} (${qualifier}). The calculation starts at an initial zero before this range, not at your account balance. It excludes price changes while trades were open. ${caveat}`, ids)];
+      `${path} Maximum decline: ${decline} (${qualifier}). The calculation starts at an initial zero before this range, not at your account balance. It excludes price changes while trades were open. ${caveat}`, ids);
+    drawdownMirrors.set(item,{maximum,peak:maximumPeak,trough:maximumTrough,code:currency(rows[0])!,basis:qualifier});
+    return [item];
   }
   const amount = money(total, currency(rows[0])!);
   const review = insightReview(rows, currency(rows[0])!);
@@ -185,7 +190,83 @@ function financialEvidence(row: Trade) {
 
 // Catalogs are process-local capabilities, not client-authored documents.
 const issuedCatalogs = new WeakSet<AskCovaCatalog>();
-const providerChoices = new WeakMap<AskCovaCatalog, { id: string; variants: Variants }[]>();
+type VoiceAuthority = { packet: AskCovaFactPacket; supports: Record<string, string[]>; aliases: Record<string, string>; notices: string[] };
+const voiceAuthorities = new WeakMap<AskCovaCatalog, VoiceAuthority>();
+function basisNotices(value: string): string[] {
+  return value==='self-reported net'?[]:[value==='gross, before fees'?'Gross, before fees.':'Fees not reconciled.'];
+}
+function voiceFacts(rows: Trade[], question: AskCovaQuestion, compiled: Candidate): VoiceAuthority {
+  const packet: AskCovaFactPacket = {version:'ask-cova-facts-v1',question,scope:'selected_range',facts:[],categories:[],coverage:[],observations:[],requiredAnswerEvidence:[]};
+  const unavailable = (): VoiceAuthority => {
+    packet.observations.push({id:'availability',kind:'availability',facts:[],categories:[],coverage:[],predicates:[compiled.id]});packet.requiredAnswerEvidence=['availability'];
+    return {packet,supports:{availability:rows.map(r=>r.id)},aliases:{},notices:[]};
+  };
+  if (!rows.length) return unavailable();
+  const drawdown = drawdownMirrors.get(compiled);
+  if (question==='explain_drawdown') {
+    if (!drawdown) return unavailable();
+    const count=insightReview(rows,drawdown.code).stats.count;
+    packet.coverage.push({id:'full',kind:'full_scope',totalGroups:count,usableGroups:count,sampleGroups:count,describedGroups:count,matched:null});
+    for (const [id,value] of [['drawdown',drawdown.maximum],['drawdown_peak',drawdown.peak],['drawdown_trough',drawdown.trough]] as const) packet.facts.push({id,kind:'money',value:money(value,drawdown.code).split(' ')[0].replace('−','-'),display:money(value,drawdown.code),currency:drawdown.code,basis:drawdown.basis,coverage:'full'});
+    packet.observations.push({id:'drawdown',kind:'drawdown',facts:packet.facts.map(f=>f.id),categories:[],coverage:['full'],predicates:['initial_zero_not_balance','reported_results_not_intratrade',drawdown.maximum===0n?'no_decline':'peak_to_trough_decline']});packet.requiredAnswerEvidence=['drawdown'];
+    return {packet,supports:{drawdown:rows.map(r=>r.id)},aliases:{},notices:basisNotices(drawdown.basis)};
+  }
+  const partial = !['result','losses_outweigh_gains'].includes(compiled.id);
+  const subset = partial ? insightSubset(rows,{currency,basis}) : null;
+  if (partial && !subset) return unavailable();
+  const code = subset?.code ?? currency(rows[0])!;
+  const stats = subset?.review.stats ?? insightReview(rows,code).stats;
+  const bases = new Set(rows.map(basis));
+  const reportedBasis = subset?.basis ?? (bases.size===1?basis(rows[0]):'mixed reported bases, fees not reconciled');
+  const total = subset?.total ?? sumAskCovaMoney(rows.map(row=>row.pnl));
+  const support = subset?.support ?? rows.map(r=>r.id);
+  packet.coverage.push({id:'full',kind:partial?'valid_subset':'full_scope',totalGroups:subset?.totalGroups ?? stats.count,usableGroups:stats.count,sampleGroups:stats.count,describedGroups:stats.count,matched:null});
+  packet.facts.push(
+    {id:'net',kind:'money',value:money(total,code).split(' ')[0].replace('−','-'),display:money(total,code),currency:code,basis:reportedBasis,coverage:'full'},
+    {id:'win_rate',kind:'percent',value:stats.winRate,display:stats.winRate+'%',currency:null,basis:reportedBasis,coverage:'full'},
+    {id:'profit_factor',kind:'ratio',value:stats.loss ? stats.profitFactor : null,display:stats.profitFactor,currency:null,basis:reportedBasis,coverage:'full'});
+  packet.observations.push({id:'overall',kind:'result',facts:['net'],categories:[],coverage:['full'],predicates:[total>0n?'positive_reported_result':total<0n?'negative_reported_result':'flat_reported_result']},
+    {id:'payoff',kind:'review',facts:['win_rate','profit_factor'],categories:[],coverage:['full'],predicates:[stats.profit>stats.loss?'gains_exceed_losses':stats.profit<stats.loss?'losses_exceed_gains':'gains_equal_losses']});
+  for (const [id,value] of [['group_count',stats.count],['wins',stats.wins],['losses',stats.losses],['breakevens',stats.breakeven]] as const) packet.facts.push({id,kind:'count',value:String(value),display:String(value),currency:null,basis:reportedBasis,coverage:'full'});
+  for (const [id,value] of [['mean_win',stats.meanWin],['mean_loss',stats.meanLoss]] as const) if(value!==null) packet.facts.push({id,kind:'money',value:value.replace('−','-'),display:value+' '+code,currency:code,basis:reportedBasis,coverage:'full'});
+  packet.observations[1].facts.push(...packet.facts.slice(3).map(f=>f.id));
+  packet.observations[1].predicates.push(stats.loss===0n?'profit_factor_undefined_no_losses':'profit_factor_defined','win_rate_includes_breakevens');
+  packet.requiredAnswerEvidence=['overall','payoff'];
+  const authority: VoiceAuthority = {packet,supports:{overall:support,payoff:support},aliases:{},notices:[...(partial?['Valid subset only.']:[]),...basisNotices(reportedBasis)]};
+  const comparisons = insightComparisons(rows,question,{currency,basis});
+  const absent=!!comparisons.selected && !comparisons.selected.categories.length;
+  const comparison = absent ? comparisons.alternative : comparisons.selected;
+  if (comparison?.categories.length) {
+    const categories = comparison.categories;
+    packet.coverage.push({id:'comparison',kind:'comparison_subset',totalGroups:comparison.total,usableGroups:comparison.usable,sampleGroups:comparison.sample,describedGroups:comparison.described,matched:comparison.matched});
+    const facts: string[] = [], categoryIds: string[] = [];
+    for (const [index,c] of categories.entries()) {
+      const suffix=index===0?'a':'b', id='category_'+suffix;
+      categoryIds.push(id); authority.aliases[id]=c.label;
+      packet.categories.push({id,description:comparison.privateLabels ? 'Category '+suffix.toUpperCase() : c.label});
+      for (const [name,value,kind] of [['mean',c.mean,'money'],['count',String(c.count),'count']] as const) {
+        const id=name+'_'+suffix; facts.push(id);
+        packet.facts.push({id,kind,value:value.replace('−','-'),display:kind==='money'?value+' '+comparison.code:value,currency:kind==='money'?comparison.code:null,basis:comparison.basis,coverage:'comparison'});
+      }
+    }
+    if (comparison.gap!==null) { facts.push('mean_gap'); packet.facts.push({id:'mean_gap',kind:'money',value:comparison.gap.replace('−','-'),display:comparison.gap+' '+comparison.code,currency:comparison.code,basis:comparison.basis,coverage:'comparison'}); }
+    for (const [id,value] of [['compared_count',comparison.sample],['usable_count',comparison.usable],['described_count',comparison.described],['comparison_total',comparison.total]] as const) {
+      facts.push(id);packet.facts.push({id,kind:'count',value:String(value),display:String(value),currency:null,basis:null,coverage:'comparison'});
+    }
+    const predicates=['descriptive_not_edge',comparison.matched?'matched_market_size_account':'unmatched_groups',comparison.tied?'means_tie':categories.length>1?'category_a_mean_higher':'one_category_only'];
+    if (comparison.sample<comparison.total) {predicates.push('comparison_partial');authority.notices.push('Comparison uses part of this range.');}
+    if (comparison.described<comparison.sample) {predicates.push('top_categories_only');authority.notices.push('Only the leading categories are described.');}
+    if (categories.length===2 && categories.every(c=>c.sign==='negative')) predicates.push('both_means_negative');
+    predicates.push(...categories.map((c,i)=>'category_'+(i===0?'a':'b')+'_mean_'+c.sign));
+    if(comparison.dimension==='Holding time' && comparisons.thresholdMinutes!==null) {facts.push('span_split_minutes');packet.facts.push({id:'span_split_minutes',kind:'duration',value:comparisons.thresholdMinutes,display:comparisons.thresholdMinutes+' minutes',currency:null,basis:null,coverage:'comparison'});predicates.push('observed_source_span_not_position','shorter_includes_median_longer_above');}
+    if(comparison.dimension==='Entry time') predicates.push('entry_clock_america_new_york_dst','earliest_verified_source_entry');
+    packet.observations.push({id:'comparison',kind:comparison.dimension.toLowerCase().replace(/ /g,'_'),facts,categories:categoryIds,coverage:['comparison'],predicates});
+    authority.supports.comparison=rows.map(r=>r.id);
+    packet.requiredAnswerEvidence=['holding_time','setup_performance','time_of_day','long_vs_short'].includes(question)?['comparison']:['overall','payoff','comparison'];
+  }
+  if(absent) {packet.observations.push({id:'dimension_availability',kind:'availability',facts:[],categories:[],coverage:[],predicates:['no_usable_'+question]});authority.supports.dimension_availability=[];packet.requiredAnswerEvidence.push('dimension_availability');}
+  return authority;
+}
 const STYLES: AskCovaStyle[] = ['plain', 'warm', 'direct'];
 
 export async function buildAskCovaCatalog(input: Input): Promise<AskCovaCatalog> {
@@ -211,7 +292,8 @@ export async function buildAskCovaCatalog(input: Input): Promise<AskCovaCatalog>
   const candidates = compile(rows, input.question);
   const safeChoices = candidates.map(item => Object.freeze({ id: item.id, variants: providerVariants.get(item)! }));
   const evidence = rows.map(financialEvidence);
-  const binding = JSON.stringify({ version: 'ask-cova-core-v1', owner: input.ownerId, account: input.account, range: input.range, question: input.question, start, end, evidence, candidates, safeChoices });
+  const voice = voiceFacts(rows, input.question, candidates[0]);
+  const binding = JSON.stringify({ version: 'ask-cova-core-v2', owner: input.ownerId, account: input.account, range: input.range, question: input.question, start, end, evidence, candidates, safeChoices, voice });
   const question = input.question;
   const hash = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(binding));
   const contextDigest = Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, '0')).join('');
@@ -219,22 +301,54 @@ export async function buildAskCovaCatalog(input: Input): Promise<AskCovaCatalog>
   for (const item of candidates) { Object.freeze(item.variants); Object.freeze(item.tradeIds); Object.freeze(item); }
   Object.freeze(candidates); Object.freeze(tradeIds); Object.freeze(catalog);
   issuedCatalogs.add(catalog);
-  providerChoices.set(catalog, safeChoices);
+  const freeze = (value: unknown): void => { if(value && typeof value==='object') { for(const child of Object.values(value)) freeze(child); Object.freeze(value); } };
+  freeze(voice);
+  voiceAuthorities.set(catalog, voice);
   return catalog;
 }
 
-/** Minimal selector input. Provider/model configuration belongs to the server. */
-export function askCovaModelPayload(catalog: AskCovaCatalog): unknown {
+/** Explicit provider-safe fact allowlist. No legacy phrases, labels or scope identities. */
+export function askCovaModelPayload(catalog: AskCovaCatalog): AskCovaFactPacket {
   if (!issuedCatalogs.has(catalog)) throw new Error('Invalid engine catalog');
-  // Checked facts with separately constructed categorical labels, never raw private prose.
-  // Return copies so a caller cannot change issued selector evidence or local render authority.
-  const choices = providerChoices.get(catalog)!.map(item => ({ id: item.id, variants: { ...item.variants } }));
-  const payload = { choices };
-  if (choices.length < 1 || choices.length > 3 || new TextEncoder().encode(JSON.stringify(payload)).byteLength > 8192) throw new Error('Invalid catalog payload bound');
-  return payload;
+  const packet=voiceAuthorities.get(catalog)!.packet;
+  if(packet.facts.length>24 || packet.observations.length>8 || packet.coverage.length>3 || packet.categories.length>2 || new TextEncoder().encode(JSON.stringify(packet)).byteLength>8192) throw Error('Invalid packet bound');
+  return structuredClone(packet);
 }
 
-/** Rebuild and compare contextDigest before accepting in-flight/cached selections or actions.
+export function renderAskCovaAnswer(catalog: AskCovaCatalog, value: unknown): { paragraphs: string[]; detail: string[]; scopeNotices: string[]; tradeIds: string[]; contextDigest: string } | null {
+  const authority = voiceAuthorities.get(catalog), answer = parseAskCovaAnswer(value);
+  if (!authority || !answer) return null;
+  const cited = new Set(answer.paragraphs.flatMap(p=>p.evidence));
+  if (authority.packet.requiredAnswerEvidence.some(id=>!cited.has(id))) return null;
+  try {
+    const render = (paragraph: typeof answer.paragraphs[number], detail: boolean) => {
+      const observations = paragraph.evidence.map(id=>authority.packet.observations.find(o=>o.id===id));
+      if (observations.some(o=>!o) || detail && paragraph.evidence.some(id=>!cited.has(id))) throw Error('Invalid evidence');
+      return tokenizeAskCovaParagraph(paragraph.text)!.map(node=>{
+        if (node.kind==='text') return node.text;
+        if (node.kind==='fact' && observations.some(o=>o!.facts.includes(node.id))) { const fact=authority.packet.facts.find(f=>f.id===node.id); if(fact) return fact.display; }
+        if (node.kind==='category' && observations.some(o=>o!.categories.includes(node.id)) && Object.prototype.hasOwnProperty.call(authority.aliases,node.id)) return authority.aliases[node.id];
+        throw Error('Unissued atom');
+      }).join('');
+    };
+    const paragraphs=answer.paragraphs.map(p=>render(p,false)), detail=answer.detail.map(p=>render(p,true));
+    const words=(parts:string[])=>parts.join(' ').trim().split(/\s+/).length;
+    if(words(paragraphs)>160 || words(detail)>80 || [...paragraphs,...detail].join('').length>4800) return null;
+    const scopeNotices=new Set<string>();
+    const references=authority.packet.observations.filter(o=>cited.has(o.id));
+    for(const coverage of authority.packet.coverage.filter(c=>references.some(o=>o.coverage.includes(c.id)))) {
+      if(coverage.kind==='valid_subset') scopeNotices.add('Valid subset only.');
+      if(coverage.kind==='comparison_subset' && coverage.sampleGroups<coverage.totalGroups) scopeNotices.add('Comparison uses part of this range.');
+      if(coverage.describedGroups<coverage.sampleGroups) scopeNotices.add('Only the leading categories are described.');
+      for(const fact of authority.packet.facts.filter(f=>f.coverage===coverage.id && f.basis && references.some(o=>o.facts.includes(f.id)))) for(const notice of basisNotices(fact.basis!)) scopeNotices.add(notice);
+    }
+    return {paragraphs,detail,scopeNotices:[...scopeNotices],tradeIds:[...new Set([...cited].flatMap(id=>authority.supports[id]))].filter(id=>catalog.tradeIds.includes(id)),contextDigest:catalog.contextDigest};
+  } catch { return null; }
+}
+
+/** Legacy regression oracle ONLY; no server/client/component caller accepts selections.
+ * Retained to independently preserve existing financial/string oracles during v3 migration.
+ * Rebuild and compare contextDigest before accepting in-flight/cached selections or actions.
  * A selection intentionally contains no context key; the caller owns the request epoch.
  * This digest binds evidence, not authentication. ownerId must come from trusted auth.
  */

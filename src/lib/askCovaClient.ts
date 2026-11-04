@@ -1,3 +1,5 @@
+import { uniqueJson } from './askCovaJson';
+import { parseAskCovaAnswer, type AskCovaAuthoredAnswer } from './askCovaVoice';
 import type { AskCovaQuestion } from './askCova';
 import { getSupabaseClient } from './supabaseClient';
 import { workspaceOwnerCurrent } from './workspaceClient';
@@ -46,14 +48,14 @@ export function createAskCovaTransport(owner: string, dependencies: {
   return transport;
 }
 
-export const ASK_COVA_PROTOCOL = 'ask-cova-v2';
+export const ASK_COVA_PROTOCOL = 'ask-cova-v3';
 export type AskCovaRequest = {
   owner: string; account: string; range: 'today' | 'week' | 'all';
   question: AskCovaQuestion;
   contextDigest: string; requestId: string;
 };
 export type AskCovaResponse =
-  | { status: 'ok'; aiResponseUsed: true; contextDigest: string; selection: { choice_id: string; style: 'plain' | 'warm' | 'direct' } }
+  | { status: 'ok'; aiResponseUsed: true; contextDigest: string; answer: AskCovaAuthoredAnswer }
   | { status: 'unavailable'; message: string };
 
 const MAX_RESPONSE_BYTES = 4096;
@@ -87,7 +89,7 @@ export async function requestAskCovaAccess(owner: string, signal: AbortSignal,
       }),
     ]);
     if (!response.ok) { cancelResponse(response); return false; }
-    const data: unknown = JSON.parse(await readBoundedResponse(response, controller.signal));
+    const data: unknown = uniqueJson(await readBoundedResponse(response, controller.signal));
     controller.signal.throwIfAborted();
     return current() && data !== null && typeof data === 'object' && !Array.isArray(data)
       && Object.keys(data).sort().join(',') === 'enabled,owner'
@@ -101,9 +103,9 @@ export async function requestAskCovaAccess(owner: string, signal: AbortSignal,
 function cancelResponse(response: Response) {
   void response.body?.cancel().catch(() => {});
 }
-async function readBoundedResponse(response: Response, signal: AbortSignal): Promise<string> {
+async function readBoundedResponse(response: Response, signal: AbortSignal, maxBytes = MAX_RESPONSE_BYTES): Promise<string> {
   const length = response.headers.get('Content-Length');
-  if (length !== null && Number(length) > MAX_RESPONSE_BYTES) {
+  if (length !== null && Number(length) > maxBytes) {
     cancelResponse(response);
     throw Error('Response too large');
   }
@@ -120,7 +122,7 @@ async function readBoundedResponse(response: Response, signal: AbortSignal): Pro
       signal.throwIfAborted();
       if (done) return text + decoder.decode();
       bytes += value.byteLength;
-      if (bytes > MAX_RESPONSE_BYTES) throw Error('Response too large');
+      if (bytes > maxBytes) throw Error('Response too large');
       text += decoder.decode(value, { stream: true });
     }
   } catch (error) {
@@ -150,15 +152,11 @@ export async function requestAskCova(input: AskCovaRequest, signal: AbortSignal,
         requestId: input.requestId, protocolVersion: ASK_COVA_PROTOCOL }),
     });
     if (!response.ok) { cancelResponse(response); return unavailable(response.status); }
-    const text = await readBoundedResponse(response, signal);
+    const text = await readBoundedResponse(response, signal, 8192);
     if (!current()) return unavailable(401);
-    const data = JSON.parse(text);
-    const selection = data?.selection;
-    if (data?.status !== 'ok' || data.aiResponseUsed !== true || data.contextDigest !== input.contextDigest ||
-      !selection || Object.keys(selection).sort().join(',') !== 'choice_id,style' ||
-      typeof selection.choice_id !== 'string' || !/^[a-z][a-z0-9_]{0,63}$/.test(selection.choice_id) ||
-      !['plain', 'warm', 'direct'].includes(selection.style)) return unavailable();
-    return { status: 'ok', aiResponseUsed: true, contextDigest: data.contextDigest,
-      selection: { choice_id: selection.choice_id, style: selection.style } };
+    const data = uniqueJson(text);
+    const answer = parseAskCovaAnswer(data?.answer);
+    if (!data || Object.keys(data).sort().join(',') !== 'aiResponseUsed,answer,contextDigest,status' || data.status !== 'ok' || data.aiResponseUsed !== true || data.contextDigest !== input.contextDigest || !answer) return unavailable();
+    return { status: 'ok', aiResponseUsed: true, contextDigest: data.contextDigest, answer };
   } catch { return unavailable(); }
 }

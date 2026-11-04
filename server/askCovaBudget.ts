@@ -2,11 +2,13 @@ import { createHash } from 'node:crypto';
 import { uuid } from '../src/lib/workspaceValidation';
 
 // Full-model Standard-tier bound, not a serialized-byte token estimate:
-// (922000 / 1e6 * $0.125 cache-write * 2 + 120 / 1e6 * $0.5 * 1.5)
-// * 1.10 regional premium = $0.253649; round UP to $0.26 per attempt.
-// GPT-6 Luna model documentation: maximum input and long-context pricing.
-// Assumes the caller remains pinned to default tier, <=120 output tokens,
-// and no billable tools. Re-evaluate this bound if those constraints change.
+// (922000 / 1e6 * $0.125 cache-write * 2 + 1024 / 1e6 * $0.5 * 1.5)
+// * 1.10 regional premium = $0.2543948; round UP to $0.26 per attempt.
+// GPT-6 Luna model/pricing/prompt-caching docs verified 2026-11-04 UTC.
+// Assumes default tier, <=1024 output tokens, reasoning none, no tools,
+// and explicit cache mode without breakpoints or TTL overrides (no writes).
+// The 30m write rate above remains a conservative overbound, not a discount.
+// Re-evaluate if model, pricing, tier, output, tool or cache constraints change.
 export const ASK_COVA_RESERVATION_MICRO_USD = 260_000;
 export const ASK_COVA_MAX_BUDGET_MICRO_USD = 10_000_000;
 const PREFIX = 'ask-cova:{reservation-v1}:';

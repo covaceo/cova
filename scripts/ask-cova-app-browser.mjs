@@ -1,4 +1,5 @@
-// Isolated full-App QA. Synthetic auth/cloud/provider selection only; no external calls.
+import {syntheticAnswer} from './helpers/ask-cova-authored-fixture.mjs';
+// Isolated full-App QA. Synthetic auth/cloud/provider authored answer only; no external calls.
 // Run with native node.exe scripts/ask-cova-app-browser.mjs from this checkout.
 import assert from 'node:assert/strict';
 import {build} from 'vite';
@@ -20,14 +21,14 @@ const {defaultRules}=load('src/lib/risk.ts');
 const owner='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const other='Manual:bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const names={local:'Sample review',[other]:'Sample second account'};
-const row=(pnl,index,account='local')=>({id:`manual-app-${account==='local'?'a':'b'}-${index}`,date:['2026-10-20','2026-10-24','2026-10-28','2026-10-30'][index],market:account==='local'?'NQ':'ES',side:'Long',contracts:1,entry:100,exit:101,pnl,risk:100,riskStatus:'provided',setup:'Sample pullback',notes:`Synthetic private note ${account==='local'?'A':'B'}${index}; never sent to selection.`,manual:{accountKey:account,currency:'USD',pnlBasis:'reported_net'}});
+const row=(pnl,index,account='local')=>({id:`manual-app-${account==='local'?'a':'b'}-${index}`,date:['2026-10-20','2026-10-24','2026-10-28','2026-10-30'][index],market:account==='local'?'NQ':'ES',side:'Long',contracts:1,entry:100,exit:101,pnl,risk:100,riskStatus:'provided',setup:'Sample pullback',notes:`Synthetic private note ${account==='local'?'A':'B'}${index}; never sent to authored answer.`,manual:{accountKey:account,currency:'USD',pnlBasis:'reported_net'}});
 const trades=[...[825,-275,450,350].map((v,i)=>row(v,i)),...[-900,75].map((v,i)=>row(v,i,other))];
 const euroAccount='Rithmic:synthetic_eur_account_key:EUR-SAMPLE';
 const euroTrade={id:'rithmic-app-eur-0',date:'2026-10-30',market:'FDAX',side:'Long',contracts:1,entry:100,exit:101,pnl:12.5,risk:25,riskStatus:'provided',setup:'Synthetic EUR review',notes:'Synthetic EUR private note',source:{provider:'Rithmic',accountKey:'synthetic_eur_account_key',accountId:'EUR-SAMPLE',currency:'EUR'}};
 const stamp='2026-10-30T16:00:00.000Z';
 const record=(kind,recordId,accountId,payload)=>({kind,recordId,accountId,schemaVersion:1,payload,revision:1,createdAt:stamp,updatedAt:stamp,deletedAt:null});
 const cloud=[...trades.map(t=>record('trade',t.id,t.manual.accountKey,t)),record('rules','current','all',{rules:defaultRules}),...Object.entries(names).map(([account,name])=>record('account',account,account,{name}))];
-const report={disclosure:'LOCAL FULL-APP PRODUCTION-MODE FIXTURE: synthetic manual USD records; mocked auth, saved-cloud snapshot, profile and provider SELECTION. Real App, canonical entry/CSS, workspace sync, client transport and shared deterministic core. No provider/backend execution, paid calls, customer records, credentials or deployment.',base:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),samples:[...trades,euroTrade],sourceHashes:{},builds:[],checks:[],failures:[],errors:[],externalBlocked:[],requests:[],screenshots:[],measurements:[],comparisons:[]};
+const report={disclosure:'LOCAL FULL-APP PRODUCTION-MODE FIXTURE: synthetic manual USD records; mocked auth, saved-cloud snapshot, profile and provider AUTHORED ANSWER. Real App, canonical entry/CSS, workspace sync, client transport and shared deterministic core. No provider/backend execution, paid calls, customer records, credentials or deployment.',base:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),samples:[...trades,euroTrade],sourceHashes:{},builds:[],checks:[],failures:[],errors:[],externalBlocked:[],requests:[],screenshots:[],measurements:[],comparisons:[]};
 const hashFile=file=>createHash('sha256').update(readFileSync(file)).digest('hex');
 for(const f of ['src/App.tsx','src/components/DashboardView.tsx','src/components/AskCova.tsx','src/components/TradeHistoryDialog.tsx','src/lib/askCova.ts','src/lib/askCovaClient.ts','src/lib/askCovaIntent.ts','src/styles/askCova.css','src/main.tsx','scripts/ask-cova-app-browser.mjs','scripts/helpers/load-ts.cjs','scripts/helpers/account-picker.mjs'])report.sourceHashes[f]=hashFile(path.join(root,f));
 report.buildSourceHashes={};report.baselineSourceHashes={};
@@ -40,7 +41,7 @@ function hasVisibleFocus(focus){
  return Boolean(focus.active===true&&focus.visible===true&&focus.outlineStyle==='solid'&&width&&Number.isFinite(Number(width[1]))&&Number(width[1])>=1&&color&&color.slice(1).every(channel=>Number(channel)<=255));
 }
 const baselineFiles=['src/App.tsx','src/components/DashboardView.tsx','src/components/TradeHistoryDialog.tsx'];
-const fixtureLabel='LOCAL QA · Synthetic trades · Mock auth/cloud/AI selection · No paid calls';
+const fixtureLabel='LOCAL QA · Synthetic trades · Mock auth/cloud/AI authored answer · No paid calls';
 function isolation(variant){return {name:'ask-cova-full-app-isolation',enforce:'pre',load(id){
  const rel=path.relative(root,id).replaceAll('\\','/');
  // Record every local module/asset actually loaded, including transitive canonical CSS.
@@ -100,17 +101,17 @@ try{
      }
      if(body.action!=='ask_cova'){state.writes.push(body);return route.fulfill({status:403,json:{error:'Read-only QA; unintended write blocked'}});}
      try{
-      assert.equal(body.owner,owner);assert.equal(body.protocolVersion,'ask-cova-v2');
+      assert.equal(body.owner,owner);assert.equal(body.protocolVersion,'ask-cova-v3');
       assert.equal(req.headers().authorization,'Bearer synthetic-qa-token');
       assert.deepEqual(Object.keys(body).sort(),['action','owner','account','range','question','contextDigest','requestId','protocolVersion'].sort());
       const catalog=await core.buildAskCovaCatalog({ownerId:owner,account:body.account,range:body.range,question:body.question,trades:scenarioCloud.filter(r=>r.kind==='trade').map(r=>r.payload)});
       assert.equal(body.contextDigest,catalog.contextDigest,'Shared core recomputes digest from complete synthetic cloud snapshot');
       const choice=catalog.candidates.find(c=>c.id==='result')||catalog.candidates[0];
-      const selection={choice_id:choice.id,style:'warm'};
-      const reply=core.renderAskCovaSelection(catalog,selection);assert(reply);
-      state.asks.push({body,selection,reply});
+      const answer=syntheticAnswer(core.askCovaModelPayload(catalog),'warm');
+      const rendered=core.renderAskCovaAnswer(catalog,answer);assert(rendered);const reply={...rendered,answer:rendered.paragraphs.join(' '),detail:rendered.detail.join(' ')};
+      state.asks.push({body,answer,reply});
       if(state.holdNextAsk){state.holdNextAsk=false;state.requestHeld=true;await new Promise(resolve=>{state.releaseHeld=resolve;});state.requestHeld=false;state.releaseHeld=null;}
-      return route.fulfill({json:{status:'ok',aiResponseUsed:true,contextDigest:catalog.contextDigest,selection},headers:{'X-Cova-QA':'mock-provider-selection-no-paid-call'}});
+      return route.fulfill({json:{status:'ok',aiResponseUsed:true,contextDigest:catalog.contextDigest,answer},headers:{'X-Cova-QA':'mock-provider-authored-answer-no-paid-call'}});
      }catch(error){report.failures.push({name:id+' mock boundary validation',detail:String(error)});return route.fulfill({status:409,json:{error:'Fixture shared-core validation failed'}});}
     }
     if(req.method()!=='GET'){state.writes.push({url:url.pathname,body:req.postData()});return route.fulfill({status:403,json:{error:'Read-only fixture'}});}
@@ -202,7 +203,7 @@ try{
    await screenshot(s,'direct-action','[data-ask-cova]');
    const reply=s.asks.at(-1).reply;check(s.id+' initial result is exact',await p.locator('[data-cova-answer]').innerText()===reply.answer,reply);
    await measure(s,'answer');await hitTargets(s,'answer');await screenshot(s,'answer');
-   const calls=s.asks.length;await p.getByRole('button',{name:'Tell me more',exact:true}).click();check(s.id+' deterministic detail no second request',await p.locator('[data-cova-detail]').innerText()===reply.detail&&s.asks.length===calls);
+   const calls=s.asks.length;await p.getByRole('button',{name:'Tell me more',exact:true}).click();check(s.id+' precomputed authored detail no second request',await p.locator('[data-cova-detail]').innerText()===reply.detail&&s.asks.length===calls);
    await screenshot(s,'expanded','[data-ask-cova]');await evidence(s,reply,'all');
    await p.getByRole('button',{name:'Latest session',exact:true}).click();check(s.id+' date invalidates answer and detail',await p.locator('[data-cova-answer],[data-cova-detail]').count()===0);
    const latest=await ask(s);check(s.id+' latest scope one exact trade',JSON.stringify(latest.tradeIds)===JSON.stringify(['manual-app-a-3']));await evidence(s,latest,'latest');

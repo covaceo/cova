@@ -101,7 +101,7 @@ test('digest binds sanitized financial evidence, validated local setup and wordi
     const bound = JSON.parse(bytes.toString());
     assert.equal(bound.start,actual.start); assert.equal(bound.end,actual.end);
     assert.deepEqual(bound.candidates,actual.candidates);
-    assert.deepEqual(bound.safeChoices,api().askCovaModelPayload(actual).choices,'digest also binds the exact provider-safe observations');
+    assert.deepEqual(bound.voice.packet,api().askCovaModelPayload(actual),'digest also binds the exact provider-safe observations');
     assert.ok(!bytes.toString().includes('notes'));
     const changedWording = Buffer.from(bytes.toString().replace('You finished','You wrapped up'));
     assert.notEqual(createHash('sha256').update(changedWording).digest('hex'),actual.contextDigest);
@@ -171,8 +171,8 @@ test('model payload is a bounded allowlist of checked choice IDs and short phras
     for (const trades of [[],[row('private-id',1)],[row('private-id',null)],[row('private-id',1,{manual:undefined})],[row('private-id',1),row('other',-2)],Array.from({length:10000},(_,i)=>row(`private-${i}`,0.01))]) {
       const catalog=await build(trades,{question});
       const payload=core.askCovaModelPayload(catalog);
-      assert.deepEqual(payload.choices.map(x=>x.id),catalog.candidates.map(x=>x.id));
-      for(const choice of payload.choices) assert.deepEqual(Object.keys(choice.variants),['plain','warm','direct']);
+      assert.equal(payload.version,'ask-cova-facts-v1');assert.ok(payload.facts.length<=24);assert.ok(payload.observations.length<=8);
+      assert.deepEqual(Object.keys(payload),['version','question','scope','facts','categories','coverage','observations','requiredAnswerEvidence']);
       const text=JSON.stringify(payload);
       assert.ok(Buffer.byteLength(text)<=8192);
       for (const forbidden of ['owner-secret','private-id','private-9999','tradeIds','contextDigest','2026-10-30','account','provider','notes','detail','apiKey']) assert.ok(!text.includes(forbidden),forbidden);

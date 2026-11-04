@@ -96,13 +96,14 @@ function median(values: bigint[]): string {
   const middle = Math.floor(sorted.length / 2);
   return sorted.length % 2 ? fixedRatio(sorted[middle], 100n, 2) : fixedRatio(sorted[middle - 1] + sorted[middle], 200n, 2);
 }
-type Comparison = { answer: string; providerAnswer: string; detail: string; compared: boolean };
+export type ComparisonMirror = { dimension: string; code: string | null; basis: string | null; total: number; usable: number; sample: number; described: number; matched: boolean | null; support: string[]; categories: { label: string; count: number; mean: string; median: string; sign: 'positive' | 'negative' | 'zero'; support: string[] }[]; gap: string | null; tied: boolean; privateLabels: boolean };
+type Comparison = { answer: string; providerAnswer: string; detail: string; compared: boolean; mirror: ComparisonMirror };
 function compareDimension(title: string, all: { units: Unit[]; count: number }, label: (unit: Unit) => string | null, privateLabels = false): Comparison {
   const usable = all.units.filter(unit => label(unit) !== null);
   const coverage = `${title}: ${usable.length}/${all.count} usable journal groups; ${all.count - usable.length} excluded.`;
   if (!usable.length) {
     const answer = `No usable ${title.toLowerCase()} evidence in this sample.`;
-    return { answer, providerAnswer: answer, detail: coverage, compared: false };
+    return { answer, providerAnswer: answer, detail: coverage, compared: false, mirror:{dimension:title,code:null,basis:null,total:all.count,usable:0,sample:0,described:0,matched:null,support:[],categories:[],gap:null,tied:false,privateLabels} };
   }
   const cohorts = new Map<string, Unit[]>();
   for (const unit of usable) {
@@ -135,7 +136,11 @@ function compareDimension(title: string, all: { units: Unit[]; count: number }, 
     return `${lead}${second ? ` versus ${describe(second, provider && privateLabels ? 'Category B' : second.name)}` : ''}. ${reason}${second && !tied ? ` ${reviewCue}` : ''} Comparison: ${sample[0].basis}. Descriptive sample; ${sample.length}/${all.count} compared journal groups.${second && !matched.length ? ' Unmatched groups.' : ''}`;
   };
   const detail = `${coverage} Comparing ${sample.length}/${usable.length} usable groups (${sample[0].basis}); ${usable.length - sample.length} outside the selected comparison. ${qualification} Selection: prefer the largest same-currency/basis cohort with multiple categories, then its largest same-market/account/reported-size stratum with multiple categories; otherwise use that currency/basis cohort. Rank by mean P&L per journal group, never summed P&L. ${ranked.slice(0, 3).map(item => `${describe(item)}, median ${item.median} ${sample[0].code}`).join('; ')}. ${ranked.length > 3 ? `${ranked.length - 3} additional categories not displayed.` : ''} Small samples and multiple comparisons do not establish an edge; reported size is not peak exposure.`;
-  return { answer: answerFor(false), providerAnswer: answerFor(true), detail, compared: !!second };
+  const mirror: ComparisonMirror = { dimension:title,code:sample[0].code,basis:sample[0].basis,total:all.count,usable:usable.length,sample:sample.length,described:ranked.slice(0,2).reduce((n,c)=>n+c.count,0),matched:!!matched.length,
+    support:all.units.flatMap(u=>u.rows.map(r=>r.id)),privateLabels,
+    categories:ranked.slice(0,2).map(c=>({label:c.name,count:c.count,mean:fixedRatio(c.sum,BigInt(c.count)*100n,2),median:c.median,sign:c.sum>0n?'positive':c.sum<0n?'negative':'zero',support:buckets.get(c.name)!.flatMap(u=>u.rows.map(r=>r.id))})),
+    gap:second?fixedRatio(first.sum*BigInt(second.count)-second.sum*BigInt(first.count),BigInt(first.count)*BigInt(second.count)*100n,2):null,tied:!!tied };
+  return { answer: answerFor(false), providerAnswer: answerFor(true), detail, compared: !!second, mirror };
 }
 /** Largest valid same-currency/basis subset, never an unsafe combined total. */
 export function insightSubset(rows: readonly Trade[], policy: Policy) {
@@ -151,7 +156,7 @@ export function insightSubset(rows: readonly Trade[], policy: Policy) {
   // Retain the full-scope validated partition: filtering rows and grouping again
   // could erase an excluded row's conflicting-fill veto and merge usable units.
   const review = reviewStatistics(statisticsForValues(cohort.map(unit => unit.pnl)), cohort[0].code);
-  return { review, total, code: cohort[0].code, basis: cohort[0].basis,
+  return { review, total, code: cohort[0].code, basis: cohort[0].basis, totalGroups:all.count, selectedGroups:cohort.length, support:cohort.flatMap(unit=>unit.rows.map(row=>row.id)),
     coverage: `Valid subset: ${cohort.length}/${all.count} journal groups; ${all.count - cohort.length} excluded from this subtotal. Largest usable same-currency/basis subset; other currencies, bases or invalid amounts are not combined.` };
 }
 export function insightComparisons(rows: readonly Trade[], question: AskCovaQuestion, policy: Policy) {
@@ -170,7 +175,7 @@ export function insightComparisons(rows: readonly Trade[], question: AskCovaQues
   const alternative = [setup, direction, holding, timing].find(item => item !== selected && item.compared);
   // Build both views from the same checked comparison. Never redact/replace labels in prose.
   const observationFor = (provider: boolean) => selected ? `${provider ? selected.providerAnswer : selected.answer}${qualifier}${!selected.compared && selected.answer.startsWith('No usable') && alternative ? ` Meanwhile, ${provider ? alternative.providerAnswer : alternative.answer}` : ''}` : null;
-  return { observation: observationFor(false), providerObservation: observationFor(true), detail: `${setup.detail} ${direction.detail} ${holding.detail} ${timing.detail} ${timingMethod}` };
+  return { selected: selected?.mirror ?? null, alternative: selected && !selected.mirror.categories.length ? alternative?.mirror ?? null : null, thresholdMinutes:threshold===null?null:(threshold/60000).toFixed(2), observation: observationFor(false), providerObservation: observationFor(true), detail: `${setup.detail} ${direction.detail} ${holding.detail} ${timing.detail} ${timingMethod}` };
 }
 
 /** All ratios and amounts are computed locally; no model-authored facts. */
@@ -206,5 +211,5 @@ function reviewStatistics(stats: ReturnType<typeof statisticsForValues>, code: s
       : stats.losses ? 'There are no winning groups in this sample. Review the losing outcomes for differences in setup and direction; these results alone do not explain why they lost.'
         : 'Every group broke even on the reported basis. Review the fee basis before interpreting a flat result as a cost-free outcome.';
   const definitions = `${stats.wins} wins, ${stats.losses} losses, ${stats.breakeven} breakeven; win rate includes breakevens in its denominator. Profit factor is summed positive group P&L / absolute summed negative group P&L, undefined with no losses. Verified fill links combine trims and scale-ins; journal groups are not certified completed positions. Unlinked records count individually. These are descriptive results, not a causal or durable edge. Planned risk is not required; no R is inferred.`;
-  return { metrics, observation, definitions };
+  return { metrics, observation, definitions, stats };
 }

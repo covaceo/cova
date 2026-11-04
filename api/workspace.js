@@ -570,6 +570,115 @@ function assertRecords(rows) {
 	}
 }
 //#endregion
+//#region src/lib/askCovaVoice.ts
+/** Shared browser/server authored-answer contract. No private evidence or transport. */
+var ASK_COVA_OUTPUT_TOKENS = 1024;
+var paragraphSchema = {
+	type: "object",
+	additionalProperties: false,
+	properties: {
+		text: { type: "string" },
+		evidence: {
+			type: "array",
+			items: { type: "string" }
+		}
+	},
+	required: ["text", "evidence"]
+};
+var ASK_COVA_ANSWER_SCHEMA = {
+	type: "object",
+	additionalProperties: false,
+	properties: {
+		version: {
+			type: "string",
+			enum: ["ask-cova-answer-v1"]
+		},
+		paragraphs: {
+			type: "array",
+			items: paragraphSchema
+		},
+		detail: {
+			type: "array",
+			items: paragraphSchema
+		}
+	},
+	required: [
+		"version",
+		"paragraphs",
+		"detail"
+	]
+};
+function tokenizeAskCovaParagraph(text) {
+	const nodes = [];
+	for (let cursor = 0; cursor < text.length;) if (text.startsWith("{{", cursor)) {
+		const token = /^\{\{([fc]):([a-z][a-z0-9_]{0,31})\}\}/.exec(text.slice(cursor));
+		if (!token) return null;
+		nodes.push({
+			kind: token[1] === "f" ? "fact" : "category",
+			id: token[2]
+		});
+		cursor += token[0].length;
+	} else {
+		let end = cursor;
+		while (end < text.length && text[end] !== "{" && text[end] !== "}") end++;
+		if (end === cursor) return null;
+		nodes.push({
+			kind: "text",
+			text: text.slice(cursor, end)
+		});
+		cursor = end;
+	}
+	return nodes;
+}
+function dataRecord(value, keys) {
+	if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+	const proto = Object.getPrototypeOf(value);
+	if (proto !== Object.prototype && proto !== null) return false;
+	const own = Reflect.ownKeys(value);
+	return own.length === keys.length && own.every((key) => typeof key === "string" && keys.includes(key) && "value" in Object.getOwnPropertyDescriptor(value, key));
+}
+function dataArray(value, max) {
+	if (!Array.isArray(value) || Object.getPrototypeOf(value) !== Array.prototype || value.length > max) return false;
+	const keys = Reflect.ownKeys(value);
+	return keys.length === value.length + 1 && keys.every((key) => key === "length" || typeof key === "string" && /^(0|[1-9][0-9]*)$/.test(key) && Number(key) < value.length && "value" in Object.getOwnPropertyDescriptor(value, key));
+}
+function parseAskCovaAnswer(value) {
+	try {
+		if (!dataRecord(value, [
+			"version",
+			"paragraphs",
+			"detail"
+		]) || value.version !== "ask-cova-answer-v1" || !dataArray(value.paragraphs, 2) || !value.paragraphs.length || !dataArray(value.detail, 1)) return null;
+		let characters = 0, slots = 0;
+		const parse = (items) => items.map((p) => {
+			if (!dataRecord(p, ["text", "evidence"]) || typeof p.text !== "string" || !p.text.trim() || p.text.length > 2200 || !dataArray(p.evidence, 4) || !p.evidence.length || p.evidence.some((id) => typeof id !== "string" || !/^[a-z][a-z0-9_]{0,31}$/.test(id)) || new Set(p.evidence).size !== p.evidence.length) throw Error("Invalid paragraph");
+			characters += p.text.length;
+			const nodes = tokenizeAskCovaParagraph(p.text);
+			if (!nodes) throw Error("Invalid atoms");
+			for (const node of nodes) {
+				if (node.kind !== "text") {
+					slots++;
+					continue;
+				}
+				if (/[\p{Nd}\p{Sc}%％‰‱<>`\\\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/u.test(node.text) || /(?:https?:|www\.|\]\(|category\s+[ab]\b)/i.test(node.text)) throw Error("Unsafe text");
+			}
+			return {
+				text: p.text,
+				evidence: p.evidence
+			};
+		});
+		const paragraphs = parse(value.paragraphs), detail = parse(value.detail);
+		if (characters > 3600 || slots > 32) return null;
+		return {
+			version: "ask-cova-answer-v1",
+			paragraphs,
+			detail
+		};
+	} catch {
+		return null;
+	}
+}
+//#endregion
 //#region src/lib/journalAccuracy.ts
 /** Journal v1 is read-only. Raw prices, annotations and the legacy score are not rewritten. */
 var MAX_CENTS = BigInt(Number.MAX_SAFE_INTEGER);
@@ -788,7 +897,22 @@ function compareDimension(title, all, label, privateLabels = false) {
 			answer,
 			providerAnswer: answer,
 			detail: coverage,
-			compared: false
+			compared: false,
+			mirror: {
+				dimension: title,
+				code: null,
+				basis: null,
+				total: all.count,
+				usable: 0,
+				sample: 0,
+				described: 0,
+				matched: null,
+				support: [],
+				categories: [],
+				gap: null,
+				tied: false,
+				privateLabels
+			}
 		};
 	}
 	const cohorts = /* @__PURE__ */ new Map();
@@ -828,11 +952,34 @@ function compareDimension(title, all, label, privateLabels = false) {
 		return `${second && !tied ? `“${name}” had the higher mean P&L: averaged ${fixedRatio(first.sum, BigInt(first.count) * 100n, 2)} ${sample[0].code} (n=${first.count})` : describe(first, name)}${second ? ` versus ${describe(second, provider && privateLabels ? "Category B" : second.name)}` : ""}. ${reason}${second && !tied ? ` ${reviewCue}` : ""} Comparison: ${sample[0].basis}. Descriptive sample; ${sample.length}/${all.count} compared journal groups.${second && !matched.length ? " Unmatched groups." : ""}`;
 	};
 	const detail = `${coverage} Comparing ${sample.length}/${usable.length} usable groups (${sample[0].basis}); ${usable.length - sample.length} outside the selected comparison. ${qualification} Selection: prefer the largest same-currency/basis cohort with multiple categories, then its largest same-market/account/reported-size stratum with multiple categories; otherwise use that currency/basis cohort. Rank by mean P&L per journal group, never summed P&L. ${ranked.slice(0, 3).map((item) => `${describe(item)}, median ${item.median} ${sample[0].code}`).join("; ")}. ${ranked.length > 3 ? `${ranked.length - 3} additional categories not displayed.` : ""} Small samples and multiple comparisons do not establish an edge; reported size is not peak exposure.`;
+	const mirror = {
+		dimension: title,
+		code: sample[0].code,
+		basis: sample[0].basis,
+		total: all.count,
+		usable: usable.length,
+		sample: sample.length,
+		described: ranked.slice(0, 2).reduce((n, c) => n + c.count, 0),
+		matched: !!matched.length,
+		support: all.units.flatMap((u) => u.rows.map((r) => r.id)),
+		privateLabels,
+		categories: ranked.slice(0, 2).map((c) => ({
+			label: c.name,
+			count: c.count,
+			mean: fixedRatio(c.sum, BigInt(c.count) * 100n, 2),
+			median: c.median,
+			sign: c.sum > 0n ? "positive" : c.sum < 0n ? "negative" : "zero",
+			support: buckets.get(c.name).flatMap((u) => u.rows.map((r) => r.id))
+		})),
+		gap: second ? fixedRatio(first.sum * BigInt(second.count) - second.sum * BigInt(first.count), BigInt(first.count) * BigInt(second.count) * 100n, 2) : null,
+		tied: !!tied
+	};
 	return {
 		answer: answerFor(false),
 		providerAnswer: answerFor(true),
 		detail,
-		compared: !!second
+		compared: !!second,
+		mirror
 	};
 }
 /** Largest valid same-currency/basis subset, never an unsafe combined total. */
@@ -853,6 +1000,9 @@ function insightSubset(rows, policy) {
 		total,
 		code: cohort[0].code,
 		basis: cohort[0].basis,
+		totalGroups: all.count,
+		selectedGroups: cohort.length,
+		support: cohort.flatMap((unit) => unit.rows.map((row) => row.id)),
 		coverage: `Valid subset: ${cohort.length}/${all.count} journal groups; ${all.count - cohort.length} excluded from this subtotal. Largest usable same-currency/basis subset; other currencies, bases or invalid amounts are not combined.`
 	};
 }
@@ -876,6 +1026,9 @@ function insightComparisons(rows, question, policy) {
 	].find((item) => item !== selected && item.compared);
 	const observationFor = (provider) => selected ? `${provider ? selected.providerAnswer : selected.answer}${qualifier}${!selected.compared && selected.answer.startsWith("No usable") && alternative ? ` Meanwhile, ${provider ? alternative.providerAnswer : alternative.answer}` : ""}` : null;
 	return {
+		selected: selected?.mirror ?? null,
+		alternative: selected && !selected.mirror.categories.length ? alternative?.mirror ?? null : null,
+		thresholdMinutes: threshold === null ? null : (threshold / 6e4).toFixed(2),
 		observation: observationFor(false),
 		providerObservation: observationFor(true),
 		detail: `${setup.detail} ${direction.detail} ${holding.detail} ${timing.detail} ${timingMethod}`
@@ -915,7 +1068,8 @@ function reviewStatistics(stats, code) {
 	return {
 		metrics: `Win rate ${stats.winRate}% and profit factor ${stats.profitFactor}, across ${stats.count} journal groups.`,
 		observation: stats.meanWin && stats.meanLoss ? `Winning groups averaged ${stats.meanWin} ${code}; losing groups averaged ${stats.meanLoss} ${code} in losses. ${stats.profit >= stats.loss ? "Gains covered losses" : "Losses outweighed gains"}, so review the balance of win size and loss size, not win rate alone.` : stats.wins ? "Only gains or breakevens appear here; without losses, profit factor cannot show the downside. Review these outcomes alongside a broader sample before treating them as a repeatable pattern." : stats.losses ? "There are no winning groups in this sample. Review the losing outcomes for differences in setup and direction; these results alone do not explain why they lost." : "Every group broke even on the reported basis. Review the fee basis before interpreting a flat result as a cost-free outcome.",
-		definitions: `${stats.wins} wins, ${stats.losses} losses, ${stats.breakeven} breakeven; win rate includes breakevens in its denominator. Profit factor is summed positive group P&L / absolute summed negative group P&L, undefined with no losses. Verified fill links combine trims and scale-ins; journal groups are not certified completed positions. Unlinked records count individually. These are descriptive results, not a causal or durable edge. Planned risk is not required; no R is inferred.`
+		definitions: `${stats.wins} wins, ${stats.losses} losses, ${stats.breakeven} breakeven; win rate includes breakevens in its denominator. Profit factor is summed positive group P&L / absolute summed negative group P&L, undefined with no losses. Verified fill links combine trims and scale-ins; journal groups are not certified completed positions. Unlinked records count individually. These are descriptive results, not a causal or durable edge. Planned risk is not required; no R is inferred.`,
+		stats
 	};
 }
 //#endregion
@@ -933,6 +1087,7 @@ function isAskCovaQuestion(value) {
 	return typeof value === "string" && ASK_COVA_QUESTION_IDS.includes(value);
 }
 var providerVariants = /* @__PURE__ */ new WeakMap();
+var drawdownMirrors = /* @__PURE__ */ new WeakMap();
 function candidate(id, plain, warm, direct, detail, tradeIds = [], safe = {
 	plain,
 	warm,
@@ -1105,7 +1260,15 @@ function compile(rows, question) {
 		}
 		const decline = money(maximum, currency(rows[0]));
 		const path = maximum === 0n ? "The running result never fell below an earlier peak." : `The running result fell from ${money(maximumPeak, currency(rows[0]))} to ${money(maximumTrough, currency(rows[0]))}.`;
-		return [candidate("drawdown", maximum === 0n ? `There was no drawdown between reported results: ${decline} (${qualifier}).` : `Your biggest dip was ${decline} (${qualifier}), measured between reported results.`, maximum === 0n ? `No dip between these results. Drawdown was ${decline} (${qualifier}).` : `The biggest dip was ${decline} (${qualifier}). That's how far your running result fell from an earlier peak.`, maximum === 0n ? `No drawdown between reported results: ${decline} (${qualifier}).` : `Your running result fell ${decline} from peak to trough (${qualifier}).`, `${path} Maximum decline: ${decline} (${qualifier}). The calculation starts at an initial zero before this range, not at your account balance. It excludes price changes while trades were open. ${caveat}`, ids)];
+		const item = candidate("drawdown", maximum === 0n ? `There was no drawdown between reported results: ${decline} (${qualifier}).` : `Your biggest dip was ${decline} (${qualifier}), measured between reported results.`, maximum === 0n ? `No dip between these results. Drawdown was ${decline} (${qualifier}).` : `The biggest dip was ${decline} (${qualifier}). That's how far your running result fell from an earlier peak.`, maximum === 0n ? `No drawdown between reported results: ${decline} (${qualifier}).` : `Your running result fell ${decline} from peak to trough (${qualifier}).`, `${path} Maximum decline: ${decline} (${qualifier}). The calculation starts at an initial zero before this range, not at your account balance. It excludes price changes while trades were open. ${caveat}`, ids);
+		drawdownMirrors.set(item, {
+			maximum,
+			peak: maximumPeak,
+			trough: maximumTrough,
+			code: currency(rows[0]),
+			basis: qualifier
+		});
+		return [item];
 	}
 	const amount = money(total, currency(rows[0]));
 	const review = insightReview(rows, currency(rows[0]));
@@ -1174,12 +1337,321 @@ function financialEvidence(row) {
 	};
 }
 var issuedCatalogs = /* @__PURE__ */ new WeakSet();
-var providerChoices = /* @__PURE__ */ new WeakMap();
-var STYLES = [
-	"plain",
-	"warm",
-	"direct"
-];
+var voiceAuthorities = /* @__PURE__ */ new WeakMap();
+function basisNotices(value) {
+	return value === "self-reported net" ? [] : [value === "gross, before fees" ? "Gross, before fees." : "Fees not reconciled."];
+}
+function voiceFacts(rows, question, compiled) {
+	const packet = {
+		version: "ask-cova-facts-v1",
+		question,
+		scope: "selected_range",
+		facts: [],
+		categories: [],
+		coverage: [],
+		observations: [],
+		requiredAnswerEvidence: []
+	};
+	const unavailable = () => {
+		packet.observations.push({
+			id: "availability",
+			kind: "availability",
+			facts: [],
+			categories: [],
+			coverage: [],
+			predicates: [compiled.id]
+		});
+		packet.requiredAnswerEvidence = ["availability"];
+		return {
+			packet,
+			supports: { availability: rows.map((r) => r.id) },
+			aliases: {},
+			notices: []
+		};
+	};
+	if (!rows.length) return unavailable();
+	const drawdown = drawdownMirrors.get(compiled);
+	if (question === "explain_drawdown") {
+		if (!drawdown) return unavailable();
+		const count = insightReview(rows, drawdown.code).stats.count;
+		packet.coverage.push({
+			id: "full",
+			kind: "full_scope",
+			totalGroups: count,
+			usableGroups: count,
+			sampleGroups: count,
+			describedGroups: count,
+			matched: null
+		});
+		for (const [id, value] of [
+			["drawdown", drawdown.maximum],
+			["drawdown_peak", drawdown.peak],
+			["drawdown_trough", drawdown.trough]
+		]) packet.facts.push({
+			id,
+			kind: "money",
+			value: money(value, drawdown.code).split(" ")[0].replace("−", "-"),
+			display: money(value, drawdown.code),
+			currency: drawdown.code,
+			basis: drawdown.basis,
+			coverage: "full"
+		});
+		packet.observations.push({
+			id: "drawdown",
+			kind: "drawdown",
+			facts: packet.facts.map((f) => f.id),
+			categories: [],
+			coverage: ["full"],
+			predicates: [
+				"initial_zero_not_balance",
+				"reported_results_not_intratrade",
+				drawdown.maximum === 0n ? "no_decline" : "peak_to_trough_decline"
+			]
+		});
+		packet.requiredAnswerEvidence = ["drawdown"];
+		return {
+			packet,
+			supports: { drawdown: rows.map((r) => r.id) },
+			aliases: {},
+			notices: basisNotices(drawdown.basis)
+		};
+	}
+	const partial = !["result", "losses_outweigh_gains"].includes(compiled.id);
+	const subset = partial ? insightSubset(rows, {
+		currency,
+		basis
+	}) : null;
+	if (partial && !subset) return unavailable();
+	const code = subset?.code ?? currency(rows[0]);
+	const stats = subset?.review.stats ?? insightReview(rows, code).stats;
+	const bases = new Set(rows.map(basis));
+	const reportedBasis = subset?.basis ?? (bases.size === 1 ? basis(rows[0]) : "mixed reported bases, fees not reconciled");
+	const total = subset?.total ?? sumAskCovaMoney(rows.map((row) => row.pnl));
+	const support = subset?.support ?? rows.map((r) => r.id);
+	packet.coverage.push({
+		id: "full",
+		kind: partial ? "valid_subset" : "full_scope",
+		totalGroups: subset?.totalGroups ?? stats.count,
+		usableGroups: stats.count,
+		sampleGroups: stats.count,
+		describedGroups: stats.count,
+		matched: null
+	});
+	packet.facts.push({
+		id: "net",
+		kind: "money",
+		value: money(total, code).split(" ")[0].replace("−", "-"),
+		display: money(total, code),
+		currency: code,
+		basis: reportedBasis,
+		coverage: "full"
+	}, {
+		id: "win_rate",
+		kind: "percent",
+		value: stats.winRate,
+		display: stats.winRate + "%",
+		currency: null,
+		basis: reportedBasis,
+		coverage: "full"
+	}, {
+		id: "profit_factor",
+		kind: "ratio",
+		value: stats.loss ? stats.profitFactor : null,
+		display: stats.profitFactor,
+		currency: null,
+		basis: reportedBasis,
+		coverage: "full"
+	});
+	packet.observations.push({
+		id: "overall",
+		kind: "result",
+		facts: ["net"],
+		categories: [],
+		coverage: ["full"],
+		predicates: [total > 0n ? "positive_reported_result" : total < 0n ? "negative_reported_result" : "flat_reported_result"]
+	}, {
+		id: "payoff",
+		kind: "review",
+		facts: ["win_rate", "profit_factor"],
+		categories: [],
+		coverage: ["full"],
+		predicates: [stats.profit > stats.loss ? "gains_exceed_losses" : stats.profit < stats.loss ? "losses_exceed_gains" : "gains_equal_losses"]
+	});
+	for (const [id, value] of [
+		["group_count", stats.count],
+		["wins", stats.wins],
+		["losses", stats.losses],
+		["breakevens", stats.breakeven]
+	]) packet.facts.push({
+		id,
+		kind: "count",
+		value: String(value),
+		display: String(value),
+		currency: null,
+		basis: reportedBasis,
+		coverage: "full"
+	});
+	for (const [id, value] of [["mean_win", stats.meanWin], ["mean_loss", stats.meanLoss]]) if (value !== null) packet.facts.push({
+		id,
+		kind: "money",
+		value: value.replace("−", "-"),
+		display: value + " " + code,
+		currency: code,
+		basis: reportedBasis,
+		coverage: "full"
+	});
+	packet.observations[1].facts.push(...packet.facts.slice(3).map((f) => f.id));
+	packet.observations[1].predicates.push(stats.loss === 0n ? "profit_factor_undefined_no_losses" : "profit_factor_defined", "win_rate_includes_breakevens");
+	packet.requiredAnswerEvidence = ["overall", "payoff"];
+	const authority = {
+		packet,
+		supports: {
+			overall: support,
+			payoff: support
+		},
+		aliases: {},
+		notices: [...partial ? ["Valid subset only."] : [], ...basisNotices(reportedBasis)]
+	};
+	const comparisons = insightComparisons(rows, question, {
+		currency,
+		basis
+	});
+	const absent = !!comparisons.selected && !comparisons.selected.categories.length;
+	const comparison = absent ? comparisons.alternative : comparisons.selected;
+	if (comparison?.categories.length) {
+		const categories = comparison.categories;
+		packet.coverage.push({
+			id: "comparison",
+			kind: "comparison_subset",
+			totalGroups: comparison.total,
+			usableGroups: comparison.usable,
+			sampleGroups: comparison.sample,
+			describedGroups: comparison.described,
+			matched: comparison.matched
+		});
+		const facts = [], categoryIds = [];
+		for (const [index, c] of categories.entries()) {
+			const suffix = index === 0 ? "a" : "b", id = "category_" + suffix;
+			categoryIds.push(id);
+			authority.aliases[id] = c.label;
+			packet.categories.push({
+				id,
+				description: comparison.privateLabels ? "Category " + suffix.toUpperCase() : c.label
+			});
+			for (const [name, value, kind] of [[
+				"mean",
+				c.mean,
+				"money"
+			], [
+				"count",
+				String(c.count),
+				"count"
+			]]) {
+				const id = name + "_" + suffix;
+				facts.push(id);
+				packet.facts.push({
+					id,
+					kind,
+					value: value.replace("−", "-"),
+					display: kind === "money" ? value + " " + comparison.code : value,
+					currency: kind === "money" ? comparison.code : null,
+					basis: comparison.basis,
+					coverage: "comparison"
+				});
+			}
+		}
+		if (comparison.gap !== null) {
+			facts.push("mean_gap");
+			packet.facts.push({
+				id: "mean_gap",
+				kind: "money",
+				value: comparison.gap.replace("−", "-"),
+				display: comparison.gap + " " + comparison.code,
+				currency: comparison.code,
+				basis: comparison.basis,
+				coverage: "comparison"
+			});
+		}
+		for (const [id, value] of [
+			["compared_count", comparison.sample],
+			["usable_count", comparison.usable],
+			["described_count", comparison.described],
+			["comparison_total", comparison.total]
+		]) {
+			facts.push(id);
+			packet.facts.push({
+				id,
+				kind: "count",
+				value: String(value),
+				display: String(value),
+				currency: null,
+				basis: null,
+				coverage: "comparison"
+			});
+		}
+		const predicates = [
+			"descriptive_not_edge",
+			comparison.matched ? "matched_market_size_account" : "unmatched_groups",
+			comparison.tied ? "means_tie" : categories.length > 1 ? "category_a_mean_higher" : "one_category_only"
+		];
+		if (comparison.sample < comparison.total) {
+			predicates.push("comparison_partial");
+			authority.notices.push("Comparison uses part of this range.");
+		}
+		if (comparison.described < comparison.sample) {
+			predicates.push("top_categories_only");
+			authority.notices.push("Only the leading categories are described.");
+		}
+		if (categories.length === 2 && categories.every((c) => c.sign === "negative")) predicates.push("both_means_negative");
+		predicates.push(...categories.map((c, i) => "category_" + (i === 0 ? "a" : "b") + "_mean_" + c.sign));
+		if (comparison.dimension === "Holding time" && comparisons.thresholdMinutes !== null) {
+			facts.push("span_split_minutes");
+			packet.facts.push({
+				id: "span_split_minutes",
+				kind: "duration",
+				value: comparisons.thresholdMinutes,
+				display: comparisons.thresholdMinutes + " minutes",
+				currency: null,
+				basis: null,
+				coverage: "comparison"
+			});
+			predicates.push("observed_source_span_not_position", "shorter_includes_median_longer_above");
+		}
+		if (comparison.dimension === "Entry time") predicates.push("entry_clock_america_new_york_dst", "earliest_verified_source_entry");
+		packet.observations.push({
+			id: "comparison",
+			kind: comparison.dimension.toLowerCase().replace(/ /g, "_"),
+			facts,
+			categories: categoryIds,
+			coverage: ["comparison"],
+			predicates
+		});
+		authority.supports.comparison = rows.map((r) => r.id);
+		packet.requiredAnswerEvidence = [
+			"holding_time",
+			"setup_performance",
+			"time_of_day",
+			"long_vs_short"
+		].includes(question) ? ["comparison"] : [
+			"overall",
+			"payoff",
+			"comparison"
+		];
+	}
+	if (absent) {
+		packet.observations.push({
+			id: "dimension_availability",
+			kind: "availability",
+			facts: [],
+			categories: [],
+			coverage: [],
+			predicates: ["no_usable_" + question]
+		});
+		authority.supports.dimension_availability = [];
+		packet.requiredAnswerEvidence.push("dimension_availability");
+	}
+	return authority;
+}
 async function buildAskCovaCatalog(input) {
 	if (!input || !boundedText(input.ownerId) || !boundedText(input.account) || !QUESTIONS.includes(input.question) || ![
 		"today",
@@ -1206,8 +1678,9 @@ async function buildAskCovaCatalog(input) {
 		variants: providerVariants.get(item)
 	}));
 	const evidence = rows.map(financialEvidence);
+	const voice = voiceFacts(rows, input.question, candidates[0]);
 	const binding = JSON.stringify({
-		version: "ask-cova-core-v1",
+		version: "ask-cova-core-v2",
 		owner: input.ownerId,
 		account: input.account,
 		range: input.range,
@@ -1216,7 +1689,8 @@ async function buildAskCovaCatalog(input) {
 		end,
 		evidence,
 		candidates,
-		safeChoices
+		safeChoices,
+		voice
 	});
 	const question = input.question;
 	const hash = await globalThis.crypto.subtle.digest("SHA-256", new TextEncoder().encode(binding));
@@ -1237,43 +1711,59 @@ async function buildAskCovaCatalog(input) {
 	Object.freeze(tradeIds);
 	Object.freeze(catalog);
 	issuedCatalogs.add(catalog);
-	providerChoices.set(catalog, safeChoices);
+	const freeze = (value) => {
+		if (value && typeof value === "object") {
+			for (const child of Object.values(value)) freeze(child);
+			Object.freeze(value);
+		}
+	};
+	freeze(voice);
+	voiceAuthorities.set(catalog, voice);
 	return catalog;
 }
-/** Minimal selector input. Provider/model configuration belongs to the server. */
+/** Explicit provider-safe fact allowlist. No legacy phrases, labels or scope identities. */
 function askCovaModelPayload(catalog) {
 	if (!issuedCatalogs.has(catalog)) throw new Error("Invalid engine catalog");
-	const choices = providerChoices.get(catalog).map((item) => ({
-		id: item.id,
-		variants: { ...item.variants }
-	}));
-	const payload = { choices };
-	if (choices.length < 1 || choices.length > 3 || new TextEncoder().encode(JSON.stringify(payload)).byteLength > 8192) throw new Error("Invalid catalog payload bound");
-	return payload;
+	const packet = voiceAuthorities.get(catalog).packet;
+	if (packet.facts.length > 24 || packet.observations.length > 8 || packet.coverage.length > 3 || packet.categories.length > 2 || new TextEncoder().encode(JSON.stringify(packet)).byteLength > 8192) throw Error("Invalid packet bound");
+	return structuredClone(packet);
 }
-/** Rebuild and compare contextDigest before accepting in-flight/cached selections or actions.
-* A selection intentionally contains no context key; the caller owns the request epoch.
-* This digest binds evidence, not authentication. ownerId must come from trusted auth.
-*/
-function renderAskCovaSelection(catalog, selection) {
+function renderAskCovaAnswer(catalog, value) {
+	const authority = voiceAuthorities.get(catalog), answer = parseAskCovaAnswer(value);
+	if (!authority || !answer) return null;
+	const cited = new Set(answer.paragraphs.flatMap((p) => p.evidence));
+	if (authority.packet.requiredAnswerEvidence.some((id) => !cited.has(id))) return null;
 	try {
-		if (!issuedCatalogs.has(catalog) || !selection || typeof selection !== "object" || Array.isArray(selection)) return null;
-		const prototype = Object.getPrototypeOf(selection);
-		if (prototype !== Object.prototype && prototype !== null) return null;
-		const keys = Reflect.ownKeys(selection);
-		if (keys.length !== 2 || !keys.includes("choice_id") || !keys.includes("style")) return null;
-		const choice = Object.getOwnPropertyDescriptor(selection, "choice_id");
-		const style = Object.getOwnPropertyDescriptor(selection, "style");
-		if (!choice || !style || !("value" in choice) || !("value" in style) || typeof choice.value !== "string" || !STYLES.includes(style.value)) return null;
-		const item = catalog.candidates.find((item) => item.id === choice.value);
-		if (!item) return null;
-		const selectedStyle = style.value;
+		const render = (paragraph, detail) => {
+			const observations = paragraph.evidence.map((id) => authority.packet.observations.find((o) => o.id === id));
+			if (observations.some((o) => !o) || detail && paragraph.evidence.some((id) => !cited.has(id))) throw Error("Invalid evidence");
+			return tokenizeAskCovaParagraph(paragraph.text).map((node) => {
+				if (node.kind === "text") return node.text;
+				if (node.kind === "fact" && observations.some((o) => o.facts.includes(node.id))) {
+					const fact = authority.packet.facts.find((f) => f.id === node.id);
+					if (fact) return fact.display;
+				}
+				if (node.kind === "category" && observations.some((o) => o.categories.includes(node.id)) && Object.prototype.hasOwnProperty.call(authority.aliases, node.id)) return authority.aliases[node.id];
+				throw Error("Unissued atom");
+			}).join("");
+		};
+		const paragraphs = answer.paragraphs.map((p) => render(p, false)), detail = answer.detail.map((p) => render(p, true));
+		const words = (parts) => parts.join(" ").trim().split(/\s+/).length;
+		if (words(paragraphs) > 160 || words(detail) > 80 || [...paragraphs, ...detail].join("").length > 4800) return null;
+		const scopeNotices = /* @__PURE__ */ new Set();
+		const references = authority.packet.observations.filter((o) => cited.has(o.id));
+		for (const coverage of authority.packet.coverage.filter((c) => references.some((o) => o.coverage.includes(c.id)))) {
+			if (coverage.kind === "valid_subset") scopeNotices.add("Valid subset only.");
+			if (coverage.kind === "comparison_subset" && coverage.sampleGroups < coverage.totalGroups) scopeNotices.add("Comparison uses part of this range.");
+			if (coverage.describedGroups < coverage.sampleGroups) scopeNotices.add("Only the leading categories are described.");
+			for (const fact of authority.packet.facts.filter((f) => f.coverage === coverage.id && f.basis && references.some((o) => o.facts.includes(f.id)))) for (const notice of basisNotices(fact.basis)) scopeNotices.add(notice);
+		}
 		return {
-			answer: item.variants[selectedStyle],
-			detail: item.detail,
-			tradeIds: [...item.tradeIds],
-			choiceId: item.id,
-			style: selectedStyle
+			paragraphs,
+			detail,
+			scopeNotices: [...scopeNotices],
+			tradeIds: [...new Set([...cited].flatMap((id) => authority.supports[id]))].filter((id) => catalog.tradeIds.includes(id)),
+			contextDigest: catalog.contextDigest
 		};
 	} catch {
 		return null;
@@ -1452,22 +1942,7 @@ function hasAskCovaAccess(environment, user) {
 	return environment?.ASK_COVA_ENABLED === "true" && uuid(invitedId) && invitedId.length === 36 && uuid(user?.id) && user.id === invitedId;
 }
 //#endregion
-//#region server/askCova.ts
-var MODEL = "gpt-6-luna";
-var PROVIDER_URL = "https://api.openai.com/v1/responses";
-var PROMPT = "Select one verified observation for Cova AI. Choose the most useful eligible choice, not the most flattering. Return only an existing choice_id and plain, warm or direct style. Do not write prose, calculate, infer emotions, give advice or call tools. The application owns every fact and phrase.";
-var AskFailure = class extends Error {
-	http;
-	code;
-	constructor(http, code) {
-		super(code);
-		this.http = http;
-		this.code = code;
-	}
-};
-var fail = (http, code) => {
-	throw new AskFailure(http, code);
-};
+//#region src/lib/askCovaJson.ts
 function uniqueJson(text) {
 	const parsed = JSON.parse(text);
 	const tokens = text.match(/"(?:[^"\\\x00-\x1f]|\\(?:["\\/bfnrt]|u[0-9a-fA-F]{4}))*"|[{}\[\]:,]|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|true|false|null/g) || [];
@@ -1499,6 +1974,23 @@ function uniqueJson(text) {
 	value(0);
 	return parsed;
 }
+//#endregion
+//#region server/askCova.ts
+var MODEL = "gpt-6-luna";
+var PROVIDER_URL = "https://api.openai.com/v1/responses";
+var PROMPT = `Write a brief, natural, grounded reply to the selected journal question, as a thoughtful trading companion, not a report or a cheerleader. You author the sentences; the packet supplies the facts. Use lowercase prose, never copy a canned answer. One or two paragraphs, at most 160 words; optional authored detail at most 80 words in one paragraph. Short answers are welcome; never pad. Return ask-cova-answer-v1 JSON with paragraphs and detail arrays of {text,evidence}. Every paragraph cites issued observation IDs. Include every requiredAnswerEvidence in the main answer. Detail can only elaborate those same observations. Insert numerical atoms ONLY as {{f:id}} and category names ONLY as {{c:id}}. Do not calculate, invent values, spell out invented numbers, or write literal digits/currency/percent symbols. Preserve the meaning of predicates, fee basis and coverage: a less negative mean is not profitable, a subset is not the full result, descriptive comparisons are not trading ability or future edge. No advice, emotions, causality, URLs, markup, tools or raw records. Win rate includes breakevens. Profit factor is positive group P&L divided by absolute negative group P&L and undefined without losses. Groups are not certified completed positions. Drawdown begins at zero in the selected range, not account balance or intratrade price movement.`;
+var AskFailure = class extends Error {
+	http;
+	code;
+	constructor(http, code) {
+		super(code);
+		this.http = http;
+		this.code = code;
+	}
+};
+var fail = (http, code) => {
+	throw new AskFailure(http, code);
+};
 async function boundedJson(response, maxBytes) {
 	if (!response.ok || !response.body) {
 		await response.body?.cancel().catch(() => void 0);
@@ -1520,19 +2012,16 @@ async function boundedJson(response, maxBytes) {
 		await reader.cancel().catch(() => void 0);
 	}
 }
-function checkedSelection(raw, catalog) {
+function checkedAnswer(raw, catalog) {
 	const output = raw?.output, usage = raw?.usage;
-	if (raw?.model !== MODEL || raw.status !== "completed" || raw.service_tier !== "default" || raw.error != null || raw.incomplete_details != null || !usage || !Number.isSafeInteger(usage.input_tokens) || usage.input_tokens < 0 || usage.input_tokens > 28096 || !Number.isSafeInteger(usage.output_tokens) || usage.output_tokens < 0 || usage.output_tokens > 120 || !Array.isArray(output) || output.length !== 1) throw Error("Invalid response");
+	if (raw?.model !== MODEL || raw.status !== "completed" || raw.service_tier !== "default" || raw.error != null || raw.incomplete_details != null || !usage || !Number.isSafeInteger(usage.input_tokens) || usage.input_tokens < 0 || usage.input_tokens > 28096 || !Number.isSafeInteger(usage.output_tokens) || usage.output_tokens < 0 || usage.output_tokens > 1024 || !Array.isArray(output) || output.length !== 1) throw Error("Invalid response");
 	const message = output[0];
 	if (message?.type !== "message" || message.role !== "assistant" || message.status !== "completed" || !Array.isArray(message.content) || message.content.length !== 1) throw Error("Invalid message");
 	const part = message.content[0];
-	if (part?.type !== "output_text" || typeof part.text !== "string" || Buffer.byteLength(part.text) > 512 || part.annotations !== void 0 && (!Array.isArray(part.annotations) || part.annotations.length)) throw Error("Invalid text");
-	const selection = uniqueJson(part.text);
-	if (!renderAskCovaSelection(catalog, selection)) throw Error("Invalid selection");
-	return {
-		choice_id: selection.choice_id,
-		style: selection.style
-	};
+	if (part?.type !== "output_text" || typeof part.text !== "string" || Buffer.byteLength(part.text) > 6144 || part.annotations !== void 0 && (!Array.isArray(part.annotations) || part.annotations.length)) throw Error("Invalid text");
+	const answer = uniqueJson(part.text);
+	if (!renderAskCovaAnswer(catalog, answer)) throw Error("Invalid answer");
+	return answer;
 }
 function assertAskCovaRequestBytes(serialized) {
 	if (typeof serialized !== "string" || Buffer.byteLength(serialized) > 24e3) fail(422, "context_too_large");
@@ -1544,7 +2033,7 @@ function providerPayload(catalog) {
 		reasoning: { effort: "none" },
 		prompt_cache_options: { mode: "explicit" },
 		tools: [],
-		max_output_tokens: 120,
+		max_output_tokens: ASK_COVA_OUTPUT_TOKENS,
 		service_tier: "default",
 		input: [{
 			role: "developer",
@@ -1555,27 +2044,9 @@ function providerPayload(catalog) {
 		}],
 		text: { format: {
 			type: "json_schema",
-			name: "cova_insight_choice",
+			name: "cova_authored_answer",
 			strict: true,
-			schema: {
-				type: "object",
-				properties: {
-					choice_id: {
-						type: "string",
-						enum: catalog.candidates.map((c) => c.id)
-					},
-					style: {
-						type: "string",
-						enum: [
-							"plain",
-							"warm",
-							"direct"
-						]
-					}
-				},
-				required: ["choice_id", "style"],
-				additionalProperties: false
-			}
+			schema: ASK_COVA_ANSWER_SCHEMA
 		} }
 	});
 }
@@ -1679,7 +2150,7 @@ function createAskCovaHandler({ acquirePermit = acquireAskCovaPermit, fetchImpl 
 				"today",
 				"week",
 				"all"
-			].includes(body.range) || !isAskCovaQuestion(body.question) || typeof body.contextDigest !== "string" || !/^[a-f0-9]{64}$/.test(body.contextDigest) || body.protocolVersion !== "ask-cova-v2") fail(400, "invalid_request");
+			].includes(body.range) || !isAskCovaQuestion(body.question) || typeof body.contextDigest !== "string" || !/^[a-f0-9]{64}$/.test(body.contextDigest) || body.protocolVersion !== "ask-cova-v3") fail(400, "invalid_request");
 			askCovaBudgetConfiguration(env);
 			const snapshot = await savedSnapshot(user.id, rest || storageRest(env, fetchImpl));
 			const catalog = await buildAskCovaCatalog({
@@ -1698,9 +2169,9 @@ function createAskCovaHandler({ acquirePermit = acquireAskCovaPermit, fetchImpl 
 				env
 			});
 			if (!permit?.allowed) fail(429, "rate_limited");
-			let selection;
+			let answer;
 			try {
-				selection = checkedSelection(await boundedJson(await fetchImpl(PROVIDER_URL, {
+				answer = checkedAnswer(await boundedJson(await fetchImpl(PROVIDER_URL, {
 					method: "POST",
 					redirect: "error",
 					headers: {
@@ -1718,7 +2189,7 @@ function createAskCovaHandler({ acquirePermit = acquireAskCovaPermit, fetchImpl 
 				status: "ok",
 				aiResponseUsed: true,
 				contextDigest: catalog.contextDigest,
-				selection
+				answer
 			});
 		} catch (error) {
 			const known = error instanceof AskFailure;

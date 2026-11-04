@@ -16,7 +16,7 @@ async function invoke(body, rawBody) {
   await handler({ body, rawBody, user: { id: owner }, environment: env, rest: async () => { events.push('snapshot'); return []; } }, { status(n) { status = n; return this; }, json(value) { payload = value; } });
   return { status, payload, events };
 }
-const body = question => ({ action: 'ask_cova', owner, account: 'all', range: 'all', question, contextDigest: 'a'.repeat(64), requestId: '22222222-2222-4222-8222-222222222222', protocolVersion: 'ask-cova-v2' });
+const body = question => ({ action: 'ask_cova', owner, account: 'all', range: 'all', question, contextDigest: 'a'.repeat(64), requestId: '22222222-2222-4222-8222-222222222222', protocolVersion: 'ask-cova-v3' });
 test('all seven shared question IDs pass schema before saved-workspace checks, never reserving', async () => {
   assert.deepEqual(core.ASK_COVA_QUESTION_IDS, ids);
   assert.match(source('src/lib/askCovaClient.ts'), /question: AskCovaQuestion/);
