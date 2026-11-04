@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Trade } from '../lib/risk';
-import { ASK_COVA_QUESTIONS, buildAskCovaCatalog, renderAskCovaSelection, type AskCovaQuestion } from '../lib/askCova';
+import { ASK_COVA_QUESTIONS, buildAskCovaCatalog, renderAskCovaAnswer, type AskCovaQuestion } from '../lib/askCova';
 import { MAX_ASK_COVA_INPUT, resolveAskCovaIntent } from '../lib/askCovaIntent';
 import { requestAskCova, askCovaAccessCurrent } from '../lib/askCovaClient';
 import { TradeHistoryDialog } from './TradeHistoryDialog';
@@ -13,8 +13,8 @@ export type AskCovaProps = {
   ownerCurrent?: (owner: string) => boolean;
 };
 const MAX_EXCHANGES = 20;
-type Reply = NonNullable<ReturnType<typeof renderAskCovaSelection>>;
-type Exchange = { id: number; text: string; question?: AskCovaQuestion; fromComposer?: boolean; reply?: Reply; detailText?: string; local?: string };
+type Reply = NonNullable<ReturnType<typeof renderAskCovaAnswer>>;
+type Exchange = { id: number; text: string; question?: AskCovaQuestion; fromComposer?: boolean; reply?: Reply; detailSource?: { exchange: Exchange; reply: Reply; contextDigest: string }; local?: string };
 
 /** Changing scope synchronously unmounts the old conversation and aborts its request. */
 export function AskCova(props: AskCovaProps) {
@@ -102,8 +102,8 @@ function AskCovaConversation({ ownerId, account, range, trades, ready, request =
       if (!ownsRequest() || !checkAuthority()) return;
       if (response.status !== 'ok') { setError(response.message); return; }
       const checked = response.aiResponseUsed === true && response.contextDigest === catalog.contextDigest
-        ? renderAskCovaSelection(catalog, response.selection) : null;
-      if (!checked) throw Error('Unchecked selection');
+        ? renderAskCovaAnswer(catalog, response.answer) : null;
+      if (!checked) throw Error('Unchecked answer');
       conversation.current.exchanges = conversation.current.exchanges.map(item => item.id === exchange.id ? { ...item, reply: checked } : item);
       setExchanges(conversation.current.exchanges);
     } catch {
@@ -132,7 +132,8 @@ function AskCovaConversation({ ownerId, account, range, trades, ready, request =
   function followUp(exchange: Exchange, origin: number, kind: 'detail' | 'trades', text: string) {
     if (!checkedReply(exchange, origin) || !canAppend()) return;
     const reply = exchange.reply!;
-    if (!append({ id: ++sequence.current, text, ...(kind === 'detail' ? { detailText: reply.detail } : { local: reply.tradeIds.length ? 'These are the trades behind that answer.' : 'There are no trades behind that answer.' }) })) return;
+    if (kind === 'detail' && !reply.detail.length) return;
+    if (!append({ id: ++sequence.current, text, ...(kind === 'detail' ? { detailSource: {exchange, reply, contextDigest: reply.contextDigest} } : { local: reply.tradeIds.length ? 'These are the trades behind that answer.' : 'There are no trades behind that answer.' }) })) return;
     if (kind === 'trades' && reply.tradeIds.length) setEvidenceReply(reply);
   }
   function send(origin: number) {
@@ -159,13 +160,13 @@ function AskCovaConversation({ ownerId, account, range, trades, ready, request =
     {!ready ? <p className="ask-cova-notice">Save your account workspace before asking Cova.</p> : exchanges.length > 0 && <div className="ask-cova-conversation" role="log" aria-label="Conversation with Cova" aria-live="polite" aria-relevant="additions text">
       {exchanges.map(exchange => <div className="ask-cova-exchange" key={exchange.id}>
         <p className="ask-cova-question"><span className="sr-only">You: </span>{exchange.text}</p>
-        {exchange.detailText && <div className="ask-cova-reply"><p data-cova-detail>{exchange.detailText}</p></div>}
+        {exchange.detailSource && exchange.detailSource.contextDigest === exchange.detailSource.reply.contextDigest && conversation.current.exchanges.some(item => item.id === exchange.detailSource!.exchange.id && item.reply === exchange.detailSource!.reply) && <div className="ask-cova-reply">{exchange.detailSource.reply.detail.map((text,index)=><p data-cova-detail key={index}>{text}</p>)}</div>}
         {exchange.local && <div className="ask-cova-reply"><p data-cova-local>{exchange.local}</p></div>}
         {exchange.reply && <div className="ask-cova-response" role="group" aria-label={`Cova reply to ${exchange.text}`} data-cova-reply={exchange.id}>
-          <div className="ask-cova-reply"><p data-cova-answer>{exchange.reply.answer}</p></div>
+          <div className="ask-cova-reply">{exchange.reply.paragraphs.map((text,index)=><p data-cova-answer key={index}>{text}</p>)}{exchange.reply.scopeNotices.map(notice=><p className="ask-cova-notice" key={notice}>{notice}</p>)}</div>
           <div className="ask-cova-actions">
             {exchange.reply.tradeIds.length > 0 && <button className="astra-text-link" type="button" onClick={() => { if (checkedReply(exchange, epoch)) setEvidenceReply(exchange.reply!); }}>Show trades</button>}
-            <button className="astra-text-link" type="button" disabled={busy || atLimit} onClick={() => followUp(exchange, epoch, 'detail', 'Tell me more')}>Tell me more</button>
+            {exchange.reply.detail.length > 0 && <button className="astra-text-link" type="button" disabled={busy || atLimit} onClick={() => followUp(exchange, epoch, 'detail', 'Tell me more')}>Tell me more</button>}
           </div>
         </div>}
       </div>)}

@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { syntheticAnswer, syntheticEnvelope } from './helpers/ask-cova-authored-fixture.mjs';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import load from './helpers/load-ts.cjs';
@@ -9,7 +10,7 @@ const A = '11111111-1111-4111-8111-111111111111';
 const B = '22222222-2222-4222-8222-222222222222';
 const requestId = '33333333-3333-4333-8333-333333333333';
 const env = { WORKSPACE_SYNC_PROJECT_REF: 'aaaaaaaaaaaaaaaaaaaa', SUPABASE_URL: 'https://aaaaaaaaaaaaaaaaaaaa.supabase.co', ASK_COVA_ENABLED: 'true', ASK_COVA_BETA_USER_ID: A, OPENAI_API_KEY: 'synthetic-only-not-a-real-credential', ASK_COVA_BUDGET_ID: 'synthetic-campaign', ASK_COVA_BUDGET_MICRO_USD: '1000000', KV_REST_API_URL: 'https://synthetic.upstash.io', KV_REST_API_TOKEN: 'synthetic-only-not-a-credential-123456789' };
-const body = { action: 'ask_cova', owner: A, account: 'Tradovate:7', range: 'all', question: 'review_results', contextDigest: 'a'.repeat(64), protocolVersion: 'ask-cova-v2', requestId };
+const body = { action: 'ask_cova', owner: A, account: 'Tradovate:7', range: 'all', question: 'review_results', contextDigest: 'a'.repeat(64), protocolVersion: 'ask-cova-v3', requestId };
 async function request(handler, bodyValue = body, method = 'POST') {
   let status, payload; const headers = {};
   await handler({ method, url: '/api/workspace', body: bodyValue }, { setHeader(k,v) { headers[k] = v; }, status(n) { status = n; return this; }, json(p) { payload = p; return this; } });
@@ -21,7 +22,8 @@ function workspace(askCova, overrides = {}) {
 const savedTrade = (suffix = 'one', accountId = '7') => ({ id: `tradovate-${accountId}:${suffix}`, date: '2026-10-29', market: 'NQ', side: 'Long', contracts: 1, entry: 100, exit: 101, pnl: 20, risk: 10, setup: 'PRIVATE SETUP', notes: 'PRIVATE NOTE', source: { provider: 'Tradovate', accountId, pnlBasis: 'gross_before_fees' } });
 const rawRecord = t => ({ kind: 'trade', record_id: t.id, account_id: `Tradovate:${t.source.accountId}`, schema_version: 1, payload: t, revision: 1, created_at: '2026-10-29T00:00:00Z', updated_at: '2026-10-29T00:00:00Z', deleted_at: null });
 const settings = { disclosure_version: 'workspace-cloud-v1', revision: 1, pending_manifest: null };
-const providerResult = (choice_id = 'result') => ({ model: 'gpt-6-luna', status: 'completed', service_tier: 'default', usage: { input_tokens: 500, output_tokens: 20 }, output: [{ type: 'message', role: 'assistant', status: 'completed', content: [{ type: 'output_text', text: JSON.stringify({ choice_id, style: 'warm' }), annotations: [] }] }] });
+const defaultPacket=core.askCovaModelPayload(await core.buildAskCovaCatalog({ownerId:A,account:body.account,range:'all',question:'review_results',trades:[savedTrade()]}));
+const providerResult = (packet = defaultPacket) => syntheticEnvelope(syntheticAnswer(typeof packet==='object'?packet:defaultPacket,'warm'));
 async function fixture(options = {}) {
   const rows = options.rows || [rawRecord(savedTrade()), rawRecord(savedTrade('other', '8'))];
   const trades = rows.filter(r => !r.deleted_at && r.kind === 'trade').map(r => r.payload);
@@ -34,7 +36,7 @@ async function fixture(options = {}) {
     return rows.slice(Number(o.query.offset), Number(o.query.offset) + 1); // Truncated server pages must not truncate scope.
   });
   const acquirePermit = options.acquirePermit || (async () => { events.push('permit'); return { allowed: true, release: async () => events.push('release') }; });
-  const fetchImpl = options.fetchImpl || (async (url, o) => { events.push('provider'); requests.push({ url, ...o }); return new Response(JSON.stringify(providerResult(catalog.candidates[0].id))); });
+  const fetchImpl = options.fetchImpl || (async (url, o) => { events.push('provider'); requests.push({ url, ...o }); return new Response(JSON.stringify(providerResult(core.askCovaModelPayload(catalog)))); });
   const ask = server.createAskCovaHandler({ acquirePermit, fetchImpl, ...options.dependencies });
   return { handler: workspace(ask, { rest, ...options.workspace }), catalog, events, requests, body: { ...body, contextDigest: catalog.contextDigest, ...options.body } };
 }
@@ -121,7 +123,7 @@ async function receiptRequest(t, raw) {
     }
     if (u.href === 'https://api.openai.com/v1/responses') {
       providerCalls++;
-      return new Response(JSON.stringify(providerResult(catalog.candidates[0].id)));
+      return new Response(JSON.stringify(providerResult(core.askCovaModelPayload(catalog))));
     }
     assert.equal(u.origin, env.SUPABASE_URL, 'unmocked origin forbidden');
     assert.equal(u.searchParams.get('owner_id'), 'eq.' + A);
@@ -275,7 +277,7 @@ test('provider envelope rejects tools, roles, model drift, duplicate keys and un
     r => { r.output[0].content[0].text = escapedDuplicate; },
     r => { r.output[0].content[0].text = '{"choice_id":"result","style":"warm","answer":"UNTRUSTED"}'; },
     r => { r.output[0].content[0].text = '{"choice_id":"fabricated","style":"warm"}'; },
-    r => { r.usage.input_tokens = 30000; }, r => { r.usage.output_tokens = 121; },
+    r => { r.usage.input_tokens = 30000; }, r => { r.usage.output_tokens = 1025; },
     r => { delete r.usage; }, r => { r.output[0].content[0].text = ' '.repeat(70000); },
   ];
   for (const alter of alterations) {
@@ -291,8 +293,18 @@ test('provider envelope rejects tools, roles, model drift, duplicate keys and un
   assert.equal((await request(f.handler, f.body)).status, 502);
 });
 
+test('authored envelopes accept the exact output ceiling and reject authored duplicate keys and truncation',async()=>{
+ for(const [tokens,status,expected] of [[1024,'completed',200],[1025,'completed',502],[1024,'incomplete',502]]){
+  const f=await fixture({fetchImpl:async()=>{const r=providerResult();r.usage.output_tokens=tokens;r.status=status;return new Response(JSON.stringify(r));}});
+  assert.equal((await request(f.handler,f.body)).status,expected);assert.equal(f.events.filter(e=>e==='permit').length,1);
+ }
+ for(const escaped of [false,true]){
+  const f=await fixture({fetchImpl:async()=>{const r=providerResult();r.output[0].content[0].text=r.output[0].content[0].text.replace('{',escaped?'{"ver\\u0073ion":"ask-cova-answer-v1",':'{"version":"ask-cova-answer-v1",');return new Response(JSON.stringify(r));}});
+  assert.equal((await request(f.handler,f.body)).status,502);
+ }
+});
 test('request boundary rejects absent protocol, legacy consent, forged fields and bodies over 4 KiB before storage/permit', async () => {
-  for (const change of [ { protocolVersion: 'wrong' }, { protocolVersion: undefined }, { consentVersion: 'ask-cova-v1' }, { trades: [] }, { metrics: {} }, { requestId: 'bad' }, { account: 'arbitrary' }, { range: 'year' }, { question: 'write_advice' }, { contextDigest: 'bad' } ]) {
+  for (const change of [ { protocolVersion: 'ask-cova-v2' }, { protocolVersion: 'wrong' }, { protocolVersion: undefined }, { consentVersion: 'ask-cova-v1' }, { trades: [] }, { metrics: {} }, { requestId: 'bad' }, { account: 'arbitrary' }, { range: 'year' }, { question: 'write_advice' }, { contextDigest: 'bad' } ]) {
     const f = await fixture({ body: change }); const r = await request(f.handler, f.body);
     assert.equal(r.status, 400, JSON.stringify(change)); assert.deepEqual(f.events, []);
   }
@@ -307,13 +319,13 @@ test('all seven questions share checked saved digest, bounded provider payload a
     const result = await request(f.handler, f.body);
     assert.equal(result.status, 200, question);
     assert.equal(result.payload.contextDigest, f.catalog.contextDigest);
-    assert.deepEqual(result.payload.selection, { choice_id: f.catalog.candidates[0].id, style: 'warm' });
+    assert.deepEqual(result.payload.answer, syntheticAnswer(core.askCovaModelPayload(f.catalog),'warm'));
     assert.equal(f.requests.length, 1);
     assert.ok(Buffer.byteLength(f.requests[0].body) <= 24000);
     const payload = JSON.parse(f.requests[0].body);
     assert.ok(Buffer.byteLength(payload.input[1].content) <= 8192);
-    assert.ok(JSON.parse(payload.input[1].content).choices.length <= 3);
-    assert.equal(payload.max_output_tokens, 120);
+    assert.ok(JSON.parse(payload.input[1].content).facts.length <= 24);
+    assert.equal(payload.max_output_tokens, 1024);
     assert.doesNotMatch(f.requests[0].body, /PRIVATE|tradovate-7|Tradovate:7|11111111/);
     assert.equal(f.events.filter(x => x === 'permit').length, 1);
   }
@@ -322,13 +334,14 @@ test('all seven questions share checked saved digest, bounded provider payload a
 test('real server uses complete owner saved snapshot and returns checked selection only', async () => {
   const f = await fixture(); const result = await request(f.handler, f.body);
   assert.equal(result.status, 200);
-  assert.deepEqual(result.payload, { status: 'ok', aiResponseUsed: true, contextDigest: f.catalog.contextDigest, selection: { choice_id: f.catalog.candidates[0].id, style: 'warm' } });
+  assert.deepEqual(result.payload, { status: 'ok', aiResponseUsed: true, contextDigest: f.catalog.contextDigest, answer: syntheticAnswer(core.askCovaModelPayload(f.catalog),'warm') });
   assert.equal(f.requests.length, 1);
   const payload = JSON.parse(f.requests[0].body);
   assert.equal(f.requests[0].url, 'https://api.openai.com/v1/responses');
-  assert.equal(payload.store, false); assert.equal(payload.max_output_tokens, 120);
+  assert.equal(payload.store, false); assert.equal(payload.max_output_tokens, 1024);
   assert.equal(payload.model, 'gpt-6-luna'); assert.equal(payload.reasoning.effort, 'none');
   assert.deepEqual(payload.prompt_cache_options, { mode: 'explicit' }); assert.deepEqual(payload.tools, []);
+  assert.doesNotMatch(JSON.stringify(payload),/cache_control|breakpoints|cache_ttl|ttl_seconds/,'no cache writes or TTL override requested');
   assert.equal(payload.text.format.strict, true); assert.equal(payload.service_tier, 'default');
   assert.doesNotMatch(f.requests[0].body, /PRIVATE|tradovate-7|Tradovate:7|11111111/);
   assert(f.events.indexOf('permit') > f.events.indexOf('workspace_records'));

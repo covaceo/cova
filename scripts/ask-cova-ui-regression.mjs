@@ -10,15 +10,17 @@ mkdirSync(evidence,{recursive:true});
 assert.ok(existsSync(root+'src/components/AskCova.tsx'),'Risk Desk Ask Cova component exists');
 const id=root+'__ask_cova_ui_test__.tsx';
 const entry=`import React from 'react';import{createRoot}from'react-dom/client';import{AskCova}from'${root}src/components/AskCova.tsx';import{bindAskCovaAccessAuthority,askCovaAccessCurrent,createAskCovaTransport,requestAskCova}from'${root}src/lib/askCovaClient.ts';
+import{buildAskCovaCatalog,askCovaModelPayload}from'${root}src/lib/askCova.ts';import{syntheticAnswer}from'${root}scripts/helpers/ask-cova-authored-fixture.mjs';
 const root=createRoot(document.getElementById('root'));
+window.answerFor=async(input)=>{const catalog=await buildAskCovaCatalog({ownerId:input.owner,account:input.account,range:input.range,question:input.question,trades:window.fixtureRows||trades});const answer=syntheticAnswer(askCovaModelPayload(catalog),'warm');if(window.choice==='invented_choice')answer.paragraphs[0].evidence=['unknown'];return answer;};
 const trades=[100,-30,20].map((pnl,i)=>({id:'manual-'+i,date:'2026-10-2'+(i+1),market:'NQ',side:'Long',contracts:1,entry:100,exit:101,pnl,risk:50,riskStatus:'provided',setup:'',notes:'Private journal note',manual:{accountKey:'local',currency:'USD',pnlBasis:'reported_net'}}));
 window.calls=[];window.mode='ok';window.current=true;window.trades=trades;
 // Synthetic capability lifecycle through the same public binding API used by useAskCovaAccess.
 // No auth/server discovery is simulated as real; default component authority stays intact.
 window.betaCurrent=askCovaAccessCurrent;
 window.setBetaGrant=allowed=>{window.removeBetaGrant?.();window.removeBetaGrant=bindAskCovaAccessAuthority(owner=>allowed===true&&owner==='11111111-1111-4111-8111-111111111111'&&window.current);};
-window.request=async(input,signal)=>{window.calls.push(input);if(window.mode==='body'){const transport=createAskCovaTransport(input.owner,{current:()=>window.current,session:async()=>({user:{id:input.owner},access_token:'MOCK-TOKEN'}),fetch:async()=>new Response(new ReadableStream({start(controller){window.bodyController=controller;window.bodyInput=input;}}))});return requestAskCova(input,signal,transport);}if(window.mode==='slow')await new Promise(r=>window.finish=r);if(window.mode==='error')return {status:'unavailable',message:'Answer unavailable. Try again.'};return {status:'ok',aiResponseUsed:true,contextDigest:input.contextDigest,selection:{choice_id:window.choice||(input.question==='explain_drawdown'?'drawdown':'result'),style:'warm'}};};
-window.showAsk=(ready=true,account='local',range='all',rows=trades,injectedAuthority=true,ownerId='11111111-1111-4111-8111-111111111111')=>root.render(<AskCova ownerId={ownerId} account={account} range={range} trades={rows} ready={ready} request={window.request} ownerCurrent={injectedAuthority ? owner=>owner==='11111111-1111-4111-8111-111111111111'&&window.current : undefined}/>);window.showAsk();`;
+window.request=async(input,signal)=>{window.calls.push(input);if(window.mode==='body'){const transport=createAskCovaTransport(input.owner,{current:()=>window.current,session:async()=>({user:{id:input.owner},access_token:'MOCK-TOKEN'}),fetch:async()=>new Response(new ReadableStream({start(controller){window.bodyController=controller;window.bodyInput=input;}}))});return requestAskCova(input,signal,transport);}if(window.mode==='slow')await new Promise(r=>window.finish=r);if(window.mode==='error')return {status:'unavailable',message:'Answer unavailable. Try again.'};return {status:'ok',aiResponseUsed:true,contextDigest:input.contextDigest,answer:await window.answerFor(input)};};
+window.showAsk=(ready=true,account='local',range='all',rows=trades,injectedAuthority=true,ownerId='11111111-1111-4111-8111-111111111111')=>root.render(<AskCova ownerId={ownerId} account={account} range={range} trades={rows} ready={ready} request={window.request} ownerCurrent={injectedAuthority ? owner=>owner==='11111111-1111-4111-8111-111111111111'&&window.current : undefined}/>);const show=window.showAsk;window.showAsk=(...args)=>{window.fixtureRows=args[3]||trades;return show(...args)};window.showAsk();`;
 const result=await build({root,configFile:false,envDir:false,logLevel:'error',plugins:[{name:'ask-cova-ui',resolveId(v){if(v.endsWith('__ask_cova_ui_test__.tsx'))return id;},load(v){if(v===id)return entry;}},react()],define:{'process.env.NODE_ENV':'"production"'},build:{write:false,copyPublicDir:false,lib:{entry:id,formats:['es'],fileName:'probe',cssFileName:'probe'}}});
 const files=new Map((Array.isArray(result)?result.flatMap(r=>r.output):result.output).map(o=>['/'+o.fileName,o.type==='chunk'?o.code:o.source]));
 const html=`<!doctype html><html><head><meta name='viewport' content='width=device-width,initial-scale=1'>${[...files.keys()].filter(x=>x.endsWith('.css')).map(x=>`<link rel='stylesheet' href='${x}'>`).join('')}</head><body><div id='root'></div><script type='module' src='/probe.js'></script></body></html>`;
@@ -103,7 +105,7 @@ try{
  await p.evaluate(()=>{window.mode='body';window.current=true;});
  await p.getByRole('button',{name:'Review my results',exact:true}).click();
  await p.waitForFunction(()=>!!window.bodyController);
- await p.evaluate(()=>{window.current=false;window.bodyController.enqueue(new TextEncoder().encode(JSON.stringify({status:'ok',aiResponseUsed:true,contextDigest:window.bodyInput.contextDigest,selection:{choice_id:'result',style:'plain'}})));window.bodyController.close();});
+ await p.evaluate(async()=>{const authored=await window.answerFor(window.bodyInput);window.current=false;window.bodyController.enqueue(new TextEncoder().encode(JSON.stringify({status:'ok',aiResponseUsed:true,contextDigest:window.bodyInput.contextDigest,answer:authored})));window.bodyController.close();});
  await p.getByText('Your session changed. Sign in again to ask Cova.').waitFor();
  assert.equal(await p.locator('[data-cova-answer]').count(),0);assert.equal(await p.getByRole('button',{name:'Show trades',exact:true}).count(),0);
  report.checks.push('F-02 actual transport/parser delayed-body invalidation cannot render an answer');
@@ -143,13 +145,16 @@ try{
  const invalid=moneyRow('manual-invalid',1.001,{risk:5.001,manual:usd.manual});
  for(const sample of [
   {choice:'result',rows:[eur],expected:[['rithmic-eur','2.25 (EUR)','Planned risk5.00 (EUR)']]},
-  {choice:'mixed_currencies',rows:[eur,usd],expected:[['rithmic-eur','2.25 (EUR)','Planned risk5.00 (EUR)'],['manual-usd','$3.00','Planned risk$5.00']]},
-  {choice:'unknown_currency',rows:[eur,unknown],expected:[['rithmic-eur','2.25 (EUR)','Planned risk5.00 (EUR)'],['csv-unknown','4.00 (currency unknown)','Planned risk5.00 (currency unknown)']]},
+  {choice:'mixed_currencies',rows:[eur,usd],expected:[['rithmic-eur','2.25 (EUR)','Planned risk5.00 (EUR)']]},
+  {choice:'result',rows:[usd],expected:[['manual-usd','$3.00','Planned risk$5.00']]},
+  {choice:'unknown_currency',rows:[eur,unknown],expected:[['rithmic-eur','2.25 (EUR)','Planned risk5.00 (EUR)']]},
+  {choice:'unknown_currency',rows:[unknown],expected:[['csv-unknown','4.00 (currency unknown)','Planned risk5.00 (currency unknown)']]},
   {choice:'invalid_money',rows:[invalid],expected:[['manual-invalid','Unavailable (invalid money)','Planned riskUnavailable (invalid money)']]},
  ]){
   await p.evaluate(({choice,rows})=>{window.choice=choice;window.showAsk(true,'all','all',rows);},sample);
   await p.getByRole('button',{name:'Review my results',exact:true}).click();await p.locator('[data-cova-answer]').waitFor();
   await p.getByRole('button',{name:'Show trades',exact:true}).click();await p.locator('dialog').waitFor();
+  assert.deepEqual((await p.locator('[data-history-trade]').evaluateAll(nodes=>nodes.map(n=>n.dataset.historyTrade))).sort(),sample.expected.map(r=>r[0]).sort(),'exact cited support, not all scope rows');
   for(const [id,pnl,risk] of sample.expected){
    const row=p.locator(`[data-history-trade="${id}"]`);
    assert.equal(await row.locator('[data-history-field="pnl"]').innerText(),pnl);
@@ -177,6 +182,6 @@ try{
  assert.ok(await p.getByRole('button',{name:'Review my results',exact:true}).isDisabled());report.checks.push('browser-only workspace cannot dispatch');
  assert.deepEqual(report.errors,[]);
  assert.deepEqual(report.requests,[]);
- assert.equal(report.checks.length,27,'complete existing UI coverage plus beta-denied/removed checks');
+ assert.equal(report.checks.length,29,'complete existing UI coverage plus beta-denied/removed checks');
 }finally{await browser.close();writeFileSync(evidence+'/ui.json',JSON.stringify(report,null,2));}
 console.log(JSON.stringify(report));

@@ -1,3 +1,4 @@
+import {syntheticAnswer} from './helpers/ask-cova-authored-fixture.mjs';
 // Full real App/canonical CSS. Synthetic auth/capability/cloud only; outbound traffic blocked.
 import assert from 'node:assert/strict';
 import {build} from 'vite';
@@ -77,8 +78,8 @@ try{
       assert.equal(state.mode,'allowed','answer dispatch must precede revocation');assert.equal(body.owner,state.current);
       const catalog=await core.buildAskCovaCatalog({ownerId:body.owner,account:body.account,range:body.range,question:body.question,trades:syntheticTrades});
       assert.equal(body.contextDigest,catalog.contextDigest);const choice=catalog.candidates.find(c=>c.id==='result')||catalog.candidates[0];assert(choice);
-      const selection={choice_id:choice.id,style:'warm'};state.reply=core.renderAskCovaSelection(catalog,selection);assert(state.reply);
-      return route.fulfill({json:{status:'ok',aiResponseUsed:true,contextDigest:catalog.contextDigest,selection}});
+      const answer=syntheticAnswer(core.askCovaModelPayload(catalog),'warm');state.reply=core.renderAskCovaAnswer(catalog,answer);assert(state.reply);state.reply={...state.reply,answer:state.reply.paragraphs.join(' ' ),detail:state.reply.detail.join(' ')};
+      return route.fulfill({json:{status:'ok',aiResponseUsed:true,contextDigest:catalog.contextDigest,answer}});
      }
      return route.fulfill({status:403,json:{error:'Read-only fixture'}});
     }

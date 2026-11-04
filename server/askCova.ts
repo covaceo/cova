@@ -1,43 +1,21 @@
 import { supabaseServiceHeaders } from '../api/_lib/supabase.js';
 import { assertRecords, WORKSPACE_DISCLOSURE, uuid, account } from '../src/lib/workspaceValidation';
 import type { Trade } from '../src/lib/risk';
-import { buildAskCovaCatalog, askCovaModelPayload, renderAskCovaSelection, isAskCovaQuestion } from '../src/lib/askCova';
+import { buildAskCovaCatalog, askCovaModelPayload, renderAskCovaAnswer, isAskCovaQuestion } from '../src/lib/askCova';
 import { acquireAskCovaPermit, askCovaBudgetConfiguration } from './askCovaBudget';
 import { hasAskCovaAccess } from './askCovaAccess';
 
 const MODEL = 'gpt-6-luna';
 const PROVIDER_URL = 'https://api.openai.com/v1/responses';
-const PROMPT = 'Select one verified observation for Cova AI. Choose the most useful eligible choice, not the most flattering. Return only an existing choice_id and plain, warm or direct style. Do not write prose, calculate, infer emotions, give advice or call tools. The application owns every fact and phrase.';
+const PROMPT = `Write a brief, natural, grounded reply to the selected journal question, as a thoughtful trading companion, not a report or a cheerleader. You author the sentences; the packet supplies the facts. Use lowercase prose, never copy a canned answer. One or two paragraphs, at most 160 words; optional authored detail at most 80 words in one paragraph. Short answers are welcome; never pad. Return ask-cova-answer-v1 JSON with paragraphs and detail arrays of {text,evidence}. Every paragraph cites issued observation IDs. Include every requiredAnswerEvidence in the main answer. Detail can only elaborate those same observations. Insert numerical atoms ONLY as {{f:id}} and category names ONLY as {{c:id}}. Do not calculate, invent values, spell out invented numbers, or write literal digits/currency/percent symbols. Preserve the meaning of predicates, fee basis and coverage: a less negative mean is not profitable, a subset is not the full result, descriptive comparisons are not trading ability or future edge. No advice, emotions, causality, URLs, markup, tools or raw records. Win rate includes breakevens. Profit factor is positive group P&L divided by absolute negative group P&L and undefined without losses. Groups are not certified completed positions. Drawdown begins at zero in the selected range, not account balance or intratrade price movement.`;
 class AskFailure extends Error {
   constructor(public http: number, public code: string) { super(code); }
 }
 const fail = (http: number, code: string): never => { throw new AskFailure(http, code); };
 
-// JSON.parse alone silently accepts duplicate properties (including escaped keys).
-export function uniqueJson(text: string): any {
-  const parsed = JSON.parse(text);
-  const tokens = text.match(/"(?:[^"\\\x00-\x1f]|\\(?:["\\/bfnrt]|u[0-9a-fA-F]{4}))*"|[{}\[\]:,]|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|true|false|null/g) || [];
-  let cursor = 0;
-  const value = (depth: number) => {
-    if (depth > 32) throw Error('JSON depth');
-    const token = tokens[cursor++];
-    if (token === '{') {
-      const seen = new Set<string>();
-      while (tokens[cursor] !== '}') {
-        const key = JSON.parse(tokens[cursor++]);
-        if (seen.has(key)) throw Error('Duplicate JSON property');
-        seen.add(key); cursor++; value(depth + 1);
-        if (tokens[cursor] === ',') cursor++; else break;
-      }
-      cursor++;
-    } else if (token === '[') {
-      while (tokens[cursor] !== ']') { value(depth + 1); if (tokens[cursor] === ',') cursor++; else break; }
-      cursor++;
-    }
-  };
-  value(0);
-  return parsed;
-}
+import { uniqueJson } from '../src/lib/askCovaJson';
+export { uniqueJson } from '../src/lib/askCovaJson';
+import { ASK_COVA_OUTPUT_TOKENS, ASK_COVA_ANSWER_SCHEMA } from '../src/lib/askCovaVoice';
 async function boundedJson(response: Response, maxBytes: number): Promise<any> {
   if (!response.ok || !response.body) {
     await response.body?.cancel().catch(() => undefined);
@@ -55,33 +33,31 @@ async function boundedJson(response: Response, maxBytes: number): Promise<any> {
     return uniqueJson(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks)));
   } finally { await reader.cancel().catch(() => undefined); }
 }
-function checkedSelection(raw: any, catalog: Awaited<ReturnType<typeof buildAskCovaCatalog>>) {
+function checkedAnswer(raw: any, catalog: Awaited<ReturnType<typeof buildAskCovaCatalog>>) {
   const output = raw?.output, usage = raw?.usage;
   if (raw?.model !== MODEL || raw.status !== 'completed' || raw.service_tier !== 'default' ||
       raw.error != null || raw.incomplete_details != null || !usage ||
       !Number.isSafeInteger(usage.input_tokens) || usage.input_tokens < 0 || usage.input_tokens > 28096 ||
-      !Number.isSafeInteger(usage.output_tokens) || usage.output_tokens < 0 || usage.output_tokens > 120 ||
+      !Number.isSafeInteger(usage.output_tokens) || usage.output_tokens < 0 || usage.output_tokens > ASK_COVA_OUTPUT_TOKENS ||
       !Array.isArray(output) || output.length !== 1) throw Error('Invalid response');
   const message = output[0];
   if (message?.type !== 'message' || message.role !== 'assistant' || message.status !== 'completed' ||
       !Array.isArray(message.content) || message.content.length !== 1) throw Error('Invalid message');
   const part = message.content[0];
-  if (part?.type !== 'output_text' || typeof part.text !== 'string' || Buffer.byteLength(part.text) > 512 ||
+  if (part?.type !== 'output_text' || typeof part.text !== 'string' || Buffer.byteLength(part.text) > 6144 ||
       part.annotations !== undefined && (!Array.isArray(part.annotations) || part.annotations.length)) throw Error('Invalid text');
-  const selection = uniqueJson(part.text);
-  if (!renderAskCovaSelection(catalog, selection)) throw Error('Invalid selection');
-  return { choice_id: selection.choice_id, style: selection.style };
+  const answer = uniqueJson(part.text);
+  if (!renderAskCovaAnswer(catalog, answer)) throw Error('Invalid answer');
+  return answer;
 }
 export function assertAskCovaRequestBytes(serialized: string) {
   if (typeof serialized !== 'string' || Buffer.byteLength(serialized) > 24000) fail(422, 'context_too_large');
 }
 function providerPayload(catalog: Awaited<ReturnType<typeof buildAskCovaCatalog>>) {
   return JSON.stringify({ model: MODEL, store: false, reasoning: { effort: 'none' },
-    prompt_cache_options: { mode: 'explicit' }, tools: [], max_output_tokens: 120, service_tier: 'default',
+    prompt_cache_options: { mode: 'explicit' }, tools: [], max_output_tokens: ASK_COVA_OUTPUT_TOKENS, service_tier: 'default',
     input: [{ role: 'developer', content: PROMPT }, { role: 'user', content: JSON.stringify(askCovaModelPayload(catalog)) }],
-    text: { format: { type: 'json_schema', name: 'cova_insight_choice', strict: true,
-      schema: { type: 'object', properties: { choice_id: { type: 'string', enum: catalog.candidates.map(c => c.id) },
-        style: { type: 'string', enum: ['plain', 'warm', 'direct'] } }, required: ['choice_id', 'style'], additionalProperties: false } } },
+    text: { format: { type: 'json_schema', name: 'cova_authored_answer', strict: true, schema: ASK_COVA_ANSWER_SCHEMA } },
   });
 }
 async function savedSnapshot(owner: string, rest: any) {
@@ -146,7 +122,7 @@ export function createAskCovaHandler({ acquirePermit = acquireAskCovaPermit, fet
           !['today', 'week', 'all'].includes(body.range) ||
           !isAskCovaQuestion(body.question) ||
           typeof body.contextDigest !== 'string' || !/^[a-f0-9]{64}$/.test(body.contextDigest) ||
-          body.protocolVersion !== 'ask-cova-v2') fail(400, 'invalid_request');
+          body.protocolVersion !== 'ask-cova-v3') fail(400, 'invalid_request');
       askCovaBudgetConfiguration(env);
       const snapshot = await savedSnapshot(user.id, rest || storageRest(env, fetchImpl));
       const catalog = await buildAskCovaCatalog({ ownerId: user.id, account: body.account, range: body.range, question: body.question, trades: snapshot.trades });
@@ -155,15 +131,15 @@ export function createAskCovaHandler({ acquirePermit = acquireAskCovaPermit, fet
       assertAskCovaRequestBytes(payload);
       permit = await acquirePermit({ ownerId: user.id, requestId: body.requestId, env });
       if (!permit?.allowed) fail(429, 'rate_limited');
-      let selection;
+      let answer;
       try {
         const response = await fetchImpl(PROVIDER_URL, { method: 'POST', redirect: 'error',
           headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
           body: payload, signal: AbortSignal.timeout(15000) });
-        selection = checkedSelection(await boundedJson(response, 65536), catalog);
+        answer = checkedAnswer(await boundedJson(response, 65536), catalog);
       } catch { fail(502, 'provider_unavailable'); }
       await snapshot.recheck();
-      return res.status(200).json({ status: 'ok', aiResponseUsed: true, contextDigest: catalog.contextDigest, selection });
+      return res.status(200).json({ status: 'ok', aiResponseUsed: true, contextDigest: catalog.contextDigest, answer });
     } catch (error) {
       const known = error instanceof AskFailure;
       return res.status(known ? error.http : 503).json({ status: 'unavailable', error: known ? error.code : 'ask_cova_unavailable' });

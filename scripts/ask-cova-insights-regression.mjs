@@ -1,4 +1,7 @@
 import test from 'node:test';
+import {syntheticAnswer} from './helpers/ask-cova-authored-fixture.mjs';
+const field=(p,id)=>p.facts.find(f=>f.id===id);
+const comparisonCoverage=p=>p.coverage.find(c=>c.id==='comparison');
 import assert from 'node:assert/strict';
 import load from './helpers/load-ts.cjs';
 import { readFileSync } from 'node:fs';
@@ -74,7 +77,8 @@ test('valid subsets and comparisons reject nonnumeric or inexact money with exac
   const rows=[row('good',10,{setup:'Private Good'}),row('bad',bad,{setup:'Private Bad'})];
   const c=await build(rows);
   assert.equal(c.candidates[0].id,'invalid_money');
-  for(const answer of [...Object.values(c.candidates[0].variants),...Object.values(core.askCovaModelPayload(c).choices[0].variants)]){
+  const packet=core.askCovaModelPayload(c);assert.equal(field(packet,'net').value,'10.00');assert.equal(field(packet,'win_rate').value,'100.0');assert.equal(field(packet,'group_count').value,'1');
+  for(const answer of Object.values(c.candidates[0].variants)){
    assert.match(answer,/Valid subset P&L: 10\.00 USD/);
    assert.match(answer,/Win rate 100\.0%.*across 1 journal groups/);
    assert.doesNotMatch(answer,/1010\.00|1000\.00/);
@@ -97,7 +101,7 @@ function subsetRuntime(kind) {
  if(kind==='source')return {...core,...load('server/askCova.ts')};
  if(!generatedSubsetRuntime){
   const module={exports:{}};
-  const source=readFileSync(new URL('../api/workspace.js',import.meta.url),'utf8')+'\nexport {buildAskCovaCatalog,askCovaModelPayload,renderAskCovaSelection,createAskCovaHandler};';
+  const source=readFileSync(new URL('../api/workspace.js',import.meta.url),'utf8')+'\nexport {buildAskCovaCatalog,askCovaModelPayload,renderAskCovaAnswer,createAskCovaHandler};';
   const code=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
   new Function('module','exports','require',code)(module,module.exports,createRequire(new URL('../api/workspace.js',import.meta.url)));
   generatedSubsetRuntime=module.exports;
@@ -119,7 +123,12 @@ function assertSubsetPartition(api,catalog,question) {
  assert.match(item.detail,/“Private Alpha” averaged 100\.00 USD \(n=1\).*“Private Beta” averaged −50\.00 USD \(n=1\)/);
  assert.doesNotMatch(JSON.stringify(safe),/Private Alpha|Private Beta|private-owner|tradovate-7|notes|openedAt|closedAt/);
  assert.ok(Buffer.byteLength(JSON.stringify(safe))<=8192);
- for(const variants of [item.variants,safe.choices[0].variants])for(const answer of Object.values(variants)){
+ assert.equal(field(safe,'net').value,'50.00');assert.equal(field(safe,'win_rate').value,'50.0');assert.equal(field(safe,'profit_factor').value,'2.00');assert.equal(field(safe,'group_count').value,'2');
+ assert.deepEqual(safe.coverage.find(c=>c.id==='full'),{id:'full',kind:'valid_subset',totalGroups:3,usableGroups:2,sampleGroups:2,describedGroups:2,matched:null});
+ assert.equal(comparisonCoverage(safe).sampleGroups,2);assert.equal(comparisonCoverage(safe).totalGroups,3);
+ if(['review_results','what_stands_out','setup_performance','holding_time'].includes(question)){assert.equal(field(safe,'mean_a').value,'100.00');assert.equal(field(safe,'mean_b').value,'-50.00');assert.equal(field(safe,'mean_gap').value,'150.00');}
+ else {assert.equal(field(safe,'mean_a').value,'25.00');assert.equal(field(safe,'count_a').value,'2');}
+ for(const answer of Object.values(item.variants)){
   assert.match(answer,/2\/3 compared journal groups/);
   assert.doesNotMatch(answer,/Win rate 100\.0%|profit factor undefined|across 1 journal groups/);
   if(['review_results','what_stands_out'].includes(question)){
@@ -130,8 +139,8 @@ function assertSubsetPartition(api,catalog,question) {
   }else assert.match(answer,/25\.00 USD \(n=2\).*Only one category/);
  }
  for(const style of ['plain','warm','direct']){
-  const rendered=api.renderAskCovaSelection(catalog,{choice_id:item.id,style});
-  assert.equal(rendered.answer,item.variants[style]);assert.equal(rendered.detail,item.detail);
+  const authored=syntheticAnswer(safe,style),rendered=api.renderAskCovaAnswer(catalog,authored);
+  assert.ok(rendered);assert.match(rendered.paragraphs.join(' '),question==='long_vs_short'||question==='time_of_day'?/25\.00 USD/:/100\.00 USD/);assert.equal(rendered.contextDigest,catalog.contextDigest);
  }
 }
 for(const kind of ['source','generated']){
@@ -160,7 +169,8 @@ for(const kind of ['source','generated']){
   // An unrelated excluded record must not split a verified linked group.
   const trades=[...linked,row('unrelated-invalid',null)];
   const c=await api.buildAskCovaCatalog({ownerId:'private-owner',account:'all',range:'all',question:'review_results',trades});
-  for(const answer of [...Object.values(c.candidates[0].variants),...Object.values(api.askCovaModelPayload(c).choices[0].variants)]){
+  const p=api.askCovaModelPayload(c);assert.equal(field(p,'net').value,'50.00');assert.equal(field(p,'win_rate').value,'100.0');assert.equal(field(p,'group_count').value,'1');assert.equal(field(p,'profit_factor').value,null);
+  for(const answer of Object.values(c.candidates[0].variants)){
    assert.match(answer,/Valid subset P&L: 50\.00 USD.*Win rate 100\.0% and profit factor undefined \(no losses\), across 1 journal groups/);
    assert.doesNotMatch(answer,/versus|Gap:/);
   }
@@ -177,9 +187,9 @@ for(const kind of ['source','generated']){
    let status,response,envelope,permits=0,calls=0,releases=0;
    const handler=api.createAskCovaHandler({acquirePermit:async()=>{permits++;return {allowed:true,release:async()=>{releases++;}};},fetchImpl:async(url,options)=>{
     calls++;assert.equal(url,'https://api.openai.com/v1/responses');envelope=JSON.parse(options.body);
-    return new Response(JSON.stringify({model:'gpt-6-luna',status:'completed',service_tier:'default',usage:{input_tokens:500,output_tokens:20},output:[{type:'message',role:'assistant',status:'completed',content:[{type:'output_text',text:JSON.stringify({choice_id:catalog.candidates[0].id,style}),annotations:[]}]}]}));
+    return new Response(JSON.stringify({model:'gpt-6-luna',status:'completed',service_tier:'default',usage:{input_tokens:500,output_tokens:20},output:[{type:'message',role:'assistant',status:'completed',content:[{type:'output_text',text:JSON.stringify(syntheticAnswer(api.askCovaModelPayload(catalog),style)),annotations:[]}]}]}));
    }});
-   await handler({body:{action:'ask_cova',owner,account:'all',range:'all',question,contextDigest:catalog.contextDigest,protocolVersion:'ask-cova-v2',requestId:'33333333-3333-4333-8333-333333333333'},user:{id:owner},environment:env,rest:async(path,options)=>{
+   await handler({body:{action:'ask_cova',owner,account:'all',range:'all',question,contextDigest:catalog.contextDigest,protocolVersion:'ask-cova-v3',requestId:'33333333-3333-4333-8333-333333333333'},user:{id:owner},environment:env,rest:async(path,options)=>{
     assert.equal(options.query.owner_id,'eq.'+owner);
     if(path==='workspace_settings')return [{disclosure_version:'workspace-cloud-v1',revision:1,pending_manifest:null}];
     assert.equal(path,'workspace_records');
@@ -190,12 +200,12 @@ for(const kind of ['source','generated']){
     continue; // Numeric strings remain rejected by server record validation.
    }
    assert.equal(status,200);assert.deepEqual([permits,calls,releases],[1,1,1]);
-   assert.equal(response.contextDigest,catalog.contextDigest);assert.equal(response.selection.style,style);
-   const rendered=api.renderAskCovaSelection(catalog,response.selection);
-   assert.equal(rendered.answer,catalog.candidates[0].variants[style]);
+   assert.equal(response.contextDigest,catalog.contextDigest);assert.deepEqual(response.answer,syntheticAnswer(api.askCovaModelPayload(catalog),style));
+   const rendered=api.renderAskCovaAnswer(catalog,response.answer);
+   assert.ok(rendered);assert.match(rendered.paragraphs.join(' '),/50\.00 USD/);
    assertSubsetPartition(api,catalog,question);
    assert.deepEqual(JSON.parse(envelope.input[1].content),api.askCovaModelPayload(catalog));
-   assert.equal(envelope.model,'gpt-6-luna');assert.equal(envelope.max_output_tokens,120);assert.equal(envelope.store,false);
+   assert.equal(envelope.model,'gpt-6-luna');assert.equal(envelope.max_output_tokens,1024);assert.equal(envelope.store,false);
    assert.ok(Buffer.byteLength(JSON.stringify(envelope))<=24000);
    assert.doesNotMatch(JSON.stringify(envelope),/Private Alpha|Private Beta|tradovate-7|11111111/);
    if(kind==='generated')assert.deepEqual(catalog,await core.buildAskCovaCatalog(input));
@@ -314,7 +324,7 @@ test('unsupported sizes remain unmatched without losing valid money or defeating
   assert.match(c.candidates[0].detail,/Reported P&L is 75\.00 USD/);
   assert.equal((await build([...rows].reverse(),'setup_performance')).contextDigest,c.contextDigest);
   const safe=JSON.stringify(core.askCovaModelPayload(c));
-  assert.match(safe,/Unmatched groups/);assert.doesNotMatch(safe,/Private Alpha|Private Beta|private-owner/);
+  assert.match(safe,/unmatched_groups/);assert.doesNotMatch(safe,/Private Alpha|Private Beta|private-owner/);
  }
  const supported=[row('valid-a',20,{setup:'A',contracts:2}),row('valid-b',10,{setup:'B',contracts:2})];
  const unknown=Array.from({length:4},(_,i)=>row('unknown-'+i,999,{setup:i%2?'B':'A',contracts:1.5}));
@@ -329,7 +339,7 @@ test('annotation injection stays local, notes are never read, and all bounded pa
   const trades=[Object.defineProperty(row('private-id',10,{setup}),'notes',{get(){throw Error('notes accessed');}}),row('other-id',-5,{setup:'Other'})];
   for(const question of core.ASK_COVA_QUESTION_IDS){
    const catalog=await build(trades,question), payload=JSON.stringify(core.askCovaModelPayload(catalog));
-   for(const secret of [setup,'private-owner','private-id','other-id','Other','notes','setup'])assert.ok(!payload.includes(secret),secret);
+   for(const secret of [setup,'private-owner','private-id','other-id','Other','notes'])assert.ok(!payload.includes(secret),secret);
    assert.ok(Buffer.byteLength(payload)<=8192); assert.ok(catalog.candidates.length<=3);
    for(const item of catalog.candidates){
     for(const answer of Object.values(item.variants))assert.ok(answer.split(/\s+/).length<=140,answer);
@@ -366,23 +376,23 @@ test('provider sees actual checked numeric comparisons without copying or replac
   assert.notEqual(c.contextDigest,original.contextDigest);
  }
  const serialized=JSON.stringify(expected);
- assert.match(serialized,/60\.00 USD.*n=2.*−40\.00 USD.*n=1/);
- assert.match(serialized,/3\/3 compared/);
+ assert.equal(field(expected,'mean_a').value,'60.00');assert.equal(field(expected,'count_a').value,'2');assert.equal(field(expected,'mean_b').value,'-40.00');assert.equal(field(expected,'count_b').value,'1');
+ assert.equal(comparisonCoverage(expected).sampleGroups,3);assert.equal(comparisonCoverage(expected).totalGroups,3);
  assert.match(serialized,/gross, before fees/);
  assert.doesNotMatch(serialized,/Private alpha|Private beta|secret-a|private-owner|notes/);
  for(const question of ['review_results','what_stands_out','long_vs_short']){
   const payload=JSON.stringify(core.askCovaModelPayload(await build(base,question)));
   assert.match(payload,/60\.00 USD/);
-  if(question!=='long_vs_short')assert.match(payload,/80\.00 USD.*win rate 66\.7%.*profit factor 3\.00/i);
+  if(question!=='long_vs_short'){const p=JSON.parse(payload);assert.equal(field(p,'net').value,'80.00');assert.equal(field(p,'win_rate').value,'66.7');assert.equal(field(p,'profit_factor').value,'3.00');}
  }
  const times=[timed('t1',81,'2026-10-30T13:30:00Z','2026-10-30T14:30:00Z'),timed('t2',-19,'2026-10-30T18:30:00Z','2026-10-30T18:35:00Z')];
  for(const question of ['holding_time','time_of_day']){
   const payload=JSON.stringify(core.askCovaModelPayload(await build(times,question)));
-  assert.match(payload,/81\.00 USD.*n=1.*−19\.00 USD.*n=1/);
+  const p=JSON.parse(payload);assert.equal(field(p,'mean_a').value,'81.00');assert.equal(field(p,'count_a').value,'1');assert.equal(field(p,'mean_b').value,'-19.00');assert.equal(field(p,'count_b').value,'1');
  }
  const partial=JSON.stringify(core.askCovaModelPayload(await build([...base,row('bad',null)],'setup_performance')));
- assert.match(partial,/60\.00 USD.*−40\.00 USD/);assert.match(partial,/3\/4 compared/);
- const mutation=core.askCovaModelPayload(original); mutation.choices[0].variants.plain='untrusted';
+ assert.match(partial,/60\.00 USD.*−40\.00 USD/);assert.equal(comparisonCoverage(JSON.parse(partial)).sampleGroups,3);assert.equal(comparisonCoverage(JSON.parse(partial)).totalGroups,4);
+ const mutation=core.askCovaModelPayload(original); mutation.facts[0].display='untrusted';
  assert.deepEqual(core.askCovaModelPayload(original),expected);
  assert.equal(core.renderAskCovaSelection({...original},{choice_id:'result',style:'plain'}),null);
 });
@@ -394,7 +404,10 @@ test('independent comparison oracle verifies unequal-n means and gaps in local a
   // Independent small-integer cents oracle; no production formatter/statistics helper.
   const meanA=(a+b)/2,meanB=c;
   const amount=x=>`${x<0?'−':''}${(Math.round(Math.abs(x))/100).toFixed(2)} USD`;
-  for(const answer of [text(catalog),...Object.values(core.askCovaModelPayload(catalog).choices[0].variants)]){
+  const p=core.askCovaModelPayload(catalog);const expected=[{mean:meanA,count:2},{mean:meanB,count:1}].sort((a,b)=>b.mean-a.mean);
+  assert.equal(field(p,'mean_a').display,amount(expected[0].mean));assert.equal(field(p,'count_a').value,String(expected[0].count));assert.equal(field(p,'mean_b').display,amount(expected[1].mean));assert.equal(field(p,'count_b').value,String(expected[1].count));assert.equal(field(p,'mean_gap').display,amount(Math.abs(meanA-meanB)));assert.equal(comparisonCoverage(p).sampleGroups,3);assert.equal(comparisonCoverage(p).totalGroups,3);
+  assert.equal(p.observations.find(o=>o.id==='comparison').predicates.includes('means_tie'),meanA===meanB);
+  for(const answer of [text(catalog)]){
    assert.ok(answer.includes(`${amount(meanA)} (n=2)`),answer);
    assert.ok(answer.includes(`${amount(meanB)} (n=1)`),answer);
    if(meanA===meanB)assert.match(answer,/means tie.*no leader/);
@@ -437,10 +450,10 @@ test('the actual full provider envelope stays under ceilings with only mocked tr
    calls++; assert.equal(url,'https://api.openai.com/v1/responses');
    maximum=Math.max(maximum,Buffer.byteLength(options.body)); assert.ok(Buffer.byteLength(options.body)<=24000);
    assert.doesNotMatch(options.body,/Private alpha|Private beta|tradovate-7:1:2|11111111/);
-   const body=JSON.parse(options.body);assert.equal(body.model,'gpt-6-luna');assert.equal(body.max_output_tokens,120);assert.equal(body.store,false);
-   return new Response(JSON.stringify({model:'gpt-6-luna',status:'completed',service_tier:'default',usage:{input_tokens:500,output_tokens:20},output:[{type:'message',role:'assistant',status:'completed',content:[{type:'output_text',text:JSON.stringify({choice_id:catalog.candidates[0].id,style:'plain'}),annotations:[]}]}]}));
+   const body=JSON.parse(options.body);assert.equal(body.model,'gpt-6-luna');assert.equal(body.max_output_tokens,1024);assert.equal(body.store,false);
+   return new Response(JSON.stringify({model:'gpt-6-luna',status:'completed',service_tier:'default',usage:{input_tokens:500,output_tokens:20},output:[{type:'message',role:'assistant',status:'completed',content:[{type:'output_text',text:JSON.stringify(syntheticAnswer(core.askCovaModelPayload(catalog))),annotations:[]}]}]}));
   }});
-  await handler({body:{action:'ask_cova',owner,account:'Tradovate:7',range:'all',question,contextDigest:catalog.contextDigest,protocolVersion:'ask-cova-v2',requestId:'33333333-3333-4333-8333-333333333333'},user:{id:owner},environment:env,rest:async(path,o)=>path==='workspace_settings'?[{disclosure_version:'workspace-cloud-v1',revision:1,pending_manifest:null}]:o.query.offset==='0'?trades.map(t=>({kind:'trade',record_id:t.id,account_id:'Tradovate:7',schema_version:1,payload:t,revision:1,created_at:'2026-10-30T00:00:00Z',updated_at:'2026-10-30T00:00:00Z',deleted_at:null})):[]},{status(s){status=s;return this;},json(){}});
+  await handler({body:{action:'ask_cova',owner,account:'Tradovate:7',range:'all',question,contextDigest:catalog.contextDigest,protocolVersion:'ask-cova-v3',requestId:'33333333-3333-4333-8333-333333333333'},user:{id:owner},environment:env,rest:async(path,o)=>path==='workspace_settings'?[{disclosure_version:'workspace-cloud-v1',revision:1,pending_manifest:null}]:o.query.offset==='0'?trades.map(t=>({kind:'trade',record_id:t.id,account_id:'Tradovate:7',schema_version:1,payload:t,revision:1,created_at:'2026-10-30T00:00:00Z',updated_at:'2026-10-30T00:00:00Z',deleted_at:null})):[]},{status(s){status=s;return this;},json(){}});
   assert.equal(status,200);assert.equal(calls,1);
  }
  console.log(JSON.stringify({synthetic:true,actualProviderRequests:0,maximumFullEnvelopeBytes:maximum,ceiling:24000}));
