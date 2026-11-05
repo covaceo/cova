@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { createServer, createConnection } from 'node:net';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import load from './helpers/load-ts.cjs';
 const source = 'server/askCovaBudget.ts';
 const budget = existsSync(source) ? load(source) : {};
@@ -25,15 +25,33 @@ test('atomic reservation uses pinned campaign, durable dedup and fixed charge; r
   };
   const permit = await budget.acquireAskCovaPermit({ ownerId, requestId, env, fetchImpl });
   assert.equal(permit.allowed, true);
-  assert.equal(budget.ASK_COVA_RESERVATION_MICRO_USD, 260000);
+  assert.equal(budget.ASK_COVA_RESERVATION_MICRO_USD, 4000);
   assert.equal(calls[0][0], 'EVAL');
   assert.match(calls[0][1], /redis.call\('TIME'\)/);
   assert.match(calls[0][1], /campaign/);
-  assert.equal(calls[0][10], '260000', 'outgoing reservation is exactly $0.26, not a byte-derived token estimate');
+  assert.equal(calls[0][10], '4000', 'future reservations are fixed $0.004, never a byte-derived estimate or settlement');
   await permit.release(); await permit.release();
   assert.equal(calls.length, 2);
   assert.doesNotMatch(calls[1][1], /DECR|HINCRBY|budget/i);
   assert.equal(calls[0][3], 'ask-cova:{reservation-v1}:budget');
+});
+
+test('prospective charge preserves original ledger policy, campaign/cap and lock-only release', async () => {
+  // Frozen from base 21897b170851d1701815f0d3a9ed0cae88e06af1. This is an offline
+  // policy-identity check, NOT Redis-engine, live-balance or concurrency evidence.
+  assert.equal(createHash('sha256').update(budget.ASK_COVA_RESERVE_LUA).digest('hex'),
+    'f970d8b54b629c0e996960a9239b01afb57c9475f9add9f8e48eacc522dda3f7');
+  const commands = [];
+  const p = await budget.acquireAskCovaPermit({ ownerId, requestId,
+    env: { ...env, ASK_COVA_BUDGET_ID: 'ask-cova-private-beta-20261103', ASK_COVA_BUDGET_MICRO_USD: '1000000' },
+    fetchImpl: async (_url, options) => { commands.push(JSON.parse(options.body)); return new Response(JSON.stringify({ result: commands.length === 1 ? [1, 0] : 1 })); },
+  });
+  await p.release(); await p.release();
+  assert.equal(commands.length, 2);
+  assert.deepEqual(commands[0].slice(8, 11), ['ask-cova-private-beta-20261103', '1000000', '4000']);
+  assert.equal(commands[0][3], 'ask-cova:{reservation-v1}:budget');
+  assert.match(commands[0][6], /^ask-cova:\{reservation-v1\}:request:/);
+  assert.deepEqual(commands[1], ['EVAL', "if redis.call('GET',KEYS[1])==ARGV[1] then return redis.call('DEL',KEYS[1]) else return 0 end", '1', commands[0][7], commands[0][11]]);
 });
 
 test('invalid backend origins/caps and malformed receipts fail closed', async () => {
@@ -41,8 +59,8 @@ test('invalid backend origins/caps and malformed receipts fail closed', async ()
     { KV_REST_API_URL: 'http://synthetic.upstash.io' }, { KV_REST_API_URL: 'https://synthetic.upstash.io.evil.invalid' },
     { KV_REST_API_URL: 'https://user:pass@synthetic.upstash.io' }, { KV_REST_API_URL: 'https://synthetic.upstash.io/path' },
     { KV_REST_API_URL: 'https://synthetic.upstash.io:443' }, { KV_REST_API_TOKEN: 'short' },
-    { ASK_COVA_BUDGET_MICRO_USD: '10000001' }, { ASK_COVA_BUDGET_MICRO_USD: '9999' },
-    { ASK_COVA_BUDGET_MICRO_USD: String(charge - 1) }, { ASK_COVA_BUDGET_MICRO_USD: '259999' },
+    { ASK_COVA_BUDGET_MICRO_USD: '10000001' }, { ASK_COVA_BUDGET_MICRO_USD: '0' },
+    { ASK_COVA_BUDGET_MICRO_USD: String(charge - 1) }, { ASK_COVA_BUDGET_MICRO_USD: '3999' },
     { ASK_COVA_BUDGET_MICRO_USD: '1e6' }, { ASK_COVA_BUDGET_ID: 'bad:key' },
   ];
   for (const change of changes) {
@@ -60,9 +78,9 @@ test('invalid backend origins/caps and malformed receipts fail closed', async ()
   }
 });
 
-test('configuration minimum is one full-model reservation; maximum remains $10, not deployment approval', () => {
+test('configuration minimum is one gated reservation; maximum remains $10, not deployment approval', () => {
   assert.equal(budget.ASK_COVA_MAX_BUDGET_MICRO_USD, 10000000);
-  for (const cap of [charge, 1000000, 10000000]) {
+  for (const cap of [charge, 9999, 259999, 1000000, 10000000]) {
     assert.equal(budget.askCovaBudgetConfiguration({ ...env, ASK_COVA_BUDGET_MICRO_USD: String(cap) }).cap, cap);
   }
 });
@@ -233,17 +251,27 @@ test('actual Redis Lua: concurrency, near-cap, durable replay, campaign pin and 
   await t.test('invalid or lost ledger denies without any state changes', () => assertLedgerIntegrity({ command: args => redisCommand(port, args), reserve, reset, budgetKey }));
 
   await reset('1000000'); commands.length = 0;
-  const near = await Promise.all(Array.from({ length: 40 }, () => reserve({ ownerId: randomUUID(), env: { ...env, ASK_COVA_BUDGET_MICRO_USD: '1000000' } })));
-  assert.equal(near.filter(p => p.allowed).length, 3);
+  // Synthetic legacy ledger: three historical 260000 debits remain untouched.
+  await redisCommand(port, ['HSET', budgetKey, 'used', '780000']);
+  const legacyReceipt = 'ask-cova:{reservation-v1}:request:synthetic-legacy';
+  await redisCommand(port, ['SET', legacyReceipt, 'reserved']);
+  const near = await Promise.all(Array.from({ length: 60 }, () => reserve({ ownerId: randomUUID(), env: { ...env, ASK_COVA_BUDGET_MICRO_USD: '1000000' } })));
+  assert.equal(near.filter(p => p.allowed).length, 55);
+  assert.equal(near.filter(p => !p.allowed).every(p => p.reason === 5), true);
   assert.equal(commands[0][3], budgetKey);
-  assert.equal(commands[0][10], '260000');
-  assert.equal(await redisCommand(port, ['HGET', budgetKey, 'used']), '780000');
+  assert.equal(commands[0][10], '4000');
+  assert.equal(await redisCommand(port, ['HGET', budgetKey, 'used']), '1000000');
   assert.equal(await redisCommand(port, ['TTL', budgetKey]), -1);
   await Promise.all(near.map(p => p.release()));
-  assert.equal(await redisCommand(port, ['HGET', budgetKey, 'used']), '780000');
+  assert.equal(await redisCommand(port, ['HGET', budgetKey, 'used']), '1000000');
+  assert.equal(await redisCommand(port, ['HGET', budgetKey, 'cap']), '1000000');
+  assert.equal(await redisCommand(port, ['HGET', budgetKey, 'campaign']), env.ASK_COVA_BUDGET_ID);
+  assert.equal(await redisCommand(port, ['GET', legacyReceipt]), 'reserved');
+  assert.equal(await redisCommand(port, ['TTL', legacyReceipt]), -1);
 
-  await t.test('$1 cumulative budget allows three owner attempts; unlock and day rollover never refund', async () => {
+  await t.test('$1 cap preserves legacy debits; unlock and day rollover never refund', async () => {
     await reset('1000000'); commands.length = 0;
+    await redisCommand(port, ['HSET', budgetKey, 'used', '988000']); // Synthetic prior usage, never repriced.
     const approvedEnv = { ...env, ASK_COVA_BUDGET_MICRO_USD: '1000000' };
     for (let i = 0; i < 3; i++) {
       const permit = await reserve({ env: approvedEnv });
@@ -257,7 +285,7 @@ test('actual Redis Lua: concurrency, near-cap, durable replay, campaign pin and 
     await redisCommand(port, ['HSET', keys[2], 'day', '-1', 'count', '20']);
     const nextDay = await reserve({ env: approvedEnv });
     assert.equal(nextDay.allowed, false); assert.equal(nextDay.reason, 5);
-    assert.equal(await redisCommand(port, ['HGET', budgetKey, 'used']), '780000');
+    assert.equal(await redisCommand(port, ['HGET', budgetKey, 'used']), '1000000');
     assert.equal(await redisCommand(port, ['PTTL', budgetKey]), -1);
     assert.equal(await redisCommand(port, ['PTTL', keys[3]]), -1);
   });

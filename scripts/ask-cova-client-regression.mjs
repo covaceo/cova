@@ -84,7 +84,8 @@ test('F-03 pre-aborted request does not dispatch',async()=>{
  const result=await mod.requestAskCova(input,controller.signal,async()=>{calls++;return new Response('{}');},()=>true);
  assert.equal(result.status,'unavailable');assert.equal(calls,0);
 });
-for(const [status,headers] of [[200,{'Content-Length':'1048576'}],[429,{}],[500,{'Content-Length':'1048576'}]]){
+// 429/503 bodies are now decoded only within the 2048-byte rejection ceiling.
+for(const [status,headers] of [[200,{'Content-Length':'1048576'}],[429,{'Content-Length':'2049'}],[503,{'Content-Length':'2049'}],[500,{'Content-Length':'1048576'}]]){
  test(`F-03 status ${status} rejected at headers cancels without reading`,async()=>{
   let reads=0,canceled=false;
   const stream=new ReadableStream({pull(controller){reads++;controller.enqueue(new TextEncoder().encode('{}'));controller.close();},cancel(){canceled=true;}},{highWaterMark:0});

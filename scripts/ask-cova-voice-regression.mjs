@@ -101,8 +101,10 @@ test('structured comparisons preserve ranked means, distinct coverage and privat
 });
 test('synthetic authored answer traverses provider server client and scoped renderer without selector',async()=>{
  const catalog = await core.buildAskCovaCatalog(input);
- let calls=0,permit=0;
+ let calls=0,counts=0,permit=0;
  const handler=server.createAskCovaHandler({acquirePermit:async()=>{permit++;return {allowed:true,release:async()=>{}}},fetchImpl:async(_url,init)=>{
+  if(_url==='https://api.openai.com/v1/responses/input_tokens'){counts++;assert.equal(permit,1);return new Response(JSON.stringify({object:'response.input_tokens',input_tokens:500}));}
+  assert.equal(_url,'https://api.openai.com/v1/responses');assert.equal(counts,1);
   calls++;const request=JSON.parse(init.body);const packet=JSON.parse(request.input[1].content);
   assert.equal(packet.version,'ask-cova-facts-v1');assert.equal(packet.facts.find(f=>f.id==='net').value,'20.00');
   assert.doesNotMatch(init.body,/PRIVATE|manual-synthetic|2026-10-29|11111111|choice_id|variants/);
@@ -114,7 +116,7 @@ test('synthetic authored answer traverses provider server client and scoped rend
   await handler({body,user:{id:owner},environment:env,rest:async(path,o)=>path==='workspace_settings'?[{disclosure_version:'workspace-cloud-v1',revision:1,pending_manifest:null}]:Number(o.query.offset)?[]:[{kind:'trade',record_id:row.id,account_id:'local',schema_version:1,payload:row,revision:1,created_at:'2026-10-29T00:00:00Z',updated_at:'2026-10-29T00:00:00Z',deleted_at:null}]},{status(n){status=n;return this},json(p){payload=p;}});
   assert.equal(status,200,JSON.stringify(payload));return new Response(JSON.stringify(payload),{status});
  },()=>true);
- assert.equal(result.status,'ok');assert.equal(calls,1);assert.equal(permit,1);
+ assert.equal(result.status,'ok');assert.equal(counts,1);assert.equal(calls,1);assert.equal(permit,1);
  assert.deepEqual(result.answer,answer);
  const rendered=core.renderAskCovaAnswer(catalog,result.answer);
  assert.deepEqual(rendered.paragraphs,['the recorded result is 20.00 USD. that is a starting point, not a prediction.']);
