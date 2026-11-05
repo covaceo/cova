@@ -130,7 +130,33 @@ export function createAskCovaHandler({ acquirePermit = acquireAskCovaPermit, fet
       const payload = providerPayload(catalog);
       assertAskCovaRequestBytes(payload);
       permit = await acquirePermit({ ownerId: user.id, requestId: body.requestId, env });
-      if (!permit?.allowed) fail(429, 'rate_limited');
+      if (!permit?.allowed) {
+        // Keep retryable throttles, durable duplicates and financial guard failures
+        // distinct. Never expose ledger contents or raw backend error text.
+        switch (permit?.reason) {
+          case 1: fail(429, 'rate_limited');
+          case 2: fail(429, 'duplicate_request');
+          case 3: fail(429, 'request_in_progress');
+          case 4: fail(429, 'daily_limit');
+          case 5: fail(429, 'budget_exhausted');
+          default: fail(503, 'budget_unavailable');
+        }
+      }
+      // Reserve before even the free count: existing abuse/dedup/lock gates
+      // must precede transmission. Project from the immutable generation JSON.
+      let inputTokens: number;
+      try {
+        const { model, input, reasoning, text, tools } = JSON.parse(payload);
+        const response = await fetchImpl(PROVIDER_URL + '/input_tokens', { method: 'POST', redirect: 'error',
+          headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model, input, reasoning, text, tools }), signal: AbortSignal.timeout(5000) });
+        const count = await boundedJson(response, 2048);
+        if (count?.object !== 'response.input_tokens' || !Number.isSafeInteger(count.input_tokens) || count.input_tokens <= 0) {
+          throw Error('Invalid token count');
+        }
+        inputTokens = count.input_tokens;
+      } catch { return fail(503, 'token_count_unavailable'); }
+      if (inputTokens > 28096) fail(422, 'context_too_large');
       let answer;
       try {
         const response = await fetchImpl(PROVIDER_URL, { method: 'POST', redirect: 'error',

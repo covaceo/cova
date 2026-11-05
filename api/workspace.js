@@ -1771,7 +1771,7 @@ function renderAskCovaAnswer(catalog, value) {
 }
 //#endregion
 //#region server/askCovaBudget.ts
-var ASK_COVA_RESERVATION_MICRO_USD = 26e4;
+var ASK_COVA_RESERVATION_MICRO_USD = 4e3;
 var unavailable = () => /* @__PURE__ */ new Error("Ask Cova reservation unavailable.");
 var ASK_COVA_RESERVE_LUA = `
 local expected={'hash','string','hash','string','string'}
@@ -1813,7 +1813,7 @@ function askCovaBudgetConfiguration(env) {
 	const rawCap = env.ASK_COVA_BUDGET_MICRO_USD || "";
 	if (!/^[a-zA-Z0-9_-]{1,64}$/.test(campaign) || !/^[1-9]\d{0,7}$/.test(rawCap)) throw unavailable();
 	const cap = Number(rawCap);
-	if (cap < 26e4 || cap > 1e7) throw unavailable();
+	if (cap < 4e3 || cap > 1e7) throw unavailable();
 	const rawUrl = env.KV_REST_API_URL || "";
 	if (!/^https:\/\/[a-z0-9-]+\.upstash\.io\/?$/.test(rawUrl)) throw unavailable();
 	const token = env.KV_REST_API_TOKEN || "";
@@ -2168,7 +2168,39 @@ function createAskCovaHandler({ acquirePermit = acquireAskCovaPermit, fetchImpl 
 				requestId: body.requestId,
 				env
 			});
-			if (!permit?.allowed) fail(429, "rate_limited");
+			if (!permit?.allowed) switch (permit?.reason) {
+				case 1: fail(429, "rate_limited");
+				case 2: fail(429, "duplicate_request");
+				case 3: fail(429, "request_in_progress");
+				case 4: fail(429, "daily_limit");
+				case 5: fail(429, "budget_exhausted");
+				default: fail(503, "budget_unavailable");
+			}
+			let inputTokens;
+			try {
+				const { model, input, reasoning, text, tools } = JSON.parse(payload);
+				const count = await boundedJson(await fetchImpl("https://api.openai.com/v1/responses/input_tokens", {
+					method: "POST",
+					redirect: "error",
+					headers: {
+						Authorization: `Bearer ${env.OPENAI_API_KEY}`,
+						"Content-Type": "application/json"
+					},
+					body: JSON.stringify({
+						model,
+						input,
+						reasoning,
+						text,
+						tools
+					}),
+					signal: AbortSignal.timeout(5e3)
+				}), 2048);
+				if (count?.object !== "response.input_tokens" || !Number.isSafeInteger(count.input_tokens) || count.input_tokens <= 0) throw Error("Invalid token count");
+				inputTokens = count.input_tokens;
+			} catch {
+				return fail(503, "token_count_unavailable");
+			}
+			if (inputTokens > 28096) fail(422, "context_too_large");
 			let answer;
 			try {
 				answer = checkedAnswer(await boundedJson(await fetchImpl(PROVIDER_URL, {

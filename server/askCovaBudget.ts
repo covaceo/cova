@@ -1,15 +1,16 @@
 import { createHash } from 'node:crypto';
 import { uuid } from '../src/lib/workspaceValidation';
 
-// Full-model Standard-tier bound, not a serialized-byte token estimate:
-// (922000 / 1e6 * $0.125 cache-write * 2 + 1024 / 1e6 * $0.5 * 1.5)
-// * 1.10 regional premium = $0.2543948; round UP to $0.26 per attempt.
-// GPT-6 Luna model/pricing/prompt-caching docs verified 2026-11-04 UTC.
-// Assumes default tier, <=1024 output tokens, reasoning none, no tools,
-// and explicit cache mode without breakpoints or TTL overrides (no writes).
-// The 30m write rate above remains a conservative overbound, not a discount.
+// Prospective fixed reservation, gated before generation by official input count
+// <=28096 for the exact immutable prompt/schema. Ordinary input, no cache writes:
+// (28096 * 0.10 + 1024 * 0.50) * 1.10 = 3653.76 microUSD at $/million
+// token pricing; round UP to 4000.
+// Assumes gpt-6-luna, default tier, <=1024 output tokens, reasoning none,
+// no tools, explicit cache mode without breakpoints or TTL overrides.
+// Reservation precedes free counting; every admitted failure retains this charge.
+// Not settlement or actual-cost billing. Never reprice old debits or refund.
 // Re-evaluate if model, pricing, tier, output, tool or cache constraints change.
-export const ASK_COVA_RESERVATION_MICRO_USD = 260_000;
+export const ASK_COVA_RESERVATION_MICRO_USD = 4_000;
 export const ASK_COVA_MAX_BUDGET_MICRO_USD = 10_000_000;
 const PREFIX = 'ask-cova:{reservation-v1}:';
 const unavailable = () => new Error('Ask Cova reservation unavailable.');

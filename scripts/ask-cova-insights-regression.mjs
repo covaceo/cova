@@ -184,8 +184,9 @@ for(const kind of ['source','generated']){
    const trades=sharedCloseSubset(change),question='review_results';
    const input={ownerId:owner,account:'all',range:'all',question,trades};
    const catalog=await api.buildAskCovaCatalog(input);
-   let status,response,envelope,permits=0,calls=0,releases=0;
+   let status,response,envelope,permits=0,counts=0,calls=0,releases=0;
    const handler=api.createAskCovaHandler({acquirePermit:async()=>{permits++;return {allowed:true,release:async()=>{releases++;}};},fetchImpl:async(url,options)=>{
+    if(url==='https://api.openai.com/v1/responses/input_tokens'){counts++;assert.equal(permits,1);return new Response(JSON.stringify({object:'response.input_tokens',input_tokens:500}));}
     calls++;assert.equal(url,'https://api.openai.com/v1/responses');envelope=JSON.parse(options.body);
     return new Response(JSON.stringify({model:'gpt-6-luna',status:'completed',service_tier:'default',usage:{input_tokens:500,output_tokens:20},output:[{type:'message',role:'assistant',status:'completed',content:[{type:'output_text',text:JSON.stringify(syntheticAnswer(api.askCovaModelPayload(catalog),style)),annotations:[]}]}]}));
    }});
@@ -196,10 +197,10 @@ for(const kind of ['source','generated']){
     return options.query.offset==='0'?trades.map(t=>({kind:'trade',record_id:t.id,account_id:'Tradovate:7',schema_version:1,payload:t,revision:1,created_at:'2026-10-30T00:00:00Z',updated_at:'2026-10-30T00:00:00Z',deleted_at:null})):[];
    }},{status(n){status=n;return this;},json(value){response=value;}});
    if(name==='string'){
-    assert.equal(status,503);assert.deepEqual([permits,calls,releases],[0,0,0]);assert.equal(envelope,undefined);
+    assert.equal(status,503);assert.deepEqual([permits,counts,calls,releases],[0,0,0,0]);assert.equal(envelope,undefined);
     continue; // Numeric strings remain rejected by server record validation.
    }
-   assert.equal(status,200);assert.deepEqual([permits,calls,releases],[1,1,1]);
+   assert.equal(status,200);assert.deepEqual([permits,counts,calls,releases],[1,1,1,1]);
    assert.equal(response.contextDigest,catalog.contextDigest);assert.deepEqual(response.answer,syntheticAnswer(api.askCovaModelPayload(catalog),style));
    const rendered=api.renderAskCovaAnswer(catalog,response.answer);
    assert.ok(rendered);assert.match(rendered.paragraphs.join(' '),/50\.00 USD/);
@@ -445,16 +446,17 @@ test('the actual full provider envelope stays under ceilings with only mocked tr
  let maximum=0;
  for(const question of core.ASK_COVA_QUESTION_IDS){
   const catalog=await core.buildAskCovaCatalog({ownerId:owner,account:'Tradovate:7',range:'all',question,trades});
-  let calls=0,status;
+  let calls=0,counts=0,status;
   const handler=createAskCovaHandler({acquirePermit:async()=>({allowed:true,release:async()=>{}}),fetchImpl:async(url,options)=>{
-   calls++; assert.equal(url,'https://api.openai.com/v1/responses');
+   if(url==='https://api.openai.com/v1/responses/input_tokens'){counts++;return new Response(JSON.stringify({object:'response.input_tokens',input_tokens:500}));}
+   calls++; assert.equal(url,'https://api.openai.com/v1/responses');assert.equal(counts,1);
    maximum=Math.max(maximum,Buffer.byteLength(options.body)); assert.ok(Buffer.byteLength(options.body)<=24000);
    assert.doesNotMatch(options.body,/Private alpha|Private beta|tradovate-7:1:2|11111111/);
    const body=JSON.parse(options.body);assert.equal(body.model,'gpt-6-luna');assert.equal(body.max_output_tokens,1024);assert.equal(body.store,false);
    return new Response(JSON.stringify({model:'gpt-6-luna',status:'completed',service_tier:'default',usage:{input_tokens:500,output_tokens:20},output:[{type:'message',role:'assistant',status:'completed',content:[{type:'output_text',text:JSON.stringify(syntheticAnswer(core.askCovaModelPayload(catalog))),annotations:[]}]}]}));
   }});
   await handler({body:{action:'ask_cova',owner,account:'Tradovate:7',range:'all',question,contextDigest:catalog.contextDigest,protocolVersion:'ask-cova-v3',requestId:'33333333-3333-4333-8333-333333333333'},user:{id:owner},environment:env,rest:async(path,o)=>path==='workspace_settings'?[{disclosure_version:'workspace-cloud-v1',revision:1,pending_manifest:null}]:o.query.offset==='0'?trades.map(t=>({kind:'trade',record_id:t.id,account_id:'Tradovate:7',schema_version:1,payload:t,revision:1,created_at:'2026-10-30T00:00:00Z',updated_at:'2026-10-30T00:00:00Z',deleted_at:null})):[]},{status(s){status=s;return this;},json(){}});
-  assert.equal(status,200);assert.equal(calls,1);
+  assert.equal(status,200);assert.equal(counts,1);assert.equal(calls,1);
  }
  console.log(JSON.stringify({synthetic:true,actualProviderRequests:0,maximumFullEnvelopeBytes:maximum,ceiling:24000}));
 });

@@ -36,10 +36,120 @@ async function fixture(options = {}) {
     return rows.slice(Number(o.query.offset), Number(o.query.offset) + 1); // Truncated server pages must not truncate scope.
   });
   const acquirePermit = options.acquirePermit || (async () => { events.push('permit'); return { allowed: true, release: async () => events.push('release') }; });
-  const fetchImpl = options.fetchImpl || (async (url, o) => { events.push('provider'); requests.push({ url, ...o }); return new Response(JSON.stringify(providerResult(core.askCovaModelPayload(catalog)))); });
+  const countRequests = [];
+  const generationFetch = options.fetchImpl || (async (url, o) => { events.push('provider'); requests.push({ url, ...o }); return new Response(JSON.stringify(providerResult(core.askCovaModelPayload(catalog)))); });
+  const fetchImpl = async (url, o) => {
+    if (String(url) === 'https://api.openai.com/v1/responses/input_tokens') {
+      events.push('count'); countRequests.push({ url, ...o });
+      return options.countFetch ? options.countFetch(url, o) : new Response(JSON.stringify({ object: 'response.input_tokens', input_tokens: 28096 }));
+    }
+    return generationFetch(url, o);
+  };
   const ask = server.createAskCovaHandler({ acquirePermit, fetchImpl, ...options.dependencies });
-  return { handler: workspace(ask, { rest, ...options.workspace }), catalog, events, requests, body: { ...body, contextDigest: catalog.contextDigest, ...options.body } };
+  return { handler: workspace(ask, { rest, ...options.workspace }), catalog, events, requests, countRequests, body: { ...body, contextDigest: catalog.contextDigest, ...options.body } };
 }
+
+test('token count unavailable reserves once, never generates, and only unlocks', async () => {
+  const f = await fixture({ countFetch: async () => { throw Error('PRIVATE count failure'); } });
+  const r = await request(f.handler, f.body);
+  assert.deepEqual(f.requests, [], 'paid generation must not happen without a valid count');
+  assert.equal(r.status, 503);
+  assert.deepEqual(r.payload, { status: 'unavailable', error: 'token_count_unavailable' });
+  assert.deepEqual(f.events.filter(e => ['permit', 'count', 'provider', 'release'].includes(e)), ['permit', 'count', 'release']);
+});
+
+test('token count invalid or oversized fails closed before the paid side effect', async () => {
+  const invalid = [null, [], {}, { input_tokens: 1 }, { object: 'wrong', input_tokens: 1 },
+    ...[undefined, null, true, '1', 0, -1, 0.5, Number.MAX_SAFE_INTEGER + 1].map(input_tokens => ({ object: 'response.input_tokens', input_tokens }))];
+  for (const [count, status, error] of [...invalid.map(c => [c, 503, 'token_count_unavailable']),
+    [{ object: 'response.input_tokens', input_tokens: 28097 }, 422, 'context_too_large']]) {
+    const f = await fixture({ countFetch: async () => new Response(JSON.stringify(count)) });
+    const r = await request(f.handler, f.body);
+    assert.equal(f.requests.length, 0, JSON.stringify(count));
+    assert.equal(r.status, status, JSON.stringify(count));
+    assert.deepEqual(r.payload, { status: 'unavailable', error });
+    assert.deepEqual(f.events.filter(e => ['permit', 'count', 'provider', 'release'].includes(e)), ['permit', 'count', 'release']);
+  }
+});
+
+test('token count strict JSON, byte cap and transport failures never reach generation', async () => {
+  const rawBodies = [
+    'PRIVATE invalid json',
+    '{"object":"response.input_tokens","input_tokens":28097,"input_tokens":1}',
+    String.raw`{"object":"response.input_tokens","input_tokens":28097,"input_\u0074okens":1}`,
+    '{"object":"response.input_tokens","input_tokens":1,"extra":' + '['.repeat(33) + '0' + ']'.repeat(33) + '}',
+    Buffer.from([0xff]),
+    JSON.stringify({ object: 'response.input_tokens', input_tokens: 1 }) + ' '.repeat(2048),
+  ];
+  const counts = [...rawBodies.map(raw => async () => new Response(raw)),
+    ...[301, 401, 403, 429, 500].map(status => async () => new Response('PRIVATE count error', { status })),
+    async () => new Response(null, { status: 204 }),
+    async () => { throw new DOMException('PRIVATE timeout', 'TimeoutError'); },
+    async () => { throw new TypeError('PRIVATE redirect rejected'); },
+  ];
+  for (const countFetch of counts) {
+    const f = await fixture({ countFetch }); const r = await request(f.handler, f.body);
+    assert.deepEqual(r, { status: 503, payload: { status: 'unavailable', error: 'token_count_unavailable' }, headers: r.headers });
+    assert.equal(f.requests.length, 0); assert.equal(f.countRequests.length, 1);
+    assert.equal(f.events.at(-1), 'release');
+  }
+  for (const status of [200, 500]) {
+    let cancelled = false, reads = 0;
+    const f = await fixture({ countFetch: async () => new Response(new ReadableStream({
+      pull(controller) { reads++; controller.enqueue(new Uint8Array(2049)); },
+      cancel() { cancelled = true; },
+    }, { highWaterMark: 0 }), { status }) });
+    assert.equal((await request(f.handler, f.body)).status, 503);
+    assert.equal(cancelled, true); assert.equal(reads, status === 200 ? 1 : 0);
+    assert.equal(f.requests.length, 0);
+  }
+});
+
+test('token count exact immutable projection and boundary precede paid fetch', async t => {
+  const timeouts = [];
+  const timeout = AbortSignal.timeout.bind(AbortSignal);
+  t.mock.method(AbortSignal, 'timeout', ms => { timeouts.push(ms); return timeout(ms); });
+  for (const input_tokens of [1, 28096]) {
+    let finishCount;
+    const pendingCount = new Promise(resolve => { finishCount = resolve; });
+    let enteredCount;
+    const entered = new Promise(resolve => { enteredCount = resolve; });
+    const f = await fixture({ countFetch: async () => { enteredCount(); return pendingCount; } });
+    const pending = request(f.handler, f.body);
+    await entered;
+    assert.equal(f.countRequests.length, 1); assert.equal(f.requests.length, 0, 'must await the count body');
+    assert.equal(f.events.includes('release'), false);
+    const raw = JSON.stringify({ object: 'response.input_tokens', input_tokens });
+    finishCount(new Response(raw.padEnd(2048, ' ')));
+    assert.equal((await pending).status, 200);
+    const count = f.countRequests[0], generation = f.requests[0];
+    const { model, input, reasoning, text, tools, ...generationOnly } = JSON.parse(generation.body);
+    assert.deepEqual(JSON.parse(count.body), { model, input, reasoning, text, tools });
+    assert.deepEqual(Object.keys(JSON.parse(count.body)).sort(), ['input', 'model', 'reasoning', 'text', 'tools']);
+    assert.deepEqual(generationOnly, { store: false, prompt_cache_options: { mode: 'explicit' }, max_output_tokens: 1024, service_tier: 'default' });
+    assert.equal(model, 'gpt-6-luna'); assert.deepEqual(reasoning, { effort: 'none' }); assert.deepEqual(tools, []);
+    assert.equal(input.length, 2); assert.equal(text.format.strict, true);
+    assert.equal(count.method, 'POST'); assert.equal(count.redirect, 'error'); assert(count.signal instanceof AbortSignal);
+    assert.deepEqual(count.headers, generation.headers);
+    assert.deepEqual(f.events.filter(e => ['permit', 'count', 'provider', 'release'].includes(e)), ['permit', 'count', 'provider', 'release']);
+  }
+  assert.deepEqual(timeouts, [5000, 15000, 5000, 15000]);
+});
+
+test('auth, project, owner and beta denials precede both count and generation', async () => {
+  for (const [workspace, bodyChange, expected] of [
+    [{ auth: async () => { throw Object.assign(Error('PRIVATE auth'), { statusCode: 401 }); } }, {}, 401],
+    [{ auth: async () => { throw Object.assign(Error('PRIVATE policy'), { statusCode: 403 }); } }, {}, 403],
+    [{ environment: () => ({}) }, {}, 503],
+    [{}, { owner: B }, 409],
+    [{ environment: () => ({ ...env, ASK_COVA_BETA_USER_ID: B }) }, {}, 404],
+    [{ environment: () => ({ ...env, ASK_COVA_ENABLED: 'false' }) }, {}, 404],
+  ]) {
+    const f = await fixture({ workspace, body: bodyChange });
+    assert.equal((await request(f.handler, f.body)).status, expected);
+    assert.deepEqual(f.events, []); assert.equal(f.countRequests.length, 0); assert.equal(f.requests.length, 0);
+  }
+});
 
 test('duplicate request keys and malformed provider credentials are rejected before storage', async () => {
   const f = await fixture();
@@ -90,6 +200,24 @@ test('tombstones are validated but excluded from the catalog; account and date s
   }
 });
 
+test('permit denial reasons remain distinct without provider dispatch or budget mutation', async () => {
+  for (const [reason, status, error] of [
+    [1, 429, 'rate_limited'], [2, 429, 'duplicate_request'],
+    [3, 429, 'request_in_progress'], [4, 429, 'daily_limit'],
+    [5, 429, 'budget_exhausted'], [6, 503, 'budget_unavailable'],
+    [undefined, 503, 'budget_unavailable'],
+  ]) {
+    let releases = 0;
+    const f = await fixture({ acquirePermit: async () => ({ allowed: false, reason, release: async () => { releases++; } }) });
+    const result = await request(f.handler, f.body);
+    assert.equal(result.status, status, `reason ${reason}`);
+    assert.deepEqual(result.payload, { status: 'unavailable', error }, `reason ${reason}`);
+    assert.equal(f.requests.length, 0);
+    assert.equal(f.countRequests.length, 0, 'all reservation denials precede free counting');
+    assert.equal(releases, 0, 'denials must not unlock, refund, reset or retry');
+  }
+});
+
 test('permit denials and unknown outcomes never retry or dispatch without reservation', async () => {
   for (const acquirePermit of [async () => ({ allowed: false }), async () => { throw Error('PRIVATE backend failure'); }]) {
     const f = await fixture({ acquirePermit });
@@ -112,16 +240,23 @@ test('permit denials and unknown outcomes never retry or dispatch without reserv
 
 // Exercise the default workspace -> storage -> budget -> provider path. Every
 // transport is synthetic and unexpected destinations throw, never fall through.
-async function receiptRequest(t, raw) {
+async function receiptRequest(t, raw, countResult = { object: 'response.input_tokens', input_tokens: 500 }) {
   const catalog = await core.buildAskCovaCatalog({ ownerId: A, account: body.account, range: body.range, question: body.question, trades: [savedTrade()] });
-  const commands = []; let providerCalls = 0;
+  const commands = []; let providerCalls = 0, countCalls = 0;
   t.mock.method(globalThis, 'fetch', async (url, options) => {
     const u = new URL(url);
     if (u.href === env.KV_REST_API_URL + '/') {
       const command = JSON.parse(options.body); commands.push(command);
       return new Response(command[2] === '5' ? raw : '{"result":1}');
     }
+    if (u.href === 'https://api.openai.com/v1/responses/input_tokens') {
+      countCalls++;
+      assert.equal(commands.length, 1, 'reservation must precede count');
+      assert.equal(commands[0][10], '4000');
+      return new Response(JSON.stringify(countResult));
+    }
     if (u.href === 'https://api.openai.com/v1/responses') {
+      assert.equal(countCalls, 1, 'count must precede generation');
       providerCalls++;
       return new Response(JSON.stringify(providerResult(core.askCovaModelPayload(catalog))));
     }
@@ -133,8 +268,20 @@ async function receiptRequest(t, raw) {
   });
   const handler = workspace(undefined, { rest: undefined, environment: () => ({ ...env, SUPABASE_SERVICE_ROLE_KEY: 'synthetic-storage-only' }) });
   const result = await request(handler, { ...body, contextDigest: catalog.contextDigest });
-  return { ...result, commands, providerCalls };
+  return { ...result, commands, providerCalls, countCalls };
 }
+test('real budget command path retains charge and only unlocks after count rejection', async t => {
+  for (const [count, status] of [[null, 503], [{ object: 'response.input_tokens', input_tokens: 28097 }, 422]]) {
+    await t.test(String(status), async sub => {
+      const r = await receiptRequest(sub, '{"result":[1,0]}', count);
+      assert.equal(r.status, status); assert.equal(r.providerCalls, 0); assert.equal(r.countCalls, 1);
+      assert.equal(r.commands.length, 2, 'only existing reservation and unlock; no settlement/read/refund');
+      assert.equal(r.commands[0][10], '4000');
+      assert.equal(r.commands[1][2], '1');
+      assert.doesNotMatch(r.commands[1][1], /HSET|DECR|HINCRBY|budget/i);
+    });
+  }
+});
 for (const [label, raw] of [
   ['duplicate result', '{"result":[0,5],"result":[1,0]}'],
   ['escaped result', '{"result":[0,5],"res\\u0075lt":[1,0]}'],
@@ -146,7 +293,7 @@ for (const [label, raw] of [
 ]) {
   test(`real budget path rejects ${label} before provider dispatch`, async t => {
     const r = await receiptRequest(t, raw);
-    assert.equal(r.providerCalls, 0);
+    assert.equal(r.providerCalls, 0); assert.equal(r.countCalls, 0);
     assert.equal(r.status, 503);
     assert.deepEqual(r.payload, { status: 'unavailable', error: 'ask_cova_unavailable' });
     assert.equal(r.commands.length, 1, 'uncertain reservations must not retry, release or refund');
@@ -158,7 +305,7 @@ test('real budget path rejects ambiguous envelope outcomes without retry or prov
   for (const raw of ['{"result":[1,0],"error":null}', '{"result":[1,0],"unknown":"outcome"}', 'null', '[]', '{}', '{"error":"denied"}']) {
     await t.test(raw, async sub => {
       const r = await receiptRequest(sub, raw);
-      assert.equal(r.providerCalls, 0);
+      assert.equal(r.providerCalls, 0); assert.equal(r.countCalls, 0);
       assert.equal(r.status, 503);
       assert.equal(r.commands.length, 1);
     });

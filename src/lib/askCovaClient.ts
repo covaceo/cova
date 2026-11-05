@@ -131,6 +131,26 @@ async function readBoundedResponse(response: Response, signal: AbortSignal, maxB
   } finally { signal.removeEventListener('abort', cancel); reader.releaseLock(); }
 }
 
+// Only these status/code pairs may explain a rejected permit. Never render server text.
+function rejectionMessage(status: number, data: unknown): string | undefined {
+  if (!data || typeof data !== 'object' || Array.isArray(data) ||
+      Object.keys(data).sort().join(',') !== 'error,status') return;
+  const error = data as { status: unknown; error: unknown };
+  if (error.status !== 'unavailable') return;
+  if (status === 503 && error.error === 'budget_unavailable')
+    return "Ask Cova can't check its availability right now. Your trades are unchanged.";
+  if (status !== 429) return;
+  switch (error.error) {
+    case 'request_in_progress': return 'Ask Cova is already working on a request. Let it finish before asking again.';
+    case 'duplicate_request': return 'Ask Cova has already received this request. Ask a new question to continue.';
+    case 'daily_limit': return "You've reached Ask Cova's daily question limit. Your trades are unchanged.";
+    case 'budget_exhausted': return "Ask Cova has reached its usage limit and can't answer right now. Your trades are unchanged.";
+    case 'rate_limited': return 'Too many questions in a short time. Wait a moment before asking Cova again.';
+    // Unknown codes retain the generic HTTP fallback.
+    default: return;
+  }
+}
+
 /** Only deliberate question/retry actions call this transport. No notes or trade payload leaves this client. */
 export async function requestAskCova(input: AskCovaRequest, signal: AbortSignal, transport: typeof fetch = authorizedTransport(input.owner),
   current: () => boolean = () => (transportAuthorities.get(transport) ?? workspaceOwnerCurrent)(input.owner)): Promise<AskCovaResponse> {
@@ -151,7 +171,19 @@ export async function requestAskCova(input: AskCovaRequest, signal: AbortSignal,
         range: input.range, question: input.question, contextDigest: input.contextDigest,
         requestId: input.requestId, protocolVersion: ASK_COVA_PROTOCOL }),
     });
-    if (!response.ok) { cancelResponse(response); return unavailable(response.status); }
+    if (!response.ok) {
+      if (response.status !== 429 && response.status !== 503) {
+        cancelResponse(response);
+        return unavailable(response.status);
+      }
+      let message: string | undefined;
+      try { message = rejectionMessage(response.status, uniqueJson(await readBoundedResponse(response, signal, 2048))); }
+      catch { /* Malformed, oversized or unknown error bodies keep the HTTP fallback. */ }
+      signal.throwIfAborted();
+      // Error decoding is asynchronous too: never show a previous owner's limit.
+      if (!current()) return unavailable(401);
+      return message ? { status: 'unavailable', message } : unavailable(response.status);
+    }
     const text = await readBoundedResponse(response, signal, 8192);
     if (!current()) return unavailable(401);
     const data = uniqueJson(text);
