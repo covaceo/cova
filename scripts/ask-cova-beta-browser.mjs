@@ -76,9 +76,10 @@ try{
       state.asks.push(body);
       if(!answered)return route.fulfill({status:403,json:{error:'No provider calls in capability tests'}});
       assert.equal(state.mode,'allowed','answer dispatch must precede revocation');assert.equal(body.owner,state.current);
-      const catalog=await core.buildAskCovaCatalog({ownerId:body.owner,account:body.account,range:body.range,question:body.question,trades:syntheticTrades});
+      const scoped={ownerId:body.owner,account:body.account,range:body.range,question:body.question,trades:syntheticTrades};
+      const catalog=await core.buildAskCovaCatalog({...scoped,conversation:body.conversation});
       assert.equal(body.contextDigest,catalog.contextDigest);const choice=catalog.candidates.find(c=>c.id==='result')||catalog.candidates[0];assert(choice);
-      const answer=syntheticAnswer(core.askCovaModelPayload(catalog),'warm');state.reply=core.renderAskCovaAnswer(catalog,answer);assert(state.reply);state.reply={...state.reply,answer:state.reply.paragraphs.join(' ' ),detail:state.reply.detail.join(' ')};
+      const answer=syntheticAnswer(core.askCovaModelPayload(await core.buildAskCovaCatalog(scoped)),'warm');state.reply=core.renderAskCovaAnswer(catalog,answer);assert(state.reply);state.reply={...state.reply,answer:state.reply.paragraphs.join(' ' ),detail:state.reply.detail.join(' ')};
       return route.fulfill({json:{status:'ok',aiResponseUsed:true,contextDigest:catalog.contextDigest,answer}});
      }
      return route.fulfill({status:403,json:{error:'Read-only fixture'}});

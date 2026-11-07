@@ -1,4 +1,5 @@
 import type { Trade } from './risk';
+import { parseAskCovaConversation, type AskCovaConversation } from './askCovaConversation';
 import { parseAskCovaAnswer, tokenizeAskCovaParagraph, type AskCovaFactPacket } from './askCovaVoice';
 import { insightReview, insightComparisons, insightSubset, validatedSetup, sumAskCovaMoney } from './askCovaInsights';
 import { cents } from './journalAccuracy';
@@ -28,7 +29,7 @@ type Candidate = AskCovaCatalog['candidates'][number];
 type Variants = Record<AskCovaStyle, string>;
 const providerVariants = new WeakMap<Candidate, Variants>();
 const drawdownMirrors = new WeakMap<Candidate, {maximum:bigint; peak:bigint; trough:bigint; code:string; basis:string}>();
-type Input = { ownerId: string; account: string; range: 'today' | 'week' | 'all'; question: AskCovaQuestion; trades: readonly Trade[] };
+type Input = { ownerId: string; account: string; range: 'today' | 'week' | 'all'; question: AskCovaQuestion; trades: readonly Trade[]; conversation?: AskCovaConversation };
 function candidate(id: string, plain: string, warm: string, direct: string, detail: string, tradeIds: string[] = [], safe: Variants = { plain, warm, direct }): Candidate {
   const fits = (text: string, words: number, characters: number) => text.length > 0 && text.length <= characters && text.trim().split(/\s+/).length <= words;
   if (![plain, warm, direct, ...Object.values(safe)].every(text => fits(text, 140, 2000)) || !fits(detail, 700, 7000)) throw new Error('Engine copy bound exceeded');
@@ -270,6 +271,9 @@ function voiceFacts(rows: Trade[], question: AskCovaQuestion, compiled: Candidat
 const STYLES: AskCovaStyle[] = ['plain', 'warm', 'direct'];
 
 export async function buildAskCovaCatalog(input: Input): Promise<AskCovaCatalog> {
+  const descriptor = input && Object.getOwnPropertyDescriptor(input, 'conversation');
+  const conversation = descriptor && 'value' in descriptor ? parseAskCovaConversation(descriptor.value) : null;
+  if (descriptor && !conversation) throw Error('Invalid conversation');
   if (!input || !boundedText(input.ownerId) || !boundedText(input.account) || !QUESTIONS.includes(input.question) || !['today', 'week', 'all'].includes(input.range) || !Array.isArray(input.trades) || input.trades.length > 10000) throw new Error('Invalid scope or row limit');
   // Structural identity is never coerced or repaired, including excluded rows.
   for (const row of input.trades) {
@@ -293,7 +297,13 @@ export async function buildAskCovaCatalog(input: Input): Promise<AskCovaCatalog>
   const safeChoices = candidates.map(item => Object.freeze({ id: item.id, variants: providerVariants.get(item)! }));
   const evidence = rows.map(financialEvidence);
   const voice = voiceFacts(rows, input.question, candidates[0]);
-  const binding = JSON.stringify({ version: 'ask-cova-core-v2', owner: input.ownerId, account: input.account, range: input.range, question: input.question, start, end, evidence, candidates, safeChoices, voice });
+  if (conversation) {
+    // Topic is a fact-selection hint, not a requirement to repeat the same recap.
+    voice.packet.requiredAnswerEvidence = voice.packet.requiredAnswerEvidence.filter(id => !['overall', 'payoff', 'comparison'].includes(id));
+    voice.packet.observations.push({ id: 'conversation', kind: 'conversation', facts: [], categories: [], coverage: [], predicates: ['greeting_or_clarification_only'] });
+    voice.supports.conversation = [];
+  }
+  const binding = JSON.stringify({ version: 'ask-cova-core-v2', owner: input.ownerId, account: input.account, range: input.range, question: input.question, start, end, evidence, candidates, safeChoices, voice, ...(conversation ? { conversation } : {}) });
   const question = input.question;
   const hash = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(binding));
   const contextDigest = Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, '0')).join('');
@@ -326,7 +336,13 @@ export function renderAskCovaAnswer(catalog: AskCovaCatalog, value: unknown): { 
       if (observations.some(o=>!o) || detail && paragraph.evidence.some(id=>!cited.has(id))) throw Error('Invalid evidence');
       return tokenizeAskCovaParagraph(paragraph.text)!.map(node=>{
         if (node.kind==='text') return node.text;
-        if (node.kind==='fact' && observations.some(o=>o!.facts.includes(node.id))) { const fact=authority.packet.facts.find(f=>f.id===node.id); if(fact) return fact.display; }
+        if (node.kind==='fact' && observations.some(o=>o!.facts.includes(node.id))) {
+          const fact=authority.packet.facts.find(f=>f.id===node.id);
+          // Present only issued USD money atoms; keep provider facts and private aliases untouched.
+          if(fact) return fact.kind==='money' && fact.currency==='USD'
+            ? fact.display.replace(/^([−-]?)(\d+\.\d+) USD$/, (_match, sign: string, amount: string)=>`${sign}$${amount}`)
+            : fact.display;
+        }
         if (node.kind==='category' && observations.some(o=>o!.categories.includes(node.id)) && Object.prototype.hasOwnProperty.call(authority.aliases,node.id)) return authority.aliases[node.id];
         throw Error('Unissued atom');
       }).join('');
@@ -344,6 +360,18 @@ export function renderAskCovaAnswer(catalog: AskCovaCatalog, value: unknown): { 
     }
     return {paragraphs,detail,scopeNotices:[...scopeNotices],tradeIds:[...new Set([...cited].flatMap(id=>authority.supports[id]))].filter(id=>catalog.tradeIds.includes(id)),contextDigest:catalog.contextDigest};
   } catch { return null; }
+}
+
+/** Provider-safe prior main answer; never forward the private-label UI rendering. */
+export function askCovaHistoryText(catalog: AskCovaCatalog, value: unknown): string | null {
+  const answer = parseAskCovaAnswer(value);
+  if (!answer || !renderAskCovaAnswer(catalog, answer)) return null;
+  const packet = voiceAuthorities.get(catalog)!.packet;
+  return answer.paragraphs.map(paragraph => tokenizeAskCovaParagraph(paragraph.text)!.map(node => {
+    if (node.kind === 'text') return node.text;
+    if (node.kind === 'fact') return packet.facts.find(fact => fact.id === node.id)!.display;
+    return packet.categories.find(category => category.id === node.id)!.description;
+  }).join('')).join('\n\n');
 }
 
 /** Legacy regression oracle ONLY; no server/client/component caller accepts selections.
