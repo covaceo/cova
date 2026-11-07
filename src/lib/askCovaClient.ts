@@ -141,7 +141,7 @@ function rejectionMessage(status: number, data: unknown): string | undefined {
     return "Ask Cova can't check its availability right now. Your trades are unchanged.";
   if (status !== 429) return;
   switch (error.error) {
-    case 'request_in_progress': return 'Ask Cova is already working on a request. Let it finish before asking again.';
+    case 'request_in_progress': return "The previous request hasn't cleared yet. Wait a moment, then try again.";
     case 'duplicate_request': return 'Ask Cova has already received this request. Ask a new question to continue.';
     case 'daily_limit': return "You've reached Ask Cova's daily question limit. Your trades are unchanged.";
     case 'budget_exhausted': return "Ask Cova has reached its usage limit and can't answer right now. Your trades are unchanged.";

@@ -4,10 +4,14 @@ import type { Trade } from '../src/lib/risk';
 import { buildAskCovaCatalog, askCovaModelPayload, renderAskCovaAnswer, isAskCovaQuestion } from '../src/lib/askCova';
 import { acquireAskCovaPermit, askCovaBudgetConfiguration } from './askCovaBudget';
 import { hasAskCovaAccess } from './askCovaAccess';
+import { ASK_COVA_PERSONALITY } from './askCovaPersonality';
 
 const MODEL = 'gpt-6-luna';
 const PROVIDER_URL = 'https://api.openai.com/v1/responses';
-const PROMPT = `Write a brief, natural, grounded reply to the selected journal question, as a thoughtful trading companion, not a report or a cheerleader. You author the sentences; the packet supplies the facts. Use lowercase prose, never copy a canned answer. One or two paragraphs, at most 160 words; optional authored detail at most 80 words in one paragraph. Short answers are welcome; never pad. Return ask-cova-answer-v1 JSON with paragraphs and detail arrays of {text,evidence}. Every paragraph cites issued observation IDs. Include every requiredAnswerEvidence in the main answer. Detail can only elaborate those same observations. Insert numerical atoms ONLY as {{f:id}} and category names ONLY as {{c:id}}. Do not calculate, invent values, spell out invented numbers, or write literal digits/currency/percent symbols. Preserve the meaning of predicates, fee basis and coverage: a less negative mean is not profitable, a subset is not the full result, descriptive comparisons are not trading ability or future edge. No advice, emotions, causality, URLs, markup, tools or raw records. Win rate includes breakevens. Profit factor is positive group P&L divided by absolute negative group P&L and undefined without losses. Groups are not certified completed positions. Drawdown begins at zero in the selected range, not account balance or intratrade price movement.`;
+const PROMPT = `${ASK_COVA_PERSONALITY}
+
+GROUNDING AND OUTPUT CONTRACT
+You author the sentences; the packet supplies the facts. Return ask-cova-answer-v1 JSON with paragraphs and detail arrays of {text,evidence}. Every paragraph cites issued observation IDs. Include every requiredAnswerEvidence in the main answer's evidence; citing an observation does not require listing every fact it contains. Detail can only elaborate those same observations. Insert numerical atoms ONLY as {{f:id}} and category names ONLY as {{c:id}}. Do not calculate, invent values, spell out invented numbers, or write literal digits/currency/percent symbols. Preserve the meaning of predicates, fee basis and coverage: a less negative mean is not profitable, a subset is not the full result, descriptive comparisons are not trading ability or future edge. No trade recommendations, invented emotions or motives, causality claims, URLs, markup, tools or raw records. Win rate includes breakevens. Profit factor is positive group P&L divided by absolute negative group P&L and undefined without losses. Groups are not certified completed positions. Drawdown begins at zero in the selected range, not account balance or intratrade price movement.`;
 class AskFailure extends Error {
   constructor(public http: number, public code: string) { super(code); }
 }
@@ -109,6 +113,8 @@ function storageRest(env: any, fetchImpl: typeof fetch) {
 export function createAskCovaHandler({ acquirePermit = acquireAskCovaPermit, fetchImpl = fetch }: any = {}) {
   return async ({ body, rawBody, user, environment: env, rest }: any, res: any) => {
     let permit: any;
+    let responseStatus = 200;
+    let responseBody: any;
     try {
       if (!hasAskCovaAccess(env, user)) fail(404, 'ask_cova_unavailable');
       if (typeof env.OPENAI_API_KEY !== 'string' ||
@@ -165,10 +171,14 @@ export function createAskCovaHandler({ acquirePermit = acquireAskCovaPermit, fet
         answer = checkedAnswer(await boundedJson(response, 65536), catalog);
       } catch { fail(502, 'provider_unavailable'); }
       await snapshot.recheck();
-      return res.status(200).json({ status: 'ok', aiResponseUsed: true, contextDigest: catalog.contextDigest, answer });
+      responseBody = { status: 'ok', aiResponseUsed: true, contextDigest: catalog.contextDigest, answer };
     } catch (error) {
       const known = error instanceof AskFailure;
-      return res.status(known ? error.http : 503).json({ status: 'unavailable', error: known ? error.code : 'ask_cova_unavailable' });
+      responseStatus = known ? error.http : 503;
+      responseBody = { status: 'unavailable', error: known ? error.code : 'ask_cova_unavailable' };
     } finally { if (permit?.allowed) await permit.release().catch(() => undefined); }
+    // Finish the admitted request's unlock before committing either response;
+    // a runtime may stop doing work once the client has received the response.
+    return res.status(responseStatus).json(responseBody);
   };
 }
