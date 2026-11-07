@@ -19,7 +19,7 @@ const fallback = "I couldn't check that answer. Your trades are unchanged. Try a
 const sessionChanged = 'Your session changed. Sign in again to ask Cova.';
 const cases = [
   [429, 'rate_limited', 'Too many questions in a short time. Wait a moment before asking Cova again.'],
-  [429, 'request_in_progress', 'Ask Cova is already working on a request. Let it finish before asking again.'],
+  [429, 'request_in_progress', "The previous request hasn't cleared yet. Wait a moment, then try again."],
   [429, 'duplicate_request', 'Ask Cova has already received this request. Ask a new question to continue.'],
   [429, 'daily_limit', "You've reached Ask Cova's daily question limit. Your trades are unchanged."],
   [429, 'budget_exhausted', "Ask Cova has reached its usage limit and can't answer right now. Your trades are unchanged."],
