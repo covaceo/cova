@@ -140,7 +140,7 @@ function assertSubsetPartition(api,catalog,question) {
  }
  for(const style of ['plain','warm','direct']){
   const authored=syntheticAnswer(safe,style),rendered=api.renderAskCovaAnswer(catalog,authored);
-  assert.ok(rendered);assert.match(rendered.paragraphs.join(' '),question==='long_vs_short'||question==='time_of_day'?/25\.00 USD/:/100\.00 USD/);assert.equal(rendered.contextDigest,catalog.contextDigest);
+  assert.ok(rendered);assert.match(rendered.paragraphs.join(' '),question==='long_vs_short'||question==='time_of_day'?/\$25\.00/:/\$100\.00/);assert.equal(rendered.contextDigest,catalog.contextDigest);
  }
 }
 for(const kind of ['source','generated']){
@@ -203,7 +203,7 @@ for(const kind of ['source','generated']){
    assert.equal(status,200);assert.deepEqual([permits,counts,calls,releases],[1,1,1,1]);
    assert.equal(response.contextDigest,catalog.contextDigest);assert.deepEqual(response.answer,syntheticAnswer(api.askCovaModelPayload(catalog),style));
    const rendered=api.renderAskCovaAnswer(catalog,response.answer);
-   assert.ok(rendered);assert.match(rendered.paragraphs.join(' '),/50\.00 USD/);
+   assert.ok(rendered);assert.match(rendered.paragraphs.join(' '),/\$50\.00/);
    assertSubsetPartition(api,catalog,question);
    assert.deepEqual(JSON.parse(envelope.input[1].content),api.askCovaModelPayload(catalog));
    assert.equal(envelope.model,'gpt-6-luna');assert.equal(envelope.max_output_tokens,1024);assert.equal(envelope.store,false);

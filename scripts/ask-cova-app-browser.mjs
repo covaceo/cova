@@ -103,11 +103,13 @@ try{
      try{
       assert.equal(body.owner,owner);assert.equal(body.protocolVersion,'ask-cova-v3');
       assert.equal(req.headers().authorization,'Bearer synthetic-qa-token');
-      assert.deepEqual(Object.keys(body).sort(),['action','owner','account','range','question','contextDigest','requestId','protocolVersion'].sort());
-      const catalog=await core.buildAskCovaCatalog({ownerId:owner,account:body.account,range:body.range,question:body.question,trades:scenarioCloud.filter(r=>r.kind==='trade').map(r=>r.payload)});
+      assert.deepEqual(Object.keys(body).sort(),['action','owner','account','range','question','contextDigest','requestId','protocolVersion','conversation'].sort());
+      const scoped={ownerId:owner,account:body.account,range:body.range,question:body.question,trades:scenarioCloud.filter(r=>r.kind==='trade').map(r=>r.payload)};
+      const catalog=await core.buildAskCovaCatalog({...scoped,conversation:body.conversation});
       assert.equal(body.contextDigest,catalog.contextDigest,'Shared core recomputes digest from complete synthetic cloud snapshot');
       const choice=catalog.candidates.find(c=>c.id==='result')||catalog.candidates[0];
-      const answer=syntheticAnswer(core.askCovaModelPayload(catalog),'warm');
+      // Keep the legacy numeric oracle; bind the actual conversation into the response catalog.
+      const answer=syntheticAnswer(core.askCovaModelPayload(await core.buildAskCovaCatalog(scoped)),'warm');
       const rendered=core.renderAskCovaAnswer(catalog,answer);assert(rendered);const reply={...rendered,answer:rendered.paragraphs.join(' '),detail:rendered.detail.join(' ')};
       state.asks.push({body,answer,reply});
       if(state.holdNextAsk){state.holdNextAsk=false;state.requestHeld=true;await new Promise(resolve=>{state.releaseHeld=resolve;});state.requestHeld=false;state.releaseHeld=null;}
@@ -249,7 +251,7 @@ try{
   check(s.id+' pending composer cannot duplicate send',await send.isDisabled());
   await screenshot(s,'typing','[data-ask-cova]');s.releaseHeld();
   await p.locator('[data-cova-answer]').waitFor();const first=s.asks[0].reply;
-  check(s.id+' typed result exact and raw message stays local',s.asks.length===1&&s.asks[0].body.question==='review_results'&&await p.locator('[data-cova-answer]').innerText()===first.answer&&!JSON.stringify(s.asks[0].body).includes('how did i do?'));
+  check(s.id+' typed result exact and actual message forwarded',s.asks.length===1&&s.asks[0].body.question==='review_results'&&await p.locator('[data-cova-answer]').innerText()===first.answer&&s.asks[0].body.conversation.message==='how did i do?'&&s.asks[0].body.conversation.history.length===0);
   check(s.id+' sent composer cleared',await composer.inputValue()==='');
   await screenshot(s,'answer');
   await sendTyped(s,'explain my drawdown');
@@ -261,7 +263,7 @@ try{
   check(s.id+' persistent reply buttons are individually present',await replies.nth(0).getByRole('button',{name:'Show trades',exact:true}).count()===1&&await replies.nth(1).getByRole('button',{name:'Show trades',exact:true}).count()===1);
   check(s.id+' composer remains after thread in DOM',await composer.evaluate(el=>Boolean(document.querySelector('[data-cova-reply]').compareDocumentPosition(el)&Node.DOCUMENT_POSITION_FOLLOWING)));
   await measure(s,'thread');await hitTargets(s,'thread');await screenshot(s,'thread');await screenshot(s,'thread-panel','[data-ask-cova]');
-  const calls=s.asks.length;
+  let calls=s.asks.length;
   await sendTyped(s,'which trades?',{enter:true});await evidence(s,second,'typed-current',{opener:composer,alreadyOpen:true});
   check(s.id+' typed evidence adds no AI call or answer',s.asks.length===calls&&await replies.count()===2);
   await evidence(s,first,'earlier-reply',{opener:replies.nth(0).getByRole('button',{name:'Show trades',exact:true})});
@@ -271,17 +273,19 @@ try{
   await replies.nth(0).getByRole('button',{name:'Tell me more',exact:true}).click();
   await p.locator('[data-cova-detail]').waitFor();
   check(s.id+' earlier reply detail belongs to earlier answer',JSON.stringify(await p.locator('[data-cova-detail]').allInnerTexts())===JSON.stringify([first.detail])&&s.asks.length===calls);
-  await sendTyped(s,'tell me more');await p.waitForFunction(()=>document.querySelectorAll('[data-cova-detail]').length===2,{},{timeout:10000});
-  check(s.id+' typed detail belongs to current answer without AI call',JSON.stringify(await p.locator('[data-cova-detail]').allInnerTexts())===JSON.stringify([first.detail,second.detail])&&s.asks.length===calls);
+  await sendTyped(s,'tell me more');await p.waitForFunction(()=>document.querySelectorAll('[data-cova-answer]').length===3,{},{timeout:10000});
+  check(s.id+' typed detail forwards actual message with latest successful context',s.asks.length===calls+1&&s.asks.at(-1).body.conversation.message==='tell me more'&&s.asks.at(-1).body.question==='explain_drawdown'&&s.asks.at(-1).body.conversation.history.length===4);
+  await replies.nth(2).getByRole('button',{name:'Tell me more',exact:true}).click();
+  check(s.id+' bound current detail remains local and exact',JSON.stringify(await p.locator('[data-cova-detail]').allInnerTexts())===JSON.stringify([first.detail,second.detail])&&s.asks.length===calls+1);
   for(const text of ['unknown question PRIVATE-LOCAL-MARKER','should I buy NQ?']){
-   const before=await panel.locator('[data-cova-local]').count(),beforeApi=s.api.length;
+   const before=s.asks.length;
    await sendTyped(s,text);
-   await p.waitForFunction(count=>document.querySelectorAll('[data-cova-local]').length===count,before+1,{timeout:10000});
-   const help=await panel.locator('[data-cova-local]').nth(before).innerText();
-   check(s.id+' unsupported input gets explicit scoped help: '+text,/review your results.*explain your drawdown.*what stands out/i.test(help)&&/(starter questions|account|date range|selected scope)/i.test(help),help);
-   check(s.id+' unsupported input is not an AI answer or request: '+text,s.api.length===beforeApi&&s.asks.length===calls&&await replies.count()===2&&await p.locator('[data-cova-answer]').count()===2);
+   await p.waitForFunction(count=>document.querySelectorAll('[data-cova-answer]').length===count,before+1,{timeout:10000});
+   check(s.id+' arbitrary actual message reaches synthetic transport: '+text,s.asks.length===before+1&&s.asks.at(-1).body.conversation.message===text);
+   check(s.id+' arbitrary message is not blocked by canned local rejection: '+text,await panel.locator('[data-cova-local]').count()===1&&await replies.count()===before+1);
   }
-  check(s.id+' all typed text excluded from transport',!['how did i do?','explain my drawdown','which trades?','tell me more','PRIVATE-LOCAL-MARKER','should I buy NQ?'].some(text=>JSON.stringify(s.asks.map(a=>a.body)).includes(text)));
+  calls=s.asks.length;
+  check(s.id+' authorized typed chat forwarded but raw journal notes and local evidence action excluded',!JSON.stringify(s.asks.map(a=>a.body)).includes('Synthetic private note')&&!s.asks.some(a=>a.body.conversation.history.some(m=>m.content==='which trades?')));
   await screenshot(s,'thread-context','[data-ask-cova]');
   await composer.fill('unsent local draft');await p.getByRole('button',{name:'Latest session',exact:true}).click();
   check(s.id+' date clears whole thread draft detail and local help',await p.locator('[data-cova-reply],[data-cova-detail],[data-cova-local]').count()===0&&await composer.inputValue()==='');

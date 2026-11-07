@@ -1,6 +1,7 @@
 import { uniqueJson } from './askCovaJson';
 import { parseAskCovaAnswer, type AskCovaAuthoredAnswer } from './askCovaVoice';
 import type { AskCovaQuestion } from './askCova';
+import { parseAskCovaConversation, type AskCovaConversation } from './askCovaConversation';
 import { getSupabaseClient } from './supabaseClient';
 import { workspaceOwnerCurrent } from './workspaceClient';
 
@@ -53,6 +54,7 @@ export type AskCovaRequest = {
   owner: string; account: string; range: 'today' | 'week' | 'all';
   question: AskCovaQuestion;
   contextDigest: string; requestId: string;
+  conversation?: AskCovaConversation;
 };
 export type AskCovaResponse =
   | { status: 'ok'; aiResponseUsed: true; contextDigest: string; answer: AskCovaAuthoredAnswer }
@@ -151,7 +153,7 @@ function rejectionMessage(status: number, data: unknown): string | undefined {
   }
 }
 
-/** Only deliberate question/retry actions call this transport. No notes or trade payload leaves this client. */
+/** Only deliberate question/retry actions call this transport. No journal records are attached. */
 export async function requestAskCova(input: AskCovaRequest, signal: AbortSignal, transport: typeof fetch = authorizedTransport(input.owner),
   current: () => boolean = () => (transportAuthorities.get(transport) ?? workspaceOwnerCurrent)(input.owner)): Promise<AskCovaResponse> {
   const unavailable = (status = 0): AskCovaResponse => ({ status: 'unavailable', message:
@@ -164,12 +166,15 @@ export async function requestAskCova(input: AskCovaRequest, signal: AbortSignal,
   try {
     signal.throwIfAborted();
     if (!current()) return unavailable(401);
+    const conversation = input.conversation === undefined ? undefined : parseAskCovaConversation(input.conversation);
+    if (conversation === null) return unavailable();
     const response = await transport('/api/workspace', {
       method: 'POST', cache: 'no-store', signal,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'ask_cova', owner: input.owner, account: input.account,
         range: input.range, question: input.question, contextDigest: input.contextDigest,
-        requestId: input.requestId, protocolVersion: ASK_COVA_PROTOCOL }),
+        requestId: input.requestId, protocolVersion: ASK_COVA_PROTOCOL,
+        ...(conversation === undefined ? {} : { conversation }) }),
     });
     if (!response.ok) {
       if (response.status !== 429 && response.status !== 503) {

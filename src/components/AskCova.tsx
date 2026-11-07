@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Trade } from '../lib/risk';
-import { ASK_COVA_QUESTIONS, buildAskCovaCatalog, renderAskCovaAnswer, type AskCovaQuestion } from '../lib/askCova';
+import { ASK_COVA_QUESTIONS, buildAskCovaCatalog, renderAskCovaAnswer, askCovaHistoryText, type AskCovaQuestion } from '../lib/askCova';
+import { createAskCovaConversation, type AskCovaConversation as ChatContext, type AskCovaChatMessage } from '../lib/askCovaConversation';
 import { MAX_ASK_COVA_INPUT, resolveAskCovaIntent } from '../lib/askCovaIntent';
 import { requestAskCova, askCovaAccessCurrent } from '../lib/askCovaClient';
 import { TradeHistoryDialog } from './TradeHistoryDialog';
@@ -14,7 +15,7 @@ export type AskCovaProps = {
 };
 const MAX_EXCHANGES = 20;
 type Reply = NonNullable<ReturnType<typeof renderAskCovaAnswer>>;
-type Exchange = { id: number; text: string; question?: AskCovaQuestion; fromComposer?: boolean; reply?: Reply; detailSource?: { exchange: Exchange; reply: Reply; contextDigest: string }; local?: string };
+type Exchange = { id: number; text: string; question?: AskCovaQuestion; context?: ChatContext; historyText?: string; fromComposer?: boolean; reply?: Reply; detailSource?: { exchange: Exchange; reply: Reply; contextDigest: string }; local?: string };
 
 /** Changing scope synchronously unmounts the old conversation and aborts its request. */
 export function AskCova(props: AskCovaProps) {
@@ -84,7 +85,7 @@ function AskCovaConversation({ ownerId, account, range, trades, ready, request =
   async function ask(exchange: Exchange, origin: number) {
     const ownsExchange = () => currentEpoch(origin) && conversation.current.selected?.id === exchange.id
       && conversation.current.exchanges.some(item => item.id === exchange.id);
-    if (!exchange.question || !ownsExchange() || pending.current || conversation.current.exchanges.some(item => item.id === exchange.id && item.reply) || !checkAuthority()) return;
+    if (!exchange.question || !exchange.context || !ownsExchange() || pending.current || conversation.current.exchanges.some(item => item.id === exchange.id && item.reply) || !checkAuthority()) return;
     restoreComposer.current = exchange.fromComposer === true;
     const controller = new AbortController(); pending.current = controller;
     const ownsRequest = () => ownsExchange() && pending.current === controller && !controller.signal.aborted;
@@ -95,16 +96,17 @@ function AskCovaConversation({ ownerId, account, range, trades, ready, request =
     }, 25000);
     setError(''); setBusy(true);
     try {
-      const catalog = await buildAskCovaCatalog({ ownerId, account, range, question: exchange.question, trades });
+      const catalog = await buildAskCovaCatalog({ ownerId, account, range, question: exchange.question, trades, conversation: exchange.context });
       if (!ownsRequest() || !checkAuthority()) return;
       const response = await request({ owner: ownerId, account, range, question: exchange.question,
-        contextDigest: catalog.contextDigest, requestId: crypto.randomUUID() }, controller.signal);
+        contextDigest: catalog.contextDigest, requestId: crypto.randomUUID(), conversation: exchange.context }, controller.signal);
       if (!ownsRequest() || !checkAuthority()) return;
       if (response.status !== 'ok') { setError(response.message); return; }
       const checked = response.aiResponseUsed === true && response.contextDigest === catalog.contextDigest
         ? renderAskCovaAnswer(catalog, response.answer) : null;
-      if (!checked) throw Error('Unchecked answer');
-      conversation.current.exchanges = conversation.current.exchanges.map(item => item.id === exchange.id ? { ...item, reply: checked } : item);
+      const historyText = checked ? askCovaHistoryText(catalog, response.answer) : null;
+      if (!checked || !historyText) throw Error('Unchecked answer');
+      conversation.current.exchanges = conversation.current.exchanges.map(item => item.id === exchange.id ? { ...item, reply: checked, historyText } : item);
       setExchanges(conversation.current.exchanges);
     } catch {
       if (ownsRequest() && checkAuthority()) setError("I couldn't check that answer. Your trades are unchanged. Try again when you're ready.");
@@ -119,7 +121,13 @@ function AskCovaConversation({ ownerId, account, range, trades, ready, request =
   function choose(id: AskCovaQuestion, text = ASK_COVA_QUESTIONS.find(item => item.id === id)!.label, fromComposer = false) {
     if (!canAppend()) return;
     if (!currentEpoch(epoch) || !checkAuthority()) return;
-    const exchange = { id: ++sequence.current, text, question: id, fromComposer };
+    // Snapshot only complete, successfully checked exchanges in this scope/epoch.
+    // Never reconstruct model history from rendered text (which contains private aliases).
+    const history = conversation.current.exchanges.flatMap<AskCovaChatMessage>(item => item.reply && item.historyText
+      ? [{ role: 'user', content: item.text }, { role: 'assistant', content: item.historyText }] : []);
+    const context = createAskCovaConversation(text, history);
+    if (!context) { setError("I couldn't send that message. Try a shorter message without special control characters."); return; }
+    const exchange = { id: ++sequence.current, text, question: id, context, fromComposer };
     if (!append(exchange)) return;
     conversation.current.selected = exchange;
     setSelected(exchange); setError('');
@@ -144,13 +152,10 @@ function AskCovaConversation({ ownerId, account, range, trades, ready, request =
     current.draft = ''; setDraft('');
     if (intent.kind === 'question') { choose(intent.question, text, true); return; }
     if (!checkAuthority()) return;
-    if (intent.kind === 'detail' || intent.kind === 'trades') {
-      const latest = [...current.exchanges].reverse().find(item => item.reply);
-      if (latest) { followUp(latest, origin, intent.kind, text); return; }
-      append({ id: ++sequence.current, text, local: 'Ask a starter question first, then I can show its details or trades.' });
-      return;
-    }
-    append({ id: ++sequence.current, text, local: 'I can review your results, explain your drawdown, or show what stands out. Try one of the starter questions.' });
+    const latest = [...current.exchanges].reverse().find(item => item.reply && item.historyText);
+    // Explicit evidence navigation stays local; normal typed follow-ups go to the model.
+    if (intent.kind === 'trades' && latest) { followUp(latest, origin, 'trades', text); return; }
+    choose(latest?.question ?? 'review_results', text, true);
   }
   const evidence = evidenceReply ? trades.filter(trade => evidenceReply.tradeIds.includes(trade.id)) : [];
   return <section className="ask-cova" aria-labelledby="ask-cova-title" data-ask-cova>
@@ -183,6 +188,7 @@ function AskCovaConversation({ ownerId, account, range, trades, ready, request =
       }} />
       <button className="astra-button" type="submit" aria-label="Send message" disabled={!draft.trim() || !ready || busy || atLimit}>Send</button>
     </form>
+    <p className="ask-cova-notice">Your message, recent Cova chat, and selected account statistics are sent for AI responses.</p>
     {evidenceReply && evidence.length > 0 && <TradeHistoryDialog title="Trades behind this answer" scopeLabel="Selected answer" trades={evidence} journalReview={true} showSummary={false} onClose={() => { if (currentEpoch(epoch)) setEvidenceReply(null); }} />}
   </section>;
 }

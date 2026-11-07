@@ -56,23 +56,26 @@ try{
  assert.match(await p.locator('[data-cova-answer]').innerText(),/90\.00/);
  const call=await p.evaluate(()=>window.calls[0]);
  assert.equal(call.question,'review_results');
- assert.deepEqual(Object.keys(call).sort(),['account','contextDigest','owner','question','range','requestId']);
- assert.ok(!JSON.stringify(call).includes('How did I do?'));
+ assert.deepEqual(Object.keys(call).sort(),['account','contextDigest','conversation','owner','question','range','requestId']);
+ assert.deepEqual(call.conversation,{message:'How did I do?',history:[]});
  assert.equal(await composer.inputValue(),'');
- report.checks.push('typed allowlisted question uses actual checked catalog after deliberate send; raw text excluded');
+ report.checks.push('typed question uses checked catalog after deliberate send; actual text explicitly forwarded');
  await composer.fill('Buy NQ tomorrow PRIVATE-MARKER');await send.click();
- await p.locator('[data-cova-local]').waitFor();
- assert.match(await p.locator('[data-cova-local]').last().innerText(),/review your results, explain your drawdown, or show what stands out/i);
- assert.equal(await p.evaluate(()=>window.calls.length),1);
- assert.equal(await p.locator('[data-cova-answer]').count(),1);
- report.checks.push('unsupported input gets honest local scope help, preserves reply and makes no request');
+ await p.waitForFunction(()=>document.querySelectorAll('[data-cova-answer]').length===2);
+ assert.equal(await p.locator('[data-cova-local]').count(),0);
+ assert.equal(await p.evaluate(()=>window.calls.length),2);
+ assert.equal(await p.evaluate(()=>window.calls.at(-1).conversation.message),'Buy NQ tomorrow PRIVATE-MARKER');
+ report.checks.push('previously unsupported typed input reaches synthetic transport; server/model owns advice boundary');
  // Missing risk no longer replaces a review. Use a distinct valid drawdown reply to test exact retained context.
  await p.evaluate(()=>window.choice='drawdown');
  await composer.fill('Explain my drawdown');await send.click();
- await p.waitForFunction(()=>document.querySelectorAll('[data-cova-answer]').length===2);
+ await p.waitForFunction(()=>document.querySelectorAll('[data-cova-answer]').length===3);
  await composer.fill('Tell me more');await send.click();
+ await p.waitForFunction(()=>document.querySelectorAll('[data-cova-answer]').length===4);
+ assert.equal(await p.evaluate(()=>window.calls.at(-1).conversation.message),'Tell me more');
+ await p.locator('[data-cova-reply]').last().getByRole('button',{name:'Tell me more',exact:true}).click();
  assert.equal(await p.locator('[data-cova-detail]').count(),1,'typed follow-up resolves the latest checked reply');
- assert.match(await p.locator('[data-cova-detail]').last().innerText(),/supporting value is 30\.00 USD/);
+ assert.match(await p.locator('[data-cova-detail]').last().innerText(),/supporting value is \$30\.00/);
  await composer.fill('Which trades?');await send.click();await p.locator('dialog').waitFor();
  assert.deepEqual(await p.locator('[data-history-trade]').evaluateAll(rows=>rows.map(row=>row.dataset.historyTrade).sort()),['manual-0','manual-1','manual-2']);
  await p.getByRole('button',{name:'Close trade history'}).click();
@@ -82,23 +85,24 @@ try{
  await p.getByRole('button',{name:'Close trade history'}).click();
  await first.getByRole('button',{name:'Tell me more',exact:true}).click();
  assert.equal(await p.locator('[data-cova-detail]').count(),2);
- assert.match(await p.locator('[data-cova-detail]').last().innerText(),/supporting value is 90\.00 USD/);
- assert.match(await p.locator('.ask-cova-exchange').last().innerText(),/supporting value is 90\.00 USD/,'old reply detail is appended chronologically, not inserted before newer messages');
- assert.equal(await p.evaluate(()=>window.calls.length),2,'all followups are local');
+ assert.match(await p.locator('[data-cova-detail]').last().innerText(),/supporting value is \$90\.00/);
+ assert.match(await p.locator('.ask-cova-exchange').last().innerText(),/supporting value is \$90\.00/,'old reply detail is appended chronologically, not inserted before newer messages');
+ assert.equal(await p.evaluate(()=>window.calls.length),4,'typed details dispatch; bound detail/evidence buttons remain local');
  report.checks.push('typed followups use latest success; older reply actions retain their own exact evidence/detail and append in order');
  await p.getByRole('button',{name:'Clear conversation',exact:true}).click();
  await composer.fill('Tell me more');await send.click();
- assert.match(await p.locator('[data-cova-local]').innerText(),/Ask a starter question first/);
- assert.equal(await p.evaluate(()=>window.calls.length),2);
- for(let i=1;i<20;i++){await composer.fill('unsupported '+i);await send.click();}
+ await p.locator('[data-cova-answer]').waitFor();
+ assert.deepEqual(await p.evaluate(()=>window.calls.at(-1).conversation),{message:'Tell me more',history:[]});
+ assert.equal(await p.evaluate(()=>window.calls.length),5);
+ for(let i=1;i<20;i++){await composer.fill('unsupported '+i);await send.click();await p.waitForFunction(()=>!document.querySelector('[data-cova-processing]'));}
  assert.equal(await p.locator('.ask-cova-exchange').count(),20);
  assert.equal(await composer.isDisabled(),true,'thread stops at 20 exchanges rather than dropping history');
  await p.getByText('This conversation has reached 20 messages. Clear it to start another review.',{exact:true}).waitFor();
  assert.equal(await p.locator('.ask-cova-exchange').count(),20);
- assert.equal(await p.evaluate(()=>window.calls.length),2);
+ assert.equal(await p.evaluate(()=>window.calls.length),24);
  await p.getByRole('button',{name:'Clear conversation',exact:true}).click();
  assert.equal(await p.locator('.ask-cova-exchange').count(),0);assert.ok(await composer.isEnabled());
- report.checks.push('contextless followups stay local; explicit 20-exchange limit keeps all history and clear resets it');
+ report.checks.push('contextless followups dispatch with empty history; explicit 20-exchange limit keeps the thread and clear resets it');
  await p.clock.install();
  await p.evaluate(()=>{window.choice=undefined;window.mode='slow';window.finish=undefined;});
  await composer.fill('Review my results');await send.click();
@@ -173,7 +177,11 @@ try{
  await composer.fill('Explain my drawdown');await send.click();await p.getByText('Answer unavailable. Try again.',{exact:true}).waitFor();
  assert.equal(await p.locator('[data-cova-answer]').count(),1,'good messages survive a later failure');
  await composer.fill('Tell me more');await send.click();
- assert.match(await p.locator('[data-cova-detail]').last().innerText(),/supporting value is 90\.00 USD/,'failed questions never become followup context');
+ await p.waitForFunction(()=>!document.querySelector('[data-cova-processing]'));
+ assert.equal(await p.evaluate(()=>window.calls.at(-1).question),'review_results','failed question never becomes facts hint');
+ assert.equal(await p.evaluate(()=>window.calls.at(-1).conversation.history.some(item=>item.content==='Explain my drawdown')),false);
+ await p.locator('[data-cova-reply]').first().getByRole('button',{name:'Tell me more',exact:true}).click();
+ assert.match(await p.locator('[data-cova-detail]').last().innerText(),/supporting value is \$90\.00/,'failed questions never become followup context');
  report.checks.push('Enter/Shift+Enter/IME and 500-character browser bound; latest successful context survives later error');
  await p.evaluate(()=>{window.current=false;});
  await composer.fill('Tell me more');await send.click();
@@ -224,9 +232,9 @@ try{
   }else await p.locator('.ask-cova-error').waitFor();
   assert.equal(await p.evaluate(()=>window.calls.length),callsBefore+1);
   const result=await p.evaluate(()=>({reads:window.streamReads,canceled:window.streamCanceled,locked:window.stream.locked,body:window.sentBody}));
-  assert.deepEqual(Object.keys(result.body).sort(),['account','action','contextDigest','owner','protocolVersion','question','range','requestId']);
+  assert.deepEqual(Object.keys(result.body).sort(),['account','action','contextDigest','conversation','owner','protocolVersion','question','range','requestId']);
   assert.equal(result.body.action,'ask_cova');assert.equal(result.body.protocolVersion,'ask-cova-v3');
-  assert.ok(!JSON.stringify(result.body).includes('How did I do?'));assert.ok(!JSON.stringify(result.body).includes('Private journal note'));
+  assert.deepEqual(result.body.conversation,{message:'How did I do?',history:[]});assert.ok(!JSON.stringify(result.body).includes('Private journal note'));
   assert.equal(result.locked,false);
   if(sample==='exact')assert.match(await p.locator('[data-cova-answer]').innerText(),/90\.00/);
   else assert.equal(await p.locator('[data-cova-answer]').count(),0);
@@ -251,8 +259,11 @@ try{
  await composer.fill('Review my results');await composer.press('Enter');await p.waitForFunction(()=>document.querySelectorAll('[data-cova-answer]').length===3);
  assert.ok(await composer.evaluate(n=>document.activeElement===n),'continuous composer focus: '+await p.evaluate(()=>document.activeElement.outerHTML));
  await p.keyboard.type('Tell me more');await p.keyboard.press('Enter');
+ await p.waitForFunction(()=>document.querySelectorAll('[data-cova-answer]').length===4);
+ assert.equal(await p.evaluate(()=>window.calls.at(-1).conversation.message),'Tell me more');
+ await p.locator('[data-cova-reply]').last().getByRole('button',{name:'Tell me more',exact:true}).click();
  await p.locator('[data-cova-detail]').waitFor();
- assert.match(await p.locator('[data-cova-detail]').innerText(),/supporting value is 90\.00 USD/);
+ assert.match(await p.locator('[data-cova-detail]').innerText(),/supporting value is \$90\.00/);
  report.checks.push('continuous composer keyboard typing resumes after reply; preset/evidence focus is never stolen');
  const staleBefore=await p.evaluate(()=>{window.current=false;return window.calls.length;});
  await composer.fill('Explain my drawdown');await send.click();
@@ -325,10 +336,10 @@ try{
  });
  for(const text of ['unsupported PRIVATE-MARKER','Tell me more','Which trades?','Explain my drawdown'])await race('CHAT-L02 consumes a draft once: '+text,async()=>{
   await success();await input.fill(text);await racePage.evaluate(()=>{const form=document.querySelector('.ask-cova-composer');form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));});await settle();
-  assert.equal((await state()).count,2);assert.equal(await input.inputValue(),'');assert.equal((await state()).calls.length,text==='Explain my drawdown'?2:1);
+  assert.equal((await state()).count,2);assert.equal(await input.inputValue(),'');assert.equal((await state()).calls.length,text==='Which trades?'?1:2);
  });
  for(const kind of ['reply','unsupported','detail','trades','question'])await race('CHAT-L02 atomically reserves twentieth slot: '+kind,async()=>{
-  await success();for(let i=0;i<18;i++){await input.fill('unsupported '+i);await button('Send message').click();}assert.equal((await state()).count,19);
+  await success();for(let i=0;i<18;i++){await input.fill('unsupported '+i);await button('Send message').click();await racePage.waitForFunction(()=>!document.querySelector('[data-cova-processing]'));}assert.equal((await state()).count,19);
   if(kind==='reply')await racePage.evaluate(()=>{const b=[...document.querySelectorAll('button')].find(n=>n.textContent==='Tell me more');b.click();b.click();});
   else {await input.fill({unsupported:'unsupported final',detail:'Tell me more',trades:'Which trades?',question:'Explain my drawdown'}[kind]);await racePage.evaluate(()=>{const f=document.querySelector('.ask-cova-composer');f.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));f.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));document.querySelectorAll('.ask-cova-questions button')[1].click();});}
   await settle();assert.equal((await state()).count,20);assert.equal(await input.isDisabled(),true);
@@ -341,7 +352,7 @@ try{
  await p.getByRole('button',{name:'Review my results',exact:true}).click();
  await p.locator('[data-cova-answer]').waitFor();
  const reviewAnswer=await p.locator('[data-cova-answer]').innerText();
- assert.match(reviewAnswer,/80\.00 USD/);assert.match(reviewAnswer,/win rate: 50\.0%/i);assert.match(reviewAnswer,/profit factor: 3\.00/i);
+ assert.match(reviewAnswer,/\$80\.00/);assert.match(reviewAnswer,/win rate: 50\.0%/i);assert.match(reviewAnswer,/profit factor: 3\.00/i);
  const richQuestions=[['How does holding time affect my results?','holding_time'],['What setup works best?','setup_performance'],['When do I trade best?','time_of_day'],['Am I better at shorting or longing?','long_vs_short']];
  for(const [text,question] of richQuestions){
   const before=await p.evaluate(()=>window.calls.length);
@@ -349,11 +360,11 @@ try{
   await send.click();await p.waitForFunction(count=>window.calls.length===count,before+1);
   await p.waitForFunction(count=>document.querySelectorAll('[data-cova-answer]').length===count,before+1);
   const call=await p.evaluate(()=>window.calls.at(-1));assert.equal(call.question,question);
-  assert.deepEqual(Object.keys(call).sort(),['account','contextDigest','owner','question','range','requestId']);
-  assert.doesNotMatch(JSON.stringify(call),/PRIVATE|holding time affect|setups perform|time of day works|Am I better at shorting or longing?/);
+  assert.deepEqual(Object.keys(call).sort(),['account','contextDigest','conversation','owner','question','range','requestId']);
+  assert.equal(call.conversation.message,text);assert.doesNotMatch(JSON.stringify(call),/PRIVATE/);
   const answer=await p.locator('[data-cova-answer]').last().innerText();
   // Specific questions lead with their actual comparison, not repeated review metrics.
-  const expected=question==='time_of_day'?['mean a: 35.00 USD','mean b: 5.00 USD','mean gap: 30.00 USD','count a: 2','count b: 2']:['mean a: 60.00 USD','mean b: −20.00 USD','mean gap: 80.00 USD','count a: 2','count b: 2'];
+  const expected=question==='time_of_day'?['mean a: $35.00','mean b: $5.00','mean gap: $30.00','count a: 2','count b: 2']:['mean a: $60.00','mean b: −$20.00','mean gap: $80.00','count a: 2','count b: 2'];
   for(const fact of expected)assert.ok(answer.includes(fact),`${question}: missing checked comparison ${fact}`);
   assert.match(answer,/compared count: 4/);assert.match(answer,/comparison total: 4/);
   assert.doesNotMatch(answer,/risk.*(?:required|before|can't)/i);

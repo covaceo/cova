@@ -23,7 +23,7 @@ test('local aliases expand once without replacing ordinary words or reauthoring 
   const trades=[{...row,id:'a',setup:label,pnl:10},{...row,id:'b',setup:'Other private label',pnl:-5}];
   const catalog=await core.buildAskCovaCatalog({...input,question:'setup_performance',trades});
   const authored={version:'ask-cova-answer-v1',paragraphs:[{text:'long is an ordinary word here. {{c:category_a}} averaged {{f:mean_a}}.',evidence:['comparison']}],detail:[]};
-  assert.equal(core.renderAskCovaAnswer(catalog,authored).paragraphs[0],`long is an ordinary word here. ${label} averaged 10.00 USD.`);
+  assert.equal(core.renderAskCovaAnswer(catalog,authored).paragraphs[0],`long is an ordinary word here. ${label} averaged $10.00.`);
   const payload=core.askCovaModelPayload(catalog);assert.deepEqual(payload.categories,[{id:'category_a',description:'Category A'},{id:'category_b',description:'Category B'}]);
   assert.equal(core.renderAskCovaAnswer({...catalog},authored),null);
  }
@@ -61,7 +61,7 @@ test('atomic answer parsing rejects forged objects, invented numerals and bound 
  assert.equal(getterReads,0,'direct validation must not execute getters');
  assert.equal(core.renderAskCovaAnswer({...catalog},answer),null);
  assert(voice.parseAskCovaAnswer(answer));assert(core.renderAskCovaAnswer(catalog,{...answer,paragraphs:[{text:'checked.',evidence:['overall','payoff']}],detail:[]}),'no artificial answer minimum');
- const copy=core.askCovaModelPayload(catalog);copy.facts[0].display='forged';assert.match(core.renderAskCovaAnswer(catalog,answer).paragraphs[0],/20.00 USD/);
+ const copy=core.askCovaModelPayload(catalog);copy.facts[0].display='forged';assert.match(core.renderAskCovaAnswer(catalog,answer).paragraphs[0],/\$20\.00/);
 });
 test('structured full and subset facts preserve invalid-money partition and drawdown availability',async()=>{
  const trades=[{...row,id:'a',pnl:100,date:'2026-10-27'},{...row,id:'b',pnl:-40,date:'2026-10-28'},{...row,id:'c',pnl:0,date:'2026-10-29'}];
@@ -95,7 +95,7 @@ test('structured comparisons preserve ranked means, distinct coverage and privat
  assert.doesNotMatch(JSON.stringify(packet),/Private Alpha|Private Beta|Private Gamma|2026|manual-synthetic/);
  const authored={version:'ask-cova-answer-v1',paragraphs:[{text:'{{c:category_a}} averaged {{f:mean_a}}, versus {{f:mean_b}} for {{c:category_b}}. less negative is not profitable.',evidence:['comparison']}],detail:[]};
  const rendered=core.renderAskCovaAnswer(catalog,authored);
- assert.match(rendered.paragraphs[0],/Private Alpha averaged −2.00 USD/);
+ assert.match(rendered.paragraphs[0],/Private Alpha averaged −\$2\.00/);
  assert.deepEqual(rendered.tradeIds,['a','b','c','d']);
  assert(rendered.scopeNotices.some(n=>/part of this range/.test(n)));
 });
@@ -119,7 +119,7 @@ test('synthetic authored answer traverses provider server client and scoped rend
  assert.equal(result.status,'ok');assert.equal(counts,1);assert.equal(calls,1);assert.equal(permit,1);
  assert.deepEqual(result.answer,answer);
  const rendered=core.renderAskCovaAnswer(catalog,result.answer);
- assert.deepEqual(rendered.paragraphs,['the recorded result is 20.00 USD. that is a starting point, not a prediction.']);
+ assert.deepEqual(rendered.paragraphs,['the recorded result is $20.00. that is a starting point, not a prediction.']);
  assert.match(rendered.detail[0],/undefined \(no losses\)/);assert.deepEqual(rendered.tradeIds,[row.id]);
  assert.equal(core.renderAskCovaAnswer(catalog,{choice_id:'result',style:'warm'}),null);
 });
