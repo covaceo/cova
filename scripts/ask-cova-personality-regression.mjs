@@ -27,7 +27,13 @@ test('fresh authorized users and questions always receive the same versioned Cov
  const prompts=[];
  for(const owner of owners)for(const question of ['review_results','what_stands_out']){
   const prompt=await capture(owner,question);
-  assert.match(prompt,/^COVA_PERSONALITY_VERSION: cova-personality-v1\n/,'the server must inject a named, versioned global voice on every request');
+  assert.match(prompt,/^COVA_PERSONALITY_VERSION: cova-personality-v2\n/,'the server must inject the revised plain-language voice on every request');
+  assert.match(prompt,/PLAIN TRADER LANGUAGE/);
+  assert.match(prompt,/Use familiar trading words and everyday English/);
+  assert.match(prompt,/payoff imbalance/);
+  assert.match(prompt,/your average win is bigger than your average loss/);
+  assert.match(prompt,/Do not turn grouped results into individual trades or positions/);
+  assert.match(prompt,/Keep the sign, currency, average-versus-total meaning and supplied time scope/);
   const identity=load('server/askCovaPersonality.ts');
   assert(prompt.startsWith(identity.ASK_COVA_PERSONALITY+'\n\nGROUNDING AND OUTPUT CONTRACT'));
   assert.doesNotMatch(prompt,/at most 160 words|No advice, emotions/,'obsolete reporting instructions must not contradict the product voice');
