@@ -1,4 +1,6 @@
-# Ask Cova: server rollout gate
+# Ask Cova: legacy v3 server rollout gate
+
+The current v4 account-data implementation is documented in [ask-cova-account-data.md](./ask-cova-account-data.md). The contracts below describe the retained v3 path and its prior rollout. V4 adds the authenticated `ask_cova_context` read action, a generic query planner/executor, relevant saved notes and Passport data, and combined two-stage accounting; do not apply the v3 no-notes or one-generation statements to v4.
 
 **Implementation is disabled by default. This document is not deployment, spending, credential-provisioning, or database-change authorization.** No paid calls, customer-data calls, credential reads, external configuration changes, or deployment were used for these regressions.
 

@@ -10,27 +10,18 @@ mkdirSync(evidence,{recursive:true});
 assert.ok(existsSync(root+'src/components/AskCova.tsx'),'Risk Desk Ask Cova component exists');
 const id=root+'__ask_cova_ui_test__.tsx';
 const canonicalCSS=[...readFileSync(root+'src/main.tsx','utf8').matchAll(/import "([^"]+\.css)"/g)].map(([,path])=>`import '${path.startsWith('.')?root+'src/'+path.slice(2):path}';`).join('');
-const entry=`import React from 'react';import{createRoot}from'react-dom/client';import{AskCova}from'${root}src/components/AskCova.tsx';import{bindAskCovaAccessAuthority,askCovaAccessCurrent,createAskCovaTransport,requestAskCova}from'${root}src/lib/askCovaClient.ts';
-import{buildAskCovaCatalog,askCovaModelPayload}from'${root}src/lib/askCova.ts';import{syntheticAnswer}from'${root}scripts/helpers/ask-cova-authored-fixture.mjs';
+const entry=`import React from 'react';import{createRoot}from'react-dom/client';import{AskCova}from'${root}src/components/AskCova.tsx';import{bindAskCovaAccessAuthority,askCovaAccessCurrent}from'${root}src/lib/askCovaClient.ts';
+import{installSyntheticQueryTransport}from'${root}scripts/helpers/ask-cova-query-fixture.mjs';
+import{ASK_COVA_QUERY_TIMEOUT_MS}from'${root}src/lib/askCovaQueryClient.ts';window.queryTimeout=ASK_COVA_QUERY_TIMEOUT_MS;
 const root=createRoot(document.getElementById('root'));
-window.answerFor=async(input)=>{const catalog=await buildAskCovaCatalog({ownerId:input.owner,account:input.account,range:input.range,question:input.question,trades:window.fixtureRows||trades});const answer=syntheticAnswer(askCovaModelPayload(catalog),'warm');if(window.choice==='invented_choice')answer.paragraphs[0].evidence=['unknown'];return answer;};
-const trades=[100,-30,20].map((pnl,i)=>({id:'manual-'+i,date:'2026-10-2'+(i+1),market:'NQ',side:'Long',contracts:1,entry:100,exit:101,pnl,risk:50,riskStatus:i===1?'missing':'provided',setup:'',notes:'Private journal note',manual:{accountKey:'local',currency:'USD',pnlBasis:'reported_net'}}));
+const trades=[100,-30,20].map((pnl,i)=>({id:'tradovate-7:fixture-'+i,date:'2026-10-2'+(i+1),market:'NQ',side:'Long',contracts:1,entry:100,exit:101,pnl,risk:50,riskStatus:i===1?'missing':'provided',setup:'',notes:'Private journal note',source:{provider:'Tradovate',accountId:'7',pnlBasis:'gross_before_fees',timeZone:'UTC',openedAt:'2026-10-2'+(i+1)+'T14:00:00Z',closedAt:'2026-10-2'+(i+1)+'T14:10:00Z'}}));
 window.calls=[];window.mode='ok';window.current=true;window.trades=trades;
 // Synthetic capability lifecycle through the same public binding API used by useAskCovaAccess.
 // No auth/server discovery is simulated as real; default component authority stays intact.
 window.betaCurrent=askCovaAccessCurrent;
 window.setBetaGrant=allowed=>{window.removeBetaGrant?.();window.removeBetaGrant=bindAskCovaAccessAuthority(owner=>allowed===true&&owner==='11111111-1111-4111-8111-111111111111'&&window.current);};
-window.request=async(input,signal)=>{window.lastSignal=signal;window.calls.push(input);if(window.mode==='stream'){
- const body=JSON.stringify({status:'ok',aiResponseUsed:true,contextDigest:input.contextDigest,answer:await window.answerFor(input)});
- window.streamReads=0;window.streamCanceled=false;
- const bytes=new TextEncoder().encode(window.streamCase==='exact'?body.padEnd(8192):window.streamCase==='utf8'?JSON.stringify({...JSON.parse(body),padding:'€'.repeat(1400)}):body);
- let offset=0;
- const stream=new ReadableStream({pull(controller){window.streamReads++;if(window.streamCase==='stalled'){if(window.streamReads===1)controller.enqueue(new TextEncoder().encode('{'));return;}if(window.streamCase==='oversized'){controller.enqueue(new Uint8Array(4096).fill(120));return;}if(window.streamCase==='invalid'){controller.enqueue(new Uint8Array([255]));return;}if(offset===bytes.length){controller.close();return;}controller.enqueue(bytes.slice(offset,offset+4096));offset+=4096;if(offset>=bytes.length)controller.close();},cancel(){window.streamCanceled=true;}},{highWaterMark:0});
- window.stream=stream;
- const transport=createAskCovaTransport(input.owner,{current:()=>window.current,session:async()=>({user:{id:input.owner},access_token:'MOCK-TOKEN'}),fetch:async(url,init)=>{window.sentBody=JSON.parse(init.body);return new Response(stream,{headers:window.streamCase==='header'?{'Content-Length':'1048576'}:{}});}});
- return requestAskCova(input,signal,transport);
- }if(window.mode==='body'){const transport=createAskCovaTransport(input.owner,{current:()=>window.current,session:async()=>({user:{id:input.owner},access_token:'MOCK-TOKEN'}),fetch:async()=>new Response(new ReadableStream({start(controller){window.bodyController=controller;window.bodyInput=input;}}))});return requestAskCova(input,signal,transport);}if(window.mode==='slow')await new Promise(r=>window.finish=r);if(window.mode==='throw')throw Error('Synthetic rejected request');if(window.mode==='error')return {status:'unavailable',message:'Answer unavailable. Try again.'};return {status:'ok',aiResponseUsed:true,contextDigest:input.contextDigest,answer:await window.answerFor(input)};};
-window.showAsk=(ready=true,account='local',range='all',rows=trades,injectedAuthority=true,ownerId='11111111-1111-4111-8111-111111111111')=>root.render(<main className="oa-dashboard-app"><section className="astra-dashboard" data-dashboard-visual="reference" style={{display:'block',maxWidth:1040,margin:'24px auto',padding:'0 16px'}}><AskCova ownerId={ownerId} account={account} range={range} trades={rows} ready={ready} request={window.request} ownerCurrent={injectedAuthority ? owner=>owner==='11111111-1111-4111-8111-111111111111'&&window.current : undefined}/></section></main>);const show=window.showAsk;window.showAsk=(...args)=>{window.fixtureRows=args[3]||trades;return show(...args)};window.showAsk();${canonicalCSS}`;
+installSyntheticQueryTransport(()=>window.fixtureRows||trades);
+window.showAsk=(ready=true,account='Tradovate:7',range='all',rows=trades,injectedAuthority=true,ownerId='11111111-1111-4111-8111-111111111111')=>root.render(<main className="oa-dashboard-app"><section className="astra-dashboard" data-dashboard-visual="reference" style={{display:'block',maxWidth:1040,margin:'24px auto',padding:'0 16px'}}><AskCova ownerId={ownerId} account={account} range={range} trades={rows} ready={ready} request={window.request} captureAuthority={window.captureAuthority} ownerCurrent={injectedAuthority ? owner=>owner==='11111111-1111-4111-8111-111111111111'&&window.current : undefined}/></section></main>);const show=window.showAsk;window.showAsk=(...args)=>{window.fixtureRows=args[3]||trades;return show(...args)};window.showAsk();${canonicalCSS}`;
 const result=await build({root,configFile:false,envDir:false,logLevel:'error',plugins:[{name:'ask-cova-ui',resolveId(v){if(v.endsWith('__ask_cova_ui_test__.tsx'))return id;},load(v){if(v===id)return entry;}},react()],define:{'process.env.NODE_ENV':'"production"'},build:{write:false,copyPublicDir:false,lib:{entry:id,formats:['es'],fileName:'probe',cssFileName:'probe'}}});
 const files=new Map((Array.isArray(result)?result.flatMap(r=>r.output):result.output).map(o=>['/'+o.fileName,o.type==='chunk'?o.code:o.source]));
 const html=`<!doctype html><html><head><meta name='viewport' content='width=device-width,initial-scale=1'>${[...files.keys()].filter(x=>x.endsWith('.css')).map(x=>`<link rel='stylesheet' href='${x}'>`).join('')}</head><body style='background:#101318'><div id='root'></div><script type='module' src='/probe.js'></script></body></html>`;
@@ -55,11 +46,11 @@ try{
  await p.locator('[data-cova-answer]').waitFor();
  assert.match(await p.locator('[data-cova-answer]').innerText(),/90\.00/);
  const call=await p.evaluate(()=>window.calls[0]);
- assert.equal(call.question,'review_results');
- assert.deepEqual(Object.keys(call).sort(),['account','contextDigest','conversation','owner','question','range','requestId']);
+ assert.equal(Object.hasOwn(call,'question'),false);
+ assert.deepEqual(Object.keys(call).sort(),['account','conversation','owner','previousSnapshotDigest','range','requestId']);
  assert.deepEqual(call.conversation,{message:'How did I do?',history:[]});
  assert.equal(await composer.inputValue(),'');
- report.checks.push('typed question uses checked catalog after deliberate send; actual text explicitly forwarded');
+ report.checks.push('typed question uses checked v4 query after deliberate send; actual text explicitly forwarded');
  await composer.fill('Buy NQ tomorrow PRIVATE-MARKER');await send.click();
  await p.waitForFunction(()=>document.querySelectorAll('[data-cova-answer]').length===2);
  assert.equal(await p.locator('[data-cova-local]').count(),0);
@@ -77,11 +68,11 @@ try{
  assert.equal(await p.locator('[data-cova-detail]').count(),1,'typed follow-up resolves the latest checked reply');
  assert.match(await p.locator('[data-cova-detail]').last().innerText(),/supporting value is \$30\.00/);
  await composer.fill('Which trades?');await send.click();await p.locator('dialog').waitFor();
- assert.deepEqual(await p.locator('[data-history-trade]').evaluateAll(rows=>rows.map(row=>row.dataset.historyTrade).sort()),['manual-0','manual-1','manual-2']);
+ assert.deepEqual(await p.locator('[data-history-trade]').evaluateAll(rows=>rows.map(row=>row.dataset.historyTrade).sort()),['tradovate-7:fixture-0','tradovate-7:fixture-1','tradovate-7:fixture-2']);
  await p.getByRole('button',{name:'Close trade history'}).click();
  const first=p.locator('[data-cova-reply]').first();
  await first.getByRole('button',{name:'Show trades',exact:true}).click();await p.locator('dialog').waitFor();
- assert.deepEqual(await p.locator('[data-history-trade]').evaluateAll(rows=>rows.map(row=>row.dataset.historyTrade)).then(x=>x.sort()),['manual-0','manual-1','manual-2']);
+ assert.deepEqual(await p.locator('[data-history-trade]').evaluateAll(rows=>rows.map(row=>row.dataset.historyTrade)).then(x=>x.sort()),['tradovate-7:fixture-0','tradovate-7:fixture-1','tradovate-7:fixture-2']);
  await p.getByRole('button',{name:'Close trade history'}).click();
  await first.getByRole('button',{name:'Tell me more',exact:true}).click();
  assert.equal(await p.locator('[data-cova-detail]').count(),2);
@@ -111,8 +102,8 @@ try{
  assert.ok(await composer.isDisabled());assert.ok(await send.isDisabled());
  assert.ok(await p.getByText('Checking your results…',{exact:true}).isVisible());
  const beforeTimeout=await p.evaluate(()=>window.calls.length);
- await p.clock.runFor(25001);
- assert.ok(await p.evaluate(()=>window.lastSignal.aborted),'25-second deadline aborts real signal');
+ await p.clock.runFor(await p.evaluate(()=>window.queryTimeout+1));
+ assert.ok(await p.evaluate(()=>window.lastSignal.aborted),'declared query deadline aborts real signal');
  assert.equal(await composer.isDisabled(),false,'deadline releases the UI even when an injected request ignores abort');
  await p.getByText('That took too long. You can try again when you’re ready.',{exact:true}).waitFor();
  assert.equal(await p.getByText('Checking your results…',{exact:true}).count(),0);
@@ -125,9 +116,9 @@ try{
  await p.waitForFunction(()=>!!window.finish);
  await p.getByRole('button',{name:'Clear conversation',exact:true}).click();
  assert.ok(await p.evaluate(()=>window.lastSignal.aborted));assert.ok(await composer.isEnabled());
- await p.evaluate(()=>window.finish());await p.clock.runFor(25001);
+ await p.evaluate(()=>window.finish());await p.clock.runFor(await p.evaluate(()=>window.queryTimeout+1));
  assert.equal(await p.locator('[role="log"]').count(),0);assert.equal(await p.locator('.ask-cova-error').count(),0);
- report.checks.push('pending-only indicator, one request, 25s abort, no automatic retry, clear abort and late completion rejection');
+ report.checks.push('pending-only indicator, one request, declared-deadline abort, no automatic retry, clear abort and late completion rejection');
  await p.evaluate(()=>{window.mode='ok';window.choice=undefined;});
  await composer.fill('How did I do?');await send.click();await p.locator('[data-cova-answer]').waitFor();
  await composer.fill('Explain my drawdown');await send.click();await p.waitForFunction(()=>document.querySelectorAll('[data-cova-answer]').length===2);
@@ -151,7 +142,10 @@ try{
    assert.ok(hitCheck.ok, 'actual upper and lower hit coverage outside compact face: '+await button.innerText()+' '+JSON.stringify(hitCheck));
   }
   const evidenceButton=p.locator('[data-cova-reply]').first().getByRole('button',{name:'Show trades',exact:true});
-  await evidenceButton.scrollIntoViewIfNeeded();const hit=await evidenceButton.boundingBox();await p.mouse.click(hit.x+hit.width/2,hit.y-3);
+  // Centre the transparent hit extension too; scrollIntoViewIfNeeded can leave it above y=0.
+  await evidenceButton.evaluate(n=>n.scrollIntoView({block:'center',behavior:'instant'}));await p.clock.runFor(32);const hit=await evidenceButton.boundingBox();
+  assert.ok(hit.y>=4&&hit.y+hit.height+4<1000,'entire hit extension is in viewport');assert.equal(await evidenceButton.evaluate(n=>{const r=n.getBoundingClientRect();return document.elementFromPoint(r.left+r.width/2,r.top-3)?.closest('button')===n;}),true);await p.mouse.click(hit.x+hit.width/2,hit.y-3);
+  report.outsideFace??=[];report.outsideFace.push({width,hit,probe:await p.evaluate(({x,y})=>({target:document.elementFromPoint(x,y)?.tagName,scrollY,active:document.activeElement?.tagName}),{x:hit.x+hit.width/2,y:hit.y-3})});
   await p.locator('dialog').waitFor();await p.getByRole('button',{name:'Close trade history'}).click();
   assert.equal(metrics.questionBackground,'rgb(40, 100, 218)');assert.equal(metrics.replyBackground,'rgb(36, 40, 48)');assert.match(metrics.font,/Inter/);
   assert.equal(await p.locator('.ask-cova-question').first().evaluate(n=>getComputedStyle(n).color),'rgb(255, 255, 255)','outgoing text has full contrast');
@@ -174,11 +168,11 @@ try{
  await composer.fill('Review my results');await composer.press('Enter');
  await p.locator('[data-cova-answer]').waitFor();
  await p.evaluate(()=>{window.mode='error';});
- await composer.fill('Explain my drawdown');await send.click();await p.getByText('Answer unavailable. Try again.',{exact:true}).waitFor();
+ await composer.fill('Explain my drawdown');await send.click();await p.getByText('The saved account data needed for this answer is unavailable. Your data is unchanged.',{exact:true}).waitFor();
  assert.equal(await p.locator('[data-cova-answer]').count(),1,'good messages survive a later failure');
  await composer.fill('Tell me more');await send.click();
  await p.waitForFunction(()=>!document.querySelector('[data-cova-processing]'));
- assert.equal(await p.evaluate(()=>window.calls.at(-1).question),'review_results','failed question never becomes facts hint');
+ assert.equal(await p.evaluate(()=>Object.hasOwn(window.calls.at(-1),'question')),false,'v4 has no finite facts hint');
  assert.equal(await p.evaluate(()=>window.calls.at(-1).conversation.history.some(item=>item.content==='Explain my drawdown')),false);
  await p.locator('[data-cova-reply]').first().getByRole('button',{name:'Tell me more',exact:true}).click();
  assert.match(await p.locator('[data-cova-detail]').last().innerText(),/supporting value is \$90\.00/,'failed questions never become followup context');
@@ -225,22 +219,23 @@ try{
   await p.evaluate(sample=>{window.mode='stream';window.streamCase=sample;window.current=true;},sample);
   const callsBefore=await p.evaluate(()=>window.calls.length);
   await composer.fill('How did I do?');await send.click();
-  if(sample==='exact')await p.locator('[data-cova-answer]').waitFor();
+  if(['exact','utf8'].includes(sample))await p.locator('[data-cova-answer]').waitFor();
   else if(sample==='stalled'){
    await p.waitForFunction(()=>window.streamReads===2);await p.getByRole('button',{name:'Clear conversation',exact:true}).click();
    await p.waitForFunction(()=>window.streamCanceled);
   }else await p.locator('.ask-cova-error').waitFor();
   assert.equal(await p.evaluate(()=>window.calls.length),callsBefore+1);
   const result=await p.evaluate(()=>({reads:window.streamReads,canceled:window.streamCanceled,locked:window.stream.locked,body:window.sentBody}));
-  assert.deepEqual(Object.keys(result.body).sort(),['account','action','contextDigest','conversation','owner','protocolVersion','question','range','requestId']);
-  assert.equal(result.body.action,'ask_cova');assert.equal(result.body.protocolVersion,'ask-cova-v3');
+  assert.deepEqual(Object.keys(result.body).sort(),['account','action','contextDigest','conversation','owner','protocolVersion','range','requestId','snapshotDigest']);
+  assert.equal(result.body.action,'ask_cova');assert.equal(result.body.protocolVersion,'ask-cova-v4');
   assert.deepEqual(result.body.conversation,{message:'How did I do?',history:[]});assert.ok(!JSON.stringify(result.body).includes('Private journal note'));
   assert.equal(result.locked,false);
-  if(sample==='exact')assert.match(await p.locator('[data-cova-answer]').innerText(),/90\.00/);
+  if(['exact','utf8'].includes(sample))assert.match(await p.locator('[data-cova-answer]').innerText(),/90\.00/);
   else assert.equal(await p.locator('[data-cova-answer]').count(),0);
   if(['oversized','header','invalid','stalled'].includes(sample))assert.equal(result.canceled,true);
   if(sample==='header')assert.equal(result.reads,0);
-  if(sample==='oversized')assert.ok(result.reads<=3);
+  if(sample==='oversized')assert.equal(result.reads,5,'first overflowing chunk after exact 16384-byte ceiling');
+  if(sample==='utf8')assert.equal(await p.evaluate(()=>window.streamSplitMultibyte),true,'positive response decodes a multibyte character split between chunks');
   report.checks.push('real browser transport/body guard: '+sample);
  }
  await p.evaluate(()=>{window.mode='ok';window.current=true;});
@@ -284,7 +279,7 @@ try{
   catch(error){(report.races??=[]).push({name,passed:false,error:String(error),state:await state()});}
  }
  await race('CHAT-S01 Clear synchronously revokes real-client event epoch with default authority',async()=>{
-  await racePage.evaluate(()=>{localStorage.setItem('cova-active-storage-identity-v1','11111111-1111-4111-8111-111111111111');window.mode='stream';window.streamCase='exact';window.showAsk(true,'local','all',undefined,false);});
+  await racePage.evaluate(()=>{localStorage.setItem('cova-active-storage-identity-v1','11111111-1111-4111-8111-111111111111');window.mode='stream';window.streamCase='exact';window.showAsk(true,'Tradovate:7','all',undefined,false);});
   await racePage.evaluate(()=>window.setBetaGrant(false));
   assert.equal(await racePage.evaluate(()=>window.betaCurrent('11111111-1111-4111-8111-111111111111')),false);
   await button('Review my results').click();
@@ -292,7 +287,7 @@ try{
   assert.equal((await state()).calls.length,0);assert.equal((await state()).answers,0);
   await button('Clear conversation').click();await racePage.evaluate(()=>window.setBetaGrant(true));
   assert.equal(await racePage.evaluate(()=>window.betaCurrent('11111111-1111-4111-8111-111111111111')),true);
-  await success();assert.equal(await racePage.evaluate(()=>window.sentBody.protocolVersion),'ask-cova-v3');
+  await success();assert.equal(await racePage.evaluate(()=>window.sentBody.protocolVersion),'ask-cova-v4');
   await racePage.evaluate(()=>{[...document.querySelectorAll('button')].find(n=>n.textContent==='Clear conversation').click();document.querySelector('.ask-cova-questions button').click();});await settle();
   const s=await state();assert.equal(s.calls.length,1);assert.equal(s.answers,0);assert.equal(s.consent,false);
   await button('Review my results').click();
@@ -318,13 +313,13 @@ try{
  await race('CHAT-L01 blocked choice cannot replace failed retry target',async()=>{
   await success();await racePage.evaluate(()=>{window.mode='slow';window.finish=undefined;const b=document.querySelectorAll('.ask-cova-questions button');b[1].click();b[2].click();});await racePage.waitForFunction(()=>!!window.finish);
   const pendingState=await state();await racePage.evaluate(()=>{window.mode='error';window.finish();});await button('Try again').waitFor();await racePage.evaluate(()=>window.mode='ok');await button('Try again').click();await racePage.waitForFunction(()=>window.calls.length===3);await settle();
-  assert.equal((await state()).calls[2].question,'explain_drawdown');assert.equal(pendingState.count,2);assert.equal(pendingState.calls.length,2);assert.equal((await state()).answers,2);
+  assert.equal((await state()).calls[2].conversation.message,'Explain my drawdown');assert.equal(pendingState.count,2);assert.equal(pendingState.calls.length,2);assert.equal((await state()).answers,2);
  });
  await race('CHAT-L01 a failed question allows a new question; retained retry cannot supersede it',async()=>{
   await success();await racePage.evaluate(()=>window.mode='error');await button('Explain my drawdown').click();await button('Try again').waitFor();
   await racePage.evaluate(()=>{window.mode='slow';window.finish=undefined;const retry=[...document.querySelectorAll('button')].find(n=>n.textContent==='Try again');document.querySelectorAll('.ask-cova-questions button')[2].click();retry.click();});await racePage.waitForFunction(()=>!!window.finish);
-  assert.equal((await state()).calls.length,3);assert.equal((await state()).calls[2].question,'what_stands_out');assert.equal((await state()).count,3);
-  await racePage.evaluate(()=>{window.mode='error';window.finish();});await button('Try again').waitFor();await racePage.evaluate(()=>window.mode='ok');await button('Try again').click();await racePage.waitForFunction(()=>window.calls.length===4);assert.equal((await state()).calls[3].question,'what_stands_out');
+  assert.equal((await state()).calls.length,3);assert.equal((await state()).calls[2].conversation.message,'What stands out?');assert.equal((await state()).count,3);
+  await racePage.evaluate(()=>{window.mode='error';window.finish();});await button('Try again').waitFor();await racePage.evaluate(()=>window.mode='ok');await button('Try again').click();await racePage.waitForFunction(()=>window.calls.length===4);assert.equal((await state()).calls[3].conversation.message,'What stands out?');
  });
  for(const action of ['Tell me more','Show trades'])await race('CHAT-L03 Clear invalidates retained '+action,async()=>{
   await success();await racePage.evaluate(action=>{const old=[...document.querySelectorAll('button')].find(n=>n.textContent===action);[...document.querySelectorAll('button')].find(n=>n.textContent==='Clear conversation').click();old.click();},action);await settle();
@@ -359,14 +354,15 @@ try{
   await composer.fill(text);assert.equal(await p.evaluate(()=>window.calls.length),before);
   await send.click();await p.waitForFunction(count=>window.calls.length===count,before+1);
   await p.waitForFunction(count=>document.querySelectorAll('[data-cova-answer]').length===count,before+1);
-  const call=await p.evaluate(()=>window.calls.at(-1));assert.equal(call.question,question);
-  assert.deepEqual(Object.keys(call).sort(),['account','contextDigest','conversation','owner','question','range','requestId']);
+  const call=await p.evaluate(()=>window.calls.at(-1));assert.equal(Object.hasOwn(call,'question'),false);
+  assert.deepEqual(Object.keys(call).sort(),['account','conversation','owner','previousSnapshotDigest','range','requestId']);
   assert.equal(call.conversation.message,text);assert.doesNotMatch(JSON.stringify(call),/PRIVATE/);
   const answer=await p.locator('[data-cova-answer]').last().innerText();
   // Specific questions lead with their actual comparison, not repeated review metrics.
-  const expected=question==='time_of_day'?['mean a: $35.00','mean b: $5.00','mean gap: $30.00','count a: 2','count b: 2']:['mean a: $60.00','mean b: −$20.00','mean gap: $80.00','count a: 2','count b: 2'];
+  const expected=question==='time_of_day'?['mean a: $35.00','mean b: $5.00','count a: 2','count b: 2']:['mean a: $60.00','mean b: −$20.00','count a: 2','count b: 2'];
   for(const fact of expected)assert.ok(answer.includes(fact),`${question}: missing checked comparison ${fact}`);
-  assert.match(answer,/compared count: 4/);assert.match(answer,/comparison total: 4/);
+  const comparison=await p.evaluate(()=>{const r=window.lastResult;const values=field=>r.cells.filter(c=>c.field===field).map(c=>Number(c.value));return {gap:values('mean')[0]-values('mean')[1],compared:values('n').reduce((a,b)=>a+b,0),ids:[...new Set(r.support.flatMap(s=>s.rows.map(row=>row.recordId)))].sort()};});
+  assert.equal(comparison.gap,question==='time_of_day'?30:80,'original independent mean-gap oracle retained over real core cells');assert.equal(comparison.compared,4);assert.deepEqual(comparison.ids,['tradovate-7:rich-0','tradovate-7:rich-1','tradovate-7:rich-2','tradovate-7:rich-3'],'original full comparison population retained');
   assert.doesNotMatch(answer,/risk.*(?:required|before|can't)/i);
  }
  for(const width of [1440,390,320]){

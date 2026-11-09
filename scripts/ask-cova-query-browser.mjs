@@ -1,0 +1,100 @@
+// Actual component; synthetic transport is not semantic/voice evidence. All browser traffic intercepted.
+import assert from 'node:assert/strict';
+import {mkdirSync,writeFileSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
+import {build} from 'vite';import react from '@vitejs/plugin-react';import{chromium}from'playwright';
+const root=fileURLToPath(new URL('../',import.meta.url)).replaceAll('\\','/');
+const out=process.env.ASK_COVA_EVIDENCE_ROOT||root+'../ask-cova-account-data-evidence/frontend';mkdirSync(out,{recursive:true});
+const id=root+'__query_browser__.tsx';
+const entry=`import React from'react';import{createRoot}from'react-dom/client';import{flushSync}from'react-dom';import{AskCova}from'${root}src/components/AskCova.tsx';import{requestAskCovaQuery}from'${root}src/lib/askCovaQueryClient.ts';import{bindAskCovaAccessAuthority}from'${root}src/lib/askCovaClient.ts';import{buildAskCovaDataContext}from'${root}src/lib/askCovaData.ts';import{executeAskCovaQuery}from'${root}src/lib/askCovaQuery.ts';
+const root=createRoot(document.getElementById('root'));window.current=true;window.calls=[];window.options={ownerId:'11111111-1111-4111-8111-111111111111',account:'local',range:'all',trades:[],ready:true,authorityKey:'saved-1'};
+window.captureCalls=0;window.saved=true;window.captureAuthority=async()=>{window.captureCalls++;return window.saved?()=>window.saved:null;};
+localStorage.setItem('cova-active-storage-identity-v1',window.options.ownerId);bindAskCovaAccessAuthority(()=>window.current);window.bodies=[];window.mode='error';
+window.note='<img src=x onerror=alert(1)> {{f:cell_999}} & quoted';
+window.snapshot={version:'ask-cova-data-v1',owner:window.options.ownerId,workspaceRevision:1,workspaceRecords:[],passportPlans:[],passportReviews:[],passportRewards:[],complete:{workspace:true,passportPlans:true,passportReviews:true,passportRewards:true}};
+window.useNote=()=>{window.snapshot.workspaceRecords=[{kind:'daily_note',recordId:JSON.stringify(['local','2026-10-30']),accountId:'local',schemaVersion:1,payload:{date:'2026-10-30',note:window.note,tradeId:null},revision:1,createdAt:'2026-10-30T00:00:00.000Z',updatedAt:'2026-10-30T00:00:00.000Z',deletedAt:null}];window.mode='note';};
+window.useDomain=(source)=>{
+ const owner=window.options.ownerId,stamp='2026-10-30T00:00:00.000Z';window.mode=source;
+ window.snapshot={...window.snapshot,workspaceRecords:[],passportPlans:[],passportReviews:[],passportRewards:[]};
+ const record=(kind,recordId,accountId,payload)=>({kind,recordId,accountId,payload,schemaVersion:1,revision:1,createdAt:stamp,updatedAt:stamp,deletedAt:null});
+ if(source==='rules')window.snapshot.workspaceRecords=[record('rules','current','all',{rules:[{id:'daily-loss',name:'Loss <rule>',metric:'maxDailyLoss',limit:2500,severity:'critical',enabled:true}]})];
+ if(source==='accounts')window.snapshot.workspaceRecords=[record('account','local','local',{name:'Account <label>'})];
+ if(source==='passport_plans')window.snapshot.passportPlans=[{id:1,owner_id:owner,limits:{maxDailyLoss:2000,maxTradeLoss:500,maxContracts:2,maxLossStreak:null},created_at:stamp}];
+ if(source==='passport_reviews')window.snapshot.passportReviews=[{owner_id:owner,session_day:'2026-10-30',account_key:'local',note:'Passport <review>',xp:15,reason:'saved review',revision:1,evidence_hash:'a'.repeat(64),evidence_as_of:stamp,updated_at:stamp}];
+ if(source==='passport_rewards')window.snapshot.passportRewards=[{owner_id:owner,session_day:'2026-10-30',account_key:'local'}];
+};
+window.fetch=async(_,init)=>{const body=JSON.parse(init.body);window.bodies.push({body,authorization:new Headers(init.headers).get('Authorization')});
+ if(window.hold===body.action){window.heldSignal=init.signal;await new Promise(r=>window.release=r);}
+ if(body.action==='ask_cova_context')return new Response(JSON.stringify(window.snapshot));
+ if(window.mode==='error')return new Response(JSON.stringify({status:'unavailable',error:'query_invalid'}),{status:422});
+ const context=await buildAskCovaDataContext({snapshot:window.snapshot,account:body.account,range:body.range,conversation:body.conversation});
+ const plan={version:'ask-cova-query-plan-v1',decision:{kind:'query',queries:[{id:'notes',op:'rows',source:window.mode==='note'?'daily_notes':window.mode,where:[],fields:({note:['note_text','date'],rules:['rule_name','rule_limit'],accounts:['account_name'],passport_plans:['max_daily_loss'],passport_reviews:['note_text','xp'],passport_rewards:['date']})[window.mode],orderBy:[],mode:'complete',limit:20}]}};
+ const result=await executeAskCovaQuery(context,plan),observation=result.observations[0],cell=result.cells[0],kind=observation.excerpts.includes(cell.id)?'q':observation.categories.includes(cell.id)?'c':'f';
+ const answer={version:'ask-cova-answer-v2',paragraphs:[{text:'Your saved data says: {{'+kind+':'+cell.id+'}}.',evidence:[observation.id]}],detail:[{text:'This is the saved source, not a live broker check.',evidence:[observation.id]}]};
+ return new Response(JSON.stringify({status:'ok',aiResponseUsed:true,protocolVersion:'ask-cova-v4',requestId:body.requestId,snapshotDigest:context.snapshotDigest,contextDigest:context.contextDigest,plan,planDigest:result.planDigest,resultDigest:result.resultDigest,answer}));
+};
+window.finished=0;window.request=async(...args)=>{window.calls.push(args[0]);try{return await requestAskCovaQuery(...args);}finally{window.finished++;}};
+window.show=(changes={})=>{window.options={...window.options,...changes};flushSync(()=>root.render(<AskCova {...window.options} request={window.request} captureAuthority={window.captureAuthority} onRangeChange={range=>window.show({range})} ownerCurrent={()=>window.current}/>));};window.show();`;
+const built=await build({root,configFile:false,envDir:false,logLevel:'error',plugins:[{name:'query-ui',resolveId(v){if(v.endsWith('__query_browser__.tsx'))return id;},load(v){if(v===id)return entry;if(v.replaceAll('\\','/').endsWith('/src/lib/supabaseClient.ts'))return `export const getSupabaseClient=()=>({auth:{getSession:async()=>({data:{session:{user:{id:'11111111-1111-4111-8111-111111111111'},access_token:'synthetic-token'}}})}});`;}},react()],define:{'process.env.NODE_ENV':'"production"'},build:{write:false,copyPublicDir:false,lib:{entry:id,formats:['es'],fileName:'probe',cssFileName:'probe'}}});
+const files=new Map((Array.isArray(built)?built.flatMap(r=>r.output):built.output).map(o=>['/'+o.fileName,o.type==='chunk'?o.code:o.source]));
+const html='<!doctype html><link rel="stylesheet" href="/probe.css"><div id="root"></div><script type="module" src="/probe.js"></script>';
+const browser=await chromium.launch({channel:'chrome',headless:true});const report={synthetic:true,checks:[],errors:[],unexpectedRequests:[]};
+try{const c=await browser.newContext();await c.route('**/*',r=>{const u=new URL(r.request().url());const body=u.origin==='https://query.test'?(u.pathname==='/'?html:files.get(u.pathname)):undefined;if(body===undefined){report.unexpectedRequests.push(u.href);return r.abort();}return r.fulfill({body,contentType:u.pathname.endsWith('.js')?'text/javascript':u.pathname.endsWith('.css')?'text/css':'text/html'});});
+const p=await c.newPage();p.setDefaultTimeout(5000);p.on('pageerror',e=>report.errors.push(e.message));await p.goto('https://query.test');
+assert.deepEqual(await p.evaluate(()=>window.calls),[],'mount performs no context/generation read');
+assert.match(await p.locator('[data-ask-cova]').innerText(),/relevant saved account data, including notes, rules and Passport/);
+report.checks.push('relevant saved-data disclosure; no data context fetch on mount');
+await p.getByRole('button',{name:'Review my results',exact:true}).click();await p.waitForFunction(()=>window.calls.length===1);await p.getByRole('button',{name:'Try again',exact:true}).waitFor();
+assert.equal(await p.evaluate(()=>window.captureCalls),1,'saved-state authority captured before request');
+assert.equal(await p.evaluate(()=>window.bodies.length),2);
+assert.deepEqual(await p.evaluate(()=>window.bodies.map(x=>x.authorization)),['Bearer synthetic-token','Bearer synthetic-token'],'both context and generation authenticated');
+assert.equal(await p.evaluate(()=>Object.hasOwn(window.calls[0],'question')),false,'production dispatch has no finite topic hint');
+await p.evaluate(()=>{const retry=[...document.querySelectorAll('button')].find(b=>b.textContent==='Try again');window.show({authorityKey:'saved-note-change'});retry.click();});
+assert.equal(await p.locator('.ask-cova-exchange').count(),0,'saved note/rule/account/Passport epoch clears old conversation');assert.equal(await p.evaluate(()=>window.calls.length),1,'retained retry cannot read context after saved-state change');
+report.checks.push('saved-state epoch revokes history and retained retry synchronously');
+await p.evaluate(()=>window.useNote());await p.getByRole('textbox',{name:'Message Cova'}).fill('What did I write in my saved note?');await p.getByRole('button',{name:'Send message'}).click();await p.locator('[data-cova-answer]').waitFor();
+assert.match(await p.locator('[data-cova-answer]').innerText(),/<img src=x onerror=alert\(1\)> \{\{f:cell_999\}\}/);
+assert.equal(await p.locator('[data-cova-answer] img').count(),0,'quoted text is escaped once, not HTML');
+await p.getByRole('button',{name:'Show saved data',exact:true}).click();
+assert.match(await p.locator('[data-cova-evidence]').innerText(),/Daily note/);assert.match(await p.locator('[data-cova-evidence]').innerText(),/2026-10-30/);assert.equal(await p.locator('[data-cova-evidence] img').count(),0);
+report.checks.push('real query/client replay, escaped note tokens, field-specific local evidence');
+for(const [source,label,values] of [['rules','Current risk rule',['Loss <rule>','2500','critical']],['accounts','Saved account',['Account <label>']],['passport_plans','Passport plan',['2000','500','Not set']],['passport_reviews','Passport review',['Passport <review>','15','saved review']],['passport_rewards','Passport reward',['2026-10-30']]]){
+ await p.evaluate(source=>{window.useDomain(source);window.show({authorityKey:source});},source);
+ await p.getByRole('textbox',{name:'Message Cova'}).fill('Show my saved '+source);await p.getByRole('button',{name:'Send message'}).click();await p.locator('[data-cova-answer]').waitFor();await p.getByRole('button',{name:'Show saved data',exact:true}).click();
+ const text=await p.locator('[data-cova-evidence]').innerText();assert.ok(text.includes(label),text);for(const value of values)assert.ok(text.includes(value),text);assert.equal(await p.locator('[data-cova-evidence] img,[data-cova-evidence] a').count(),0);
+}
+report.checks.push('field-specific current rules, account metadata and all Passport domains from actual replay supports');
+const beforeRemote=await p.evaluate(()=>window.bodies.length);await p.evaluate(()=>window.snapshot.workspaceRevision++);
+await p.getByRole('textbox',{name:'Message Cova'}).fill('Explain that saved answer');await p.getByRole('button',{name:'Send message'}).click();await p.waitForFunction(()=>!document.querySelector('[data-cova-processing]'));
+assert.equal(await p.locator('[data-cova-answer]').count(),0,'fresh context change clears old successful chat');assert.equal(await p.evaluate(()=>window.bodies.length),beforeRemote+1,'changed context never dispatches paid request with old chat');
+await p.evaluate(()=>window.show({authorityKey:'after-remote'}));await p.getByRole('textbox',{name:'Message Cova'}).fill('Show saved reward');await p.getByRole('button',{name:'Send message'}).click();await p.locator('[data-cova-answer]').waitFor();
+report.checks.push('fresh remote snapshot mismatch revokes history before generation, with no auto retry');
+const callsBeforeRevoke=await p.evaluate(()=>window.calls.length);
+await p.evaluate(()=>{window.saved=false;[...document.querySelectorAll('button')].find(b=>b.textContent==='Show saved data').click();});
+assert.equal(await p.locator('.ask-cova-exchange').count(),0,'retained evidence action clears revoked saved-data history synchronously');assert.equal(await p.locator('[data-cova-evidence]').count(),0);assert.equal(await p.evaluate(()=>window.calls.length),callsBeforeRevoke);
+report.checks.push('same-task saved-data revocation clears retained evidence/history without network');
+await p.evaluate(()=>{window.saved=true;window.show({range:'today'});});const beforeRange=await p.evaluate(()=>window.bodies.length);
+await p.getByRole('button',{name:'All saved history',exact:true}).click();assert.equal(await p.evaluate(()=>window.options.range),'all');assert.equal(await p.evaluate(()=>window.bodies.length),beforeRange,'explicit scope selection alone never reads context or generates');
+report.checks.push('notes-only workspace supports explicit wider history, without model-selected scope or auto-dispatch');
+await p.getByRole('textbox',{name:'Message Cova'}).fill('Show saved reward');await p.getByRole('button',{name:'Send message'}).click();await p.locator('[data-cova-answer]').waitFor();const beforeLocal=await p.evaluate(()=>window.bodies.length);
+await p.getByRole('textbox',{name:'Message Cova'}).fill('which trades?');await p.getByRole('button',{name:'Send message'}).click();await p.waitForFunction(()=>!document.querySelector('[data-cova-processing]'));
+assert.equal(await p.evaluate(()=>window.bodies.length),beforeLocal,'explicit evidence navigation remains local');assert.match(await p.locator('[data-cova-local]').innerText(),/no trades/);
+for(const phase of ['ask_cova_context','ask_cova']){
+ if(await p.getByRole('button',{name:'Clear conversation',exact:true}).count())await p.getByRole('button',{name:'Clear conversation',exact:true}).click();await p.evaluate(phase=>{window.hold=phase;window.release=undefined;},phase);
+ const before=await p.evaluate(()=>({calls:window.calls.length,finished:window.finished}));await p.getByRole('textbox',{name:'Message Cova'}).fill('Pending saved-data request');
+ await p.evaluate(()=>{const button=document.querySelector('button[type=submit]');button.click();button.click();});await p.waitForFunction(()=>!!window.release);
+ assert.equal(await p.evaluate(()=>window.calls.length),before.calls+1,'same-task duplicate Send cannot overlap');
+ await p.evaluate(()=>{const old=document.querySelector('.ask-cova-questions button');[...document.querySelectorAll('button')].find(b=>b.textContent==='Clear conversation').click();old.click();});
+ assert.equal(await p.evaluate(()=>window.heldSignal.aborted),true);await p.evaluate(()=>{window.hold=undefined;window.release();});await p.waitForFunction(n=>window.finished>n,before.finished);
+ assert.equal(await p.locator('[data-cova-answer]').count(),0);assert.equal(await p.evaluate(()=>window.calls.length),before.calls+1);
+}
+await p.evaluate(()=>window.mode='error');await p.getByRole('textbox',{name:'Message Cova'}).fill('Retry this saved-data question');await p.getByRole('button',{name:'Send message'}).click();await p.getByRole('button',{name:'Try again',exact:true}).waitFor();
+const failed=await p.evaluate(()=>({input:window.calls.at(-1),contexts:window.bodies.filter(x=>x.body.action==='ask_cova_context').length}));await p.evaluate(()=>window.mode='passport_rewards');await p.getByRole('button',{name:'Try again',exact:true}).click();await p.locator('[data-cova-answer]').waitFor();
+const retry=await p.evaluate(()=>({input:window.calls.at(-1),contexts:window.bodies.filter(x=>x.body.action==='ask_cova_context').length}));assert.equal(retry.contexts,failed.contexts+1);assert.notEqual(retry.input.requestId,failed.input.requestId);assert.deepEqual(retry.input.conversation,failed.input.conversation);
+report.checks.push('same-task duplicate Send/Clear, late context/generation and fresh-context explicit retry');
+await p.getByRole('button',{name:'Show saved data',exact:true}).click();
+for(const width of [1440,390,320]){await p.setViewportSize({width,height:900});assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'evidence fits '+width);await p.screenshot({path:out+'/query-evidence-'+width+'.png',fullPage:true});}
+report.checks.push('isolated component evidence fits desktop and narrow phone; canonical full-App is separate');
+assert.deepEqual(report.errors,[]);assert.deepEqual(report.unexpectedRequests,[]);
+}catch(e){report.failure=String(e);throw e;}finally{await browser.close();writeFileSync(out+'/query-browser.json',JSON.stringify(report,null,2));}
+console.log(JSON.stringify(report));

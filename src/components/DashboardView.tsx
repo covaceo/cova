@@ -32,10 +32,12 @@ type TimeRange = "today" | "week" | "all";
 type Analysis = ReturnType<typeof analyze>;
 
 
-export function Dashboard({ noteDraftOwner, askCovaEnabled = false, askCovaOwner, askCovaReady = false, analysis, rules, go, rithmicSyncAvailable = false, onSaveTradeNote, journalReview = journalReviewEnabled(), accountControl, journalActions, onConfirmManualNet, onAddManualTrade, onDeleteManualTrade, manualAccounts = ["local"], selectedAccount = "local" }: {
+export function Dashboard({ noteDraftOwner, askCovaEnabled = false, askCovaOwner, askCovaReady = false, askCovaAuthorityKey, captureAskCovaAuthority, analysis, rules, go, rithmicSyncAvailable = false, onSaveTradeNote, journalReview = journalReviewEnabled(), accountControl, journalActions, onConfirmManualNet, onAddManualTrade, onDeleteManualTrade, manualAccounts = ["local"], selectedAccount = "local" }: {
   askCovaOwner?: string;
   askCovaEnabled?: boolean;
   askCovaReady?: boolean;
+  askCovaAuthorityKey?: string;
+  captureAskCovaAuthority?: () => Promise<(() => boolean) | null>;
   noteDraftOwner?: string;
   journalActions?: JournalActions;
   onAddManualTrade?: AddManualTrade;
@@ -113,7 +115,7 @@ export function Dashboard({ noteDraftOwner, askCovaEnabled = false, askCovaOwner
       </div>
     </header>
     {hasTradeHistory && <DashboardReviewRange trades={analysis.trades} range={range} onChange={setRange} cash={netCash} />}
-    {askCovaEnabled && askCovaOwner && <Suspense fallback={<p role="status">Loading Ask Cova…</p>}><AskCova ownerId={askCovaOwner} account={selectedAccount} range={range} trades={analysis.trades} ready={askCovaReady} /></Suspense>}
+    {askCovaEnabled && askCovaOwner && <Suspense fallback={<p role="status">Loading Ask Cova…</p>}><AskCova onRangeChange={setRange} authorityKey={askCovaAuthorityKey} captureAuthority={captureAskCovaAuthority} ownerId={askCovaOwner} account={selectedAccount} range={range} trades={analysis.trades} ready={askCovaReady} /></Suspense>}
 
     {!hasTradeHistory ? <section className="dashboard-empty-state" data-dashboard-empty="true" aria-labelledby="dashboard-empty-title">
       <div className="dashboard-empty-panel">
