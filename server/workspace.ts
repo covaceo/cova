@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 import { createAskCovaHandler, uniqueJson } from "./askCova";
+import { createAskCovaContextHandler, AskCovaDeadline, AskCovaDataFailure } from "./askCovaDataServer";
+import { createAskCovaQueryHandler } from "./askCovaQueryProvider";
 import { hasAskCovaAccess } from "./askCovaAccess";
 import {
   ApiError,
@@ -61,12 +63,56 @@ async function workspaceRest(path: string, options: any = {}) {
   }
   return data;
 }
+// Only v4/context use these enclosing bounds. The identity and policy functions
+// remain authoritative; their existing 5s fetch hints alone do not bound bodies
+// or a transport which ignores AbortSignal.
+const ASK_COVA_AUTH_PHASE_MS = 5000;
+async function boundedAskCovaAuth(auth: typeof requirePolicyAcceptedUser, req: any) {
+  const pair = new AskCovaDeadline(2 * ASK_COVA_AUTH_PHASE_MS);
+  try {
+    return await pair.run(async pairSignal => {
+      const check = () => { pairSignal.throwIfAborted(); pair.check(); };
+      const fetchImpl: typeof fetch = async (input, init = {}) => {
+        check();
+        const phase = new AskCovaDeadline(ASK_COVA_AUTH_PHASE_MS);
+        return phase.run(async phaseSignal => {
+          const signal = AbortSignal.any([pairSignal, phaseSignal, ...(init.signal ? [init.signal] : [])]);
+          const response = await fetch(input, { ...init, signal });
+          const cancel = () => { void response.body?.cancel().catch(() => undefined); };
+          try { check(); phase.check(); signal.throwIfAborted(); } catch (error) { cancel(); throw error; }
+          if (!response.ok) { cancel(); return response; }
+          signal.addEventListener('abort', cancel, { once: true });
+          try {
+            const value = await response.json();
+            check(); phase.check(); signal.throwIfAborted();
+            // Preserve status/identity/policy gates in the original functions,
+            // while keeping their body read inside the same 5s phase as headers.
+            return new Proxy(response, { get(target, key) {
+              if (key === 'json') return async () => { check(); return value; };
+              const field = Reflect.get(target, key, target);
+              return typeof field === 'function' ? field.bind(target) : field;
+            } });
+          } finally { signal.removeEventListener('abort', cancel); }
+        }, ASK_COVA_AUTH_PHASE_MS);
+      };
+      const user = await auth(req, { billing: false, fetchImpl });
+      check();
+      return user;
+    }, 2 * ASK_COVA_AUTH_PHASE_MS);
+  } catch (error) {
+    if (error instanceof AskCovaDataFailure)
+      throw new ApiError(503, "Member authentication is temporarily unavailable.");
+    throw error; // Preserve the existing auth dependency's status/error contract.
+  }
+}
 export function createWorkspaceHandler({
   auth = requirePolicyAcceptedUser,
   rest = workspaceRest,
   enabled = () => process.env.WORKSPACE_SYNC_ENABLED === "true",
   environment = () => process.env,
   askCova = createAskCovaHandler(),
+  askCovaContext = createAskCovaContextHandler(),
+  askCovaQuery = createAskCovaQueryHandler(),
 }: any = {}) {
   return async (req: any, res: any) => {
     res.setHeader("Cache-Control", "private, no-store");
@@ -98,10 +144,13 @@ export function createWorkspaceHandler({
         bodyError = error;
       }
       const askAction = req.method === "POST" &&
-        (body?.action === "ask_cova" || body?.action === "ask_cova_access");
+        (body?.action === "ask_cova" || body?.action === "ask_cova_access" || body?.action === "ask_cova_context");
       // These actions require verified identity/current policy, not billing.
       // Keep the original default billing auth for GET, consent and apply.
-      const user = await (askAction ? auth(req, { billing: false }) : auth(req));
+      const boundedAskAction = req.method === "POST" && (body?.action === "ask_cova_context" ||
+        body?.action === "ask_cova" && body.protocolVersion === "ask-cova-v4");
+      const user = await (boundedAskAction ? boundedAskCovaAuth(auth, req) :
+        askAction ? auth(req, { billing: false }) : auth(req));
       if (!uuid(user.id)) throw new ApiError(401, "Sign in again.");
       if (bodyError) throw bodyError;
       const url = new URL(req.url || "/api/workspace", "https://cova.invalid");
@@ -119,10 +168,19 @@ export function createWorkspaceHandler({
         }
         return res.status(200).json({ owner: user.id, enabled: hasAskCovaAccess(environment(), user) });
       }
+      if (req.method === "POST" && body?.action === "ask_cova_context") {
+        if (!hasAskCovaAccess(environment(), user))
+          return res.status(404).json({ status: "unavailable", error: "ask_cova_unavailable" });
+        return await askCovaContext({ body, rawBody: req.body, user,
+          environment: environment(), rest: rest === workspaceRest ? undefined : rest }, res);
+      }
       if (body?.action === "ask_cova") {
         if (!hasAskCovaAccess(environment(), user))
           return res.status(404).json({ status: "unavailable", error: "ask_cova_unavailable" });
-        return await askCova({ body, rawBody: req.body, user,
+        // Only the exact legacy protocol can enter its legacy handler. Unknown
+        // or malformed new requests must never be reinterpreted as v3.
+        const askHandler = body.protocolVersion === "ask-cova-v3" ? askCova : askCovaQuery;
+        return await askHandler({ body, rawBody: req.body, user,
           environment: environment(), rest: rest === workspaceRest ? undefined : rest }, res);
       }
       const settings = async () => {

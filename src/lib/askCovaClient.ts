@@ -17,26 +17,51 @@ async function liveSession(): Promise<Session> {
   const client = getSupabaseClient();
   return client ? (await client.auth.getSession()).data.session : null;
 }
-function authorizedTransport(owner: string): typeof fetch {
+export const ASK_COVA_SESSION_TIMEOUT_MS = 5000;
+type AskCovaTransportOptions = { boundedSession?: boolean };
+// Opt-in for v4 only. A late/uncooperative session can never resume dispatch.
+async function boundedSession(resolve: () => Promise<Session>, caller?: AbortSignal | null): Promise<Session> {
+  const deadline = new AbortController();
+  const signal = AbortSignal.any([deadline.signal, ...(caller ? [caller] : [])]);
+  const end = performance.now() + ASK_COVA_SESSION_TIMEOUT_MS;
+  const timer = setTimeout(() => deadline.abort(), ASK_COVA_SESSION_TIMEOUT_MS);
+  let abort: (() => void) | undefined;
+  const check = () => { if (performance.now() >= end) deadline.abort(); signal.throwIfAborted(); };
+  try {
+    check();
+    return await Promise.race([
+      resolve().then(session => { check(); return session; }),
+      new Promise<never>((_, reject) => {
+        abort = () => reject(Error('Session resolution expired'));
+        signal.addEventListener('abort', abort, { once: true });
+        if (signal.aborted) abort();
+      }),
+    ]);
+  } finally { clearTimeout(timer); if (abort) signal.removeEventListener('abort', abort); }
+}
+export function authorizedTransport(owner: string, options: AskCovaTransportOptions = {}): typeof fetch {
   const authority = accessAuthority;
   return createAskCovaTransport(owner, {
     current: () => authority === accessAuthority && authority(owner) && workspaceOwnerCurrent(owner),
     session: liveSession, fetch: (...args) => fetch(...args),
-  });
+  }, options);
 }
 // Keep the same live authority through headers AND body decoding.
 const transportAuthorities = new WeakMap<typeof fetch, (owner: string) => boolean>();
+export function askCovaTransportCurrent(transport: typeof fetch, owner: string) {
+  return transportAuthorities.get(transport)?.(owner) ?? true;
+}
 export function createAskCovaTransport(owner: string, dependencies: {
   current: () => boolean; session: () => Promise<Session>; fetch: typeof fetch;
 } = {
   current: () => workspaceOwnerCurrent(owner),
   session: async () => { const client = getSupabaseClient(); return client ? (await client.auth.getSession()).data.session : null; },
   fetch: (...args) => fetch(...args),
-}): typeof fetch {
+}, options: AskCovaTransportOptions = {}): typeof fetch {
   const transport: typeof fetch = async (input, init = {}) => {
     init.signal?.throwIfAborted();
     if (!dependencies.current()) throw Error('Session changed');
-    const session = await dependencies.session();
+    const session = await (options.boundedSession ? boundedSession(() => dependencies.session(), init.signal) : dependencies.session());
     init.signal?.throwIfAborted();
     if (!dependencies.current() || session?.user.id !== owner || !session.access_token) throw Error('Session changed');
     const headers = new Headers(init.headers);

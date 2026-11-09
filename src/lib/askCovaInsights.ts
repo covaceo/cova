@@ -29,7 +29,7 @@ function sourcePair(row: Trade) {
   return { open, close: close !== null && new Date(close).toISOString().slice(0, 10) === row.date ? close : null };
 }
 /** Normalize only the grouping view; caller evidence and digest inputs stay original. */
-function insightGroups(rows: readonly Trade[]) {
+export function insightGroups(rows: readonly Trade[]) {
   const originals = new Map<Trade, Trade>();
   const views = rows.map(row => {
     if (row.source?.provider !== 'Tradovate') return row;

@@ -36,6 +36,7 @@ import {
 } from "../lib/workspaceBatches";
 import { assertValue } from "../lib/workspaceValidation";
 import { accountWasRemoved, recoverAccountRemoval } from "../lib/accountRemoval";
+import { readPassportMutationAuthority } from "../lib/passportMutationAuthority";
 const localKey = (owner: string) =>
   "cova-workspace-mode-v2:" + encodeURIComponent(owner);
 const ledgerKey = (owner: string) =>
@@ -58,6 +59,11 @@ export function useWorkspaceSync(
     [issues, setIssues] = useState<string[]>([]),
     [deletions, setDeletions] = useState<WorkspaceWrite[]>([]);
   const state = useRef({ owner, trades, rules, hydrate });
+  // Separate from sync's operation epoch: edits revoke Ask without cancelling saves.
+  const askDataEpoch = useRef(0);
+  const passportPending = useRef(false);
+  if (state.current.owner !== owner) passportPending.current = false;
+  if (state.current.owner !== owner || state.current.trades !== trades || state.current.rules !== rules) askDataEpoch.current++;
   state.current = { owner, trades, rules, hydrate };
   const epoch = useRef(0),
     readyOwner = useRef<string>(),
@@ -254,7 +260,12 @@ export function useWorkspaceSync(
     };
   }, [owner, enabled]);
   useEffect(() => {
-    const notify = () => setTick((n) => n + 1);
+    const notify = () => { askDataEpoch.current++; setTick((n) => n + 1); };
+    const passport = (event: Event) => {
+      const detail = (event as CustomEvent<{ owner: string; pending: boolean }>).detail;
+      if (detail?.owner !== owner || typeof detail.pending !== 'boolean') return;
+      passportPending.current = detail.pending; notify();
+    };
     const other = (ev: StorageEvent) => {
       if (ev.key?.startsWith("cova-journal-draft-v1:")) return;
       if (
@@ -273,9 +284,14 @@ export function useWorkspaceSync(
       }
     };
     window.addEventListener(WORKSPACE_LOCAL_EVENT, notify);
+    window.addEventListener('cova:passport-data-change', passport);
+    // A mutation may have started before this mount/owner subscription existed.
+    passportPending.current = readPassportMutationAuthority(owner).pendingCount > 0;
+    notify();
     window.addEventListener("storage", other);
     return () => {
       window.removeEventListener(WORKSPACE_LOCAL_EVENT, notify);
+      window.removeEventListener('cova:passport-data-change', passport);
       window.removeEventListener("storage", other);
     };
   }, [owner]);
@@ -475,7 +491,32 @@ export function useWorkspaceSync(
     setPhase("local");
     setError("");
   };
+  // Local readiness only. A complete authenticated server snapshot is still read
+  // separately on each deliberate Send; this never fetches Ask context in background.
+  async function captureAskCovaAuthority(): Promise<(() => boolean) | null> {
+    const o = owner, e = epoch.current, dataEpoch = askDataEpoch.current, saved = baseline.current;
+    const passportEpoch = readPassportMutationAuthority(o).epoch;
+    const valid = () => {
+      try {
+        const passport = readPassportMutationAuthority(o);
+        return !!o && current(o, e) && askDataEpoch.current === dataEpoch
+          && passport.epoch === passportEpoch && passport.pendingCount === 0
+          && baseline.current === saved && readyOwner.current === o && consented.current
+          && phaseRef.current === 'saved' && !busy.current && !passportPending.current && !readWorkspaceBatchPlan(o);
+      } catch { return false; }
+    };
+    if (!valid() || !o) return null;
+    try {
+      const local = await snapshot(o);
+      if (!valid() || local.issues.some(i => i.kind !== 'broker_cash')) return null;
+      const comparison = workspacePreview(local.records, saved.filter(r => r.kind !== 'broker_cash'));
+      if (comparison.added.length || comparison.conflicts.length || comparison.cloudOnly) return null;
+      return valid;
+    } catch { return null; }
+  }
   return {
+    captureAskCovaAuthority,
+    askCovaAuthorityKey: JSON.stringify([owner, trades, rules, tick, phase, askDataEpoch.current]),
     enabled,
     owner,
     phase,

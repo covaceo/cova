@@ -1,4 +1,4 @@
-import {syntheticAnswer} from './helpers/ask-cova-authored-fixture.mjs';
+// Fixed v4 synthetic plans exercise current App; no semantic/model quality claim.
 // Full real App/canonical CSS. Synthetic auth/capability/cloud only; outbound traffic blocked.
 import assert from 'node:assert/strict';
 import {build} from 'vite';
@@ -32,7 +32,7 @@ const plugin={name:'beta-auth-isolation',enforce:'pre',load(id){
 }};
 let server,browser,core;
 try{
- await build({root,configFile:false,envDir:false,logLevel:'error',build:{ssr:'src/lib/askCova.ts',outDir:path.join(out,'core'),emptyOutDir:true,rollupOptions:{output:{entryFileNames:'ask-core.mjs'}}}});
+ await build({root,configFile:false,envDir:false,logLevel:'error',build:{ssr:'scripts/helpers/ask-cova-query-core-fixture.mjs',outDir:path.join(out,'core'),emptyOutDir:true,rollupOptions:{output:{entryFileNames:'ask-core.mjs'}}}});
  core=await import(pathToFileURL(path.join(out,'core','ask-core.mjs')).href);
  for(const flag of ['enabled','disabled'])await build({root,configFile:false,envDir:false,logLevel:'error',plugins:[plugin,react()],define:{'import.meta.env.VITE_WORKSPACE_SYNC_ENABLED':'"true"','import.meta.env.VITE_ASK_COVA_ENABLED':JSON.stringify(flag==='enabled'?'true':'false')},build:{outDir:path.join(out,'site',flag),emptyOutDir:true}});
  server=createServer((req,res)=>{const file=path.resolve(out,'site',new URL(req.url,'http://localhost').pathname.slice(1));if(!file.startsWith(path.resolve(out,'site')+path.sep)||!existsSync(file)){res.writeHead(404);return res.end();}res.writeHead(200,{'Content-Type':{'.html':'text/html','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.woff2':'font/woff2'}[path.extname(file)]||'application/octet-stream','Cache-Control':'no-store'});res.end(readFileSync(file));});
@@ -72,15 +72,19 @@ try{
       if(mode==='allowed')await state.page.evaluate(()=>{window.__qaWatch=false;});
       return route.fulfill({json:{owner:body.owner,enabled:mode==='allowed'}});
      }
+     if(body.action==='ask_cova_context'){
+      assert.deepEqual(Object.keys(body).sort(),['account','action','owner','range']);assert.equal(body.owner,state.current);assert.match(req.headers().authorization,/^Bearer synthetic-/);
+      return route.fulfill({json:core.syntheticSnapshot(body.owner,syntheticTrades),headers:{'Cache-Control':'private, no-store'}});
+     }
      if(body.action==='ask_cova'){
       state.asks.push(body);
       if(!answered)return route.fulfill({status:403,json:{error:'No provider calls in capability tests'}});
       assert.equal(state.mode,'allowed','answer dispatch must precede revocation');assert.equal(body.owner,state.current);
-      const scoped={ownerId:body.owner,account:body.account,range:body.range,question:body.question,trades:syntheticTrades};
-      const catalog=await core.buildAskCovaCatalog({...scoped,conversation:body.conversation});
-      assert.equal(body.contextDigest,catalog.contextDigest);const choice=catalog.candidates.find(c=>c.id==='result')||catalog.candidates[0];assert(choice);
-      const answer=syntheticAnswer(core.askCovaModelPayload(await core.buildAskCovaCatalog(scoped)),'warm');state.reply=core.renderAskCovaAnswer(catalog,answer);assert(state.reply);state.reply={...state.reply,answer:state.reply.paragraphs.join(' ' ),detail:state.reply.detail.join(' ')};
-      return route.fulfill({json:{status:'ok',aiResponseUsed:true,contextDigest:catalog.contextDigest,answer}});
+      assert.equal(body.protocolVersion,'ask-cova-v4');assert.deepEqual(Object.keys(body).sort(),['account','action','contextDigest','conversation','owner','protocolVersion','range','requestId','snapshotDigest']);
+      const snapshot=core.syntheticSnapshot(body.owner,syntheticTrades),checked=await core.syntheticQueryWire(body,snapshot);
+      assert.equal(body.contextDigest,checked.wire.contextDigest);assert.equal(body.snapshotDigest,checked.wire.snapshotDigest);assert(checked.rendered);
+      state.reply={...checked.rendered,answer:checked.rendered.paragraphs.join(' '),detail:checked.rendered.detail.join(' ')};
+      return route.fulfill({json:checked.wire});
      }
      return route.fulfill({status:403,json:{error:'Read-only fixture'}});
     }
@@ -115,7 +119,10 @@ try{
   await s.page.evaluate(()=>{window.__qaWatch=true;});await s.page.waitForTimeout(100);assert.equal(await s.page.evaluate(()=>window.__qaFlashes),0);
  });
  await run('switch revokes allowed owner and denied successor cannot ask',async open=>{
-  const s=await open('allowed');await s.page.locator('[data-ask-cova]').waitFor();s.mode='denied';await change(s,other,'synthetic-other');await absent(s,'switched owner denied');
+  const s=await open('allowed');await s.page.locator('[data-ask-cova]').waitFor();s.mode='denied';
+  const discovery=s.page.waitForEvent('requestfinished',{predicate:req=>new URL(req.url()).pathname==='/api/workspace'&&req.method()==='POST'&&req.postDataJSON()?.action==='ask_cova_access'&&req.postDataJSON()?.owner===other&&req.headers().authorization==='Bearer synthetic-other',timeout:5000});discovery.catch(()=>{});
+  await change(s,other,'synthetic-other');await absent(s,'switched owner denied');
+  assert.deepEqual(await (await (await discovery).response()).json(),{owner:other,enabled:false});await absent(s,'switched owner denied after discovery');
   assert(s.caps.some(c=>c.body.owner===other));
  });
  await run('logout revokes allowed owner',async open=>{const s=await open('allowed');await s.page.locator('[data-ask-cova]').waitFor();await change(s,null,'');await absent(s,'logout');assert.equal(s.caps.length,1);});

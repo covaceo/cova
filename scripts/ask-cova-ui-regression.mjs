@@ -9,18 +9,17 @@ const evidence=(process.env.ASK_COVA_EVIDENCE_ROOT || root+'../ask-cova-insights
 mkdirSync(evidence,{recursive:true});
 assert.ok(existsSync(root+'src/components/AskCova.tsx'),'Risk Desk Ask Cova component exists');
 const id=root+'__ask_cova_ui_test__.tsx';
-const entry=`import React from 'react';import{createRoot}from'react-dom/client';import{AskCova}from'${root}src/components/AskCova.tsx';import{bindAskCovaAccessAuthority,askCovaAccessCurrent,createAskCovaTransport,requestAskCova}from'${root}src/lib/askCovaClient.ts';
-import{buildAskCovaCatalog,askCovaModelPayload}from'${root}src/lib/askCova.ts';import{syntheticAnswer}from'${root}scripts/helpers/ask-cova-authored-fixture.mjs';
+const entry=`import React from 'react';import{createRoot}from'react-dom/client';import{AskCova}from'${root}src/components/AskCova.tsx';import{bindAskCovaAccessAuthority,askCovaAccessCurrent}from'${root}src/lib/askCovaClient.ts';
+import{installSyntheticQueryTransport}from'${root}scripts/helpers/ask-cova-query-fixture.mjs';
 const root=createRoot(document.getElementById('root'));
-window.answerFor=async(input)=>{const catalog=await buildAskCovaCatalog({ownerId:input.owner,account:input.account,range:input.range,question:input.question,trades:window.fixtureRows||trades});const answer=syntheticAnswer(askCovaModelPayload(catalog),'warm');if(window.choice==='invented_choice')answer.paragraphs[0].evidence=['unknown'];return answer;};
-const trades=[100,-30,20].map((pnl,i)=>({id:'manual-'+i,date:'2026-10-2'+(i+1),market:'NQ',side:'Long',contracts:1,entry:100,exit:101,pnl,risk:50,riskStatus:'provided',setup:'',notes:'Private journal note',manual:{accountKey:'local',currency:'USD',pnlBasis:'reported_net'}}));
+const trades=[100,-30,20].map((pnl,i)=>({id:'tradovate-7:fixture-'+i,date:'2026-10-2'+(i+1),market:'NQ',side:'Long',contracts:1,entry:100,exit:101,pnl,risk:50,riskStatus:'provided',setup:'',notes:'Private journal note',source:{provider:'Tradovate',accountId:'7',pnlBasis:'gross_before_fees',timeZone:'UTC',openedAt:'2026-10-2'+(i+1)+'T14:00:00Z',closedAt:'2026-10-2'+(i+1)+'T14:10:00Z'}}));
 window.calls=[];window.mode='ok';window.current=true;window.trades=trades;
 // Synthetic capability lifecycle through the same public binding API used by useAskCovaAccess.
 // No auth/server discovery is simulated as real; default component authority stays intact.
 window.betaCurrent=askCovaAccessCurrent;
 window.setBetaGrant=allowed=>{window.removeBetaGrant?.();window.removeBetaGrant=bindAskCovaAccessAuthority(owner=>allowed===true&&owner==='11111111-1111-4111-8111-111111111111'&&window.current);};
-window.request=async(input,signal)=>{window.calls.push(input);if(window.mode==='body'){const transport=createAskCovaTransport(input.owner,{current:()=>window.current,session:async()=>({user:{id:input.owner},access_token:'MOCK-TOKEN'}),fetch:async()=>new Response(new ReadableStream({start(controller){window.bodyController=controller;window.bodyInput=input;}}))});return requestAskCova(input,signal,transport);}if(window.mode==='slow')await new Promise(r=>window.finish=r);if(window.mode==='error')return {status:'unavailable',message:'Answer unavailable. Try again.'};return {status:'ok',aiResponseUsed:true,contextDigest:input.contextDigest,answer:await window.answerFor(input)};};
-window.showAsk=(ready=true,account='local',range='all',rows=trades,injectedAuthority=true,ownerId='11111111-1111-4111-8111-111111111111')=>root.render(<AskCova ownerId={ownerId} account={account} range={range} trades={rows} ready={ready} request={window.request} ownerCurrent={injectedAuthority ? owner=>owner==='11111111-1111-4111-8111-111111111111'&&window.current : undefined}/>);const show=window.showAsk;window.showAsk=(...args)=>{window.fixtureRows=args[3]||trades;return show(...args)};window.showAsk();`;
+installSyntheticQueryTransport(()=>window.fixtureRows||trades);
+window.showAsk=(ready=true,account='Tradovate:7',range='all',rows=trades,injectedAuthority=true,ownerId='11111111-1111-4111-8111-111111111111')=>root.render(<AskCova ownerId={ownerId} account={account} range={range} trades={rows} ready={ready} request={window.request} captureAuthority={window.captureAuthority} ownerCurrent={injectedAuthority ? owner=>owner==='11111111-1111-4111-8111-111111111111'&&window.current : undefined}/>);const show=window.showAsk;window.showAsk=(...args)=>{window.fixtureRows=args[3]||trades;return show(...args)};window.showAsk();`;
 const result=await build({root,configFile:false,envDir:false,logLevel:'error',plugins:[{name:'ask-cova-ui',resolveId(v){if(v.endsWith('__ask_cova_ui_test__.tsx'))return id;},load(v){if(v===id)return entry;}},react()],define:{'process.env.NODE_ENV':'"production"'},build:{write:false,copyPublicDir:false,lib:{entry:id,formats:['es'],fileName:'probe',cssFileName:'probe'}}});
 const files=new Map((Array.isArray(result)?result.flatMap(r=>r.output):result.output).map(o=>['/'+o.fileName,o.type==='chunk'?o.code:o.source]));
 const html=`<!doctype html><html><head><meta name='viewport' content='width=device-width,initial-scale=1'>${[...files.keys()].filter(x=>x.endsWith('.css')).map(x=>`<link rel='stylesheet' href='${x}'>`).join('')}</head><body><div id='root'></div><script type='module' src='/probe.js'></script></body></html>`;
@@ -39,7 +38,7 @@ try{
  await p.locator('[data-cova-answer]').waitFor({timeout:5000}).catch(async e=>{console.log(await p.locator('body').innerText(),await p.evaluate(()=>window.calls));throw e;});
  assert.match(await p.locator('[data-cova-answer]').innerText(),/90\.00/);
  assert.ok(!JSON.stringify(await p.evaluate(()=>window.calls)).includes('Private journal note'));
- assert.equal(await p.evaluate(()=>window.calls.length),1);report.checks.push('deliberate action -> actual catalog -> guarded selection -> concise bubble');
+ assert.equal(await p.evaluate(()=>window.calls.length),1);report.checks.push('deliberate action -> real snapshot -> replayed query -> concise bubble');
  await p.getByRole('button',{name:'Tell me more',exact:true}).click();await p.locator('[data-cova-detail]').waitFor();
  assert.equal(await p.evaluate(()=>window.calls.length),1);report.checks.push('detail is a checked follow-up, no second paid call');
  await p.getByRole('button',{name:'Show trades',exact:true}).click();
@@ -48,7 +47,7 @@ try{
  assert.match(await p.locator('dialog').innerText(),/Selected answer/);
  assert.equal(await p.locator('dialog [data-journal-accuracy]').count(),0,'Ask Cova evidence keeps currency-aware rows without a second journal summary');
  await p.getByRole('button',{name:'Close trade history'}).click();report.checks.push('exact evidence opens a scoped read-only history dialog');
- await p.evaluate(()=>window.showAsk(true,'local','today'));await p.waitForFunction(()=>!document.querySelector('[data-cova-answer]'));
+ await p.evaluate(()=>window.showAsk(true,'Tradovate:7','today'));await p.waitForFunction(()=>!document.querySelector('[data-cova-answer]'));
  assert.equal(await p.locator('[data-cova-detail]').count(),0);report.checks.push('range change clears prior answers and actions');
  await p.evaluate(()=>window.mode='slow');
  await p.getByRole('button',{name:'Review my results',exact:true}).click();
@@ -58,7 +57,7 @@ try{
  await p.waitForTimeout(100);assert.equal(await p.locator('[data-cova-answer]').count(),0);report.checks.push('late response from previous account is discarded');
  await p.evaluate(()=>{window.mode='error';window.showAsk();});
  await p.getByRole('button',{name:'Review my results',exact:true}).click();
- await p.getByText('Answer unavailable. Try again.').waitFor();assert.equal(await p.getByRole('button',{name:'Show trades',exact:true}).count(),0);assert.equal(await p.locator('[data-cova-answer]').count(),0);
+ await p.getByText('The saved account data needed for this answer is unavailable. Your data is unchanged.').waitFor();assert.equal(await p.getByRole('button',{name:'Show trades',exact:true}).count(),0);assert.equal(await p.locator('[data-cova-answer]').count(),0);
  report.checks.push('failure is visibly not an AI answer and has no actions');
  await p.evaluate(()=>window.mode='ok');await p.getByRole('button',{name:'Try again',exact:true}).click();await p.locator('[data-cova-answer]').waitFor();
  for(const [name,number] of [['Explain my drawdown','30.00'],['What stands out?','90.00']]){
@@ -71,10 +70,10 @@ try{
  const keyboard=p.getByRole('button',{name:'Review my results',exact:true});await keyboard.focus();await p.keyboard.press('Enter');
  await p.locator('[data-cova-answer]').waitFor();await p.getByRole('button',{name:'Clear conversation',exact:true}).click();
  assert.equal(await p.locator('[role="log"]').count(),0);report.checks.push('clear revokes the prior epoch; keyboard choice dispatches without another prompt');
- await p.evaluate(()=>{window.choice='empty';window.showAsk(true,'local','all',[]);});await p.getByRole('button',{name:'Review my results',exact:true}).click();await p.locator('[data-cova-answer]').waitFor();
+ await p.evaluate(()=>{window.choice='empty';window.showAsk(true,'Tradovate:7','all',[]);});await p.getByRole('button',{name:'Review my results',exact:true}).click();await p.locator('[data-cova-answer]').waitFor();
  assert.match(await p.locator('[data-cova-answer]').innerText(),/Log or import a completed trade/);assert.equal(await p.getByRole('button',{name:'Show trades',exact:true}).count(),0);report.checks.push('empty data invites logging a completed trade, without invented evidence');
  await p.evaluate(()=>{window.choice='invented_choice';window.showAsk();});await p.getByRole('button',{name:'Review my results',exact:true}).click();
- await p.getByText("I couldn't check that answer. Your trades are unchanged. Try again when you're ready.").waitFor();assert.equal(await p.locator('[data-cova-answer]').count(),0);report.checks.push('unknown provider selection fails closed in the renderer');
+ await p.getByText('Saved account data could not be checked. Try again when you’re ready.').waitFor();assert.equal(await p.locator('[data-cova-answer]').count(),0);report.checks.push('unknown answer evidence fails closed in the real v4 renderer');
  // F-02: invalidate live authority WITHOUT updating any component props.
  const authorityFailures=[];
  await p.getByRole('button',{name:'Clear conversation',exact:true}).click();
@@ -94,7 +93,7 @@ try{
  }
  // Injecting a request alone must NOT implicitly bypass real workspace authority.
  await p.getByRole('button',{name:'Clear conversation',exact:true}).click();
- await p.evaluate(()=>{window.current=true;window.showAsk(true,'local','all',undefined,false);});
+ await p.evaluate(()=>{window.current=true;window.showAsk(true,'Tradovate:7','all',undefined,false);});
  const beforeDefaultAuthority=await p.evaluate(()=>window.calls.length);
  await p.getByRole('button',{name:'Review my results',exact:true}).click();
  await p.waitForTimeout(100);
@@ -102,15 +101,22 @@ try{
  assert.deepEqual(authorityFailures,[]);
  report.checks.push('F-02 delayed completion, both stale actions, and production default authority fail closed');
  await p.getByRole('button',{name:'Clear conversation',exact:true}).click();await p.evaluate(()=>window.showAsk());
- await p.evaluate(()=>{window.mode='body';window.current=true;});
+ // Paired positive: the exact v4 delayed-body shape succeeds before revocation.
+ await p.evaluate(()=>{window.mode='body';window.current=true;window.bodyController=undefined;});
+ await p.getByRole('button',{name:'Review my results',exact:true}).click();await p.waitForFunction(()=>!!window.bodyController);
+ await p.evaluate(()=>{window.bodyController.enqueue(new TextEncoder().encode(JSON.stringify(window.bodyWire)));window.bodyController.close();});
+ await p.locator('[data-cova-answer]').waitFor();assert.match(await p.locator('[data-cova-answer]').innerText(),/\$90\.00/);
+ report.checks.push('F-02 otherwise-identical delayed v4 body positive control renders checked exact amount');
+ await p.getByRole('button',{name:'Clear conversation',exact:true}).click();
+ await p.evaluate(()=>{window.mode='body';window.current=true;window.bodyController=undefined;});
  await p.getByRole('button',{name:'Review my results',exact:true}).click();
  await p.waitForFunction(()=>!!window.bodyController);
- await p.evaluate(async()=>{const authored=await window.answerFor(window.bodyInput);window.current=false;window.bodyController.enqueue(new TextEncoder().encode(JSON.stringify({status:'ok',aiResponseUsed:true,contextDigest:window.bodyInput.contextDigest,answer:authored})));window.bodyController.close();});
+ await p.evaluate(async()=>{const wire=await window.wireFor(window.bodyInput);window.current=false;window.bodyController.enqueue(new TextEncoder().encode(JSON.stringify(wire)));window.bodyController.close();});
  await p.getByText('Your session changed. Sign in again to ask Cova.').waitFor();
  assert.equal(await p.locator('[data-cova-answer]').count(),0);assert.equal(await p.getByRole('button',{name:'Show trades',exact:true}).count(),0);
  report.checks.push('F-02 actual transport/parser delayed-body invalidation cannot render an answer');
  await p.getByRole('button',{name:'Clear conversation',exact:true}).click();
- await p.evaluate(()=>{window.mode='ok';window.current=true;localStorage.setItem('cova-active-storage-identity-v1','11111111-1111-4111-8111-111111111111');window.showAsk(true,'local','all',undefined,false);});
+ await p.evaluate(()=>{window.mode='ok';window.current=true;localStorage.setItem('cova-active-storage-identity-v1','11111111-1111-4111-8111-111111111111');window.showAsk(true,'Tradovate:7','all',undefined,false);});
  const beforeBetaGrant=await p.evaluate(()=>{window.setBetaGrant(false);return window.calls.length;});
  assert.equal(await p.evaluate(()=>window.betaCurrent('11111111-1111-4111-8111-111111111111')),false);
  await p.getByRole('button',{name:'Review my results',exact:true}).click();
@@ -139,7 +145,7 @@ try{
  await p.getByRole('button',{name:'Clear conversation',exact:true}).click();await p.evaluate(()=>window.showAsk());
  // F-01: exercise the actual evidence action, not only the answer bubble.
  const moneyRow=(id,pnl,extra={})=>({id,date:'2026-10-30',market:'NQ',side:'Long',contracts:1,entry:100,exit:101,pnl,risk:5,riskStatus:'provided',setup:'',notes:'SYNTHETIC note',...extra});
- const eur=moneyRow('rithmic-eur',2.25,{source:{provider:'Rithmic',accountKey:'MOCK_ACCOUNT',accountId:'9',currency:'EUR'}});
+ const eur=moneyRow('rithmic-eur',2.25,{source:{provider:'Rithmic',accountKey:'synthetic_rithmic_account_key',accountId:'9',currency:'EUR'}});
  const usd=moneyRow('manual-usd',3,{manual:{accountKey:'local',currency:'USD',pnlBasis:'reported_net'}});
  const unknown=moneyRow('csv-unknown',4);
  const invalid=moneyRow('manual-invalid',1.001,{risk:5.001,manual:usd.manual});
@@ -168,11 +174,11 @@ try{
   await p.getByRole('button',{name:'Review my results',exact:true}).click();await p.locator('[data-cova-answer]').waitFor();
   await p.getByRole('button',{name:'Tell me more',exact:true}).click();
   await p.evaluate(change=>{
-   if(change==='owner')window.showAsk(true,'local','all',undefined,true,'33333333-3333-4333-8333-333333333333');
+   if(change==='owner')window.showAsk(true,'Tradovate:7','all',undefined,true,'33333333-3333-4333-8333-333333333333');
    if(change==='account')window.showAsk(true,'all');
-   if(change==='range')window.showAsk(true,'local','today');
+   if(change==='range')window.showAsk(true,'Tradovate:7','today');
    if(change==='readiness')window.showAsk(false);
-   if(change==='annotation')window.showAsk(true,'local','all',window.trades.map(row=>({...row,notes:'edited synthetic note'})));
+   if(change==='annotation')window.showAsk(true,'Tradovate:7','all',window.trades.map(row=>({...row,notes:'edited synthetic note'})));
   },change);
   await p.waitForFunction(()=>!document.querySelector('[data-cova-answer]'));
   assert.equal(await p.locator('[data-cova-detail]').count(),0);assert.equal(await p.getByRole('button',{name:'Show trades',exact:true}).count(),0);
@@ -182,6 +188,6 @@ try{
  assert.ok(await p.getByRole('button',{name:'Review my results',exact:true}).isDisabled());report.checks.push('browser-only workspace cannot dispatch');
  assert.deepEqual(report.errors,[]);
  assert.deepEqual(report.requests,[]);
- assert.equal(report.checks.length,29,'complete existing UI coverage plus beta-denied/removed checks');
+ assert.equal(report.checks.length,30,'all 29 original UI checks plus delayed v4 body positive control');
 }finally{await browser.close();writeFileSync(evidence+'/ui.json',JSON.stringify(report,null,2));}
 console.log(JSON.stringify(report));

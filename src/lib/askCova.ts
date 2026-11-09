@@ -46,12 +46,12 @@ function validDate(value: unknown): value is string {
 const USD_FUTURES = new Set(['NQ','MNQ','ES','MES','YM','MYM','RTY','M2K','CL','MCL','GC','MGC','SI','SIL','HG','ZB','ZN','ZF','ZT']);
 // Deliberately bounded supported source currencies, not a guessed ticker mapping.
 const CURRENCIES = new Set(['USD','EUR','GBP','CAD','AUD','CHF','NZD','SGD','HKD','JPY']);
-function currency(row: Trade): string | null {
+export function currency(row: Trade): string | null {
   if (row.manual && !row.source) return row.manual.currency === 'USD' ? 'USD' : null;
   if (row.source?.provider === 'Rithmic') return CURRENCIES.has(row.source.currency) ? row.source.currency : null;
   return row.source?.provider === 'Tradovate' && row.source.pnlBasis === 'gross_before_fees' && USD_FUTURES.has(row.market) ? 'USD' : null;
 }
-function basis(row: Trade): string {
+export function basis(row: Trade): string {
   if (row.manual && !row.source && row.manual.pnlBasis === 'reported_net') return 'self-reported net';
   if (row.manual?.pnlBasis === 'gross_before_fees' || (row.source?.provider === 'Tradovate' && row.source.pnlBasis === 'gross_before_fees')) return 'gross, before fees';
   return 'reported P&L, fees unknown';
@@ -168,6 +168,21 @@ function compile(rows: Trade[], question: AskCovaQuestion): Candidate[] {
       warm: `You ended this stretch ${outcome}: ${amount} (${qualifier}). ${safeBody}`,
       direct: `Your result was ${amount} (${qualifier}). ${safeBody}`,
     })];
+}
+
+/** Saved-data adapter: reuse the unchanged v3 guards and exact drawdown mirror. */
+export function askCovaReportedSequence(rows: Trade[]) {
+  if (rows.some(row => !validDate(row.date))) return { available: false as const, reason: 'ambiguous_chronology' };
+  const compiled = compile(rows, 'explain_drawdown')[0];
+  const result = drawdownMirrors.get(compiled);
+  if (!result) return { available: false as const, reason: compiled.id === 'empty' ? 'empty_population' : compiled.id };
+  // A mirror exists only after all money and chronology guards passed.
+  let current = 0, lossStreak = 0;
+  for (const row of chronological(rows)!) {
+    current = cents(row.pnl) < 0n ? current + 1 : 0;
+    lossStreak = Math.max(lossStreak, current);
+  }
+  return { available: true as const, ...result, lossStreak };
 }
 
 // Whitelist financial fields; never serialize a raw Trade or annotations.
