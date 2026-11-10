@@ -99,16 +99,31 @@ try{
    return route.continue({url:origin+(url.pathname.startsWith('/'+flag+'/')?url.pathname:`/${flag}${url.pathname}`)+url.search});
   });
   state.page=await context.newPage();state.page.on('pageerror',e=>report.errors.push(e.message));
-  await state.page.goto(origin+`/${flag}/index.html#dashboard`);await state.page.waitForTimeout(1000);return state;
+  await state.page.goto(origin+`/${flag}/index.html#dashboard`);await state.page.waitForTimeout(1000);
+  // Approved default-closed panel: only an authorized/live scenario opens it.
+  // Denial, pending, stale-auth, flag-off and all revocation probes remain unchanged.
+  if(mode==='allowed' && flag==='enabled' && live){
+   const launcher=state.page.getByRole('button',{name:'Ask Cova',exact:true});await launcher.waitFor();
+   assert.equal(await launcher.getAttribute('aria-expanded'),'false');
+   assert.equal(await state.page.locator('[data-ask-cova]').isVisible(),false);
+   assert.equal(state.asks.length,0,'opening permission never dispatches');
+   await launcher.click();
+  }
+  return state;
  }
  async function absent(s,label,{sameTask=false}={}){assert.equal(await s.page.locator('[data-ask-cova]').count(),0,label);assert.equal(s.asks.length,0,'denied state cannot ask');const flash=await s.page.evaluate(()=>({mutations:window.__qaFlashes,paintFrames:window.__qaPaintFlashes}));report.observations.push({label,...flash});assert.equal(flash.paintFrames,0,'no unauthorized panel at any animation frame');if(!sameTask)assert.equal(flash.mutations,0,'no transient permission flash');}
  async function change(s,id,token){s.current=id;await s.page.evaluate(({id,token})=>{window.__qaWatch=true;window.__qaChange(id,token);},{id,token});await s.page.waitForTimeout(150);}
- async function run(name,fn){let s;try{await fn(async(...args)=>(s=await open(...args)));report.checks.push(name);}catch(e){report.failures.push({name,error:String(e)});}finally{if(s){for(const release of s.held)await release();report.requests.push({name,caps:s.caps,asks:s.asks});await s.context.close();}save();}}
+ async function run(name,fn){let s;try{await fn(async(...args)=>(s=await open(...args)));report.checks.push(name);}catch(e){report.failures.push({name,error:String(e)});if(s){report.observations.push({name,failureState:await s.page.evaluate(()=>({url:location.href,body:document.body.innerText,launcher:document.querySelector('.ask-cova-launcher')?.outerHTML,panel:document.querySelector('#ask-cova-panel')?.outerHTML,scrollY,overflow:getComputedStyle(document.body).overflow}))});await s.page.screenshot({path:path.join(out,'failure-'+report.failures.length+'.png')}).catch(()=>{});}}finally{if(s){for(const release of s.held)await release();report.requests.push({name,caps:s.caps,asks:s.asks});await s.context.close();}save();}}
  for(const mode of ['denied','pending','failed','malformed','oversized','wrong-owner'])await run(mode,async open=>{const s=await open(mode);await absent(s,mode+' remains unmounted');assert.equal(s.caps.length,1,'exactly one discovery, no retry');});
  await run('disabled flag',async open=>{const s=await open('allowed',{flag:'disabled'});await absent(s,'flag disabled');assert.equal(s.caps.length,0);});
  await run('cached local auth is not live authentication',async open=>{const s=await open('allowed',{live:false});await absent(s,'no live session');assert.equal(s.caps.length,0);});
  for(const width of [1440,390])await run('allowed member and inline Beta '+width,async open=>{
   const s=await open('allowed',{width});await s.page.locator('[data-ask-cova]').waitFor();assert.equal(s.caps.length,1);assert.equal(s.caps[0].body.owner,owner);
+  // Settle only the screenshot's empty-cloud initialization and sign-in toast;
+  // all denial and synchronous revocation probes retain their original timing.
+  await s.page.locator('[data-toast-kind="sign-in"]').waitFor({state:'hidden',timeout:12000});
+  await s.page.waitForFunction(()=>{const phase=document.querySelector('[data-storage-phase]')?.getAttribute('data-storage-phase');return phase&&phase!=='loading'&&phase!=='saving';});
+  await s.page.evaluate(()=>document.fonts.ready);
   const label=s.page.locator('.ask-cova-beta');assert.equal(await label.innerText(),'Beta');assert(await label.isVisible());
   const metrics=await label.evaluate(el=>{const b=el.getBoundingClientRect(),h=document.querySelector('#ask-cova-title').getBoundingClientRect();return {sameLine:Math.abs(b.top+b.height/2-h.top-h.height/2)<8,gap:b.left-h.right,overflow:document.documentElement.scrollWidth-innerWidth};});assert(metrics.sameLine);assert(metrics.gap>=0&&metrics.gap<=16);assert(metrics.overflow<=1);
   const shot=`${phase}-beta-${width}.png`;await s.page.locator('[data-ask-cova]').screenshot({path:path.join(out,shot)});report.screenshots.push(shot);

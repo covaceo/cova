@@ -13,10 +13,10 @@ import {createServer} from 'node:http';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import path from 'node:path';
 import load from './helpers/load-ts.cjs';
-import {chooseAccount,accountValue} from './helpers/account-picker.mjs';
+import {chooseAccount as chooseAccountOriginal,accountValue} from './helpers/account-picker.mjs';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 process.chdir(root);
-const out=path.resolve(process.env.ASK_COVA_EVIDENCE_ROOT || path.resolve(root,'../ask-cova-insights-evidence/interaction'),'app'); // Redirect each verification run to preserve prior evidence.
+const out=path.resolve(process.env.ASK_COVA_EVIDENCE_ROOT || path.resolve(root,'../ask-cova-panel-evidence/runs',new Date().toISOString().replaceAll(':','-')),'app'); // Each verification run preserves prior evidence.
 mkdirSync(out,{recursive:true});
 const {defaultRules}=load('src/lib/risk.ts');
 const owner='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
@@ -41,7 +41,7 @@ function hasVisibleFocus(focus){
  const width=/^(\d+(?:\.\d+)?)px$/.exec(focus.outlineWidth);
  return Boolean(focus.active===true&&focus.visible===true&&focus.outlineStyle==='solid'&&width&&Number.isFinite(Number(width[1]))&&Number(width[1])>=1&&color&&color.slice(1).every(channel=>Number(channel)<=255));
 }
-const baselineFiles=['src/App.tsx','src/components/DashboardView.tsx','src/components/TradeHistoryDialog.tsx'];
+const baselineFiles=['src/App.tsx','src/components/DashboardView.tsx','src/components/TradeHistoryDialog.tsx','src/components/WorkspaceShell.tsx','src/components/MiniJournal.tsx'];
 const fixtureLabel='LOCAL QA · Synthetic trades · Mock auth/cloud/AI authored answer · No paid calls';
 function isolation(variant){return {name:'ask-cova-full-app-isolation',enforce:'pre',load(id){
  const rel=path.relative(root,id).replaceAll('\\','/');
@@ -57,7 +57,7 @@ function isolation(variant){return {name:'ask-cova-full-app-isolation',enforce:'
  },transformIndexHtml(){return [{tag:'div',attrs:{id:'qa-disclosure',style:'position:fixed;bottom:0;left:0;right:0;z-index:2147483647;pointer-events:none;padding:5px 12px;background:#202020;color:#eee;font:12px/1.5 sans-serif;text-align:center;overflow-wrap:anywhere'},children:fixtureLabel,injectTo:'body-prepend'}];}};}
 let browser,server,core;
 try{
- for(const variant of ['enabled','disabled','baseline']){
+ for(const variant of ((process.argv.includes('--panel') || process.argv.includes('--visual')) ? ['enabled'] : ['enabled','disabled','baseline'])){
   await build({root,base:'/',configFile:false,envDir:false,logLevel:'error',plugins:[isolation(variant),react()],define:{'import.meta.env.VITE_WORKSPACE_SYNC_ENABLED':'"true"','import.meta.env.VITE_ASK_COVA_ENABLED':JSON.stringify(variant==='enabled'?'true':'false')},build:{outDir:path.join(out,'site',variant),emptyOutDir:true}});
   report.builds.push({variant,mode:'production',entry:'index.html -> src/main.tsx -> actual App',canonicalCSS:true,envFiles:false});save();
  }
@@ -71,7 +71,7 @@ try{
  async function open({variant='enabled',width=1440,plan='pro',local=false,euro=false,scenario=''}={}){
   const id=`${variant}-${plan}-${local?'browser':'saved'}-${width}${euro?'-eur':''}${scenario?'-'+scenario:''}`;
   const scenarioTrades=euro?[...trades,euroTrade]:trades;
-  const scenarioCloud=euro?[...cloud,record('trade',euroTrade.id,euroAccount,euroTrade)]:cloud;
+  const scenarioCloud=euro?[...cloud,record('trade',euroTrade.id,euroAccount,euroTrade)]:scenario==='visual-match-populated'?[...cloud,record('daily_note',JSON.stringify(['local','2026-10-30']),'local',{date:'2026-10-30',note:'Reviewed the saved pullback trades. Kept size at one contract and noted the losing session for review.',tradeId:null})]:cloud;
   const context=await browser.newContext({viewport:{width,height:width<768?844:1000},deviceScaleFactor:1,isMobile:width<768,hasTouch:width<768,reducedMotion:'reduce',timezoneId:'UTC',locale:'en-US',// No app service-worker registration exists; routing blocks all external requests.
    acceptDownloads:false});
   const state={id,asks:[],capabilities:[],writes:[],api:[],context,variant,width,plan,local};
@@ -111,7 +111,7 @@ try{
       assert.equal(body.contextDigest,catalog.contextDigest,'Shared core recomputes digest from complete synthetic cloud snapshot');assert.equal(body.snapshotDigest,catalog.snapshotDigest);
       const plan={version:'ask-cova-query-plan-v1',decision:{kind:'query',queries:[{id:'summary',op:'aggregate',source:'trades',where:[],groupBy:[],measures:[{id:'net',op:'sum',field:'reported_pnl'},{id:'count',op:'count',field:null}],orderBy:[],mode:'complete',limit:32}]}};
       const result=await core.executeAskCovaQuery(catalog,plan),net=result.cells.find(c=>c.field==='net'),count=result.cells.find(c=>c.field==='count'),observation=result.observations[0],first=body.conversation.history.length===0;
-      const answer={version:'ask-cova-answer-v2',paragraphs:[{text:(first?'Your saved net result is ':'For this saved view, the net result is ')+'{{f:'+net.id+'}} across {{f:'+count.id+'}} records.',evidence:[observation.id]}],detail:[{text:first?'These are saved reported results, not live broker balances.':'This is a descriptive saved-data summary, not a forecast.',evidence:[observation.id]}]};
+      const answer={version:'ask-cova-answer-v2',paragraphs:[{text:(first?'Your saved net result is ':'For this saved view, the net result is ')+'{{f:'+net.id+'}} across {{f:'+count.id+'}} records.'+(state.longReply?' Review the saved trades and notes for context.'.repeat(14):''),evidence:[observation.id]}],detail:[{text:first?'These are saved reported results, not live broker balances.':'This is a descriptive saved-data summary, not a forecast.',evidence:[observation.id]}]};
       const rendered=core.renderAskCovaQueryAnswer(result,answer);assert(rendered);const reply={...rendered,answer:rendered.paragraphs.join(' '),detail:rendered.detail.join(' ')};
       state.asks.push({body,answer,reply});
       if(state.holdNextAsk){state.holdNextAsk=false;state.requestHeld=true;await new Promise(resolve=>{state.releaseHeld=resolve;});state.requestHeld=false;state.releaseHeld=null;}
@@ -137,24 +137,50 @@ try{
   await page.waitForTimeout(300);
   check(id+' actual Risk Desk route',new URL(page.url()).hash==='#dashboard'&&await page.getByRole('heading',{name:'Risk Desk',exact:true}).isVisible());
   check(id+' actual auth plan retained',await page.evaluate(()=>JSON.parse(localStorage.getItem('cova-auth-session-v1')).plan)===plan);
+  // Approved relocation: full legacy workflows deliberately open the eligible launcher.
+  if(variant==='enabled'&&!process.argv.includes('--panel')&&!process.argv.includes('--visual'))await page.getByRole('button',{name:'Ask Cova',exact:true}).click();
   return state;
  }
+ async function withWorkspace(page,action){
+  const launcher=page.getByRole('button',{name:'Ask Cova',exact:true});
+  const reopen=await launcher.count()>0&&await launcher.getAttribute('aria-expanded')==='true';
+  if(await page.locator('#ask-cova-panel[aria-modal=true]').count())await page.getByRole('button',{name:'Close Ask Cova',exact:true}).click();
+  await action();
+  if(reopen&&await launcher.getAttribute('aria-expanded')!=='true')await launcher.click();
+ }
+ async function chooseAccount(page,account){await withWorkspace(page,()=>chooseAccountOriginal(page,account));}
+ async function changeRange(page,label){await withWorkspace(page,()=>page.getByRole('button',{name:label,exact:true}).click());}
  async function finish(s){
   s.releaseHeld?.();
   const known=s.writes.filter(w=>w.url==='/api/passport'&&w.body===JSON.stringify({action:'plan',limits:{maxDailyLoss:2500,maxTradeLoss:1600,maxContracts:5,maxLossStreak:3},owner}));
-  check(s.id+' no new writes beyond HEAD plan-sync attempt',s.writes.length===known.length&&known.length===(s.local?0:1),s.writes);
+  check(s.id+' no new writes beyond HEAD plan-sync attempt',s.writes.length===known.length&&known.length===(s.expectedPlanWrites ?? (s.local?0:1)),s.writes);
   check(s.id+' exact discovery count',s.capabilities.length===(s.variant==='enabled'?1:0),s.capabilities);
   report.requests.push({id:s.id,api:s.api,capabilities:s.capabilities,asks:s.asks,blockedBaselinePlanWrites:known});await s.context.close();save();
  }
  async function screenshot(s,label,selector){await s.page.mouse.move(0,0);await s.page.waitForTimeout(200);
+ // Logo assets can finish after the route/font gate under concurrent browser load.
+ // Require decoded visible images before strict byte parity; never relax that parity.
+ await s.page.waitForFunction(()=>[...document.images].filter(i=>{const r=i.getBoundingClientRect();return i.checkVisibility()&&r.width>0&&r.height>0&&r.top<innerHeight&&r.bottom>0;}).every(i=>i.complete&&i.naturalWidth>0));
+ await s.page.evaluate(async()=>{await Promise.all([...document.images].filter(i=>i.complete&&i.naturalWidth>0).map(i=>i.decode()));await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));});
  // A route may commit before the inert nav plate's motion frame; assert settled geometry before byte parity.
  await s.page.waitForFunction(()=>{const nav=document.querySelector('.cova-gooey-sidebar');if(!nav||!nav.checkVisibility())return true;const active=nav.querySelector('[aria-current="page"]'),plate=nav.querySelector('.cova-gooey-plate');if(!active)return !plate;if(!plate)return false;const a=active.getBoundingClientRect(),b=plate.getBoundingClientRect();return Math.abs(a.x-b.x)<1&&Math.abs(a.y-b.y)<1&&Math.abs(a.width-b.width)<1&&Math.abs(a.height-b.height)<1;},{},{timeout:10000});
- const name=s.id+'-'+label+'.png';if(selector)await s.page.locator(selector).screenshot({path:path.join(out,name),style:'#qa-disclosure{visibility:hidden!important}'});else {await s.page.evaluate(()=>scrollTo(0,0));await s.page.screenshot({path:path.join(out,name),fullPage:true});if(['default','answer'].includes(label)){const view=s.id+'-'+label+'-viewport.png';await s.page.screenshot({path:path.join(out,view)});report.screenshots.push(view);}}report.screenshots.push(name);save();return name;}
- async function measure(s,label){const value=await s.page.evaluate(()=>{
+ const name=s.id+'-'+label+'.png';if(selector)await s.page.locator(selector).screenshot({path:path.join(out,name),style:'#qa-disclosure{visibility:hidden!important}'});else {await s.page.evaluate(()=>scrollTo(0,0));await s.page.screenshot({path:path.join(out,name),fullPage:true,style:'#qa-disclosure{visibility:hidden!important}'});if(['default','answer','closed','populated','navigation'].includes(label)){const view=s.id+'-'+label+'-viewport.png';await s.page.screenshot({path:path.join(out,view),style:'#qa-disclosure{visibility:hidden!important}'});report.screenshots.push(view);}}report.screenshots.push(name);save();return name;}
+ async function measure(s,label){
+  const row=s.page.locator('.ask-cova-questions');
+  if(await row.count() && !await s.page.locator('dialog[open]').count()){
+   const prior=await row.evaluate(el=>({left:el.scrollLeft,y:scrollY})),reach=[];
+   for(const button of await row.locator('button').all()){
+    await button.scrollIntoViewIfNeeded();
+    reach.push(await button.evaluate(el=>{const r=el.getBoundingClientRect(),p=el.parentElement.getBoundingClientRect(),hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);return {label:el.textContent,fits:r.left>=p.left-1&&r.right<=p.right+1&&el.scrollWidth<=el.clientWidth+1,hit:hit===el||el.contains(hit)};}));
+   }
+   check(s.id+' '+label+' every suggestion reachable by its scroll region',reach.every(x=>x.fits&&x.hit),reach);
+   await row.evaluate((el,prior)=>{el.scrollLeft=prior.left;scrollTo(0,prior.y);},prior);
+  }
+  const value=await s.page.evaluate(()=>{
   const visible=el=>el.checkVisibility()&&el.getBoundingClientRect().width>0;
-  const box=el=>{const r=el.getBoundingClientRect(),c=getComputedStyle(el),p=getComputedStyle(el,'::after');return {text:el.textContent.trim(),left:r.left,right:r.right,width:r.width,height:r.height,scrollOverflow:el.scrollWidth-el.clientWidth,font:c.fontSize,color:c.color,background:c.backgroundColor,border:c.borderColor,radius:c.borderRadius,shadow:c.boxShadow,outline:c.outline,after:{content:p.content,top:p.top,bottom:p.bottom,height:p.height}};};
+  const box=el=>{const r=el.getBoundingClientRect(),c=getComputedStyle(el),p=getComputedStyle(el,'::after'),row=el.closest('.ask-cova-questions');const scrollRegion=row&&row.scrollWidth>row.clientWidth?row.getBoundingClientRect().toJSON():null;const icon=el.querySelector('svg')?.getBoundingClientRect();const sendHitExtension=el.getAttribute('aria-label')==='Send message'&&!el.textContent.trim()&&icon&&icon.left>=r.left&&icon.right<=r.right&&icon.top>=r.top&&icon.bottom<=r.bottom&&p.left==='-5px'&&p.right==='-5px';return {text:el.textContent.trim(),sendHitExtension:Boolean(sendHitExtension),left:r.left,right:r.right,width:r.width,height:r.height,scrollRegion,scrollOverflow:el.scrollWidth-el.clientWidth,font:c.fontSize,color:c.color,background:c.backgroundColor,border:c.borderColor,radius:c.borderRadius,shadow:c.boxShadow,outline:c.outline,after:{content:p.content,top:p.top,bottom:p.bottom,height:p.height}};};
   return {width:innerWidth,stats:[...document.querySelectorAll('dialog[open] .astra-stat-cell')].map(el=>{const v=el.querySelector('.astra-stat-value')?.getBoundingClientRect(),d=el.querySelector('.astra-stat-detail')?.getBoundingClientRect();return {text:el.textContent.trim(),detailWidth:d?.width,detailHeight:d?.height,overlap:!!v&&!!d&&Math.min(v.bottom,d.bottom)>Math.max(v.top,d.top)+1&&Math.min(v.right,d.right)>Math.max(v.left,d.left)+1};}),documentOverflow:document.documentElement.scrollWidth-document.documentElement.clientWidth,buttons:[...document.querySelectorAll('[data-ask-cova] button,dialog[open] button,.astra-add-trade,.astra-import-action')].filter(visible).map(box),panel:[...document.querySelectorAll('[data-ask-cova],.ask-cova-reply,.ask-cova-consent,dialog[open]')].filter(visible).map(box),brokenImages:[...document.images].filter(i=>i.complete&&!i.naturalWidth).map(i=>i.src)};
- });report.measurements.push({id:s.id,label,...value});if(value.stats.length)check(s.id+' '+label+' summary text readable without overlap',value.stats.every(cell=>cell.detailWidth>=80&&!cell.overlap),value.stats);check(s.id+' '+label+' no document overflow',value.documentOverflow<=1,value.documentOverflow);check(s.id+' '+label+' panel content fits',value.panel.every(b=>b.scrollOverflow<=1),value.panel);check(s.id+' '+label+' buttons fit',value.buttons.every(b=>b.left>=-1&&b.right<=s.width+1&&b.scrollOverflow<=1));return value;}
+ });report.measurements.push({id:s.id,label,...value});if(value.stats.length)check(s.id+' '+label+' summary text readable without overlap',value.stats.every(cell=>cell.detailWidth>=80&&!cell.overlap),value.stats);check(s.id+' '+label+' no document overflow',value.documentOverflow<=1,value.documentOverflow);check(s.id+' '+label+' panel content fits',value.panel.every(b=>b.scrollOverflow<=1),value.panel);check(s.id+' '+label+' buttons fit',value.buttons.every(b=>(b.scrollOverflow<=1||(b.sendHitExtension&&b.scrollOverflow===5))&&(b.scrollRegion ? b.width<=b.scrollRegion.width+1&&b.scrollRegion.left>=-1&&b.scrollRegion.right<=s.width+1 : b.left>=-1&&b.right<=s.width+1)));return value;}
  async function hitTargets(s,label){
   const controls=s.page.locator('[data-ask-cova] button');const metrics=[];
   for(let i=0;i<await controls.count();i++){
@@ -191,6 +217,13 @@ try{
   await p.keyboard.press('Escape');await dialog.waitFor({state:'detached'});await p.waitForTimeout(50);
   check(s.id+' close restores '+(alreadyOpen?'composer':'Show trades')+' focus',await show.evaluate(el=>document.activeElement===el));
  }
+ if(process.argv.includes('--visual')) {
+  const {runVisualChecks}=await import('./ask-cova-visual-browser.mjs');
+  await runVisualChecks({open,finish,check,screenshot,measure,ask,report,out});
+ } else if(process.argv.includes('--panel')) {
+  const {runPanelChecks}=await import('./ask-cova-panel-browser.mjs');
+  await runPanelChecks({open,finish,check,screenshot,measure,ask,report,out});
+ } else {
  for(const width of [1440,768,390,320]){
   let s;try{
    s=await open({width});const p=s.page;
@@ -209,9 +242,9 @@ try{
    await measure(s,'answer');await hitTargets(s,'answer');await screenshot(s,'answer');
    const calls=s.asks.length;await p.getByRole('button',{name:'Tell me more',exact:true}).click();check(s.id+' precomputed authored detail no second request',await p.locator('[data-cova-detail]').innerText()===reply.detail&&s.asks.length===calls);
    await screenshot(s,'expanded','[data-ask-cova]');await evidence(s,reply,'all');
-   await p.getByRole('button',{name:'Latest session',exact:true}).click();check(s.id+' date invalidates answer and detail',await p.locator('[data-cova-answer],[data-cova-detail]').count()===0);
+   await changeRange(p,'Latest session');check(s.id+' date invalidates answer and detail',await p.locator('[data-cova-answer],[data-cova-detail]').count()===0);
    const latest=await ask(s);check(s.id+' latest scope one exact trade',JSON.stringify(latest.tradeIds)===JSON.stringify(['manual-app-a-3']));await evidence(s,latest,'latest');
-   await p.getByRole('button',{name:'Last 7 days',exact:true}).click();check(s.id+' week invalidates answer',await p.locator('[data-cova-answer]').count()===0);const week=await ask(s,'Explain my drawdown');check(s.id+' week uses inclusive seven-calendar-day window',week.tradeIds.length===3);await screenshot(s,'drawdown','[data-ask-cova]');
+   await changeRange(p,'Last 7 days');check(s.id+' week invalidates answer',await p.locator('[data-cova-answer]').count()===0);const week=await ask(s,'Explain my drawdown');check(s.id+' week uses inclusive seven-calendar-day window',week.tradeIds.length===3);await screenshot(s,'drawdown','[data-ask-cova]');
    await chooseAccount(p,other);check(s.id+' account invalidates answer',await accountValue(p)===other&&await p.locator('[data-cova-answer]').count()===0);
    const second=await ask(s,'What stands out?');check(s.id+' second account excludes first account',second.tradeIds.length>0&&second.tradeIds.every(id=>id.startsWith('manual-app-b-')));await evidence(s,second,'second-account');
    await p.getByRole('button',{name:'Clear conversation',exact:true}).click();check(s.id+' clear removes answer and detail',await p.locator('[data-cova-answer],[data-cova-detail]').count()===0);
@@ -289,7 +322,7 @@ try{
   calls=s.asks.length;
   check(s.id+' authorized typed chat forwarded but raw journal notes and local evidence action excluded',!JSON.stringify(s.asks.map(a=>a.body)).includes('Synthetic private note')&&!s.asks.some(a=>a.body.conversation.history.some(m=>m.content==='which trades?')));
   await screenshot(s,'thread-context','[data-ask-cova]');
-  await composer.fill('unsent local draft');await p.getByRole('button',{name:'Latest session',exact:true}).click();
+  await composer.fill('unsent local draft');await changeRange(p,'Latest session');
   check(s.id+' date clears whole thread draft detail and local help',await p.locator('[data-cova-reply],[data-cova-detail],[data-cova-local]').count()===0&&await composer.inputValue()==='');
   check(s.id+' changing date alone never asks',s.asks.length===calls);
   await sendTyped(s,'how did i do?');await p.locator('[data-cova-answer]').waitFor();check(s.id+' deliberate date-scoped Send asks once',s.asks.length===calls+1);
@@ -314,7 +347,16 @@ try{
    check(disabled.id+' disabled build has no Ask Cova',await disabled.page.locator('[data-ask-cova]').count()===0);
    const a=await screenshot(baseline,'default'),b=await screenshot(disabled,'default');
    const equal=readFileSync(path.join(out,a)).equals(readFileSync(path.join(out,b)));
-   check(disabled.id+' screenshot identical to HEAD',equal,{baseline:a,candidate:b});report.comparisons.push({plan,width,baseline:a,disabled:b,byteIdentical:equal});
+   // v2 intentionally changes Risk Desk even with Ask disabled. Preserve data and navigation, not the rejected boxed pixels.
+   const selectors=['.oa-discipline','.trading-calendar'];
+   for(const selector of selectors)check(disabled.id+' preserved content '+selector,await baseline.page.locator(selector).innerText()===await disabled.page.locator(selector).innerText());
+   for(const selector of ['.astra-stats-panel .astra-stat-value','.astra-stats-panel .astra-stat-label'])check(disabled.id+' all headline/average metric fields preserved '+selector,JSON.stringify(await baseline.page.locator(selector).allTextContents())===JSON.stringify(await disabled.page.locator(selector).allTextContents()));
+   check(disabled.id+' journal note retained',await baseline.page.getByRole('textbox',{name:'Journal note',exact:true}).inputValue()===await disabled.page.getByRole('textbox',{name:'Journal note',exact:true}).inputValue());
+   for(const name of ['Attach trade','Save note'])check(disabled.id+' journal action retained '+name,await baseline.page.getByRole('button',{name,exact:true}).isEnabled()===await disabled.page.getByRole('button',{name,exact:true}).isEnabled());
+   const beforeRows=await baseline.page.locator('[data-recent-trade]').evaluateAll(els=>els.map(el=>el.dataset.recentTrade));
+   check(disabled.id+' retained recent trade identities',JSON.stringify(beforeRows)===JSON.stringify(await disabled.page.locator('[data-recent-trade]').evaluateAll(els=>els.map(el=>el.dataset.recentTrade))));
+   if(width>=851){await disabled.page.getByRole('button',{name:'Open workspace menu',exact:true}).click();check(disabled.id+' navigation content retained behind approved compact menu',await baseline.page.locator('.workspace-sidebar').innerText()===await disabled.page.locator('.workspace-sidebar').innerText());await screenshot(disabled,'workspace-menu','.workspace-menu-dialog');await disabled.page.keyboard.press('Escape');}
+   report.comparisons.push({plan,width,baseline:a,disabled:b,byteIdentical:equal,approvedDifference:'Seamless v3 measured Risk Desk frame, collapsed navigation, actual recent table fields, metric disclosure and journal preview; all financial fields and navigation preserved separately'});
    // Existing plan-specific Rules and Insights UI remain exactly as HEAD; do not trigger paid upgrades.
    if(width===1440||width===390){
     enabled=await open({variant:'enabled',plan,width});
@@ -330,6 +372,7 @@ try{
    }
   }catch(error){check(`${plan}-${width} parity/gates completed`,false,String(error));}
   finally{for(const s of [baseline,disabled,enabled])if(s)await finish(s);}
+ }
  }
  check('No browser page errors',report.errors.length===0,report.errors);
  check('No external network attempts',report.externalBlocked.length===0,report.externalBlocked);

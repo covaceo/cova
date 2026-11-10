@@ -1,11 +1,12 @@
-import { Activity, ArrowUpRight, BarChart3, ChevronRight, FileUp, Gauge, BookUser, ArrowLeft, ArrowRight } from "lucide-react";
+import { Activity, ArrowUpRight, BarChart3, ChevronRight, FileUp, Gauge, BookUser, ArrowLeft, ArrowRight, Menu, X } from "lucide-react";
 import { WorkspaceNavIcon } from "./WorkspaceNavIcon";
 import { GooeyInput } from "./ui/gooey-input";
 import { WorkspaceSearch, type WorkspaceSearchSource, type WorkspaceSearchHandle } from "./WorkspaceSearch";
 import { GooeyNavSurface, gooeyTransition } from "./ui/GooeyNavSurface";
 import { ProfileMenu } from "./UserProfile";
 import { motion, useReducedMotion } from "motion/react";
-import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { flushSync } from "react-dom";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { isWorkspaceNavActive, type Section } from "../lib/appRoutes";
 import { SiteFooter } from "./PlanSections";
 
@@ -51,7 +52,32 @@ type WorkspaceShellProps = {
   searchRef?: RefObject<WorkspaceSearchHandle>;
 };
 
-export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go, riskScore, section, signOut, searchSource, searchRef }: WorkspaceShellProps) {
+const WorkspaceMenuContext = createContext<ReactNode>(null);
+export function WorkspaceMenuButton() { return useContext(WorkspaceMenuContext); }
+
+export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go: navigate, riskScore, section, signOut, searchSource, searchRef }: WorkspaceShellProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuDialog = useRef<HTMLDialogElement>(null);
+  const menuTrigger = useRef<HTMLButtonElement>(null);
+  const compactNavigation = section === 'dashboard';
+  const go = (target: Section) => { setMenuOpen(false); navigate(target); };
+  useEffect(() => {
+    if (!menuOpen || !compactNavigation) return;
+    const dialog = menuDialog.current;
+    if (!dialog) return;
+    const overflow = document.body.style.overflow;
+    dialog.showModal(); document.body.style.overflow = 'hidden';
+    const media = window.matchMedia('(max-width: 850px)');
+    const resize = () => { if (media.matches && !dialog.querySelector('dialog[open]')) setMenuOpen(false); };
+    media.addEventListener('change', resize);
+    return () => {
+      dialog.close(); document.body.style.overflow = overflow;
+      media.removeEventListener('change', resize);
+      const target = menuTrigger.current?.checkVisibility() ? menuTrigger.current : document.querySelector<HTMLButtonElement>('.workspace-top-header .operator-mobile-menu-toggle');
+      if (target?.checkVisibility() && !document.querySelector('dialog[open]')) target.focus({ preventScroll: true });
+    };
+  }, [menuOpen, compactNavigation]);
+  useEffect(() => { if (!compactNavigation) setMenuOpen(false); }, [compactNavigation]);
   const reducedMotion = useReducedMotion();
   const [collapsed, setCollapsed] = useState(() => {
     try { return window.localStorage.getItem("cova-workspace-sidebar-collapsed-v1") === "true"; }
@@ -63,6 +89,12 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
   }, [collapsed]);
   const fallbackSearchRef = useRef<WorkspaceSearchHandle>(null);
   const searchController = searchRef || fallbackSearchRef;
+  const openSearch = () => {
+    // The existing search intentionally refuses to open over another dialog.
+    // Finish this menu's focus/scroll cleanup before handing off to it.
+    if (menuOpen) flushSync(() => setMenuOpen(false));
+    searchController.current?.open();
+  };
   const [searchOpen, setSearchOpen] = useState(false);
   const [focusSource, setFocusSource] = useState<"pointer" | "keyboard">("keyboard");
   useEffect(() => {
@@ -76,19 +108,17 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
 
   const riskScoreLabel = typeof riskScore === "number" && Number.isFinite(riskScore) ? String(riskScore) : "--";
 
-  return (
-    <motion.div className="workspace-shell operator-workspace oa-dashboard-shell" data-sidebar-state={collapsed ? "collapsed" : "expanded"} initial={false} animate={{ "--sidebar-progress": collapsed ? 0 : 1 }} transition={reducedMotion ? { duration: 0 } : gooeyTransition} data-workspace-section={section} data-focus-source={focusSource} onPointerDownCapture={() => setFocusSource("pointer")}>
-      <aside className="workspace-sidebar workspace-sidebar-motion" id="cova-workspace-sidebar" aria-label="Cova workspace navigation">
+  const navigation = <aside className="workspace-sidebar workspace-sidebar-motion" id="cova-workspace-sidebar" aria-label="Cova workspace navigation">
         <div className="workspace-sidebar-brand">
           <button className="workspace-brand-button" onClick={() => go("overview")} type="button" aria-label="Go to Cova home">
             <img className="workspace-brand-wordmark" src="/media/wordmark-options/cova-wordmark-option-3-sleek-cropped.png" alt="Cova" />
             <img className="workspace-brand-mark" src="/cova-logo-minimal-white.svg" alt="" aria-hidden="true" />
           </button>
         </div>
-        <button className="workspace-sidebar-toggle" type="button" aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!collapsed} aria-controls="cova-workspace-sidebar" title={collapsed ? "Expand sidebar" : "Collapse sidebar"} onClick={() => setCollapsed(value => !value)}>
+        <button className="workspace-sidebar-toggle" hidden={compactNavigation} type="button" aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!collapsed} aria-controls="cova-workspace-sidebar" title={collapsed ? "Expand sidebar" : "Collapse sidebar"} onClick={() => setCollapsed(value => !value)}>
           {collapsed ? <ArrowRight aria-hidden="true" /> : <ArrowLeft aria-hidden="true" />}
         </button>
-        <GooeyInput open={searchOpen} onActivate={() => searchController.current?.open()} placeholder="Search" className="cova-gooey-search" classNames={{trigger:"cova-gooey-search-surface",input:"cova-gooey-search-input",bubbleSurface:"cova-gooey-search-bubble"}} />
+        <GooeyInput open={searchOpen} onActivate={openSearch} placeholder="Search" className="cova-gooey-search" classNames={{trigger:"cova-gooey-search-surface",input:"cova-gooey-search-input",bubbleSurface:"cova-gooey-search-bubble"}} />
 
         <button className="astra-rail-account" aria-label="Accounts" title={`Accounts: ${brokerLabel}`} aria-current={isWorkspaceNavActive(section, "import") ? "page" : undefined} onClick={() => go("import")} type="button"><WorkspaceNavIcon section="import" /><span className="astra-rail-account-copy"><strong>Accounts</strong><small>{brokerLabel}</small></span><ChevronRight aria-hidden="true" /></button>
 
@@ -133,8 +163,13 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
           <ProfileMenu email={email} signOut={signOut} deleteAccount={deleteAccount} manageAccounts={() => go("import")} />
 
         </div>
-      </aside>
-
+      </aside>;
+  return (
+    <motion.div className="workspace-shell operator-workspace oa-dashboard-shell" data-sidebar-state={compactNavigation ? 'expanded' : collapsed ? "collapsed" : "expanded"} data-compact-navigation={compactNavigation || undefined} initial={false} animate={{ "--sidebar-progress": compactNavigation ? 1 : collapsed ? 0 : 1 }} transition={reducedMotion ? { duration: 0 } : gooeyTransition} data-workspace-section={section} data-focus-source={focusSource} onPointerDownCapture={() => setFocusSource("pointer")}>
+      {compactNavigation ? <dialog ref={menuDialog} className="workspace-menu-dialog" aria-label="Workspace menu" onKeyDownCapture={event => { if (event.currentTarget.querySelector('dialog[open]')) return; if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k' && !event.altKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); openSearch(); } }} onCancel={event => { if (event.target === event.currentTarget) { event.preventDefault(); setMenuOpen(false); } }} onClick={event => { if (event.target === event.currentTarget) { const r = event.currentTarget.getBoundingClientRect(); if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) setMenuOpen(false); } }}>
+        <button className="workspace-menu-close" type="button" aria-label="Close workspace menu" onClick={() => setMenuOpen(false)}><X aria-hidden="true" /></button>
+        {navigation}
+      </dialog> : navigation}
       <WorkspaceSearch ref={searchController} source={searchSource} go={go} onOpenChange={setSearchOpen} />
       <motion.div
         className="workspace-content"
@@ -143,6 +178,7 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
         animate={{ y: 0 }}
         transition={{ duration: reducedMotion ? 0 : 0.2, ease: "easeOut" }}
       >
+        <WorkspaceMenuContext.Provider value={compactNavigation ? <button ref={menuTrigger} type="button" className="workspace-menu-trigger" aria-label="Open workspace menu" aria-haspopup="dialog" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}><Menu aria-hidden="true" /></button> : null}>
         {section === "dashboard" ? children : (
           <div className="astra-workspace-page" data-astra-route={section}>
             <div className="astra-deskbar">
@@ -152,6 +188,7 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
             {children}
           </div>
         )}
+        </WorkspaceMenuContext.Provider>
         <SiteFooter go={go} />
       </motion.div>
     </motion.div>

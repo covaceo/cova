@@ -288,7 +288,7 @@ try{
   await button('Clear conversation').click();await racePage.evaluate(()=>window.setBetaGrant(true));
   assert.equal(await racePage.evaluate(()=>window.betaCurrent('11111111-1111-4111-8111-111111111111')),true);
   await success();assert.equal(await racePage.evaluate(()=>window.sentBody.protocolVersion),'ask-cova-v4');
-  await racePage.evaluate(()=>{[...document.querySelectorAll('button')].find(n=>n.textContent==='Clear conversation').click();document.querySelector('.ask-cova-questions button').click();});await settle();
+  await racePage.evaluate(()=>{[...document.querySelectorAll('button')].find(n=>n.getAttribute('aria-label')==='Clear conversation').click();document.querySelector('.ask-cova-questions button').click();});await settle();
   const s=await state();assert.equal(s.calls.length,1);assert.equal(s.answers,0);assert.equal(s.consent,false);
   await button('Review my results').click();
   await racePage.locator('[data-cova-answer]').waitFor();assert.equal((await state()).calls.length,2);
@@ -303,7 +303,7 @@ try{
  });
  await race('CHAT-S01 retained starter cannot dispatch in a cleared epoch',async()=>{
   await success();
-  await racePage.evaluate(()=>{const starter=document.querySelector('.ask-cova-questions button');[...document.querySelectorAll('button')].find(n=>n.textContent==='Clear conversation').click();starter.click();});await settle();
+  await racePage.evaluate(()=>{const starter=document.querySelector('.ask-cova-questions button');[...document.querySelectorAll('button')].find(n=>n.getAttribute('aria-label')==='Clear conversation').click();starter.click();});await settle();
   assert.equal((await state()).calls.length,1);assert.equal((await state()).count,0);
   await button('Review my results').click();await racePage.locator('[data-cova-answer]').waitFor();assert.equal((await state()).consent,false);assert.equal((await state()).calls.length,2);
  });
@@ -322,12 +322,12 @@ try{
   await racePage.evaluate(()=>{window.mode='error';window.finish();});await button('Try again').waitFor();await racePage.evaluate(()=>window.mode='ok');await button('Try again').click();await racePage.waitForFunction(()=>window.calls.length===4);assert.equal((await state()).calls[3].conversation.message,'What stands out?');
  });
  for(const action of ['Tell me more','Show trades'])await race('CHAT-L03 Clear invalidates retained '+action,async()=>{
-  await success();await racePage.evaluate(action=>{const old=[...document.querySelectorAll('button')].find(n=>n.textContent===action);[...document.querySelectorAll('button')].find(n=>n.textContent==='Clear conversation').click();old.click();},action);await settle();
+  await success();await racePage.evaluate(action=>{const old=[...document.querySelectorAll('button')].find(n=>n.textContent===action);[...document.querySelectorAll('button')].find(n=>n.getAttribute('aria-label')==='Clear conversation').click();old.click();},action);await settle();
   const s=await state();assert.equal(s.count,0);assert.equal(s.details,0);assert.equal(s.dialog,false);assert.equal(s.calls.length,1);
  });
  await race('CHAT-S01 Clear invalidates retained retry',async()=>{
   await racePage.evaluate(()=>window.mode='error');await button('Review my results').click();await button('Try again').waitFor();
-  await racePage.evaluate(()=>{const retry=[...document.querySelectorAll('button')].find(n=>n.textContent==='Try again');[...document.querySelectorAll('button')].find(n=>n.textContent==='Clear conversation').click();retry.click();});await settle();assert.equal((await state()).calls.length,1);assert.equal((await state()).count,0);
+  await racePage.evaluate(()=>{const retry=[...document.querySelectorAll('button')].find(n=>n.textContent==='Try again');[...document.querySelectorAll('button')].find(n=>n.getAttribute('aria-label')==='Clear conversation').click();retry.click();});await settle();assert.equal((await state()).calls.length,1);assert.equal((await state()).count,0);
  });
  for(const text of ['unsupported PRIVATE-MARKER','Tell me more','Which trades?','Explain my drawdown'])await race('CHAT-L02 consumes a draft once: '+text,async()=>{
   await success();await input.fill(text);await racePage.evaluate(()=>{const form=document.querySelector('.ask-cova-composer');form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));});await settle();

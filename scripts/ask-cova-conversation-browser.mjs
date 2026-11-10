@@ -40,6 +40,7 @@ try{
  assert.equal(await p.evaluate(()=>window.bodies.at(-1).conversation.message),'Tell me more','typed detail is an actual model message');
  assert.equal(await p.locator('[data-cova-local]').count(),0);
  report.checks.push('arbitrary and typed-detail follow-ups reach v4 transport with latest successful checked history');
+ await p.locator('.ask-cova-privacy summary').click();
  assert.match(await p.locator('[data-ask-cova]').innerText(),/Your message, recent Cova chat, and relevant saved account data, including notes, rules and Passport, are sent for AI responses\./);
  assert.equal(await button('Use AI for this review').count(),0);
  report.checks.push('nonblocking message/history/saved-data disclosure without provider branding or new consent');
@@ -67,7 +68,7 @@ try{
  await button('Clear conversation').click();await send('Hello after clear');
  assert.deepEqual(await p.evaluate(()=>window.bodies.at(-1).conversation),{message:'Hello after clear',history:[]});
  assert.equal(await p.evaluate(()=>Object.hasOwn(window.bodies.at(-1),'question')),false);
- await p.evaluate(()=>{const old=document.querySelector('.ask-cova-questions button');[...document.querySelectorAll('button')].find(n=>n.textContent==='Clear conversation').click();old.click();});
+ await p.evaluate(()=>{const old=document.querySelector('.ask-cova-questions button');[...document.querySelectorAll('button')].find(n=>n.getAttribute('aria-label')==='Clear conversation').click();old.click();});
  assert.equal(await p.locator('.ask-cova-exchange').count(),0);
  report.checks.push('Clear synchronously revokes retained callbacks and history; unknown first message has no finite topic hint');
  for(const change of [{ownerId:'22222222-2222-4222-8222-222222222222'},{account:'local'},{range:'today'},{trades:[]},{ready:false}]){

@@ -42,6 +42,7 @@ const browser=await chromium.launch({channel:'chrome',headless:true});const repo
 try{const c=await browser.newContext();await c.route('**/*',r=>{const u=new URL(r.request().url());const body=u.origin==='https://query.test'?(u.pathname==='/'?html:files.get(u.pathname)):undefined;if(body===undefined){report.unexpectedRequests.push(u.href);return r.abort();}return r.fulfill({body,contentType:u.pathname.endsWith('.js')?'text/javascript':u.pathname.endsWith('.css')?'text/css':'text/html'});});
 const p=await c.newPage();p.setDefaultTimeout(5000);p.on('pageerror',e=>report.errors.push(e.message));await p.goto('https://query.test');
 assert.deepEqual(await p.evaluate(()=>window.calls),[],'mount performs no context/generation read');
+await p.locator('.ask-cova-privacy summary').click();
 assert.match(await p.locator('[data-ask-cova]').innerText(),/relevant saved account data, including notes, rules and Passport/);
 report.checks.push('relevant saved-data disclosure; no data context fetch on mount');
 await p.getByRole('button',{name:'Review my results',exact:true}).click();await p.waitForFunction(()=>window.calls.length===1);await p.getByRole('button',{name:'Try again',exact:true}).waitFor();
@@ -84,7 +85,7 @@ for(const phase of ['ask_cova_context','ask_cova']){
  const before=await p.evaluate(()=>({calls:window.calls.length,finished:window.finished}));await p.getByRole('textbox',{name:'Message Cova'}).fill('Pending saved-data request');
  await p.evaluate(()=>{const button=document.querySelector('button[type=submit]');button.click();button.click();});await p.waitForFunction(()=>!!window.release);
  assert.equal(await p.evaluate(()=>window.calls.length),before.calls+1,'same-task duplicate Send cannot overlap');
- await p.evaluate(()=>{const old=document.querySelector('.ask-cova-questions button');[...document.querySelectorAll('button')].find(b=>b.textContent==='Clear conversation').click();old.click();});
+ await p.evaluate(()=>{const old=document.querySelector('.ask-cova-questions button');[...document.querySelectorAll('button')].find(b=>b.getAttribute('aria-label')==='Clear conversation').click();old.click();});
  assert.equal(await p.evaluate(()=>window.heldSignal.aborted),true);await p.evaluate(()=>{window.hold=undefined;window.release();});await p.waitForFunction(n=>window.finished>n,before.finished);
  assert.equal(await p.locator('[data-cova-answer]').count(),0);assert.equal(await p.evaluate(()=>window.calls.length),before.calls+1);
 }

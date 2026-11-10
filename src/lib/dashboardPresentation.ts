@@ -5,9 +5,9 @@ export function signedMoney(value: number, _cents = false, positiveSign = true) 
 }
 
 /** The same closed-trade ledger as risk.analyze, drawn without inventing values. */
-export function buildEquityGeometry(input: EquityPoint[], measuredWidth = 680) {
+export function buildEquityGeometry(input: EquityPoint[], measuredWidth = 680, compact = false) {
   const width = Number.isFinite(measuredWidth) && measuredWidth >= 240 ? measuredWidth : 680;
-  const height = width < 440 ? 210 : 290, left = 8, right = 65, top = 22, bottom = 30;
+  const height = compact ? 203 : width < 440 ? 210 : 290, left = compact ? 64 : 8, right = compact ? 12 : 65, top = compact ? 5 : 22, bottom = compact ? 32 : 30;
   const values = input.length ? input : [{ label: "Start", value: 0 }];
   let lowest = 0, highest = 1;
   for (const point of values) {
@@ -42,6 +42,6 @@ export function buildEquityGeometry(input: EquityPoint[], measuredWidth = 680) {
     }
   }
   const area = `${line} L${points[points.length - 1].x},${y(0)} L${left},${y(0)} Z`;
-  const ticks = [max, (max + min) / 2, min].map(value => ({ value, y: y(value) }));
+  const ticks = (compact ? [max, max - span / 4, (max + min) / 2, min + span / 4, min] : [max, (max + min) / 2, min]).map(value => ({ value, y: y(value) }));
   return { width, height, left, right, top, bottom, min, max, points, line, area, ticks, zeroY: y(0) };
 }

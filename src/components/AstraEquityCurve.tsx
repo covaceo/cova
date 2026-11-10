@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState, type PointerEvent, type MouseEvent, type KeyboardEvent, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useId, useMemo, useRef, useState, type PointerEvent, type MouseEvent, type KeyboardEvent, type CSSProperties } from "react";
 import { buildEquityGeometry, signedMoney } from "../lib/dashboardPresentation";
 
 type Point = { label: string; value: number };
@@ -10,7 +10,7 @@ function dateLabel(value: string) {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString("en-US", { month: "short", day: "2-digit", timeZone: "UTC" });
 }
 
-export function AstraEquityCurve({ points, basis = "trades", accountPnlCents = null }: { points: Point[]; basis?: "trades" | "daily-net"; accountPnlCents?: number | null }) {
+export function AstraEquityCurve({ points, basis = "trades", accountPnlCents = null, compact = false }: { compact?: boolean; points: Point[]; basis?: "trades" | "daily-net"; accountPnlCents?: number | null }) {
   const dailyNet = basis === "daily-net";
   const result = Number.isSafeInteger(accountPnlCents) ? Math.round((points[points.length - 1]?.value ?? 0) * 100) : null;
   const tone = result === null || result === 0 ? "neutral" : result < 0 ? "loss" : "profit";
@@ -18,7 +18,7 @@ export function AstraEquityCurve({ points, basis = "trades", accountPnlCents = n
   const svgRef = useRef<SVGSVGElement>(null);
   const tooltipRef = useRef<HTMLOutputElement>(null);
   const [width, setWidth] = useState(680);
-  const chart = useMemo(() => buildEquityGeometry(points, width), [points, width]);
+  const chart = useMemo(() => buildEquityGeometry(points, width, compact), [points, width, compact]);
   useEffect(() => {
     if (!svgRef.current || typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(entries => {
@@ -58,6 +58,22 @@ export function AstraEquityCurve({ points, basis = "trades", accountPnlCents = n
     tooltip.style.top = `${Math.max(top, Math.min(preferred, bottom - tooltip.offsetHeight)) - rect.top}px`;
   }, [active, tooltipTop, touchSelection]);
   const last = chart.points[chart.points.length - 1];
+  const endpointLabel = signedMoney(last.value);
+  const endpointText = useRef<SVGTextElement>(null);
+  const [endpointBox, setEndpointBox] = useState<{ width: number; height: number; y: number } | null>(null);
+  useLayoutEffect(() => {
+    if (!compact) return;
+    let cancelled = false;
+    const measure = () => {
+      if (cancelled || !endpointText.current?.isConnected) return;
+      const { width, height, y } = endpointText.current.getBBox();
+      if (width > 0 && height > 0) setEndpointBox({ width, height, y });
+    };
+    measure();
+    void document.fonts.ready.then(measure);
+    return () => { cancelled = true; };
+  }, [compact, endpointLabel, width]);
+  const endpointY = Math.max(chart.top + 5 - (endpointBox?.y ?? -15), Math.min(last.y - 22, chart.height - chart.bottom - 5 - ((endpointBox?.y ?? -15) + (endpointBox?.height ?? 18))));
   // Color and axis share the selected range's displayed $0 P&L baseline.
   // Account evidence gates availability only; older profits cannot recolor this range.
   const historicalCents = (value: number) => result === null ? null : Math.round(value * 100);
@@ -117,13 +133,17 @@ export function AstraEquityCurve({ points, basis = "trades", accountPnlCents = n
           {historyTone === "split" ? <><stop offset="0" stopColor="#52c79a" stopOpacity=".21" /><stop offset={boundary} stopColor="#52c79a" stopOpacity=".025" /><stop offset={boundary} stopColor="#e57c89" stopOpacity=".025" /><stop offset="1" stopColor="#e57c89" stopOpacity=".21" /></> : <><stop offset="0" stopColor={historicalAccent} stopOpacity={historyTone === "loss" ? ".025" : ".21"} /><stop offset="1" stopColor={historicalAccent} stopOpacity={historyTone === "loss" ? ".21" : "0"} /></>}
         </linearGradient>
       </defs>
-      {chart.ticks.map((tick, index) => <g key={index}><line x1={chart.left} x2={chart.width - chart.right} y1={tick.y} y2={tick.y} className="astra-chart-grid" /><text x={chart.width - chart.right + 12} y={tick.y + 3}>{tickMoney(tick.value)}</text></g>)}
-      {[0, .25, .5, .75, 1].map(fraction => <line key={fraction} x1={chart.left + fraction * (chart.width - chart.left - chart.right)} x2={chart.left + fraction * (chart.width - chart.left - chart.right)} y1={chart.top} y2={chart.height - chart.bottom} className="astra-chart-vertical" />)}
+      {chart.ticks.map((tick, index) => <g key={index}><line x1={chart.left} x2={chart.width - chart.right} y1={tick.y} y2={tick.y} className="astra-chart-grid" /><text x={compact ? chart.left - 12 : chart.width - chart.right + 12} textAnchor={compact ? 'end' : undefined} y={tick.y + (compact ? 5 : 3)}>{tickMoney(tick.value)}</text></g>)}
+      {compact ? <line className="astra-chart-axis" x1={chart.left} x2={chart.left} y1={chart.top} y2={chart.height - chart.bottom} /> : [0, .25, .5, .75, 1].map(fraction => <line key={fraction} x1={chart.left + fraction * (chart.width - chart.left - chart.right)} x2={chart.left + fraction * (chart.width - chart.left - chart.right)} y1={chart.top} y2={chart.height - chart.bottom} className="astra-chart-vertical" />)}
       {chart.min < 0 && <line x1={chart.left} x2={chart.width - chart.right} y1={chart.zeroY} y2={chart.zeroY} className="astra-chart-zero" />}
       <path d={chart.area} fill={`url(#${gradient})`} />
       <path className="dashboard-equity-path astra-curve" d={chart.line} fill="none" stroke={linePaint} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
       {chart.points.map((point, index) => <circle className="astra-observation" data-observation-index={index} key={index} cx={point.x} cy={point.y} r="2.5" fill={pointAccent(point.value)} stroke="#0c1118" strokeWidth="1" />)}
       <circle cx={last.x} cy={last.y} r="4" fill={pointAccent(last.value)} stroke={pointAccent(last.value)} strokeOpacity=".25" strokeWidth="5" />
+      {compact && <g transform={`translate(${last.x} ${endpointY})`} pointerEvents="none">
+        {endpointBox && <rect className="astra-chart-endpoint-badge" x={-endpointBox.width - 16} y={endpointBox.y - 5} width={endpointBox.width + 16} height={endpointBox.height + 10} rx="7" fill="#0f1011" stroke={pointAccent(last.value)} strokeOpacity=".65" strokeWidth="1" vectorEffect="non-scaling-stroke" />}
+        <text ref={endpointText} className="astra-chart-endpoint" x={-8} y={0} textAnchor="end" style={{ fill: pointAccent(last.value) }}>{endpointLabel}</text>
+      </g>}
       {dateIndices.map((index, position) => <text key={index} x={position === 0 ? chart.left : position === dateIndices.length - 1 ? chart.width - chart.right : chart.points[index].x} y={chart.height - 3} textAnchor={position === 0 ? "start" : position === dateIndices.length - 1 ? "end" : "middle"}>{dateLabel(chart.points[index].label)}</text>)}
 
       {active && <g aria-hidden="true"><line x1={active.x} x2={active.x} y1={chart.top} y2={chart.height - chart.bottom} className="astra-crosshair" /><circle cx={active.x} cy={active.y} r="4" fill="#e8eeff" /></g>}

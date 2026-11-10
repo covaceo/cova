@@ -819,7 +819,7 @@ function averageR(trades: Trade[]): number | null {
   return Number.isFinite(mean) ? mean : null;
 }
 
-function rMultiple(trade: Trade): number | null {
+export function rMultiple(trade: Trade): number | null {
   if (!hasPlannedRisk(trade)) return null;
   const value = trade.pnl / trade.risk;
   return Number.isFinite(value) ? value : null;
