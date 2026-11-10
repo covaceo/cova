@@ -17,7 +17,10 @@ import {chooseAccount as chooseAccountOriginal,accountValue} from './helpers/acc
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 process.chdir(root);
 const drawerMode=process.argv.includes('--drawer');
-const out=path.resolve(process.env.ASK_COVA_EVIDENCE_ROOT || path.resolve(root,drawerMode?'../left-sidebar-drawer-evidence/runs':'../ask-cova-panel-evidence/runs',new Date().toISOString().replaceAll(':','-')),'app'); // Each verification run preserves prior evidence.
+const workspaceMode=process.argv.includes('--workspace');
+const workspaceBaseline=path.resolve(process.env.WORKSPACE_BASELINE_ROOT || root);
+const baselineSource=rel=>workspaceBaseline===root?execFileSync('git',['show',`HEAD:${rel}`],{cwd:root,encoding:'utf8'}):readFileSync(path.join(workspaceBaseline,rel),'utf8');
+const out=path.resolve(process.env.ASK_COVA_EVIDENCE_ROOT || path.resolve(root,workspaceMode?'../workspace-consistency-evidence/runs':drawerMode?'../left-sidebar-drawer-evidence/runs':'../ask-cova-panel-evidence/runs',new Date().toISOString().replaceAll(':','-')),'app'); // Each verification run preserves prior evidence.
 mkdirSync(out,{recursive:true});
 const {defaultRules}=load('src/lib/risk.ts');
 const owner='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
@@ -32,7 +35,7 @@ const record=(kind,recordId,accountId,payload)=>({kind,recordId,accountId,schema
 const cloud=[...trades.map(t=>record('trade',t.id,t.manual.accountKey,t)),record('rules','current','all',{rules:defaultRules}),...Object.entries(names).map(([account,name])=>record('account',account,account,{name}))];
 const report={disclosure:'LOCAL FULL-APP PRODUCTION-MODE FIXTURE: synthetic manual USD records; mocked auth, saved-cloud snapshot, profile and provider AUTHORED ANSWER. Real App, canonical entry/CSS, workspace sync, client transport and shared deterministic core. No provider/backend execution, paid calls, customer records, credentials or deployment.',base:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),samples:[...trades,euroTrade],sourceHashes:{},builds:[],checks:[],failures:[],errors:[],externalBlocked:[],requests:[],screenshots:[],measurements:[],comparisons:[]};
 const hashFile=file=>createHash('sha256').update(readFileSync(file)).digest('hex');
-for(const f of ['src/App.tsx','src/components/DashboardView.tsx','src/components/AskCova.tsx','src/components/TradeHistoryDialog.tsx','src/lib/askCova.ts','src/lib/askCovaClient.ts','src/lib/askCovaIntent.ts','src/styles/askCova.css','src/main.tsx','scripts/ask-cova-app-browser.mjs',...(drawerMode?['scripts/workspace-drawer-browser.mjs']:[]),'scripts/helpers/load-ts.cjs','scripts/helpers/account-picker.mjs'])report.sourceHashes[f]=hashFile(path.join(root,f));
+for(const f of ['src/App.tsx','src/components/DashboardView.tsx','src/components/AskCova.tsx','src/components/TradeHistoryDialog.tsx','src/lib/askCova.ts','src/lib/askCovaClient.ts','src/lib/askCovaIntent.ts','src/styles/askCova.css','src/main.tsx','scripts/ask-cova-app-browser.mjs',...(drawerMode?['scripts/workspace-drawer-browser.mjs']:[]),...(workspaceMode?['scripts/workspace-consistency-browser.mjs','scripts/workspace-consistency-interactions.mjs','scripts/helpers/workspace-evidence-guard.mjs']:[]),'scripts/helpers/load-ts.cjs','scripts/helpers/account-picker.mjs'])report.sourceHashes[f]=hashFile(path.join(root,f));
 report.buildSourceHashes={};report.baselineSourceHashes={};
 const save=()=>writeFileSync(path.join(out,'results.json'),JSON.stringify(report,null,2));
 function check(name,condition,detail){(condition?report.checks:report.failures).push({name,...(detail===undefined?{}:{detail})});save();return condition;}
@@ -54,12 +57,12 @@ function isolation(variant){return {name:'ask-cova-full-app-isolation',enforce:'
  }
  if(rel==='src/lib/supabaseClient.ts')return readFileSync(id,'utf8').replace('export function getSupabaseClient() {','function unusedRealSupabaseClient() {').replace('export function getSupabaseAuthSessionId(accessToken: string)','function unusedRealSessionId(accessToken: string)')+'\nexport const getSupabaseAuthSessionId=()=>"qa-session";export const getSupabaseClient=()=>({auth:{getSession:async()=>({data:{session:window.__qaSession}}),onAuthStateChange:()=>({data:{subscription:{unsubscribe(){}}}}),signOut:async()=>({error:null})}});';
  if(rel==='src/lib/profileRepository.ts')return `export const createProfileRepository=()=>({load:async(user_id)=>({user_id,username:'sample_review',avatar_data:null,username_changed_at:'2020-01-01T00:00:00Z'}),save:async()=>{throw Error('Read-only isolated fixture')}});`;
- if(variant==='baseline'&&(baselineFiles.includes(rel)||(drawerMode&&rel==='src/styles/askCovaPanel.css'))){const source=execFileSync('git',['show',`HEAD:${rel}`],{cwd:root,encoding:'utf8'});report.baselineSourceHashes[rel]=createHash('sha256').update(source).digest('hex');report.buildSourceHashes[variant][rel]=report.baselineSourceHashes[rel];return source;}
- },transformIndexHtml(){return [{tag:'div',attrs:{id:'qa-disclosure',style:'position:fixed;bottom:0;left:0;right:0;z-index:2147483647;pointer-events:none;padding:5px 12px;background:#202020;color:#eee;font:12px/1.5 sans-serif;text-align:center;overflow-wrap:anywhere'},children:fixtureLabel,injectTo:'body-prepend'}];}};}
+ if(variant==='baseline'&&((workspaceMode&&rel.startsWith('src/')&&/\.(tsx?|css|json)$/.test(rel))||baselineFiles.includes(rel)||(drawerMode&&rel==='src/styles/askCovaPanel.css'))){const source=baselineSource(rel);report.baselineSourceHashes[rel]=createHash('sha256').update(source).digest('hex');report.buildSourceHashes[variant][rel]=report.baselineSourceHashes[rel];return source;}
+ },transform(code,id){if(workspaceMode&&id.replaceAll('\\','/').endsWith('/src/components/OAuthConnectPage.tsx'))return code.replace('const devProviderPreview = isLocalPreview() && firm.id !== "other";', 'const devProviderPreview = !window.__workspaceUnavailable && isLocalPreview() && firm.id !== "other";');},transformIndexHtml(){return [{tag:'div',attrs:{id:'qa-disclosure',style:'position:fixed;bottom:0;left:0;right:0;z-index:2147483647;pointer-events:none;padding:5px 12px;background:#202020;color:#eee;font:12px/1.5 sans-serif;text-align:center;overflow-wrap:anywhere'},children:fixtureLabel,injectTo:'body-prepend'}];}};}
 let browser,server,core;
 try{
- for(const variant of (drawerMode ? ['enabled','baseline'] : (process.argv.includes('--panel') || process.argv.includes('--visual')) ? ['enabled'] : ['enabled','disabled','baseline'])){
-  await build({root,base:'/',configFile:false,envDir:false,logLevel:'error',plugins:[isolation(variant),react()],define:{'import.meta.env.VITE_WORKSPACE_SYNC_ENABLED':'"true"','import.meta.env.VITE_ASK_COVA_ENABLED':JSON.stringify((variant==='enabled'||drawerMode)?'true':'false')},build:{outDir:path.join(out,'site',variant),emptyOutDir:true}});
+ for(const variant of ((drawerMode||workspaceMode) ? ['enabled','baseline'] : (process.argv.includes('--panel') || process.argv.includes('--visual')) ? ['enabled'] : ['enabled','disabled','baseline'])){
+  await build({root,base:'/',configFile:false,envDir:false,logLevel:'error',plugins:[isolation(variant),react()],define:{'import.meta.env.VITE_WORKSPACE_SYNC_ENABLED':'"true"','import.meta.env.VITE_ASK_COVA_ENABLED':JSON.stringify((variant==='enabled'||drawerMode||workspaceMode)?'true':'false')},build:{outDir:path.join(out,'site',variant),emptyOutDir:true}});
   report.builds.push({variant,mode:'production',entry:'index.html -> src/main.tsx -> actual App',canonicalCSS:true,envFiles:false});save();
  }
  const coreEntry=path.join(root,'__query_app_core__.ts');await build({root,configFile:false,envDir:false,logLevel:'error',plugins:[{name:'query-core-fixture',resolveId(id){if(id.endsWith('__query_app_core__.ts'))return coreEntry;},load(id){if(id===coreEntry)return ['askCovaData','askCovaQuery','askCovaQueryAnswer'].map(name=>`export * from '${path.join(root,'src/lib',name+'.ts').replaceAll('\\','/')}';`).join('\n');}}],build:{ssr:coreEntry,outDir:path.join(out,'core'),emptyOutDir:true,rollupOptions:{output:{entryFileNames:'ask-core.mjs'}}}});
@@ -71,13 +74,14 @@ try{
  browser=await chromium.launch({channel:'chrome',headless:true});
  async function open({variant='enabled',width=1440,plan='pro',local=false,euro=false,scenario=''}={}){
   const id=`${variant}-${plan}-${local?'browser':'saved'}-${width}${euro?'-eur':''}${scenario?'-'+scenario:''}`;
-  const scenarioTrades=euro?[...trades,euroTrade]:trades;
-  const scenarioCloud=euro?[...cloud,record('trade',euroTrade.id,euroAccount,euroTrade)]:scenario==='visual-match-populated'?[...cloud,record('daily_note',JSON.stringify(['local','2026-10-30']),'local',{date:'2026-10-30',note:'Reviewed the saved pullback trades. Kept size at one contract and noted the losing session for review.',tradeId:null})]:cloud;
+  const scenarioTrades=scenario==='workspace-empty'?[]:euro?[...trades,euroTrade]:trades;
+  const scenarioCloud=scenario==='workspace-empty'?cloud.filter(r=>r.kind!=='trade'):euro?[...cloud,record('trade',euroTrade.id,euroAccount,euroTrade)]:scenario==='visual-match-populated'?[...cloud,record('daily_note',JSON.stringify(['local','2026-10-30']),'local',{date:'2026-10-30',note:'Reviewed the saved pullback trades. Kept size at one contract and noted the losing session for review.',tradeId:null})]:cloud;
   const context=await browser.newContext({viewport:{width,height:width<768?844:1000},deviceScaleFactor:1,isMobile:width<768,hasTouch:width<768,reducedMotion:'reduce',timezoneId:'UTC',locale:'en-US',// No app service-worker registration exists; routing blocks all external requests.
    acceptDownloads:false});
   const state={id,asks:[],capabilities:[],writes:[],api:[],context,variant,width,plan,local};
-  await context.addInitScript(({owner,plan,local,trades,defaultRules,names,stamp})=>{
+  await context.addInitScript(({owner,plan,local,trades,defaultRules,names,stamp,scenario})=>{
    if(location.origin==='null')return;
+   window.__workspaceUnavailable=scenario==='oauth-unavailable';
    window.__qaSession={user:{id:owner,email:'ask-fixture@example.invalid',app_metadata:{plan}},access_token:'synthetic-qa-token'};
    if(sessionStorage.getItem('ask-fixture-seeded'))return;
    sessionStorage.setItem('ask-fixture-seeded','true');
@@ -86,7 +90,7 @@ try{
    localStorage.setItem('cova-react-risk-os-v2:'+owner,JSON.stringify({trades,rules:defaultRules,tradeAccount:'local'}));
    localStorage.setItem('cova-workspace-aux-v1:'+owner,JSON.stringify({version:1,names,notes:{},cash:{}}));
    localStorage.setItem('cova-dashboard-range-v1','all');
-  },{owner,plan,local,trades:scenarioTrades,defaultRules,names,stamp});
+  },{owner,plan,local,trades:scenarioTrades,defaultRules,names,stamp,scenario});
   await context.route('**/*',async route=>{
    const req=route.request(),url=new URL(req.url());
    if(url.origin!==origin){report.externalBlocked.push({id,url:url.href});return route.abort();}
@@ -139,7 +143,7 @@ try{
   check(id+' actual Risk Desk route',new URL(page.url()).hash==='#dashboard'&&await page.getByRole('heading',{name:'Risk Desk',exact:true}).isVisible());
   check(id+' actual auth plan retained',await page.evaluate(()=>JSON.parse(localStorage.getItem('cova-auth-session-v1')).plan)===plan);
   // Approved relocation: full legacy workflows deliberately open the eligible launcher.
-  if(variant==='enabled'&&!drawerMode&&!process.argv.includes('--panel')&&!process.argv.includes('--visual'))await page.getByRole('button',{name:'Ask Cova',exact:true}).click();
+  if(variant==='enabled'&&!drawerMode&&!workspaceMode&&!process.argv.includes('--panel')&&!process.argv.includes('--visual'))await page.getByRole('button',{name:'Ask Cova',exact:true}).click();
   return state;
  }
  async function withWorkspace(page,action){
@@ -155,7 +159,7 @@ try{
   s.releaseHeld?.();
   const known=s.writes.filter(w=>w.url==='/api/passport'&&w.body===JSON.stringify({action:'plan',limits:{maxDailyLoss:2500,maxTradeLoss:1600,maxContracts:5,maxLossStreak:3},owner}));
   check(s.id+' no new writes beyond HEAD plan-sync attempt',s.writes.length===known.length&&known.length===(s.expectedPlanWrites ?? (s.local?0:1)),s.writes);
-  check(s.id+' exact discovery count',s.capabilities.length===((s.variant==='enabled'||drawerMode)?1:0),s.capabilities);
+  check(s.id+' exact discovery count',s.capabilities.length===((s.variant==='enabled'||drawerMode||workspaceMode)?1:0),s.capabilities);
   report.requests.push({id:s.id,api:s.api,capabilities:s.capabilities,asks:s.asks,blockedBaselinePlanWrites:known});await s.context.close();save();
  }
  async function screenshot(s,label,selector){await s.page.mouse.move(0,0);await s.page.waitForTimeout(200);
@@ -218,7 +222,10 @@ try{
   await p.keyboard.press('Escape');await dialog.waitFor({state:'detached'});await p.waitForTimeout(50);
   check(s.id+' close restores '+(alreadyOpen?'composer':'Show trades')+' focus',await show.evaluate(el=>document.activeElement===el));
  }
- if(drawerMode) {
+ if(workspaceMode) {
+  const {runWorkspaceChecks}=await import('./workspace-consistency-browser.mjs');
+  await runWorkspaceChecks({open,finish,check,screenshot,report,out});
+ } else if(drawerMode) {
   const {runDrawerChecks}=await import('./workspace-drawer-browser.mjs');
   await runDrawerChecks({open,finish,check,screenshot,report,out});
  } else if(process.argv.includes('--visual')) {

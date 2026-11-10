@@ -341,7 +341,7 @@ test('Passport workspace binds one Standard engraved card to the current review 
     let tree = h.render();
     const initial = text(tree);
     assert.ok(initial.includes('class="passport-workspace"'), 'The route needs its own scoped compact workspace wrapper');
-    assert.match(initial, /section-shell-title[^>]*>Passport<\/h2>/);
+    assert.match(initial, /section-shell-title[^>]*>Passport<\/h1>/);
     assert.ok(initial.includes('Back to review'));
     assert.doesNotMatch(initial, /passport-credential-card|passport-share-rail|passport-export-list|passport-privacy-list/);
     await h.flush(); tree = h.render();

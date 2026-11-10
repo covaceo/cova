@@ -1,3 +1,4 @@
+import { WorkspaceMenuButton } from "./WorkspaceShell";
 import { LandingStarfield } from "./landing/LandingStarfield";
 import "../styles/landingContinuity.css";
 import "../styles/publicPageSky.css";
@@ -22,6 +23,7 @@ export function SectionShell({
   variant = "editorial",
 }: SectionShellProps) {
   const isWorkspace = variant === "workspace";
+
   return (
     <section className={`deferred-paint-section relative min-h-screen overflow-hidden px-5 md:px-12 lg:px-20 ${isWorkspace ? "section-shell-workspace pb-16 pt-28 md:pt-28" : "pb-16 pt-28 md:pb-24 md:pt-36"}`}>
       {backdrop}
@@ -37,13 +39,7 @@ export function SectionShell({
                 {eyebrow}
               </span>
             )}
-            <h2
-              className={isWorkspace
-                ? "section-shell-title section-shell-title-workspace max-w-3xl break-words font-body text-4xl font-semibold leading-[0.96] tracking-[-0.055em] text-white md:text-5xl lg:text-6xl"
-                : "section-shell-title section-shell-title-editorial max-w-[10ch] break-words text-[42px] leading-[0.98] md:max-w-none md:text-8xl"}
-            >
-              {title}
-            </h2>
+            {isWorkspace ? <div className="workspace-page-title"><h1 className="section-shell-title section-shell-title-workspace">{title}</h1><WorkspaceMenuButton /></div> : <h2 className="section-shell-title section-shell-title-editorial max-w-[10ch] break-words text-[42px] leading-[0.98] md:max-w-none md:text-8xl">{title}</h2>}
           </div>
           {action && <div className="justify-self-start md:justify-self-end">{action}</div>}
         </div>

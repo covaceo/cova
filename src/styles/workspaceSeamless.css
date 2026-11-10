@@ -1,0 +1,157 @@
+/* Risk Desk is the visual authority. Scope excludes its approved canvas, cards and Ask Cova. */
+html:root:root .oa-dashboard-app .oa-dashboard-shell:not([data-workspace-section="dashboard"]) {
+ & :is(.section-shell-workspace,.passport-workspace > .deferred-paint-section,.oauth-connection) { padding:0!important; min-height:0!important; background:transparent!important; overflow:visible; }
+ & .section-shell-content { max-width:none!important; }
+ & .section-shell-heading { min-height:50px; margin:0 0 32px!important; align-items:start; gap:22px; }
+ & .section-shell-kicker-workspace { display:none; }
+ & .workspace-page-title h1 { max-width:none!important; font:500 38px/48px Inter,Arial,sans-serif!important; letter-spacing:-.025em!important; }
+ & .section-shell-heading [data-account-switcher] { width:210px; margin-top:7px; }
+ & :is(.li-panel,.ip-workbench > article,.manual-accounts,.accounts-platform,.passport-utility-controls) { border:0!important; background:transparent!important; box-shadow:none!important; border-radius:0!important; padding:0!important; }
+ & :is(.li-page h2,.manual-accounts-heading h3,.accounts-csv-row h3,.passport-identity h2) { font:500 23px/29px Inter,Arial,sans-serif!important; letter-spacing:-.015em!important; }
+ & :is(.limits-main,.accounts-page) { gap:32px; }
+ & .limits-layout { grid-template-columns:minmax(0,1fr); }
+ & .limits-main { max-width:none; }
+ & .limits-about { max-width:760px; }
+ & .limits-panel-heading { margin-bottom:8px; }
+ & .limits-rules { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 44px; }
+ & .limits-rule { padding:20px 0 0; border-color:#ffffff20; }
+ & .limits-rule-copy h3 { font-size:16px; font-weight:400; }
+ & .limits-value { background:#1b1e24; border-color:#3b414c; border-radius:6px; height:40px; }
+ & .limits-value input { background:transparent!important; border:0!important; border-radius:0!important; box-shadow:none!important; min-height:0; padding:0!important; font:500 20px/28px Inter,Arial,sans-serif; font-variant-numeric:tabular-nums; }
+ & .limits-advanced { border-top:1px solid #ffffff20!important; padding-top:20px!important; }
+ & .limits-advanced > summary strong { font:500 23px/29px Inter,Arial,sans-serif; letter-spacing:-.015em; }
+ & .limits-rule-status, & .limits-unit { color:#b8bac2; }
+ & .insights-preview { --ip-surface:transparent; --ip-raised:#1b1e24; --ip-selected:#1b1e24; --ip-line:#ffffff20; --ip-muted:#b8bac2; --ip-accent:#5287ff; }
+ & .ip-workbench { gap:44px; }
+ & .ip-questions { margin-bottom:28px; }
+ & .ip-question { font-size:16px; font-weight:400; }
+ & .ip-setup-choice { padding:16px 12px; }
+ & .ip-setup-identity strong { font-size:16px; font-weight:400; }
+ & .ip-r-value { font-size:36px; font-weight:500; }
+ & .ip-setup-choice[aria-pressed=true] { border-color:#60636a; }
+ & .ip-note blockquote { font-size:20px; line-height:1.5; letter-spacing:-.015em; }
+ & .accounts-platforms { border-radius:0; background:transparent; gap:28px; overflow:visible; }
+ & .manual-account-row { padding:16px 0; border:0; border-bottom:1px solid #ffffff20; border-radius:0; background:transparent; }
+ & .manual-account-copy h4 { font-size:16px; font-weight:400; }
+ & .manual-account-copy span, & .accounts-platform > p { color:#b8bac2; font-size:14px; }
+ & .accounts-platform { padding-bottom:24px!important; }
+ & .accounts-connections { border-top:1px solid #ffffff20; padding-top:24px; }
+ & .passport-utility { max-width:none; margin:0; }
+ & .passport-utility-layout { gap:44px; }
+ /* Never select the card, its optical layers or export renderer here. */
+ & :is(.passport-workspace-stage,.session-progression,.session-reward) { background:transparent; box-shadow:none; border:0; border-radius:0; }
+ & .session-progression { padding:24px 0; }
+ & .session-reward { padding:20px 0; border-top:1px solid #ffffff20; }
+ & .level-emblem { background:#292b30; }
+ & .level-emblem::before { background:#191919; }
+ & .level-meter { background:#292b30; box-shadow:none; }
+ & .level-meter > span { background:#0055ff; box-shadow:none; }
+ & .passport-workspace-detail { background:transparent!important; }
+ & .passport-workspace-stats { gap:24px; }
+ & .passport-workspace-stats > div { padding:0; border:0; border-radius:0; background:transparent; font-variant-numeric:tabular-nums; }
+ & .passport-workspace-stats span { font:400 13px/20px Inter,Arial,sans-serif; color:#b8bac2; }
+ & .passport-workspace-stats strong { font:500 24px/32px Inter,Arial,sans-serif!important; }
+ & .passport-ledger-panel { background:transparent!important; border:0!important; padding-inline:0; }
+ & .passport-workspace-detail > summary { padding-inline:0; }
+ & .passport-utility-controls fieldset { margin-top:0; }
+ & .passport-utility-controls :is(label,legend,.passport-workspace-mode-note,.passport-workspace-file-note) { color:#b8bac2; font-size:13px; }
+ & .passport-workspace-modes button[aria-pressed=true] { border-color:#6cb9ff!important; color:#88c7ff!important; background:transparent!important; }
+ & .passport-utility-controls select { border:1px solid #3b414c; border-radius:6px; background:#1b1e24; }
+ & .oauth-page-title { margin-bottom:32px; }
+ & .oauth-connection > .pointer-events-none, & .oauth-connection .absolute { display:none; }
+ & .oauth-connection > .grid { max-width:none; gap:44px; grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr); }
+ & .oauth-connection :is(.auth-connection-panel,.oauth-summary-content,.oauth-provider-card) { background:transparent!important; border:0!important; border-radius:0!important; box-shadow:none!important; padding:0!important; min-height:0!important; }
+ & .oauth-connection .oauth-summary-content > .relative { min-height:0; gap:28px; }
+ & .oauth-connection :is(h2,h3) { font:500 23px/29px Inter,Arial,sans-serif!important; letter-spacing:-.015em!important; margin-top:16px; }
+ & .oauth-connection :is(.font-mono,.uppercase) { font-family:Inter,Arial,sans-serif!important; letter-spacing:0!important; text-transform:none!important; }
+ & .oauth-connection .uppercase { text-transform:none; letter-spacing:0; font-size:13px; color:#b8bac2; }
+ & .oauth-connection [class*="rounded-"]:not(button):not(input) { border-radius:0; background:transparent; box-shadow:none; }
+ & .oauth-connection .oauth-summary-content > .relative > .grid > div { border:0; padding:12px 0; }
+ & .oauth-unavailable { max-width:760px; margin:0; }
+}
+html:root:root:has(.oa-dashboard-shell:not([data-workspace-section="dashboard"])) {
+ & :is(.li-button,.accounts-button,.passport-utility-controls button,.session-progression button,.oauth-connection button,.cova-profile-dialog button,.workspace-search-dialog button,.workspace-menu-close,.cova-account-menu-trigger) {
+  display:inline-flex; align-items:center; justify-content:center; position:relative; box-sizing:border-box;
+  min-height:36px!important; height:36px!important; gap:7px!important; padding:0 12px!important;
+  font:500 13px/18px Inter,Arial,sans-serif!important; letter-spacing:0!important;
+  border:1px solid #3b414c!important; border-radius:6px!important; background:#1b1e24!important; background-image:none!important;
+  color:#e5eaf2!important; box-shadow:none!important; text-shadow:none!important; cursor:pointer;
+ }
+ & :is(.li-button-primary,.accounts-button-primary,.passport-workspace-share,.oauth-connection .cova-button-primary) { background:#0055ff!important; border-color:#0055ff!important; color:white!important; }
+ & :is(.li-button-quiet,.manual-account-actions .accounts-button,.cova-account-menu-trigger) { background:transparent!important; border-color:transparent!important; }
+ & :is(.li-button,.accounts-button,.passport-utility-controls button,.oauth-connection button):enabled:hover { border-color:#657080!important; }
+ & :is(.li-button,.accounts-button,.passport-utility-controls button):disabled { opacity:1!important; color:#a9b7ce!important; cursor:not-allowed; }
+ & :is(.li-page,.accounts-page,.passport-utility-controls,.oauth-connection,.utility-dialog) :is(button,summary,input,select):focus-visible { outline:2px solid #92b7ff!important; outline-offset:3px; }
+ & .cova-account-menu-trigger { justify-content:flex-start!important; }
+ & .cova-account-menu-trigger span { font:400 13px/18px Inter,Arial,sans-serif!important; }
+ & :is(.li-header,.section-shell-heading) .cova-account-menu-trigger { font-size:16px!important; font-weight:400!important; }
+ & .cova-profile-dialog button[aria-label^="Close "] { width:36px!important; min-width:36px!important; padding:0!important; background:transparent!important; border-color:transparent!important; color:#b5bfce!important; }
+ & .utility-dialog { margin:auto!important; background:#191919; border:1px solid #353535; border-radius:12px; color:#f0f3fa; }
+ & .accounts-csv-dialog .accounts-panel { padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; }
+ & .utility-dialog::backdrop { backdrop-filter:none; background:#0009; }
+ & .utility-dialog-heading :is(h2,h3) { font:500 23px/29px Inter,Arial,sans-serif; letter-spacing:-.015em; }
+}
+@media(min-width:601px) {
+ html:root:root:has(.oa-dashboard-shell:not([data-workspace-section="dashboard"])) .li-button.ip-back-setups { display:none; }
+}
+@media(max-width:1100px) {
+ html:root:root .oa-dashboard-app .oa-dashboard-shell:not([data-workspace-section="dashboard"]) {
+  & .oauth-connection > .grid { grid-template-columns:minmax(0,1fr); }
+ }
+}
+@media(max-width:850px) {
+ html:root:root .oa-dashboard-app .oa-dashboard-shell:not([data-workspace-section="dashboard"]) {
+  & .workspace-page-title h1 { font-size:28px!important; line-height:32.2px!important; font-weight:600!important; letter-spacing:-.035em!important; }
+  & .limits-rules { grid-template-columns:minmax(0,1fr); }
+  & :is(.li-page h2,.manual-accounts-heading h3,.accounts-csv-row h3,.passport-identity h2) { font-size:22px!important; }
+  & .ip-workbench { gap:28px; }
+ }
+}
+@media(max-width:620px) {
+ html:root:root .oa-dashboard-app .oa-dashboard-shell:not([data-workspace-section="dashboard"]) {
+  & .section-shell-heading [data-account-switcher] { width:100%; }
+  & .section-shell-heading > div { width:100%; }
+  & .ip-question { font-size:13px; }
+  & .ip-r-value { font-size:30px; }
+  & .passport-utility-layout { gap:28px; }
+ }
+ html:root:root:has(.oa-dashboard-shell:not([data-workspace-section="dashboard"])) :is(.li-button,.accounts-button,.passport-utility-controls button,.oauth-connection button) { min-height:44px!important; height:auto!important; }
+ html:root:root:has(.oa-dashboard-shell:not([data-workspace-section="dashboard"])) .cova-account-menu-trigger::after { content:""; position:absolute; inset:-5px 0; pointer-events:auto; }
+}
+
+html:root:root .oa-dashboard-app .oa-dashboard-shell:not([data-workspace-section="dashboard"]) {
+ --workspace-ink:#f0f3fa; --workspace-muted:#b8bac2; --workspace-line:#ffffff20;
+ & .astra-workspace-page { max-width:none; padding:10px 20px 40px 40px; }
+ & .li-page { max-width:none; margin:0; padding:0; --li-ink:var(--workspace-ink); --li-muted:var(--workspace-muted); }
+ & .workspace-storage-required { max-width:none; padding:0; }
+ & .workspace-storage-required .workspace-page-title { margin-bottom:32px; }
+ & .workspace-storage-required h2 { font:500 23px/29px Inter,Arial,sans-serif; letter-spacing:-.015em; margin:0 0 16px; }
+ & .workspace-storage-required > button { background:#1b1e24; border:1px solid #3b414c; border-radius:6px; color:#e5eaf2; font:500 13px/18px Inter,Arial,sans-serif; }
+ & .workspace-storage-required .workspace-menu-trigger { margin:0; }
+ & .workspace-page-title { display:flex; align-items:center; gap:14px; margin-left:-4px; min-height:50px; }
+ & .workspace-page-title h1 { margin:0; padding:0; font:500 38px/48px Inter,Arial,sans-serif; letter-spacing:-.025em; color:var(--workspace-ink); }
+ & .li-header { min-height:50px; align-items:flex-start; margin:0 0 32px; gap:22px; }
+ & .li-header p { margin-top:6px; font-size:14px; color:var(--workspace-muted); }
+ & .li-header [data-account-switcher] { width:210px; margin-top:7px; }
+}
+@media(min-width:851px) {
+ html:root:root .oa-dashboard-app .oa-dashboard-shell:not([data-workspace-section="dashboard"]) {
+  & .workspace-menu-trigger { display:inline-flex!important; align-items:center; justify-content:center; padding:8px!important; width:36px; height:36px; min-width:36px; color:#b9bbc1; background:transparent!important; border:0!important; }
+  & .workspace-menu-trigger svg { width:20px; height:20px; }
+  /* The longest workspace title and its trigger finish before this quiet notice. */
+  & .workspace-sync-compact { left:340px; top:16px; }
+ }
+}
+@media(max-width:850px) {
+ html:root:root .oa-dashboard-app .oa-dashboard-shell:not([data-workspace-section="dashboard"]) {
+  & .astra-workspace-page { padding:80px 20px 32px; }
+  & .workspace-page-title { margin-left:0; }
+  & .workspace-page-title h1 { font-size:28px; line-height:32.2px; font-weight:600; letter-spacing:-.035em; }
+ }
+}
+@media(max-width:620px) {
+ html:root:root .oa-dashboard-app .oa-dashboard-shell:not([data-workspace-section="dashboard"]) {
+  & .astra-workspace-page { padding-inline:16px; }
+  & .li-header [data-account-switcher] { width:100%; margin-top:0; }
+ }
+}

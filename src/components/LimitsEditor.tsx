@@ -3,6 +3,7 @@ import { ArrowUpRight, ChevronDown, LockKeyhole } from "lucide-react";
 import { type RiskRule } from "../lib/risk";
 import type { RulesEngine } from "./WorkspaceSections";
 import "../styles/limitsEditor.css";
+import { WorkspaceMenuButton } from "./WorkspaceShell";
 
 type LimitsEditorProps = ComponentProps<typeof RulesEngine>;
 
@@ -137,7 +138,7 @@ export function LimitsEditor({ entitlements, rules, setRules, upgradeToPro, acco
 
   return (
     <section className="li-page limits-preview" aria-labelledby={`${id}-title`}>
-      <header className="li-header"><div className="li-header-copy"><h1 id={`${id}-title`}>Limits</h1><p>Set limits to check against your trades.</p></div>{accountControl}</header>
+      <header className="li-header"><div className="li-header-copy"><div className="workspace-page-title"><h1 id={`${id}-title`}>Limits</h1><WorkspaceMenuButton /></div><p>Set limits to check against your trades.</p></div>{accountControl}</header>
       <div className="limits-layout">
         <div className="limits-main">
           <section className="li-panel limits-core" aria-labelledby={`${id}-core`}>

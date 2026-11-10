@@ -72,7 +72,7 @@ import { PassportPlanSync } from "./components/PassportProgress";
 import { Navbar } from "./components/Navbar";
 import { OAuthConnectPage } from "./components/OAuthConnectPage";
 import { Toast } from "./components/Toast";
-import { WorkspaceShell } from "./components/WorkspaceShell";
+import { WorkspaceShell, WorkspaceMenuButton } from "./components/WorkspaceShell";
 import type { WorkspaceSearchHandle } from "./components/WorkspaceSearch";
 import { BillingProvider, openBilling } from "./components/Billing";
 import { UserProfileProvider } from "./components/UserProfile";
@@ -1495,7 +1495,8 @@ export default function App() {
               {section === "coach" && <Coach analysis={analysis} entitlements={entitlements} go={go} upgradeToPro={upgradeToPro} accountControl={tradeAccounts.some(account => account !== "local") ? <div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={accountMenuAccounts} value={tradeAccount} onChange={selectTradeAccount} /></div> : undefined} />}
               {section === "passport" && !workspaceSync.canPublishPlan && (
                 <section className="workspace-storage-required" aria-labelledby="passport-storage-title">
-                  <h1 id="passport-storage-title">Account storage is needed for Passport</h1>
+                  <div className="workspace-page-title"><h1>Passport</h1><WorkspaceMenuButton /></div>
+                  <h2 id="passport-storage-title">Account storage is needed for Passport</h2>
                   <p>Your Risk Desk still works in browser-only mode. Review account storage to use your saved Passport.</p>
                   <button type="button" onClick={() => void workspaceSync.reload()}>Review account storage</button>
                   <button type="button" onClick={() => go("dashboard")}>Back to Risk Desk</button>
