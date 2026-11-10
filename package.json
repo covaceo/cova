@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test:workspace-drawer": "node scripts/ask-cova-app-browser.mjs --drawer",
     "test:ask-cova-panel": "node scripts/ask-cova-app-browser.mjs --panel",
     "test:ask-cova-visual": "node --test scripts/ask-cova-reference-geometry-regression.mjs && node scripts/ask-cova-endpoint-browser.mjs && node scripts/ask-cova-app-browser.mjs --visual",
     "test:search-rail-visuals": "node scripts/search-rail-visuals-browser.mjs",
