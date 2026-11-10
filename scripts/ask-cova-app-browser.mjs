@@ -35,7 +35,7 @@ const record=(kind,recordId,accountId,payload)=>({kind,recordId,accountId,schema
 const cloud=[...trades.map(t=>record('trade',t.id,t.manual.accountKey,t)),record('rules','current','all',{rules:defaultRules}),...Object.entries(names).map(([account,name])=>record('account',account,account,{name}))];
 const report={disclosure:'LOCAL FULL-APP PRODUCTION-MODE FIXTURE: synthetic manual USD records; mocked auth, saved-cloud snapshot, profile and provider AUTHORED ANSWER. Real App, canonical entry/CSS, workspace sync, client transport and shared deterministic core. No provider/backend execution, paid calls, customer records, credentials or deployment.',base:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),samples:[...trades,euroTrade],sourceHashes:{},builds:[],checks:[],failures:[],errors:[],externalBlocked:[],requests:[],screenshots:[],measurements:[],comparisons:[]};
 const hashFile=file=>createHash('sha256').update(readFileSync(file)).digest('hex');
-for(const f of ['src/App.tsx','src/components/DashboardView.tsx','src/components/AskCova.tsx','src/components/TradeHistoryDialog.tsx','src/lib/askCova.ts','src/lib/askCovaClient.ts','src/lib/askCovaIntent.ts','src/styles/askCova.css','src/main.tsx','scripts/ask-cova-app-browser.mjs',...(drawerMode?['scripts/workspace-drawer-browser.mjs']:[]),...(workspaceMode?['scripts/workspace-consistency-browser.mjs','scripts/workspace-consistency-interactions.mjs','scripts/helpers/workspace-evidence-guard.mjs']:[]),'scripts/helpers/load-ts.cjs','scripts/helpers/account-picker.mjs'])report.sourceHashes[f]=hashFile(path.join(root,f));
+for(const f of ['src/App.tsx','src/components/DashboardView.tsx','src/components/AskCova.tsx','src/components/TradeHistoryDialog.tsx','src/lib/askCova.ts','src/lib/askCovaClient.ts','src/lib/askCovaIntent.ts','src/styles/askCova.css','src/main.tsx','scripts/ask-cova-app-browser.mjs',...(drawerMode?['scripts/workspace-drawer-browser.mjs']:[]),...(workspaceMode?['scripts/workspace-consistency-browser.mjs','scripts/workspace-framing-browser.mjs','scripts/workspace-framing-stress.mjs','scripts/workspace-consistency-interactions.mjs','scripts/helpers/workspace-evidence-guard.mjs']:[]),'scripts/helpers/load-ts.cjs','scripts/helpers/account-picker.mjs'])report.sourceHashes[f]=hashFile(path.join(root,f));
 report.buildSourceHashes={};report.baselineSourceHashes={};
 const save=()=>writeFileSync(path.join(out,'results.json'),JSON.stringify(report,null,2));
 function check(name,condition,detail){(condition?report.checks:report.failures).push({name,...(detail===undefined?{}:{detail})});save();return condition;}
@@ -74,8 +74,9 @@ try{
  browser=await chromium.launch({channel:'chrome',headless:true});
  async function open({variant='enabled',width=1440,plan='pro',local=false,euro=false,scenario=''}={}){
   const id=`${variant}-${plan}-${local?'browser':'saved'}-${width}${euro?'-eur':''}${scenario?'-'+scenario:''}`;
-  const scenarioTrades=scenario==='workspace-empty'?[]:euro?[...trades,euroTrade]:trades;
-  const scenarioCloud=scenario==='workspace-empty'?cloud.filter(r=>r.kind!=='trade'):euro?[...cloud,record('trade',euroTrade.id,euroAccount,euroTrade)]:scenario==='visual-match-populated'?[...cloud,record('daily_note',JSON.stringify(['local','2026-10-30']),'local',{date:'2026-10-30',note:'Reviewed the saved pullback trades. Kept size at one contract and noted the losing session for review.',tradeId:null})]:cloud;
+  const scenarioNames=scenario==='framing-stress'?Object.fromEntries(Object.keys(names).map(key=>[key,'Synthetic long account label — review account with extended context'])):names;
+  const scenarioTrades=scenario==='framing-stress'?trades.map(t=>({...t,notes:'Synthetic long review note for responsive framing. '.repeat(12)})):scenario==='workspace-empty'?[]:euro?[...trades,euroTrade]:trades;
+  const scenarioCloud=scenario==='framing-stress'?cloud.map(r=>r.kind==='account'?{...r,payload:{name:'Synthetic long account label — review account with extended context'}}:r.kind==='trade'?{...r,payload:{...r.payload,notes:'Synthetic long review note for responsive framing. '.repeat(12)}}:r):scenario==='workspace-empty'?cloud.filter(r=>r.kind!=='trade'):euro?[...cloud,record('trade',euroTrade.id,euroAccount,euroTrade)]:scenario==='visual-match-populated'?[...cloud,record('daily_note',JSON.stringify(['local','2026-10-30']),'local',{date:'2026-10-30',note:'Reviewed the saved pullback trades. Kept size at one contract and noted the losing session for review.',tradeId:null})]:cloud;
   const context=await browser.newContext({viewport:{width,height:width<768?844:1000},deviceScaleFactor:1,isMobile:width<768,hasTouch:width<768,reducedMotion:'reduce',timezoneId:'UTC',locale:'en-US',// No app service-worker registration exists; routing blocks all external requests.
    acceptDownloads:false});
   const state={id,asks:[],capabilities:[],writes:[],api:[],context,variant,width,plan,local};
@@ -90,7 +91,7 @@ try{
    localStorage.setItem('cova-react-risk-os-v2:'+owner,JSON.stringify({trades,rules:defaultRules,tradeAccount:'local'}));
    localStorage.setItem('cova-workspace-aux-v1:'+owner,JSON.stringify({version:1,names,notes:{},cash:{}}));
    localStorage.setItem('cova-dashboard-range-v1','all');
-  },{owner,plan,local,trades:scenarioTrades,defaultRules,names,stamp,scenario});
+  },{owner,plan,local,trades:scenarioTrades,defaultRules,names:scenarioNames,stamp,scenario});
   await context.route('**/*',async route=>{
    const req=route.request(),url=new URL(req.url());
    if(url.origin!==origin){report.externalBlocked.push({id,url:url.href});return route.abort();}

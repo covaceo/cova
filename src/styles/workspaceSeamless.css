@@ -1,4 +1,5 @@
 /* Risk Desk is the visual authority. Scope excludes its approved canvas, cards and Ask Cova. */
+/* Shared outer framing below is the sole authorized Risk Desk exception. */
 html:root:root .oa-dashboard-app .oa-dashboard-shell:not([data-workspace-section="dashboard"]) {
  & :is(.section-shell-workspace,.passport-workspace > .deferred-paint-section,.oauth-connection) { padding:0!important; min-height:0!important; background:transparent!important; overflow:visible; }
  & .section-shell-content { max-width:none!important; }
@@ -154,4 +155,32 @@ html:root:root .oa-dashboard-app .oa-dashboard-shell:not([data-workspace-section
   & .astra-workspace-page { padding-inline:16px; }
   & .li-header [data-account-switcher] { width:100%; margin-top:0; }
  }
+}
+
+/* One bounded canvas for every protected tab; no scale or typography changes.
+   At 2560: 160px centering + 64px inner gutter = 224px on each side.
+   Drawer and native dialogs remain viewport-owned, outside this frame. */
+html:root:root:root .oa-dashboard-app .oa-dashboard-shell[data-compact-navigation] {
+ --workspace-gutter:40px;
+ --workspace-top:32px;
+ & .workspace-content { width:100%!important; max-width:2240px!important; margin:0 auto!important; padding:0!important; }
+ & :is(.astra-dashboard[data-dashboard-visual],.astra-workspace-page) { max-width:none!important; padding:var(--workspace-top) var(--workspace-gutter) 40px!important; }
+}
+@media(min-width:1400px) {
+ html:root:root:root .oa-dashboard-app .oa-dashboard-shell[data-compact-navigation] { --workspace-gutter:48px; }
+}
+@media(min-width:1920px) {
+ html:root:root:root .oa-dashboard-app .oa-dashboard-shell[data-compact-navigation] { --workspace-gutter:64px; }
+}
+@media(min-width:851px) {
+ html:root:root:root .oa-dashboard-app .oa-dashboard-shell[data-compact-navigation] {
+  & .workspace-sync-compact { left:calc(var(--workspace-gutter) + 300px); top:calc(var(--workspace-top) + 6px); }
+  &[data-workspace-section="dashboard"] .workspace-sync-compact { left:calc(var(--workspace-gutter) + 228px); }
+ }
+}
+@media(max-width:850px) {
+ html:root:root:root .oa-dashboard-app .oa-dashboard-shell[data-compact-navigation] { --workspace-gutter:24px; --workspace-top:80px; }
+}
+@media(max-width:620px) {
+ html:root:root:root .oa-dashboard-app .oa-dashboard-shell[data-compact-navigation] { --workspace-gutter:20px; }
 }
