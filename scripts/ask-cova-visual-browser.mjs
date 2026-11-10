@@ -68,7 +68,7 @@ export async function runVisualChecks({open,finish,check,screenshot,ask,report,o
       check('Compact menu navigates to '+route,await p.locator('[data-astra-route="'+route+'"]').isVisible());
       if(route==='passport')s.expectedPlanWrites=2; // Existing Passport view also attempts the same denied plan synchronization.
       check('Navigation releases modal scroll '+route,await p.evaluate(()=>!document.querySelector('.workspace-menu-dialog[open]')&&getComputedStyle(document.body).overflow!=='hidden'));
-      await p.locator('.workspace-sidebar').getByRole('button',{name:'Risk Desk',exact:true}).click();await p.locator('.astra-dashboard').waitFor();
+      await p.getByRole('button',{name:'Open workspace menu',exact:true}).click();await p.locator('.workspace-menu-dialog[open]').getByRole('button',{name:'Risk Desk',exact:true}).click();await p.locator('.astra-dashboard').waitFor();
      }
      await trigger.click();await p.setViewportSize({width:1536,height:480});
      await nav.getByRole('button',{name:'Passport',exact:true}).scrollIntoViewIfNeeded();

@@ -4,7 +4,7 @@ import { type FormEvent, useState } from "react";
 import { isLocalPreview } from "../lib/authEnvironment";
 import { buildFirmConnectUrl, canRedirectToFirmProvider, getFirmProviderHost, getPropFirm, type PropFirmId } from "../lib/propFirms";
 import { GlassButton } from "./GlassButton";
-import { ImageAtmosphere } from "./LayoutShell";
+import { WorkspaceMenuButton } from "./WorkspaceShell";
 import "../styles/authConnectionPolish.css";
 
 export function OAuthConnectPage({ firmId, onApprove, onCancel }: { firmId: PropFirmId; onApprove: (firm: PropFirmId) => void; onCancel: () => void }) {
@@ -60,7 +60,7 @@ export function OAuthConnectPage({ firmId, onApprove, onCancel }: { firmId: Prop
   if (!hasConfiguredProvider && !devProviderPreview) {
     return (
       <section className="auth-connection oauth-connection relative min-h-screen overflow-hidden px-5 pb-24 pt-36 md:px-12 lg:px-20">
-        <ImageAtmosphere src="/media/cova-dashboard-plate.jpg" align="right" opacity="opacity-[0.28]" />
+        <header className="workspace-page-title oauth-page-title"><h1>Link account</h1><WorkspaceMenuButton /></header>
         <div className="auth-connection-panel oauth-unavailable relative z-10 mx-auto max-w-3xl rounded-[42px] border border-white/10 bg-black/72 p-8 md:p-12">
           <p className="font-body text-xs uppercase tracking-[0.24em] text-[#6f96ff]">Connector unavailable</p>
           <h2 className="mt-4 font-body text-4xl font-semibold tracking-[-0.04em] text-white md:text-5xl">{firm.name} direct sign-in is not configured.</h2>
@@ -73,7 +73,7 @@ export function OAuthConnectPage({ firmId, onApprove, onCancel }: { firmId: Prop
 
   return (
     <section className="auth-connection oauth-connection relative min-h-screen overflow-hidden px-5 pb-24 pt-36 md:px-12 lg:px-20">
-      <ImageAtmosphere src="/media/cova-dashboard-plate.jpg" align="right" opacity="opacity-[0.28]" />
+      <header className="workspace-page-title oauth-page-title"><h1>Link account</h1><WorkspaceMenuButton /></header>
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_78%_28%,rgba(111,150,255,0.04),transparent_32%),linear-gradient(180deg,rgba(0,0,0,0.18),#000_92%)]" />
       <div className="relative z-10 mx-auto grid max-w-7xl gap-6 lg:grid-cols-[0.86fr_1.14fr] lg:items-stretch">
         <motion.div

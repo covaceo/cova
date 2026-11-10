@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ComponentProps } from "react";
+import { WorkspaceMenuButton } from "./WorkspaceShell";
 import { ArrowUpRight, ChevronDown, LockKeyhole } from "lucide-react";
 import { formatMoney, formatPercent, formatR, type RiskRule } from "../lib/risk";
 import type { Coach } from "./WorkspaceSections";
@@ -144,7 +145,7 @@ export function InsightsView({ analysis, entitlements, go, upgradeToPro, account
   const locked = 3 - visible.length;
 
   return <section className="li-page insights-preview" aria-labelledby="ip-title">
-    <header className="li-header"><div><h1 id="ip-title">Insights</h1></div>{accountControl}</header>
+    <header className="li-header"><div className="workspace-page-title"><h1 id="ip-title">Insights</h1><WorkspaceMenuButton /></div>{accountControl}</header>
     {analysis.tradeCount === 0 ? <article className="li-panel ip-empty" data-insights-empty>
       <h2>Start with your trades</h2>
       <p className="li-muted">Import trades to compare setups and check your limits.</p>

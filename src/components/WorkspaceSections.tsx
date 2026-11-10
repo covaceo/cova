@@ -887,7 +887,7 @@ export function Passport({ analysis, entitlements, isSampleReview, go, upgradeTo
 
   return (
     <div className="passport-workspace">
-      <SectionShell title="Passport" variant="workspace">
+      <SectionShell title="Passport" variant="workspace" action={accountControl}>
         <div className="passport-workbench passport-holo-workbench passport-utility">
           <header className="passport-identity"><span className="passport-avatar" aria-hidden="true">{shareModeId!=="private"&&profile.avatar?<img src={profile.avatar} alt=""/>:<span>{shareModeId!=="private"?username?.slice(0,1).toUpperCase():""}</span>}</span><div className="passport-identity-name"><h2>{shareModeId==="private"?"Private profile":username?`@${username}`:isSampleReview?"Sample trader":"Your trading profile"}</h2><p>{isSampleReview?"Sample data · ":""}{shareModeId==="private"?"Markets hidden":model.marketLine}</p></div><span className="passport-current-rank"><small>Trading rank</small>{tier.rank}</span></header>
           <div className="passport-utility-layout"><div className="passport-utility-main">
@@ -941,7 +941,7 @@ export function Passport({ analysis, entitlements, isSampleReview, go, upgradeTo
           </details>
           <PassportProgress owner={ownerId} trades={trades} rules={rules} sample={isSampleReview}/>
           </div><section className="passport-utility-controls" aria-label="Passport controls">
-          {accountControl&&<div><label>Account</label>{accountControl}</div>}
+
           <fieldset><legend>Card view</legend>          <div className="passport-workspace-modes" role="group" aria-label="Card view" aria-describedby="passport-mode-description">
             {passportShareModes.map(mode => <button type="button" key={mode.id} aria-pressed={shareModeId === mode.id} onClick={() => setShareModeId(mode.id)}>{mode.label}</button>)}
           </div>

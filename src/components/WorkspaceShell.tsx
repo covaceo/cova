@@ -1,4 +1,4 @@
-import { Activity, ArrowUpRight, BarChart3, ChevronRight, FileUp, Gauge, BookUser, ArrowLeft, ArrowRight, Menu, X } from "lucide-react";
+import { Activity, BarChart3, ChevronRight, Gauge, BookUser, ArrowLeft, ArrowRight, Menu, X } from "lucide-react";
 import { WorkspaceNavIcon } from "./WorkspaceNavIcon";
 import { GooeyInput } from "./ui/gooey-input";
 import { WorkspaceSearch, type WorkspaceSearchSource, type WorkspaceSearchHandle } from "./WorkspaceSearch";
@@ -59,7 +59,7 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
   const [menuOpen, setMenuOpen] = useState(false);
   const menuDialog = useRef<HTMLDialogElement>(null);
   const menuTrigger = useRef<HTMLButtonElement>(null);
-  const compactNavigation = section === 'dashboard';
+  const compactNavigation = true;
   const go = (target: Section) => { setMenuOpen(false); navigate(target); };
   useEffect(() => {
     if (!menuOpen || !compactNavigation) return;
@@ -184,10 +184,7 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
         <WorkspaceMenuContext.Provider value={compactNavigation ? <button ref={menuTrigger} type="button" className="workspace-menu-trigger" aria-label="Open workspace menu" aria-haspopup="dialog" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}><Menu aria-hidden="true" /></button> : null}>
         {section === "dashboard" ? children : (
           <div className="astra-workspace-page" data-astra-route={section}>
-            <div className="astra-deskbar">
-              <div className="astra-breadcrumb"><span>Workspace</span><span aria-hidden="true">/</span><strong>{workspaceNavGroups.flatMap<WorkspaceNavItem>(group => group.items).find(item => isWorkspaceNavActive(section,item.id))?.label || "Link account"}</strong></div>
-              <div className="astra-deskbar-tools">{!isWorkspaceNavActive(section, "import") && <button type="button" className="astra-button astra-import-action" onClick={() => go("import")}><FileUp aria-hidden="true" />Import trades</button>}<button type="button" className="astra-button" onClick={() => go("dashboard")}>Risk Desk <ArrowUpRight aria-hidden="true" /></button></div>
-            </div>
+
             {children}
           </div>
         )}
