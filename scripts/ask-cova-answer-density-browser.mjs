@@ -131,7 +131,7 @@ try {
    await page.getByRole('textbox',{name:'Message Cova'}).fill('Review the saved data');await page.getByRole('button',{name:'Send message'}).click();await page.locator('[data-cova-answer]').waitFor();
    await page.getByRole('button',{name:'Answer details',exact:true}).evaluate(button=>window.retainedNotice=button[Object.keys(button).find(key=>key.startsWith('__reactProps$'))].onClick);
    const before=await page.evaluate(()=>window.calls.length);
-   await page.evaluate(revoke=>{if(revoke==='auth')window.current=false;else [...document.querySelectorAll('button')].find(b=>b.textContent==='Clear conversation').click();window.retainedNotice();},revoke);
+   await page.evaluate(revoke=>{if(revoke==='auth')window.current=false;else [...document.querySelectorAll('button')].find(b=>b.getAttribute('aria-label')==='Clear conversation').click();window.retainedNotice();},revoke);
    assert.equal(await page.locator('[data-cova-reply]').count(),0);assert.equal(await page.evaluate(()=>window.calls.length),before);
   }
   report.checks.push('direct callback positive control and same-task saved/auth/Clear revocation at '+width);

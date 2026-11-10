@@ -1,6 +1,6 @@
 import { readJournalDraft, saveJournalDraft, clearJournalDraft } from "../lib/journalDrafts";
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { BookOpen, Paperclip, Search, X } from 'lucide-react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { BookOpen, FileText, Paperclip, Search, X } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
 import { groupJournalEntries, type Trade, type JournalEntryGroup } from '../lib/risk';
 import { journalSummary, moneyText } from '../lib/journalAccuracy';
@@ -22,8 +22,8 @@ function resultText(group: JournalEntryGroup) {
   const money = journalSummary(group.rows).money;
   return money.status === 'available' ? `${money.totalCents > 0n ? '+' : ''}${moneyText(money.totalCents)}` : '—';
 }
-export function MiniJournal({ initialDate, actions, trades = [], onOpenTrade }: {
-  initialDate: string; actions?: JournalActions; trades?: Trade[]; onOpenTrade?: (id: string) => void;
+export function MiniJournal({ initialDate, actions, trades = [], onOpenTrade, seamless = false }: {
+  initialDate: string; actions?: JournalActions; trades?: Trade[]; onOpenTrade?: (id: string) => void; seamless?: boolean;
 }) {
   const read = (date: string) => actions?.readEntry?.(date) ?? { note: actions?.read(date) || '', tradeId: null };
   const [date, setDate] = useState(() => isMobileJournal() && !actions?.ephemeral ? readJournalEditorDate(actions?.draftKey, initialDate) : initialDate);
@@ -64,6 +64,17 @@ export function MiniJournal({ initialDate, actions, trades = [], onOpenTrade }: 
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyShown, setHistoryShown] = useState(8);
   const noteInput = useRef<HTMLTextAreaElement>(null);
+  const previewEdit = useRef<HTMLButtonElement>(null);
+  const restoreHistoryFocus = useRef(false);
+  const [editing, setEditing] = useState(false);
+  const showPreview = seamless && !!entry.note.trim() && !dirty && !editing;
+  useLayoutEffect(() => {
+    if (!historyOpen && restoreHistoryFocus.current) {
+      restoreHistoryFocus.current = false;
+      (showPreview ? previewEdit.current : noteInput.current)?.focus();
+    }
+  }, [historyOpen, showPreview]);
+  useEffect(() => { if (editing) noteInput.current?.focus(); }, [editing]);
   const history = historyOpen ? actions?.list?.() ?? [] : [];
   const changeDate = (next: string) => {
     if (!validJournalDate(next) || next === date) return;
@@ -77,22 +88,24 @@ export function MiniJournal({ initialDate, actions, trades = [], onOpenTrade }: 
     }
     if (!actions?.ephemeral) rememberJournalEditorDate(actions?.draftKey, next);
     const draft = restored(next);
-    setDate(next); setEntry(draft ?? read(next)); setDirty(!!draft); setStatus(''); setChoosing(false); setHistoryOpen(false);
+    setDate(next); setEntry(draft ?? read(next)); setDirty(!!draft); setStatus(''); setChoosing(false); setHistoryOpen(false); setEditing(false);
   };
-  return <section className="astra-panel astra-journal mini-journal" aria-labelledby="astra-journal-title">
-    <div className="astra-panel-heading"><h2 id="astra-journal-title"><BookOpen aria-hidden="true" />Journal</h2><input className="journal-desktop-date" aria-label="Journal date" type="date" value={date} onChange={event => changeDate(event.target.value)} /></div>
+  return <section className="astra-panel astra-journal mini-journal" data-journal-seamless={seamless || undefined} aria-labelledby="astra-journal-title">
+    <div className="astra-panel-heading"><h2 id="astra-journal-title"><BookOpen aria-hidden="true" />Journal</h2>{seamless && actions?.list ? <button type="button" className="astra-text-link journal-view-history" aria-expanded={historyOpen} aria-controls="journal-saved-notes" onClick={() => { setHistoryOpen(!historyOpen); setHistoryShown(8); }}>View journal</button> : <input className="journal-desktop-date" aria-label="Journal date" type="date" value={date} onChange={event => changeDate(event.target.value)} />}</div>
+    {seamless && !showPreview && <input className="journal-desktop-date journal-seamless-date" aria-label="Journal date" type="date" value={date} onChange={event => changeDate(event.target.value)} />}
     <div className="journal-mobile-tools">
       <label className="journal-mobile-date"><span>Date</span><input aria-label="Journal date" type="date" value={date} onChange={event => changeDate(event.target.value)} /></label>
       <button type="button" onClick={() => changeDate(new Date().toLocaleDateString('en-CA'))}>Today</button>
       {actions?.list && <button type="button" aria-expanded={historyOpen} aria-controls="journal-saved-notes" onClick={() => { setHistoryOpen(!historyOpen); setHistoryShown(8); }}>Saved notes</button>}
     </div>
     {historyOpen && <div className="journal-saved-notes" id="journal-saved-notes" role="region" aria-label="Saved journal notes">
-      {history.slice(0, historyShown).map(saved => <button type="button" key={saved.date} data-journal-saved-date={saved.date} onClick={() => { changeDate(saved.date); setHistoryOpen(false); noteInput.current?.focus(); }}><time dateTime={saved.date}>{new Date(saved.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</time><span>{saved.note.trim() || 'Attached trade'}</span></button>)}
+      {history.slice(0, historyShown).map(saved => <button type="button" key={saved.date} data-journal-saved-date={saved.date} onClick={() => { changeDate(saved.date); restoreHistoryFocus.current = true; setHistoryOpen(false); }}><time dateTime={saved.date}>{new Date(saved.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</time><span>{saved.note.trim() || 'Attached trade'}</span></button>)}
       {!history.length && <p>No saved notes yet.</p>}
       {history.length > historyShown && <button type="button" onClick={() => setHistoryShown(n => n + 8)}>Show more notes</button>}
     </div>}
-    <textarea ref={noteInput} aria-label="Journal note" rows={3} maxLength={2000} placeholder={actions?.ephemeral ? 'What worked? What will you change next time?' : 'Session note'} value={entry.note} readOnly={!actions} onChange={event => { edit({ ...entry, note: event.target.value }); }} />
-    <div className="journal-attachment-area">
+    {showPreview && <div className="journal-note-preview"><p className="journal-preview-date"><FileText aria-hidden="true" /><time dateTime={date}>Session · {new Date(date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</time></p><p className="journal-preview-text">{entry.note}</p><button ref={previewEdit} className="astra-text-link" type="button" onClick={() => setEditing(true)}>Edit note</button></div>}
+    <textarea hidden={showPreview} ref={noteInput} aria-label="Journal note" rows={3} maxLength={2000} placeholder={actions?.ephemeral ? 'What worked? What will you change next time?' : 'Session note'} value={entry.note} readOnly={!actions} onChange={event => { edit({ ...entry, note: event.target.value }); }} />
+    <div className="journal-attachment-area" hidden={showPreview}>
       {entry.tradeId && <div className="journal-attached" data-journal-attachment>
         <button type="button" data-journal-linked-trade disabled={!linked || !onOpenTrade} onClick={() => linked && onOpenTrade?.(entry.tradeId!)}>
           <Paperclip aria-hidden="true" /><span>{linked ? <>{linked.rows[0].market} · {linked.rows[0].side}<small>{linked.rows[linked.rows.length - 1]?.date}{linked.rows.length > 1 ? ` · ${linked.rows.length} partial exits` : ''}</small></> : 'Attached trade is no longer available'}</span>
@@ -110,7 +123,7 @@ export function MiniJournal({ initialDate, actions, trades = [], onOpenTrade }: 
         {matches.length > shown && <button className="journal-attach-button" type="button" onClick={() => setShown(value => value + 20)}>Show more trades</button>}
       </motion.div>}
     </div>
-    <div className="mini-journal-footer"><span role="status">{status || (dirty ? 'Unsaved changes' : actions?.ephemeral ? 'Sample note · resets on reload' : actions?.accountStorage ? 'Private · check account storage for sync status' : 'Private · saved on this browser')}</span><button className="astra-button" type="button" disabled={!actions || !dirty} onClick={() => {
+    <div className="mini-journal-footer" hidden={showPreview}><span role="status">{status || (dirty ? 'Unsaved changes' : actions?.ephemeral ? 'Sample note · resets on reload' : actions?.accountStorage ? 'Private · check account storage for sync status' : 'Private · saved on this browser')}</span><button className="astra-button" type="button" disabled={!actions || !dirty} onClick={() => {
       if (entry.tradeId && !linked) { setStatus('Remove the unavailable trade before saving.'); return; }
       if (actions?.save(date, entry.note, entry.tradeId)) { clearJournalDraft(draftScope(date)); setDirty(false); setStatus(actions?.ephemeral ? 'Saved to this sample · resets on reload' : 'Saved'); }
       else setStatus('Not saved. Reopen this account and try again.');

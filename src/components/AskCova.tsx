@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Send, X } from 'lucide-react';
 import type { Trade } from '../lib/risk';
 import { ASK_COVA_QUESTIONS } from '../lib/askCova';
 import { AskCovaDataEvidence } from './AskCovaDataEvidence';
@@ -11,6 +12,10 @@ import { TradeHistoryDialog } from './TradeHistoryDialog';
 import '../styles/askCova.css';
 
 export type AskCovaProps = {
+  visible?: boolean;
+  interactionCurrent?: () => boolean;
+  onClose?: () => void;
+  accountLabel?: string;
   ownerId: string; account: string; range: 'today' | 'week' | 'all';
   trades: readonly Trade[]; ready: boolean;
   authorityKey?: string;
@@ -28,7 +33,7 @@ export function AskCova(props: AskCovaProps) {
   const scope = JSON.stringify([props.ownerId, props.account, props.range, props.ready, props.authorityKey, props.trades]);
   return <AskCovaConversation key={scope} {...props} />;
 }
-function AskCovaConversation({ ownerId, account, range, trades, ready, request = requestAskCovaQuery, captureAuthority, onRangeChange, ownerCurrent = askCovaAccessCurrent }: AskCovaProps) {
+function AskCovaConversation({ ownerId, account, range, trades, ready, visible = true, interactionCurrent = () => true, onClose, accountLabel, request = requestAskCovaQuery, captureAuthority, onRangeChange, ownerCurrent = askCovaAccessCurrent }: AskCovaProps) {
   const [draft, setDraft] = useState('');
   const [exchanges, setExchanges] = useState<Exchange[]>([]);
   const [selected, setSelected] = useState<Exchange | null>(null);
@@ -40,6 +45,12 @@ function AskCovaConversation({ ownerId, account, range, trades, ready, request =
   const [noticeDetails, setNoticeDetails] = useState<ReadonlySet<number>>(new Set());
   const atLimit = exchanges.length >= MAX_EXCHANGES;
   const composer = useRef<HTMLTextAreaElement>(null);
+  const scroll = useRef<HTMLDivElement>(null);
+  const followTail = useRef(true);
+  useEffect(() => {
+    // Keep a deliberate new exchange visible; do not pull a reader away from older evidence.
+    if (visible && followTail.current && scroll.current) scroll.current.scrollTop = scroll.current.scrollHeight;
+  }, [exchanges, busy, visible]);
   const wasBusy = useRef(false);
   const restoreComposer = useRef(false);
   const sequence = useRef(0);
@@ -61,8 +72,11 @@ function AskCovaConversation({ ownerId, account, range, trades, ready, request =
     const completed = wasBusy.current && !busy;
     wasBusy.current = busy;
     // Do not steal focus if the user moved to an older reply or evidence dialog.
-    if (completed && restoreComposer.current && document.activeElement === document.body && !document.querySelector('dialog[open]')) composer.current?.focus({ preventScroll: true });
+    if (completed && visible && interactionCurrent() && restoreComposer.current && document.activeElement === document.body && !document.querySelector('dialog[open]')) composer.current?.focus({ preventScroll: true });
   }, [busy]);
+  useEffect(() => {
+    if (!visible) { restoreComposer.current = false; setEvidenceReply(null); setDataEvidence(null); }
+  }, [visible]);
   function clear() {
     const current = conversation.current;
     current.epoch++; current.draft = ''; current.exchanges = []; current.selected = null;
@@ -84,10 +98,11 @@ function AskCovaConversation({ ownerId, account, range, trades, ready, request =
   }
   function canAppend() {
     const current = conversation.current;
-    return current.active && ready && !pending.current && current.exchanges.length < MAX_EXCHANGES;
+    return interactionCurrent() && current.active && ready && !pending.current && current.exchanges.length < MAX_EXCHANGES;
   }
   function append(exchange: Exchange) {
     if (!canAppend()) return false;
+    followTail.current = true;
     conversation.current.exchanges = [...conversation.current.exchanges, exchange];
     setExchanges(conversation.current.exchanges);
     return true;
@@ -95,7 +110,7 @@ function AskCovaConversation({ ownerId, account, range, trades, ready, request =
   async function ask(exchange: Exchange, origin: number) {
     const ownsExchange = () => currentEpoch(origin) && conversation.current.selected?.id === exchange.id
       && conversation.current.exchanges.some(item => item.id === exchange.id);
-    if (!exchange.context || !ownsExchange() || pending.current || conversation.current.exchanges.some(item => item.id === exchange.id && item.reply) || !checkAuthority()) return;
+    if (!interactionCurrent() || !exchange.context || !ownsExchange() || pending.current || conversation.current.exchanges.some(item => item.id === exchange.id && item.reply) || !checkAuthority()) return;
     restoreComposer.current = exchange.fromComposer === true;
     const controller = new AbortController(); pending.current = controller;
     const ownsRequest = () => ownsExchange() && pending.current === controller && !controller.signal.aborted;
@@ -109,6 +124,7 @@ function AskCovaConversation({ ownerId, account, range, trades, ready, request =
     try {
       const savedCurrent = await captureAuthority?.();
       if (!ownsRequest() || !checkAuthority()) return;
+      if (!interactionCurrent()) return;
       if (!savedCurrent || !savedCurrent()) { setError('Let your saved account data finish syncing, then ask again.'); return; }
       // Capture has its own watchdog. Start one shared post-capture deadline so
       // the UI cannot expire a reply earlier than the actual client's contract.
@@ -152,7 +168,7 @@ function AskCovaConversation({ ownerId, account, range, trades, ready, request =
     void ask(exchange, epoch);
   }
   function checkedReply(exchange: Exchange, origin: number) {
-    return currentEpoch(origin) && checkAuthority() && !!exchange.reply && exchange.savedCurrent?.() === true
+    return interactionCurrent() && currentEpoch(origin) && checkAuthority() && !!exchange.reply && exchange.savedCurrent?.() === true
           && conversation.current.exchanges.some(item => item.id === exchange.id && item.reply === exchange.reply);
   }
   function followUp(exchange: Exchange, origin: number, kind: 'detail' | 'trades', text: string) {
@@ -178,9 +194,12 @@ function AskCovaConversation({ ownerId, account, range, trades, ready, request =
   const evidence = evidenceReply ? evidenceReply.snapshot.workspaceRecords.filter(record => record.kind === 'trade' && !record.deletedAt && evidenceReply.tradeIds.includes(record.recordId)).map(record => record.payload as unknown as Trade) : [];
   return <section className="ask-cova" aria-labelledby="ask-cova-title" data-ask-cova>
     <div className="ask-cova-heading"><div className="ask-cova-title"><h2 id="ask-cova-title">Ask Cova</h2><span className="ask-cova-beta">Beta</span></div>
-      {(exchanges.length > 0 || error) && <button className="astra-text-link" type="button" onClick={clear}>Clear conversation</button>}
+      <div className="ask-cova-heading-actions">{(exchanges.length > 0 || error) && <button className="astra-text-link" type="button" aria-label="Clear conversation" onClick={() => { if (interactionCurrent()) clear(); }}>Clear</button>}
+      {onClose && <button className="astra-text-link" type="button" aria-label="Close Ask Cova" onClick={onClose}><X aria-hidden="true" /></button>}</div>
     </div>
-    {trades.length === 0 && onRangeChange && <div className="ask-cova-actions" role="group" aria-label="Saved data range">{([{ id: 'today', label: 'Latest saved day' }, { id: 'week', label: 'Last 7 calendar days' }, { id: 'all', label: 'All saved history' }] as const).map(option => <button className="astra-text-link" type="button" key={option.id} aria-pressed={range === option.id} onClick={() => { if (currentEpoch(epoch) && checkAuthority()) onRangeChange(option.id); }}>{option.label}</button>)}</div>}
+    {accountLabel && <p className="ask-cova-scope">{accountLabel} · {range === 'all' ? 'All trades' : range === 'week' ? 'Last 7 days' : 'Latest session'}</p>}
+    <div ref={scroll} className="ask-cova-scroll" onScroll={event => { const el = event.currentTarget; followTail.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48; }}>
+    {trades.length === 0 && onRangeChange && <div className="ask-cova-actions" role="group" aria-label="Saved data range">{([{ id: 'today', label: 'Latest saved day' }, { id: 'week', label: 'Last 7 calendar days' }, { id: 'all', label: 'All saved history' }] as const).map(option => <button className="astra-text-link" type="button" key={option.id} aria-pressed={range === option.id} onClick={() => { if (interactionCurrent() && currentEpoch(epoch) && checkAuthority()) onRangeChange(option.id); }}>{option.label}</button>)}</div>}
     {!ready ? <p className="ask-cova-notice">Save your account workspace before asking Cova.</p> : exchanges.length > 0 && <div className="ask-cova-conversation" role="log" aria-label="Conversation with Cova" aria-live="polite" aria-relevant="additions text">
       {exchanges.map(exchange => <div className="ask-cova-exchange" key={exchange.id}>
         <p className="ask-cova-question"><span className="sr-only">You: </span>{exchange.text}</p>
@@ -205,17 +224,20 @@ function AskCovaConversation({ ownerId, account, range, trades, ready, request =
     </div>}
     {error && <div className="ask-cova-error"><p role="status">{error}</p>{selected && <button className="astra-text-link" type="button" onClick={() => void ask(selected, epoch)}>Try again</button>}</div>}
     {atLimit && <p className="ask-cova-notice" role="status">This conversation has reached 20 messages. Clear it to start another review.</p>}
+    {visible && dataEvidence?.reply && dataEvidence.savedCurrent?.() === true && <div><AskCovaDataEvidence snapshot={dataEvidence.reply.snapshot} supports={dataEvidence.reply.supports} /><button className="astra-text-link" type="button" onClick={() => { if (interactionCurrent() && currentEpoch(epoch)) setDataEvidence(null); }}>Close saved data</button></div>}
+    </div>
+    <div className="ask-cova-bottom">
     <div className="ask-cova-questions" aria-label="Questions for Cova">{ASK_COVA_QUESTIONS.map(item =>
       <button className="astra-button" type="button" key={item.id} disabled={!ready || busy || atLimit} onClick={() => choose(item.label)}>{item.label}</button>)}</div>
     <form className="ask-cova-composer" onSubmit={event => { event.preventDefault(); send(epoch); }}>
-      <textarea ref={composer} aria-label="Message Cova" placeholder="Message Cova" rows={1} maxLength={MAX_ASK_COVA_INPUT} value={draft} disabled={!ready || busy || atLimit} onChange={event => { if (currentEpoch(epoch)) { conversation.current.draft = event.target.value; setDraft(event.target.value); } }} onKeyDown={event => {
+      <textarea ref={composer} aria-label="Message Cova" placeholder="Message Cova" rows={1} maxLength={MAX_ASK_COVA_INPUT} value={draft} disabled={!ready || busy || atLimit} onChange={event => { if (interactionCurrent() && currentEpoch(epoch)) { conversation.current.draft = event.target.value; setDraft(event.target.value); } }} onKeyDown={event => {
         if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing && event.keyCode !== 229) { event.preventDefault(); send(epoch); }
       }} />
-      <button className="astra-button" type="submit" aria-label="Send message" disabled={!draft.trim() || !ready || busy || atLimit}>Send</button>
+      <button className="astra-button" type="submit" aria-label="Send message" disabled={!draft.trim() || !ready || busy || atLimit}><Send aria-hidden="true" /></button>
     </form>
-    <p className="ask-cova-notice">Your message, recent Cova chat, and relevant saved account data, including notes, rules and Passport, are sent for AI responses. Only your selected account and date range are used; current rules and plans are owner-wide.</p>
-    {dataEvidence?.reply && dataEvidence.savedCurrent?.() === true && <div><AskCovaDataEvidence snapshot={dataEvidence.reply.snapshot} supports={dataEvidence.reply.supports} /><button className="astra-text-link" type="button" onClick={() => { if (currentEpoch(epoch)) setDataEvidence(null); }}>Close saved data</button></div>}
-    {evidenceReply && evidence.length > 0 && <TradeHistoryDialog title="Trades behind this answer" scopeLabel="Selected answer" trades={evidence} journalReview={true} showSummary={false} onClose={() => { if (currentEpoch(epoch)) setEvidenceReply(null); }} />}
+    <details className="ask-cova-privacy"><summary>Data shared <span>· Sent for AI responses</span></summary><p className="ask-cova-notice">Your message, recent Cova chat, and relevant saved account data, including notes, rules and Passport, are sent for AI responses. Only your selected account and date range are used; current rules and plans are owner-wide.</p></details>
+    </div>
+    {visible && evidenceReply && evidence.length > 0 && <TradeHistoryDialog title="Trades behind this answer" scopeLabel="Selected answer" trades={evidence} journalReview={true} showSummary={false} onClose={() => { if (currentEpoch(epoch)) setEvidenceReply(null); }} />}
   </section>;
 }
 

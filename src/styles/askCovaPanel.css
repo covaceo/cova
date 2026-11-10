@@ -1,0 +1,274 @@
+/* Approved seamless v2: one canvas; real data/components and navigation retained. */
+html:has(.ask-cova-panel[aria-modal=true]), html:has(.ask-cova-panel[aria-modal=true]) body { overflow:hidden; }
+html:root:root:has(.astra-dashboard[data-dashboard-visual]) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] {
+ --astra-surface-fill:transparent; --astra-surface-edge:transparent; --astra-divider:#ffffff12;
+ & :is(.astra-panel,.astra-stats-panel,.ask-cova) { background:transparent !important; border:0 !important; border-radius:0 !important; box-shadow:none !important; }
+ & .astra-title h1 { font-size:36px !important; letter-spacing:-.035em !important; }
+ & .astra-header-controls { gap:10px; }
+ & .astra-header-controls :is(.ask-cova-launcher,.astra-add-trade,.cova-account-menu-trigger) { background:transparent !important; border-color:transparent !important; }
+ & .astra-import-action { background:#0055ff !important; border-color:#0055ff !important; }
+ & .astra-segmented { border:0 !important; gap:12px !important; }
+ & .astra-segmented button { border:1px solid transparent !important; border-radius:10px !important; padding-inline:12px !important; font-size:14px !important; }
+ & .astra-segmented button[aria-pressed=true] { border-color:#6cb9ff !important; color:#88c7ff !important; }
+ & .astra-stats-panel { margin:12px 0 28px; }
+ & .astra-stat-strip { grid-template-columns:repeat(4,minmax(0,1fr)); grid-template-rows:auto; border:0; background:transparent; padding:12px 0; min-height:0; }
+ & .astra-stats-panel .astra-stat-cell { display:block; grid-row:auto; grid-column:auto; padding:0 20px; border-right:1px solid #ffffff20; }
+ & .astra-stats-panel .astra-stat-cell:first-child { padding-left:0; }
+ & .astra-stats-panel .astra-stat-cell:last-child { border:0; padding-right:0; }
+ & .astra-stats-panel .astra-stat-label { font-size:14px; font-weight:400; color:#c3c5cc; }
+ & .astra-stats-panel .astra-stat-value { font-size:clamp(26px,2.4vw,36px); font-weight:500; letter-spacing:-.035em; margin:8px 0 0; white-space:nowrap; }
+ & [data-astra-stat=pnl] .astra-stat-value:not(.astra-negative) { color:#41d58b; }
+ & .astra-stats-panel .astra-average-strip { border:0; margin-top:12px; gap:24px; }
+ & .astra-stats-panel .astra-average-cell { padding:0; border:0; display:flex; grid-row:auto; grid-template-rows:none; }
+ & .astra-stats-panel .astra-average-cell .astra-stat-label { font-size:12px; }
+ & .astra-stats-panel .astra-average-cell .astra-stat-value { font-size:18px; margin:0; }
+ & .astra-desk-grid { display:flex; flex-direction:column; gap:32px; margin-bottom:36px; }
+ & .astra-desk-main { display:grid; grid-template-columns:minmax(0,1fr); gap:28px; width:100%; }
+ & .astra-desk-side { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); grid-template-rows:auto; align-items:start; gap:32px; width:100%; }
+ & :is(.astra-chart-panel,.astra-recent-trades,.oa-discipline,.mini-journal,.trading-calendar) { padding:0 !important; min-height:0; }
+ & .astra-panel-heading { padding:0 0 16px; margin:0; }
+ & .astra-panel-heading h2 { font-size:23px !important; font-weight:600; letter-spacing:-.025em; }
+ & .astra-panel-heading h2>svg { display:none; }
+ & .astra-chart-main { padding:0; }
+ & .astra-chart-svg { min-height:210px; height:210px; max-height:210px; }
+ & .astra-chart-note { padding:8px 0 0; }
+ & .astra-trade-table :is(th,td) { padding:8px 10px; font-size:13px; }
+ & .astra-trade-table :is(th,td):first-child { padding-left:0; }
+ & .astra-trade-table :is(th,td):last-child { padding-right:0; }
+ & .astra-trade-table th { color:#c3c5cc; background:transparent; font-weight:400; }
+ & .astra-trade-table td { height:36px; border-bottom:1px solid #ffffff12; }
+ & .astra-trade-table .astra-symbol { display:none; }
+ & .astra-trade-table .astra-trade-link { padding:0 !important; }
+ & .oa-discipline-reading { margin-top:4px; }
+ & .oa-discipline-score strong { font-size:48px; }
+ & .oa-discipline-focus { padding:0; background:transparent; border:0; }
+ & .oa-discipline-focus h3 { font-size:15px; }
+ & .oa-discipline-focus p { font-size:14px; }
+ & .mini-journal { align-self:start; }
+ & .mini-journal>textarea { width:100%; margin:0; padding:10px 0; min-height:100px; background:transparent !important; border:0 !important; border-radius:0 !important; font-size:15px; }
+ & .mini-journal :is(.journal-attachment-area,.mini-journal-footer) { margin-inline:0; }
+ & #ask-cova-panel .ask-cova { --ask-accent:#0055ff; --ask-ink:#f1f1f3; --ask-muted:#b8bac2; --ask-rule:#60636a; display:flex; flex-direction:column; height:calc(100dvh - 160px); min-height:440px; max-height:calc(100dvh - 40px); margin:0; padding:0 0 0 24px; font-size:16px; }
+ & #ask-cova-panel .ask-cova-heading { flex:none; margin:0; }
+ & #ask-cova-panel .ask-cova-heading h2 { font-size:25px; }
+ & #ask-cova-panel .ask-cova-beta { font-size:13px; }
+ & #ask-cova-panel .ask-cova-scope { color:var(--ask-muted); font-size:14px; overflow-wrap:anywhere; margin:0 0 18px; }
+ & #ask-cova-panel .ask-cova-conversation { width:100%; margin:0; gap:28px; }
+ & #ask-cova-panel .ask-cova-exchange { gap:20px; }
+ & #ask-cova-panel .ask-cova-question { border-radius:18px; padding:10px 14px; font-size:16px; font-weight:400; }
+ & #ask-cova-panel .ask-cova-reply { max-width:100%; padding:0; background:transparent; border-radius:0; }
+ & #ask-cova-panel .ask-cova-reply p { font-size:17px; line-height:1.55; font-weight:400; }
+ & #ask-cova-panel .ask-cova-reply .ask-cova-notice { font-size:13px; }
+ & #ask-cova-panel .ask-cova-actions { margin-top:12px; gap:8px; }
+ & #ask-cova-panel .ask-cova-actions button { color:#88c7ff !important; padding-inline:0 !important; margin-right:12px; text-decoration:underline !important; text-underline-offset:4px; }
+ & #ask-cova-panel .ask-cova-questions { justify-content:flex-start; gap:8px 16px; margin:0 0 16px; }
+ & #ask-cova-panel .ask-cova-questions button { background:transparent !important; color:#e5e5e9 !important; padding-inline:0 !important; font-size:14px !important; }
+ & #ask-cova-panel .ask-cova-composer { width:100%; border-radius:18px; background:#1b1c1e; padding:4px; }
+ & #ask-cova-panel .ask-cova-composer textarea { font-size:16px; }
+ & #ask-cova-panel .ask-cova-composer button { width:44px !important; padding:0 !important; border-radius:50% !important; }
+ & #ask-cova-panel .ask-cova-composer svg { width:19px; height:19px; }
+ & #ask-cova-panel .ask-cova-privacy { font-size:13px; }
+}
+@media(max-width:1279px) {
+ .ask-cova-panel { position:fixed; inset:0; z-index:200; background:#101010; height:var(--ask-viewport-height,100dvh); top:var(--ask-viewport-top,0px); }
+ html:root:has(.astra-dashboard[data-dashboard-visual]) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] .ask-cova { height:100%; min-height:0; max-height:none; padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left)); }
+}
+@media(max-width:850px) {
+ html:root:root:has(.astra-dashboard[data-dashboard-visual]) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] {
+  & .astra-title h1 { font-size:28px !important; }
+  & .astra-desk-side { grid-template-columns:minmax(0,1fr); gap:28px; }
+  & .astra-stats-panel .astra-stat-cell { padding-inline:12px; }
+  & .astra-stats-panel .astra-stat-value { font-size:26px; }
+  & .astra-panel-heading h2 { font-size:22px !important; }
+ }
+}
+@media(max-width:620px) {
+ html:root:root:has(.astra-dashboard[data-dashboard-visual]) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] {
+  & .astra-reference-header .ask-cova-launcher { grid-column:1/-1; grid-row:4; justify-self:end; }
+  & .astra-segmented { gap:4px !important; }
+  & .astra-segmented button { font-size:12px !important; padding-inline:7px !important; }
+  & .astra-stats-panel .astra-stat-strip { grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; }
+  & .astra-stats-panel .astra-stat-cell { padding:0; border:0; }
+  & .astra-stats-panel .astra-stat-value { font-size:30px; }
+  & .astra-stats-panel .astra-average-cell { display:grid; gap:4px; }
+ }
+}
+@media(min-width:621px) and (max-width:850px) {
+ html:root:root:has(.astra-dashboard[data-dashboard-visual]) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] {
+  & .astra-header-controls { display:grid !important; grid-template-columns:minmax(0,1fr) auto auto; gap:12px; }
+  & .astra-header-controls [data-account-switcher] { grid-column:1; width:100%; min-width:0; }
+  & .astra-header-controls .ask-cova-launcher { grid-column:2; }
+  & .astra-header-controls .recap-open { grid-column:3; }
+  & .astra-header-controls .astra-trade-actions { display:grid !important; grid-column:1/-1; grid-template-columns:repeat(2,minmax(0,1fr)); width:100%; gap:12px; }
+  & .astra-header-controls .astra-trade-actions>button { width:100% !important; grid-column:auto !important; }
+ }
+}
+.dashboard-ask-layout, .dashboard-ask-content { min-width: 0; }
+.dashboard-ask-content { container-type: inline-size; }
+html:root:root:has(.astra-dashboard[data-dashboard-visual]) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] {
+ & .astra-stats-panel .astra-stat-value { font-size: clamp(22px,3.9cqw,36px); }
+ & .astra-chart-svg { height:auto; min-height:0; max-height:none; }
+ & .astra-chart-main { margin:0; }
+ & .seamless-number { text-align:right; font-variant-numeric:tabular-nums; }
+ & .astra-trade-table { min-width:600px; table-layout:auto; }
+ & .astra-trade-table :is(th,td) { width:auto; white-space:nowrap; }
+ & .astra-trade-table :is(th,td):first-child { width:auto; }
+ & .astra-trade-table .astra-manual-tag { display:inline; margin-left:5px; }
+ & .astra-table-scroll { overflow-x:auto; }
+}
+@media(max-width:1279px) {
+ .oa-dashboard-app:has(.ask-cova-panel[aria-modal=true]) .workspace-top-header { visibility:hidden; }
+ .oa-dashboard-app:has(.ask-cova-panel[aria-modal=true]) .workspace-top-header * { visibility:hidden !important; }
+ html:root:root:has(.astra-dashboard[data-dashboard-visual]) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] #ask-cova-panel .ask-cova { height:100%; min-height:0; max-height:none; padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left)); }
+}
+.ask-cova-panel[hidden] { display: none !important; }
+.ask-cova-panel .ask-cova { display: flex; flex-direction: column; height: calc(100dvh - 180px); min-height: 440px; max-height: calc(100dvh - 40px); margin: 0; padding: 14px; border-radius: 12px; }
+.ask-cova-heading-actions { display: flex; align-items: center; gap: 4px; }
+.ask-cova-heading-actions svg { width: 18px; height: 18px; }
+.ask-cova-panel .ask-cova-heading { flex: none; margin-bottom: 0; }
+.ask-cova-panel .ask-cova-scope { color: var(--ask-muted); font-size: 13px; overflow-wrap: anywhere; margin: 0 0 12px; }
+.ask-cova-panel .ask-cova-scroll { flex: 1; min-height: 44px; overflow-y: auto; overscroll-behavior: contain; padding: 6px 3px; }
+.ask-cova-panel .ask-cova-conversation { width: 100%; margin: 0; }
+.ask-cova-panel .ask-cova-bottom { flex: none; max-height: 60%; overflow-y: auto; padding: 5px 3px 0; }
+.ask-cova-panel .ask-cova-composer { width: 100%; }
+.ask-cova-privacy { margin-top: 8px; font-size: 12px; color: var(--ask-muted); }
+.ask-cova-privacy summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ask-cova-privacy summary::after { content: '⌄'; }
+.ask-cova-privacy[open] summary::after { content: '⌃'; }
+.ask-cova-privacy summary span { font-size: 11px; }
+@media (min-width: 1280px) {
+  .dashboard-ask-layout[data-ask-open="true"] { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 20px; align-items: start; }
+  .ask-cova-panel { position: sticky; top: 20px; min-width: 0; border-left:1px solid #ffffff20; }
+}
+
+/* v3: measured 1536×1024 reference; only Risk Desk opts into this frame. */
+html:root:root .oa-dashboard-app .mini-journal[data-journal-seamless] {
+ & > [hidden] { display:none !important; }
+ & .journal-seamless-date { align-self:flex-start; max-width:160px; font-size:13px; margin:0 0 8px; }
+ & .journal-preview-date { display:flex; gap:16px; align-items:center; color:#c3c5cc !important; font:400 14px/22px Inter,Arial,sans-serif !important; margin:0 0 6px !important; }
+ & .journal-preview-date svg { width:20px; height:20px; flex:none; }
+ & .journal-preview-text { white-space:pre-wrap; overflow-wrap:anywhere; color:#f1f1f3 !important; font:400 16px/25px Inter,Arial,sans-serif !important; margin:0 0 8px 36px !important; }
+ & .journal-note-preview > button { margin-left:36px; }
+}
+@media(max-width:850px) { .journal-view-history { display:none !important; } }
+@media(min-width:851px) {
+ html:root:root .oa-dashboard-app .mini-journal[data-journal-seamless] .journal-saved-notes {
+  display:grid; max-height:260px; overflow:auto; overscroll-behavior:contain;
+  & button { display:grid; gap:6px; text-align:left; min-width:0; min-height:56px; padding:12px 0; border:0; border-bottom:1px solid #ffffff14; background:transparent; color:#f1f1f3; font:400 14px/1.5 Inter,sans-serif; }
+  & time { color:#c3c5cc; font-size:12px; }
+  & button > span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  & p { margin:0; color:#c3c5cc; font-size:14px; }
+  & button:focus-visible { outline:2px solid #79a3ff; outline-offset:-2px; }
+ }
+}
+html:root:root .oa-dashboard-app .oa-dashboard-shell[data-compact-navigation] .workspace-menu-dialog .workspace-menu-close { position:absolute !important; z-index:2; left:auto !important; right:10px !important; top:10px !important; width:36px !important; height:36px !important; padding:8px !important; }
+.workspace-menu-trigger { display:none !important; }
+.workspace-menu-dialog:not([open]) { display:none !important; }
+html:root:root .oa-dashboard-app .workspace-menu-dialog {
+ padding:0; margin:12px auto auto 36px; width:280px; height:min(760px,calc(100dvh - 24px)); max-height:calc(100dvh - 24px); border:1px solid #353535; border-radius:12px; background:#161616; color:#f1f1f3; overflow:visible;
+ &::backdrop { background:#0008; }
+ & .workspace-sidebar { display:flex !important; position:relative !important; z-index:0 !important; inset:auto !important; width:100% !important; height:100% !important; max-height:100% !important; margin:0 !important; padding:22px 12px 16px !important; border:0 !important; border-radius:12px !important; overflow:visible !important; }
+ & .workspace-sidebar-toggle { display:none !important; }
+ & .workspace-sidebar-nav { overflow-y:auto !important; }
+ & .workspace-menu-close { position:absolute; z-index:2; right:10px; top:10px; width:36px; height:36px; padding:8px; background:transparent; border:0; }
+ & .workspace-menu-close svg { width:20px; height:20px; }
+}
+@media(min-width:851px) {
+ html:root:root .oa-dashboard-app .oa-dashboard-shell[data-compact-navigation] {
+  & .workspace-content { margin:0 !important; padding:0 !important; position:relative; }
+  & .workspace-sync-compact { position:absolute; z-index:5; left:316px; top:16px; margin:0 !important; }
+  & .workspace-sync-compact summary { font-size:11px; min-height:28px; padding:6px 0; }
+  & .workspace-sync-compact details[open] { width:350px; padding:0 14px 14px; background:#191919; border:1px solid #353535; border-radius:8px; }
+ }
+ html:root:root:has(.astra-dashboard[data-dashboard-visual]) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] {
+  padding:10px 20px 40px 40px !important; max-width:none !important;
+  & .astra-reference-header { min-height:50px !important; margin:0 0 12px !important; padding:0 !important; gap:12px !important; }
+  & .astra-header-title { display:flex; align-items:center; gap:14px; margin-left:-4px; }
+  & .astra-title h1, & .astra-header-title h1 { font-size:38px !important; line-height:48px !important; font-weight:500 !important; letter-spacing:-.025em !important; }
+  & .workspace-menu-trigger { display:inline-flex !important; align-items:center; justify-content:center; padding:8px !important; width:36px; height:36px; min-width:36px; color:#b9bbc1; background:transparent !important; border:0 !important; }
+  & .workspace-menu-trigger svg { width:20px; height:20px; }
+  & .astra-header-controls { gap:22px !important; grid-row:1; }
+  & .astra-header-controls :is(button,.cova-account-menu-trigger) { font-size:16px !important; font-weight:400 !important; }
+  & .astra-header-controls .cova-account-menu-label { display:none; }
+  & .astra-header-controls [data-account-switcher] { width:210px; min-width:0; }
+  & .dashboard-review-range { margin:0 !important; min-height:36px !important; gap:16px; }
+  & .astra-segmented { gap:12px !important; }
+  & .astra-segmented button { font-size:16px !important; font-weight:400 !important; padding-inline:14px !important; }
+  & .dashboard-review-period { font-size:12px; color:#b8bac2; }
+  & .astra-stats-panel { position:relative; margin:24px 0 16px; padding:4px 0 20px; }
+  & .astra-stat-strip { padding:0; min-height:72px; margin-bottom:0; }
+  & .astra-stats-panel .astra-stat-cell { padding:0 20px 0 clamp(20px,calc((100cqw - 800px)*.28),68px); }
+  & .astra-stats-panel .astra-stat-cell:first-child { padding-left:20px; }
+  & .astra-stats-panel .astra-stat-cell:last-child { padding-right:0; }
+  & .astra-stats-panel .astra-stat-label { font-size:16px; line-height:24px; }
+  & .astra-stats-panel .astra-stat-value { font-size:clamp(24px,3.45cqw,36px); line-height:44px; margin:4px 0 0; font-weight:500; }
+  & .astra-stats-panel .astra-win-loss { font-size:12px; line-height:16px; }
+  & .astra-metric-details { position:absolute; z-index:3; right:0; bottom:0; font-size:12px; color:#b8bac2; }
+  & .astra-metric-details summary { cursor:pointer; }
+  & .astra-metric-details[open] { padding:12px; background:#191919; border:1px solid #353535; border-radius:8px; max-width:500px; }
+  & .astra-metric-details .astra-average-strip { margin-top:12px; }
+  & .astra-desk-main { gap:28px; }
+  & .astra-desk-grid { gap:55px; }
+  & .astra-desk-side { grid-template-columns:minmax(0,1.04fr) minmax(0,1fr); gap:44px; }
+  & .astra-panel-heading { min-height:0; padding:0 0 16px; }
+  & :is(.astra-header-title h1,.astra-panel-heading h2) { font-family:Inter,Arial,sans-serif !important; }
+  & .astra-panel-heading h2 { font-size:23px !important; font-weight:500 !important; line-height:29px !important; letter-spacing:-.015em; }
+  & .astra-chart-panel { position:relative; }
+  & .astra-chart-note { position:absolute; top:4px; right:0; gap:12px; font-size:12px; line-height:18px; padding:0; color:#b8bac2; }
+  & .astra-chart-svg { overflow:visible; }
+  & .astra-chart-svg text { font-size:14px; fill:#c9cbd1; }
+  & .astra-chart-grid { stroke:#ffffff28; stroke-width:1; }
+  & .astra-chart-axis { stroke:#ffffff40; stroke-width:1; }
+  & .astra-chart-endpoint { font-size:15px; }
+  & .astra-recent-trades { min-height:228px; }
+  & .astra-recent-trades > .astra-panel-heading { padding-bottom:5px; }
+  & .astra-trade-table :is(th,td) { padding:6px 8px; font-size:14px; line-height:21px; }
+  & .astra-trade-table th { padding-block:4px; }
+  & .astra-trade-table td { height:34px; }
+  & .astra-trade-table .astra-positive { color:#41d58b !important; }
+  & .astra-trade-table .astra-manual-tag { font-size:10px; }
+  & .astra-trade-table td { color:#ededf0; }
+  & .astra-trade-table .astra-trade-link { font-size:14px !important; color:#ededf0 !important; }
+  & .seamless-side { border-radius:6px; padding:2px 8px; }
+  & .seamless-side-long { color:#a0ecc2; background:#173b28; }
+  & .seamless-side-short { color:#ffc0ca; background:#41212a; }
+  & .oa-discipline-score strong { font-size:54px; font-weight:600; }
+  & .oa-discipline-score small { font-size:28px; color:#b8bac2; }
+  & .oa-discipline-reading { margin-top:12px; }
+  & .mini-journal>textarea { font-size:16px; line-height:25px; min-height:90px; }
+  & .mini-journal > .astra-panel-heading { align-items:flex-start; }
+  & #ask-cova-panel .ask-cova { height:calc(100dvh - 140px); max-height:none; min-height:440px; padding:12px 0 0 24px; }
+  & #ask-cova-panel .ask-cova-heading h2 { font-size:27px; line-height:34px; font-weight:500; }
+  & #ask-cova-panel .ask-cova-beta { font-size:16px; font-weight:400; }
+  & #ask-cova-panel .ask-cova-heading-actions button { font-size:16px !important; font-weight:400 !important; }
+  & #ask-cova-panel .ask-cova-scope { font-size:16px; line-height:24px; margin-bottom:14px; }
+  & #ask-cova-panel .ask-cova-scroll { padding:6px 0; }
+  & #ask-cova-panel .ask-cova-bottom { padding:5px 0 0; }
+  & #ask-cova-panel .ask-cova-exchange { gap:20px; }
+  & #ask-cova-panel .ask-cova-question { font-size:17px; padding:12px 14px; }
+  & #ask-cova-panel .ask-cova-reply p { font-size:18px; line-height:25px; font-weight:400 !important; }
+  & #ask-cova-panel .ask-cova-reply .ask-cova-notice { font-size:13px; line-height:20px; }
+  & #ask-cova-panel .ask-cova-actions button { font-size:15px !important; font-weight:400 !important; }
+  & #ask-cova-panel .ask-cova-questions { flex-wrap:nowrap; overflow-x:auto; gap:22px; margin-bottom:18px; }
+  & #ask-cova-panel .ask-cova-questions button { flex:0 0 calc(50% - 11px); font-size:16px !important; font-weight:400 !important; white-space:nowrap; text-align:left; scroll-snap-align:start; }
+  & #ask-cova-panel .ask-cova-questions { scroll-snap-type:x proximity; scrollbar-width:thin; }
+  & #ask-cova-panel :is(.ask-cova-question,.ask-cova-reply p,.ask-cova-questions button) { font-family:Inter,Arial,sans-serif !important; }
+  & #ask-cova-panel .ask-cova-reply p { margin:0 !important; }
+  & #ask-cova-panel .ask-cova-composer { border-radius:15px; min-height:50px; padding:2px; }
+  & #ask-cova-panel .ask-cova-composer button { width:36px !important; min-width:36px !important; margin-right:4px; }
+  & #ask-cova-panel .ask-cova-composer button::after { inset:-5px !important; }
+  & #ask-cova-panel .ask-cova-composer textarea { font-size:16px; }
+  & #ask-cova-panel .ask-cova-privacy { font-size:14px; }
+ }
+}
+@media(min-width:1280px) {
+ .dashboard-ask-layout[data-ask-open="true"] { grid-template-columns:minmax(0,1fr) 400px; gap:32px; }
+ .ask-cova-panel { top:20px; }
+}
+@media(min-width:851px) and (max-width:1279px) {
+ html:root:root:has(.astra-dashboard[data-dashboard-visual]) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] {
+  & .astra-reference-header { grid-template-columns:minmax(0,1fr) !important; }
+  & .astra-header-title { grid-column:1; grid-row:1; }
+  & .astra-header-controls { grid-column:1; grid-row:2; display:flex !important; gap:12px !important; width:100%; justify-content:space-between; }
+  & .astra-header-controls [data-account-switcher] { flex:1 1 180px; min-width:150px; }
+ }
+}
