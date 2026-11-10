@@ -16,7 +16,8 @@ import load from './helpers/load-ts.cjs';
 import {chooseAccount as chooseAccountOriginal,accountValue} from './helpers/account-picker.mjs';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 process.chdir(root);
-const out=path.resolve(process.env.ASK_COVA_EVIDENCE_ROOT || path.resolve(root,'../ask-cova-panel-evidence/runs',new Date().toISOString().replaceAll(':','-')),'app'); // Each verification run preserves prior evidence.
+const drawerMode=process.argv.includes('--drawer');
+const out=path.resolve(process.env.ASK_COVA_EVIDENCE_ROOT || path.resolve(root,drawerMode?'../left-sidebar-drawer-evidence/runs':'../ask-cova-panel-evidence/runs',new Date().toISOString().replaceAll(':','-')),'app'); // Each verification run preserves prior evidence.
 mkdirSync(out,{recursive:true});
 const {defaultRules}=load('src/lib/risk.ts');
 const owner='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
@@ -31,7 +32,7 @@ const record=(kind,recordId,accountId,payload)=>({kind,recordId,accountId,schema
 const cloud=[...trades.map(t=>record('trade',t.id,t.manual.accountKey,t)),record('rules','current','all',{rules:defaultRules}),...Object.entries(names).map(([account,name])=>record('account',account,account,{name}))];
 const report={disclosure:'LOCAL FULL-APP PRODUCTION-MODE FIXTURE: synthetic manual USD records; mocked auth, saved-cloud snapshot, profile and provider AUTHORED ANSWER. Real App, canonical entry/CSS, workspace sync, client transport and shared deterministic core. No provider/backend execution, paid calls, customer records, credentials or deployment.',base:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),samples:[...trades,euroTrade],sourceHashes:{},builds:[],checks:[],failures:[],errors:[],externalBlocked:[],requests:[],screenshots:[],measurements:[],comparisons:[]};
 const hashFile=file=>createHash('sha256').update(readFileSync(file)).digest('hex');
-for(const f of ['src/App.tsx','src/components/DashboardView.tsx','src/components/AskCova.tsx','src/components/TradeHistoryDialog.tsx','src/lib/askCova.ts','src/lib/askCovaClient.ts','src/lib/askCovaIntent.ts','src/styles/askCova.css','src/main.tsx','scripts/ask-cova-app-browser.mjs','scripts/helpers/load-ts.cjs','scripts/helpers/account-picker.mjs'])report.sourceHashes[f]=hashFile(path.join(root,f));
+for(const f of ['src/App.tsx','src/components/DashboardView.tsx','src/components/AskCova.tsx','src/components/TradeHistoryDialog.tsx','src/lib/askCova.ts','src/lib/askCovaClient.ts','src/lib/askCovaIntent.ts','src/styles/askCova.css','src/main.tsx','scripts/ask-cova-app-browser.mjs',...(drawerMode?['scripts/workspace-drawer-browser.mjs']:[]),'scripts/helpers/load-ts.cjs','scripts/helpers/account-picker.mjs'])report.sourceHashes[f]=hashFile(path.join(root,f));
 report.buildSourceHashes={};report.baselineSourceHashes={};
 const save=()=>writeFileSync(path.join(out,'results.json'),JSON.stringify(report,null,2));
 function check(name,condition,detail){(condition?report.checks:report.failures).push({name,...(detail===undefined?{}:{detail})});save();return condition;}
@@ -53,12 +54,12 @@ function isolation(variant){return {name:'ask-cova-full-app-isolation',enforce:'
  }
  if(rel==='src/lib/supabaseClient.ts')return readFileSync(id,'utf8').replace('export function getSupabaseClient() {','function unusedRealSupabaseClient() {').replace('export function getSupabaseAuthSessionId(accessToken: string)','function unusedRealSessionId(accessToken: string)')+'\nexport const getSupabaseAuthSessionId=()=>"qa-session";export const getSupabaseClient=()=>({auth:{getSession:async()=>({data:{session:window.__qaSession}}),onAuthStateChange:()=>({data:{subscription:{unsubscribe(){}}}}),signOut:async()=>({error:null})}});';
  if(rel==='src/lib/profileRepository.ts')return `export const createProfileRepository=()=>({load:async(user_id)=>({user_id,username:'sample_review',avatar_data:null,username_changed_at:'2020-01-01T00:00:00Z'}),save:async()=>{throw Error('Read-only isolated fixture')}});`;
- if(variant==='baseline'&&baselineFiles.includes(rel)){const source=execFileSync('git',['show',`HEAD:${rel}`],{cwd:root,encoding:'utf8'});report.baselineSourceHashes[rel]=createHash('sha256').update(source).digest('hex');return source;}
+ if(variant==='baseline'&&(baselineFiles.includes(rel)||(drawerMode&&rel==='src/styles/askCovaPanel.css'))){const source=execFileSync('git',['show',`HEAD:${rel}`],{cwd:root,encoding:'utf8'});report.baselineSourceHashes[rel]=createHash('sha256').update(source).digest('hex');report.buildSourceHashes[variant][rel]=report.baselineSourceHashes[rel];return source;}
  },transformIndexHtml(){return [{tag:'div',attrs:{id:'qa-disclosure',style:'position:fixed;bottom:0;left:0;right:0;z-index:2147483647;pointer-events:none;padding:5px 12px;background:#202020;color:#eee;font:12px/1.5 sans-serif;text-align:center;overflow-wrap:anywhere'},children:fixtureLabel,injectTo:'body-prepend'}];}};}
 let browser,server,core;
 try{
- for(const variant of ((process.argv.includes('--panel') || process.argv.includes('--visual')) ? ['enabled'] : ['enabled','disabled','baseline'])){
-  await build({root,base:'/',configFile:false,envDir:false,logLevel:'error',plugins:[isolation(variant),react()],define:{'import.meta.env.VITE_WORKSPACE_SYNC_ENABLED':'"true"','import.meta.env.VITE_ASK_COVA_ENABLED':JSON.stringify(variant==='enabled'?'true':'false')},build:{outDir:path.join(out,'site',variant),emptyOutDir:true}});
+ for(const variant of (drawerMode ? ['enabled','baseline'] : (process.argv.includes('--panel') || process.argv.includes('--visual')) ? ['enabled'] : ['enabled','disabled','baseline'])){
+  await build({root,base:'/',configFile:false,envDir:false,logLevel:'error',plugins:[isolation(variant),react()],define:{'import.meta.env.VITE_WORKSPACE_SYNC_ENABLED':'"true"','import.meta.env.VITE_ASK_COVA_ENABLED':JSON.stringify((variant==='enabled'||drawerMode)?'true':'false')},build:{outDir:path.join(out,'site',variant),emptyOutDir:true}});
   report.builds.push({variant,mode:'production',entry:'index.html -> src/main.tsx -> actual App',canonicalCSS:true,envFiles:false});save();
  }
  const coreEntry=path.join(root,'__query_app_core__.ts');await build({root,configFile:false,envDir:false,logLevel:'error',plugins:[{name:'query-core-fixture',resolveId(id){if(id.endsWith('__query_app_core__.ts'))return coreEntry;},load(id){if(id===coreEntry)return ['askCovaData','askCovaQuery','askCovaQueryAnswer'].map(name=>`export * from '${path.join(root,'src/lib',name+'.ts').replaceAll('\\','/')}';`).join('\n');}}],build:{ssr:coreEntry,outDir:path.join(out,'core'),emptyOutDir:true,rollupOptions:{output:{entryFileNames:'ask-core.mjs'}}}});
@@ -138,7 +139,7 @@ try{
   check(id+' actual Risk Desk route',new URL(page.url()).hash==='#dashboard'&&await page.getByRole('heading',{name:'Risk Desk',exact:true}).isVisible());
   check(id+' actual auth plan retained',await page.evaluate(()=>JSON.parse(localStorage.getItem('cova-auth-session-v1')).plan)===plan);
   // Approved relocation: full legacy workflows deliberately open the eligible launcher.
-  if(variant==='enabled'&&!process.argv.includes('--panel')&&!process.argv.includes('--visual'))await page.getByRole('button',{name:'Ask Cova',exact:true}).click();
+  if(variant==='enabled'&&!drawerMode&&!process.argv.includes('--panel')&&!process.argv.includes('--visual'))await page.getByRole('button',{name:'Ask Cova',exact:true}).click();
   return state;
  }
  async function withWorkspace(page,action){
@@ -154,7 +155,7 @@ try{
   s.releaseHeld?.();
   const known=s.writes.filter(w=>w.url==='/api/passport'&&w.body===JSON.stringify({action:'plan',limits:{maxDailyLoss:2500,maxTradeLoss:1600,maxContracts:5,maxLossStreak:3},owner}));
   check(s.id+' no new writes beyond HEAD plan-sync attempt',s.writes.length===known.length&&known.length===(s.expectedPlanWrites ?? (s.local?0:1)),s.writes);
-  check(s.id+' exact discovery count',s.capabilities.length===(s.variant==='enabled'?1:0),s.capabilities);
+  check(s.id+' exact discovery count',s.capabilities.length===((s.variant==='enabled'||drawerMode)?1:0),s.capabilities);
   report.requests.push({id:s.id,api:s.api,capabilities:s.capabilities,asks:s.asks,blockedBaselinePlanWrites:known});await s.context.close();save();
  }
  async function screenshot(s,label,selector){await s.page.mouse.move(0,0);await s.page.waitForTimeout(200);
@@ -217,7 +218,10 @@ try{
   await p.keyboard.press('Escape');await dialog.waitFor({state:'detached'});await p.waitForTimeout(50);
   check(s.id+' close restores '+(alreadyOpen?'composer':'Show trades')+' focus',await show.evaluate(el=>document.activeElement===el));
  }
- if(process.argv.includes('--visual')) {
+ if(drawerMode) {
+  const {runDrawerChecks}=await import('./workspace-drawer-browser.mjs');
+  await runDrawerChecks({open,finish,check,screenshot,report,out});
+ } else if(process.argv.includes('--visual')) {
   const {runVisualChecks}=await import('./ask-cova-visual-browser.mjs');
   await runVisualChecks({open,finish,check,screenshot,measure,ask,report,out});
  } else if(process.argv.includes('--panel')) {
@@ -379,7 +383,7 @@ try{
  report.completed=true;
  report.notes=['HEAD and candidate both automatically attempt one Passport plan-sync POST after cloud readiness. Every attempt was blocked with HTTP 403; no real plan was written. This is existing App behavior, not an Ask Cova write.','Original approved-integration evidence remains in ../ask-cova-evidence/app and is never written by this harness. Composer/thread scenarios are additive, not replacements for existing scope, currency, storage, touch and pixel-parity gates.','Typing screenshots are captured only while the real client awaits a deliberately held local mock response. No typing preview is fabricated.','Result and drawdown answers intentionally use the same four scoped IDs; distinct checked details additionally prove earlier-reply actions do not alias the latest answer.','sourceHashes and buildSourceHashes include transitive local canonical CSS/modules. Baseline source overrides remain only the original HEAD App/Dashboard/TradeHistory seams; no App or ownerCurrent replacement is introduced. Browser Enter/Shift+Enter/IME edge cases beyond this real-App flow belong to the separately owned component suite.'];
 }catch(error){report.fatal=String(error);console.error(error);process.exitCode=1;}
-finally{if(browser)await browser.close();if(server)await new Promise(r=>server.close(r));report.endSourceHashes={};for(const [file,hash] of Object.entries(report.sourceHashes)){const current=existsSync(path.join(root,file))?hashFile(path.join(root,file)):null;report.endSourceHashes[file]=current;const buildHashes=Object.fromEntries(Object.entries(report.buildSourceHashes).filter(([,files])=>file in files).map(([variant,files])=>[variant,files[file]]));check('Candidate stayed fixed: '+file,current===hash&&Object.values(buildHashes).every(value=>value===hash),{start:hash,end:current,builds:buildHashes});}save();}
+finally{if(browser)await browser.close();if(server)await new Promise(r=>server.close(r));report.endSourceHashes={};for(const [file,hash] of Object.entries(report.sourceHashes)){const current=existsSync(path.join(root,file))?hashFile(path.join(root,file)):null;report.endSourceHashes[file]=current;const buildHashes=Object.fromEntries(Object.entries(report.buildSourceHashes).filter(([,files])=>file in files).map(([variant,files])=>[variant,files[file]]));check('Candidate stayed fixed: '+file,current===hash&&Object.entries(buildHashes).every(([variant,value])=>value===(variant==='baseline'?(report.baselineSourceHashes[file]??hash):hash)),{start:hash,end:current,builds:buildHashes});}save();}
 writeFileSync(path.join(out,'README.md'),`# Ask Cova full-App QA\n\n${report.disclosure}\n\nSource base: ${report.base}. Source hashes and exhaustive assertions: results.json.\n\nSample account A: four manual self-reported net USD trades (825, -275, 450, 350), October 20/24/28/30 2026. Sample account B: -900 and 75 USD, October 20/24 2026. Synthetic private notes retained locally and never included in Ask request.\n\nViewports: desktop 1440, tablet 768, phone 390, narrow 320. Screenshots use real src/main.tsx and canonical CSS from a production-mode Vite fixture with envDir:false. Disabled comparison references HEAD App/Dashboard/TradeHistory source with identical isolation. No production code changed by this script.\n\nChecks: ${report.checks.length} passed; ${report.failures.length} failed. ${report.fatal||''}\n\nNo live backend, provider quality, actual billing, or release deployment is claimed. Fixture servers and browser are shut down after execution.\n`);
 const esc=s=>String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;');
 const previews=[...new Set(report.screenshots)].filter(f=>f.startsWith('enabled-pro-saved-')).sort((a,b)=>{const width=f=>Number(f.match(/saved-(\d+)/)?.[1]);return width(b)-width(a)||a.localeCompare(b);});

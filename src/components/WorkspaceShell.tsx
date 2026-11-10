@@ -66,11 +66,14 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
     const dialog = menuDialog.current;
     if (!dialog) return;
     const overflow = document.body.style.overflow;
+    dialog.inert = false;
     dialog.showModal(); document.body.style.overflow = 'hidden';
     const media = window.matchMedia('(max-width: 850px)');
     const resize = () => { if (media.matches && !dialog.querySelector('dialog[open]')) setMenuOpen(false); };
     media.addEventListener('change', resize);
     return () => {
+      // The native close releases modality immediately; the CSS exit is paint-only.
+      dialog.inert = true;
       dialog.close(); document.body.style.overflow = overflow;
       media.removeEventListener('change', resize);
       const target = menuTrigger.current?.checkVisibility() ? menuTrigger.current : document.querySelector<HTMLButtonElement>('.workspace-top-header .operator-mobile-menu-toggle');
