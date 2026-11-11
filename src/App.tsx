@@ -1,4 +1,6 @@
 import { useAccountNames } from './lib/useAccountNames';
+import { TradovateStopHistoryPage } from './components/TradovateStopHistoryPage';
+import { flushSync } from 'react-dom';
 import { useAskCovaAccess } from './lib/useAskCovaAccess';
 import { saveManualAccountName } from './lib/accountNames';
 import { newManualAccountKey } from './lib/manualAccountKeys';
@@ -147,6 +149,20 @@ const planEntitlements: Record<PlanTier, Entitlements> = {
 };
 
 export default function App() {
+  const [readOnly, setReadOnly] = useState(() => window.location.hash === "#stop-history");
+  useLayoutEffect(() => {
+    // Run before normal hash listeners can render an intermediate workspace
+    // section and mount account/persistence effects during this transition.
+    const navigate = () => flushSync(() => setReadOnly(window.location.hash === "#stop-history"));
+    window.addEventListener("hashchange", navigate, true);
+    window.addEventListener("popstate", navigate, true);
+    return () => { window.removeEventListener("hashchange", navigate, true); window.removeEventListener("popstate", navigate, true); };
+  }, []);
+  // Decide before the normal App mounts any importer or persistence effects.
+  return readOnly ? <TradovateStopHistoryPage /> : <TradingApp />;
+}
+
+function TradingApp() {
   const [section, setSection] = useHashSection();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode | null>(null);
@@ -350,6 +366,12 @@ export default function App() {
 
     return () => {
       mounted = false;
+      // Leaving the normal App for the read-only entry must revoke already
+      // pending auth/import continuations before they can persist or redirect.
+      authGenerationRef.current += 1;
+      identitySwitchGenerationRef.current += 1;
+      historySelection.current.change();
+      providerSessionRef.current = null;
       data.subscription.unsubscribe();
     };
   }, []);
@@ -1480,6 +1502,7 @@ export default function App() {
         {isProtectedSection(section) ? (
           isSignedIn ? (
             <WorkspaceShell searchRef={workspaceSearchRef} searchSource={workspaceSearchSource} brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={visibleRiskScore} section={section} signOut={signOut}>
+              <a className="mx-4 text-sm" href="#stop-history">Read-only stop-history check</a>
               <WorkspaceSyncPanel sync={workspaceSync} />
               {workspaceSync.hasWorkspace && <div {...(!workspaceSync.allowEdit ? { inert: '' } as any : {})} aria-busy={!workspaceSync.allowEdit}>
               {tradeAccounts.some(account => account !== "local") && section !== "oauth" && section !== "dashboard" && section !== "rules" && section !== "coach" && section !== "passport" && section !== "import" && (
@@ -1489,7 +1512,7 @@ export default function App() {
                 </div>
               )}
               {section === "dashboard" && <Dashboard askCovaAuthorityKey={workspaceSync.askCovaAuthorityKey} captureAskCovaAuthority={workspaceSync.captureAskCovaAuthority} askCovaEnabled={askCovaEnabled} askCovaOwner={authSession?.userId} askCovaReady={workspaceSync.enabled && workspaceSync.phase === 'saved' && workspaceSync.allowEdit} noteDraftOwner={dashboardPrincipal?.identity} key={`${authSession?.userId || authSession?.email}:${tradeAccount}`} analysis={analysis} rules={rules} go={go} accountControl={ <div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={accountMenuAccounts} value={tradeAccount} onChange={selectTradeAccount} /></div>} onSaveTradeNote={saveTradeNote} journalActions={journalActions} onConfirmManualNet={confirmManualNetRows} onAddManualTrade={addManualTrade} onDeleteManualTrade={deleteManualTrade} manualAccounts={[...new Set([...tradeAccounts,"local"])]} selectedAccount={tradeAccount} rithmicSyncAvailable={brokerStatus?.provider === "Rithmic" && brokerStatus.status === "imported"} />}
-              {section === "import" && <ImportDesk accountManager={<ManualAccountManager accounts={accountMenuAccounts} names={accountNames} onCreate={createManualAccount} onRename={renameManualAccount} onPrepareRemove={prepareRemoveAccount} onRemove={removeTradingAccount} onOpen={account => { selectTradeAccount(account); go("dashboard"); }} />} key={authSession?.userId || authSession?.email} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} entitlements={entitlements} importCsv={importCsv} prepareImportCsv={prepareImportCsv} openFirmOAuth={openFirmOAuth} status={status} reset={() => { if (workspaceSync.enabled) { announce("Keep sample trades separate from your saved account workspace.", "info"); return; } const demoTrades = entitlements.plan === "free" ? sampleTrades.slice(0, entitlements.maxStoredTrades) : sampleTrades; tradesRef.current = demoTrades; setTrades(demoTrades); selectTradeAccount("local"); setRules(defaultRules); clearBrokerStatus(); window.dispatchEvent(new CustomEvent("cova:broker-status")); setStatus("Demo trades restored."); announce("Demo trades restored.", "success"); }} upgradeToPro={upgradeToPro} />}
+              {section === "import" && <ImportDesk accountManager={<ManualAccountManager accounts={accountMenuAccounts} names={accountNames} onCreate={createManualAccount} onRename={renameManualAccount} onPrepareRemove={prepareRemoveAccount} onRemove={removeTradingAccount} onOpen={account => { selectTradeAccount(account); go("dashboard"); }} />} key={authSession?.userId || authSession?.email} owner={toImportPrincipalIdentity(authSession)} accounts={tradeAccounts} trades={trades} selectedAccount={tradeAccount} selectStopHistoryAccount={selectTradeAccount} entitlements={entitlements} importCsv={importCsv} prepareImportCsv={prepareImportCsv} openFirmOAuth={openFirmOAuth} status={status} reset={() => { if (workspaceSync.enabled) { announce("Keep sample trades separate from your saved account workspace.", "info"); return; } const demoTrades = entitlements.plan === "free" ? sampleTrades.slice(0, entitlements.maxStoredTrades) : sampleTrades; tradesRef.current = demoTrades; setTrades(demoTrades); selectTradeAccount("local"); setRules(defaultRules); clearBrokerStatus(); window.dispatchEvent(new CustomEvent("cova:broker-status")); setStatus("Demo trades restored."); announce("Demo trades restored.", "success"); }} upgradeToPro={upgradeToPro} />}
               {section === "oauth" && <OAuthConnectPage firmId={oauthFirmId} onApprove={completeFirmOAuth} onCancel={cancelFirmOAuth} />}
               {section === "rules" && <RulesEngine analysis={analysis} entitlements={entitlements} rules={rules} setRules={setRules} go={go} upgradeToPro={upgradeToPro} accountControl={tradeAccounts.some(account => account !== "local") ? <div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={accountMenuAccounts} value={tradeAccount} onChange={selectTradeAccount} /></div> : undefined} />}
               {section === "coach" && <Coach analysis={analysis} entitlements={entitlements} go={go} upgradeToPro={upgradeToPro} accountControl={tradeAccounts.some(account => account !== "local") ? <div data-account-switcher><TradeAccountSelect key={toImportPrincipalIdentity(authSession)} owner={toImportPrincipalIdentity(authSession)} accounts={accountMenuAccounts} value={tradeAccount} onChange={selectTradeAccount} /></div> : undefined} />}
