@@ -10,6 +10,7 @@ import { authorizedFetch } from "../lib/apiClient";
 import { fetchHistoryJson, HistoryRunGuard, readHistorySummary, saveHistorySummary, recentHistoryWindow, validateTradovateHistory, type HistoryAccount } from "../lib/tradovateHistory";
 import { SectionShell } from "./LayoutShell";
 import { BrokerConnectPanel, CsvExportGuide, CsvPreview, CsvUploadPanel } from "./ImportPanels";
+import { TradovateStopHistoryCheck } from "./TradovateStopHistoryCheck";
 
 
 
@@ -80,7 +81,7 @@ function brokerStatusFromTradovate(data: TradovateStatusResponse): BrokerStatus 
   };
 }
 
-export function ImportDesk({ entitlements, importCsv, prepareImportCsv, openFirmOAuth, status, reset, upgradeToPro, owner="", accounts=[], accountManager }: { accountManager?: ReactNode; owner?: string; accounts?: string[]; entitlements: ImportEntitlements; importCsv: ImportCommit; prepareImportCsv: PrepareImportCsv; openFirmOAuth: (firm: PropFirmId) => void; status: string; reset: () => void; upgradeToPro: () => void }) {
+export function ImportDesk({ entitlements, importCsv, prepareImportCsv, openFirmOAuth, status, reset, upgradeToPro, owner="", accounts=[], accountManager, trades=[], selectedAccount="", selectStopHistoryAccount }: { accountManager?: ReactNode; owner?: string; accounts?: string[]; trades?: readonly Trade[]; selectedAccount?: string; selectStopHistoryAccount?: (account: string) => void; entitlements: ImportEntitlements; importCsv: ImportCommit; prepareImportCsv: PrepareImportCsv; openFirmOAuth: (firm: PropFirmId) => void; status: string; reset: () => void; upgradeToPro: () => void }) {
 
   const csvDialog=useRef<HTMLDialogElement>(null);
   const displayNames=readAccountNames(owner);
@@ -556,6 +557,8 @@ export function ImportDesk({ entitlements, importCsv, prepareImportCsv, openFirm
         )}
 
 
+
+        <TradovateStopHistoryCheck accountControl={selectStopHistoryAccount ? <label className="grid min-w-0 max-w-full gap-1 text-sm">Account<select aria-label="Stop-history account" value={accounts.includes(selectedAccount) && selectedAccount.startsWith("Tradovate:") ? selectedAccount : ""} onChange={event => { if (accounts.includes(event.target.value) && event.target.value.startsWith("Tradovate:")) selectStopHistoryAccount(event.target.value); }}><option value="">Select a Tradovate account</option>{accounts.filter(account => account.startsWith("Tradovate:")).map(account => <option key={account} value={account}>{accountDisplayName(account, displayNames)}</option>)}</select></label> : undefined} owner={owner} selectedAccount={selectedAccount} trades={trades} connectionId={brokerStatus?.provider === "Tradovate" && brokerStatus.connected ? brokerStatus.connectionId || "" : ""} enabled={entitlements.canUseDirectSync && tradovateCapability.available && brokerStatus?.provider === "Tradovate" && brokerStatus.connected === true && !syncBusy} captureCurrent={() => prepareImportCsv()?.isCurrent || null} />
 
         <dialog ref={csvDialog} className="utility-dialog accounts-csv-dialog" aria-labelledby="csv-dialog-title"><div className="utility-dialog-heading"><h3 id="csv-dialog-title">Import CSV</h3><button aria-label="Close CSV import" type="button" onClick={()=>csvDialog.current?.close()}>×</button></div>
         <div className="accounts-csv-grid">

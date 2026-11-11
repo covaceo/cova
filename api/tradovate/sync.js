@@ -6,6 +6,7 @@ import { acquireTradovateSyncPermit } from "../_lib/rithmic-limit.js";
 import { getBrokerConnection, getTradovateConnection } from "../_lib/supabase.js";
 import { diagnoseTradovateHistory } from "../_lib/tradovate-history-diagnostic.js";
 import { diagnoseTradovateReport } from "../_lib/tradovate-report-diagnostic.js";
+import { collectTradovateStopHistory } from "../_lib/tradovate-stop-history.js";
 
 const DEFAULT_API_BASE_URL = "https://live.tradovateapi.com/v1";
 const MAX_CONCURRENT_CONTRACT_LOOKUPS = 5;
@@ -57,6 +58,13 @@ export default async function handler(req, res) {
 
   res.setHeader("Cache-Control", "private, no-store");
 
+  // Presence is authoritative: malformed diagnostics must never select the
+  // ordinary bulk sync route (including framework repeated-value arrays).
+  if (Object.hasOwn(req.query || {}, "diagnostic") &&
+      (typeof req.query.diagnostic !== "string" || !["stop-history", "access", "history", "history-discovery", "history-report", "fee-discovery", "fee-report"].includes(req.query.diagnostic))) {
+    return res.status(400).json({ error: "Invalid Tradovate diagnostic request." });
+  }
+
   let user;
   try {
     user = requireProEntitlement(await requirePolicyAcceptedUser(req));
@@ -87,7 +95,7 @@ export default async function handler(req, res) {
       let connectionExpiresAt;
       try {
         // Expired Tradovate credentials are rejected without erasing the retained owner link.
-        const connection = Object.hasOwn(req.query || {}, "history") || ["history", "history-discovery", "history-report", "fee-discovery", "fee-report"].includes(req.query?.diagnostic)
+        const connection = Object.hasOwn(req.query || {}, "history") || ["stop-history", "history", "history-discovery", "history-report", "fee-discovery", "fee-report"].includes(req.query?.diagnostic)
           ? await getBrokerConnection({ connectionId, provider: "tradovate", userId: user.id, pruneExpired: false })
           : await getTradovateConnection(connectionId, user.id);
         if (!connection?.access_token_encrypted) {
@@ -108,6 +116,14 @@ export default async function handler(req, res) {
         providerTimeout.unref?.();
         const providerSignal = providerController.signal;
         const providerBudget = createProviderByteBudget(MAX_PROVIDER_SYNC_BYTES, () => providerController.abort());
+        if (req.query?.diagnostic === "stop-history") {
+          try {
+            if (typeof req.query.connectionId !== "string" || req.query.connectionId !== connectionId) return res.status(409).json({ error: "Tradovate connection changed. Check the connection and retry." });
+            return res.status(200).json(await collectTradovateStopHistory(accessToken, req.query, providerSignal));
+          } finally {
+            providerController.abort();
+          }
+        }
         if (Object.hasOwn(req.query || {}, "history")) {
           try {
             if (req.query.connectionId !== undefined && req.query.connectionId !== connectionId) return res.status(409).json({ error: "Tradovate connection changed. Check the connection and retry." });
