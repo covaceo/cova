@@ -3,6 +3,8 @@ import { reportDefinitions } from './tradovate-report-diagnostic.js';
 const ORIGIN = 'https://demo.tradovateapi.com/v1';
 const DEFINITIONS_PATH = '/reports/requestReportDefinitions';
 const DEFINITIONS_ORIGIN = 'https://rpt-demo.tradovateapi.com/v1';
+const REPORT_PATH = '/reports/requestreport';
+const REPORT_FAILURES = ['request_limit','byte_limit','upstream_rejected','unsupported_media','empty_response','invalid_json','duplicate_json_key','provider_error','unsupported_report_envelope','unsupported_report_content','report_text_limit'];
 const METADATA_FAILURES = ['request_limit','byte_limit','upstream_rejected','unsupported_media','empty_response','invalid_json','duplicate_json_key','provider_error','invalid_reports_envelope','invalid_report_descriptor','invalid_report_params','missing_or_invalid_optional','invalid_report_fields'];
 const LIMITS = Object.freeze({ requests: 160, bytes: 2_097_152, responseBytes: 262_144, rows: 4000, orders: 24, contracts: 16, commands: 48, milliseconds: 12000, outputBytes: 524_288 });
 const ORDER_STATUS = ['Canceled','Completed','Expired','Filled','PendingCancel','PendingNew','PendingReplace','Rejected','Suspended','Unknown','Working'];
@@ -79,7 +81,7 @@ export async function collectTradovateStopHistory(token, query, parentSignal) {
   if (parentSignal.aborted) abort();
   const timer = setTimeout(abort, LIMITS.milliseconds); timer.unref?.();
   let reader, requests = 0, bytes = 0, rows = 0;
-  let mismatch, ownedAccountConfirmed = false;
+  let mismatch, selection, ownedAccount, uniqueAccountName, ownedAccountConfirmed = false;
   const counts = {accountOrders:0,discoveryOrders:0,fills:0,matchedFillIds:0};
   function tradeMismatch(stage) { mismatch = {stage,counts:{...counts}}; fail('trade_mismatch'); }
   const aborted = new Promise((_, reject) => { signal.addEventListener('abort', () => reject(new Failure('timeout')), {once:true}); if(signal.aborted)reject(new Failure('timeout')); });
@@ -91,9 +93,9 @@ export async function collectTradovateStopHistory(token, query, parentSignal) {
     for (const row of v) { object(row); const key=id(row.id); if(ids.has(key))fail('duplicate_id'); ids.add(key); }
     return v;
   }
-  async function request(path, optional = false) {
+  async function request(path, optional = false, body) {
     signal.throwIfAborted(); if (++requests > LIMITS.requests) fail('request_limit');
-    const response = await fetch(`${path===DEFINITIONS_PATH?DEFINITIONS_ORIGIN:ORIGIN}${path}`, {method:'GET',headers:{Authorization:`Bearer ${token}`,Accept:'application/json'},redirect:'error',signal});
+    const response = await fetch(`${[DEFINITIONS_PATH,REPORT_PATH].includes(path)?DEFINITIONS_ORIGIN:ORIGIN}${path}`, {method:body?'POST':'GET',headers:{Authorization:`Bearer ${token}`,Accept:'application/json',...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),redirect:'error',signal});
     signal.throwIfAborted();
     if(optional && [404,405].includes(response.status)){ void response.body?.cancel?.().catch(()=>{}); return null; }
     if(!response.ok) { void response.body?.cancel?.().catch(()=>{}); fail('upstream_rejected'); }
@@ -112,9 +114,11 @@ export async function collectTradovateStopHistory(token, query, parentSignal) {
     let base;try{base=new URL(process.env.TRADOVATE_API_BASE_URL||'');}catch{fail('unsupported_environment');}
     if(base.origin!=='https://demo.tradovateapi.com'||!['/v1','/v1/'].includes(base.pathname)||base.username||base.password||base.search||base.hash)fail('unsupported_environment');
     if(typeof token!=='string'||!token||token.length>65536||token!==token.trim()||/[\x00-\x1f\x7f]/.test(token))fail('invalid_credential');
-    const selection=selectionFrom(query);
+    selection=selectionFrom(query);
     const accounts=list(await request('/account/list'),'account');
-    if(!accounts.some(a=>id(a.id)===selection.accountId))fail('account_not_owned');
+    ownedAccount=accounts.find(a=>id(a.id)===selection.accountId);
+    if(!ownedAccount)fail('account_not_owned');
+    uniqueAccountName=accounts.filter(a=>a.name===ownedAccount.name).length===1;
     ownedAccountConfirmed=true;
     const allOrders=list(await request(`/order/deps?masterid=${selection.accountId}`),'order').map(row=>{
       const order={id:id(row.id),accountId:id(row.accountId),contractId:id(row.contractId),timestamp:time(row.timestamp),action:action(row.action),ordStatus:en(row.ordStatus,ORDER_STATUS)};
@@ -230,8 +234,43 @@ export async function collectTradovateStopHistory(token, query, parentSignal) {
     }).sort((a,b)=>a.submittedAt.localeCompare(b.submittedAt));
     return {diagnostic:'tradovate-stop-history-v1',status:'collected',selection,lifetime,timestampCrosscheck:'fill_ids_plus_report_second',contractId,orders:scopedOrders,fills:fills.filter(f=>scopedOrderIds.has(f.orderId)&&f.timestamp>=lifetime.openedAt&&f.timestamp<=lifetime.closedAt),commands:scopedCommands,versions:scopedVersions,commandReports:commandReports.filter(r=>scopedCommandIds.has(r.commandId)&&r.timestamp<=lifetime.closedAt),executionReports:scopedReports,unsupportedCommandReports:unsupportedCommandReports.filter(cid=>scopedCommandIds.has(cid)),timeline,scope:'candidate_order_lifetimes_not_proven_protection',commandVersionJoin:'observed_native_client',acceptanceSemantics:'unverified',archivalCompleteness:'unverified',protectiveLinkage:'unverified',plannedRisk:'unavailable',reason:'raw_acceptance_and_protective_linkage_unverified',limits:LIMITS,usage:{requests,bytes,rows}};
   }
-  // Discovery stays inside the original deadline and transport budget. It cannot
-  // generate a report, query another account, or establish archival completeness.
+  // Historical CSV remains opaque evidence, never an import or risk input.
+  // Both read-only report POSTs use the original transport/deadline budget.
+  async function historicalEvidence(reports) {
+    const reflected=value=>typeof value==='string'?(value.includes(token)||value.includes(JSON.stringify(token).slice(1,-1))):value&&typeof value==='object'&&Object.values(value).some(reflected);
+    if(reflected(ownedAccount.name)||reflected(reports))fail('unsafe_output');
+    if(typeof ownedAccount.name!=='string'||!ownedAccount.name||ownedAccount.name.length>128||ownedAccount.name!==ownedAccount.name.trim()||/[\x00-\x1f\x7f]/.test(ownedAccount.name)||!uniqueAccountName)return {status:'unavailable',reason:'invalid_report_account'};
+    const types={startDate:'Date',endDate:'Date',startTime:'Time',endTime:'Time',account:'accounts',contract:'contracts',product:'products',exchange:'exchanges',orderStatus:'OrderStatus'};
+    const supplied=['startDate','endDate','startTime','endTime','account'];
+    for(const name of ['Orders','Fills']){
+      const matches=reports.filter(r=>r.name===name);
+      if(matches.length!==1)return {status:'unavailable',reason:matches.length?'ambiguous_report_contract':'missing_report_contract'};
+      const params=matches[0].params;
+      if(!supplied.every(key=>params.some(p=>p.name===key)))return {status:'unavailable',reason:'missing_report_contract'};
+      for(const p of params){
+        if(Object.hasOwn(types,p.name)&&p.paramType!==types[p.name])return {status:'unavailable',reason:'unsupported_parameter_type'};
+        if(!supplied.includes(p.name)&&!p.optional)return {status:'unavailable',reason:'unsupported_required_parameter'};
+      }
+    }
+    const startDate=selection.openedAt.slice(0,10);
+    const endDate=new Date(Date.parse(`${selection.closedAt.slice(0,10)}T00:00:00Z`)+86400000).toISOString().slice(0,10);
+    const window={startDate,endDate,startTime:'00:00:00',endTime:'00:00:00',timeZone:'UTC',timezoneOffset:0,endExclusive:true};
+    const provenance={source:'provider_account_filtered_report',account:{id:selection.accountId,name:ownedAccount.name},tradeId:selection.tradeId,openedAt:selection.openedAt,closedAt:selection.closedAt,window,representationType:'csv',rowIdentity:'unverified',schema:'unverified',coverage:'unverified'};
+    const display=d=>`${d.slice(5,7)}/${d.slice(8,10)}/${d.slice(0,4)}`;
+    const params=[{name:'startDate',value:display(startDate)},{name:'endDate',value:display(endDate)},{name:'startTime',value:'00:00:00'},{name:'endTime',value:'00:00:00'},{name:'account',value:ownedAccount.name}];
+    const collected=[];
+    for(const name of ['Orders','Fills']){
+      const payload=await request(REPORT_PATH,false,{name,representationType:'csv',timezone:0,params});
+      if(payload?.data&&typeof payload.data==='object'&&['error','errorText','errorMessage','errorCode','errors'].some(k=>Object.hasOwn(payload.data,k)))fail('provider_error');
+      if(!payload||Array.isArray(payload)||typeof payload.data!=='string')fail('unsupported_report_envelope');
+      const text=payload.data,textBytes=Buffer.byteLength(text);
+      if(reflected(text))fail('unsafe_output');
+      if(textBytes>131072)fail('report_text_limit');
+      if(/^\s*(?:<|\{|\[|error\b|unauthorized\b|forbidden\b|access denied\b)/i.test(text)||/<\/?[a-z][\w:-]*(?:\s|\/?>)/i.test(text))fail('unsupported_report_content');
+      collected.push({name,status:text.trim()?'collected':'empty',text,textBytes});
+    }
+    return {status:'collected',provenance,reports:collected};
+  }
   async function executeWithMismatch() {
     try { return await execute(); }
     catch(error) {
@@ -244,7 +283,17 @@ export async function collectTradovateStopHistory(token, query, parentSignal) {
         if(signal.aborted)fail('timeout');
         definitions={status:'unavailable',reason:METADATA_FAILURES.includes(metadataError?.reason)?metadataError.reason:'network_or_redirect'};
       }
-      return {diagnostic:'tradovate-stop-history-v1',status:'unavailable',reason:'trade_mismatch',plannedRisk:'unavailable',mismatch:{...mismatch,reportDefinitions:definitions}};
+      let historical;
+      if(mismatch.stage==='legacy-fill-resolution'&&counts.accountOrders===0&&definitions.status==='collected'){
+        try {historical=await historicalEvidence(definitions.reports);}
+        catch(reportError){
+          if(signal.aborted)fail('timeout');
+          if(reportError?.reason==='unsafe_output')throw reportError;
+          // All-or-nothing: discard any earlier report, never expose a partial pair.
+          historical={status:'unavailable',reason:REPORT_FAILURES.includes(reportError?.reason)?reportError.reason:'network_or_redirect'};
+        }
+      }
+      return {diagnostic:'tradovate-stop-history-v1',status:'unavailable',reason:'trade_mismatch',plannedRisk:'unavailable',mismatch:{...mismatch,reportDefinitions:definitions,...(historical?{historicalEvidence:historical}:{})}};
     }
   }
   try {
