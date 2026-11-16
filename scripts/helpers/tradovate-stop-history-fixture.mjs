@@ -4,9 +4,27 @@ import handler from '../../api/tradovate/sync.js';
 // Entirely synthetic raw entity fixtures. Not a reproduction of a private trade.
 export const definitionsURL = 'https://rpt-demo.tradovateapi.com/v1/reports/requestReportDefinitions';
 export const definitionsPath = '/reports/requestReportDefinitions';
+export const reportURL = 'https://rpt-demo.tradovateapi.com/v1/reports/requestreport';
+export const reportPath = '/reports/requestreport';
 export const at = minute => `2026-01-05T10:${minute}:00.000Z`;
 export const selection = { diagnostic:'stop-history', connectionId:'synthetic-connection', accountId:'71', tradeId:'tradovate-71:501:502', contractSymbol:'MESM6', openedAt:at('01'), closedAt:at('09'), side:'Long', quantity:'1', entry:'6000', exit:'6005' };
 export const json = (v,status=200) => new Response(JSON.stringify(v),{status,headers:{'content-type':'application/json'}});
+// Verified descriptor vocabulary; opaque synthetic CSV, not provider column semantics.
+export const archiveText='synthetic_column_a,synthetic_column_b\r\n"opaque, value",example\r\n';
+export const archiveDescriptors=()=>['Orders','Fills'].map(name=>({name,params:[
+  {name:'startDate',paramType:'Date',optional:false},{name:'endDate',paramType:'Date',optional:false},
+  {name:'startTime',paramType:'Time',optional:true},{name:'endTime',paramType:'Time',optional:true},
+  {name:'contract',paramType:'contracts',optional:true},{name:'product',paramType:'products',optional:true},
+  {name:'exchange',paramType:'exchanges',optional:true},{name:'account',paramType:'accounts',optional:true},
+  ...(name==='Orders'?[{name:'orderStatus',paramType:'OrderStatus',optional:true}]:[]),
+]}));
+export function archive(options={}){
+  return run({...options,archive:true,omitQuery:['contractSymbol',...(options.omitQuery||[])],mutate(d){
+    d['/account/list']=[{id:72,name:'OTHER-SYNTHETIC'},{id:71,name:'DEMO-SYNTHETIC'}];
+    d['/order/deps?masterid=71']=[];
+    d[definitionsPath]={reports:archiveDescriptors()};d[reportPath]={data:archiveText};options.mutate?.(d);
+  }});
+}
 export function fixtures() {
   const order = (id,action,timestamp) => ({ id,accountId:71,contractId:81,action,timestamp,ordStatus:'Filled',admin:false,clOrdId:'private-provider-string' });
   const command = (id,orderId,commandType,timestamp) => ({id,orderId,commandType,timestamp,commandStatus:'AtExecution',senderId:9999});
@@ -50,9 +68,18 @@ export async function run(options={}) {
       return json(options.wrongOwner?[]:[{access_token_encrypted:encryptSecret(options.token||'synthetic-provider-token'),expires_at:options.expired?'2000-01-01T00:00:00Z':'2099-01-01T00:00:00Z'}]);
     }
     const u=new URL(target), key=u.pathname.replace(/^\/v1/,'')+u.search;
-    assert.equal(u.origin,target===definitionsURL?'https://rpt-demo.tradovateapi.com':'https://demo.tradovateapi.com');assert.equal(init.method,'GET');assert.equal(init.redirect,'error');assert(init.signal);assert.equal(init.headers.Authorization,`Bearer ${options.token||'synthetic-provider-token'}`);assert.equal(init.body,undefined);
+    const report=options.archive && target===reportURL;
+    assert.equal(u.origin,target===definitionsURL||report?'https://rpt-demo.tradovateapi.com':'https://demo.tradovateapi.com');assert.equal(init.method,report?'POST':'GET');assert.equal(init.redirect,'error');assert(init.signal);assert.equal(init.headers.Authorization,`Bearer ${options.token||'synthetic-provider-token'}`);
+    if(report){
+      const body=JSON.parse(init.body);
+      assert.deepEqual(Object.keys(body).sort(),['name','params','representationType','timezone']);
+      assert(['Orders','Fills'].includes(body.name));assert.equal(body.representationType,'csv');assert.equal(body.timezone,0);
+      assert.equal(init.headers['Content-Type'],'application/json');
+      assert.deepEqual(body.params.map(p=>p.name).sort(),['account','endDate','endTime','startDate','startTime']);
+      for(const p of body.params)assert.deepEqual(Object.keys(p).sort(),['name','value']);
+    }else assert.equal(init.body,undefined);
     if(options.stall===key)return new Promise(()=>{});
-    if(options.response?.[key])return options.response[key]();
+    if(options.response?.[key])return options.response[key](init);
     if(Object.hasOwn(data,key))return json(data[key]);
     unexpected.push(key);throw Error('Unexpected synthetic request');
   };
@@ -60,6 +87,7 @@ export async function run(options={}) {
   assert.deepEqual(unexpected,[],'No unintended calls or ledger paths');
   for(const call of calls) {
     if(call.target=== 'https://fixture.upstash.io') continue; // Existing rate-limit lease only.
+    if(options.archive && call.target===reportURL)continue; // Only the fixed read-only report POST checked above.
     assert(!call.init.method||call.init.method==='GET','No provider, ledger or credential mutations');
     assert.doesNotMatch(call.target,/workspace|cash|requestreport(?:$|[?])|placeorder|modifyorder|cancelorder/i);
     if(call.target.includes('tradovateapi.com')) {assert.equal(call.init.method,'GET');assert.equal(call.init.redirect,'error');assert.equal(new URL(call.target).origin,call.target===definitionsURL?'https://rpt-demo.tradovateapi.com':'https://demo.tradovateapi.com');}

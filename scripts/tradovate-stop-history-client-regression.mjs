@@ -5,7 +5,64 @@ import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {pathToFileURL} from 'node:url';
 import ts from 'typescript';
-import {run,selection,definitionsPath} from './helpers/tradovate-stop-history-fixture.mjs';
+import {run,selection,definitionsPath,archive,reportPath} from './helpers/tradovate-stop-history-fixture.mjs';
+
+test('client accepts opaque archive text only with closed exact selected-account and UTC-window provenance',async()=>{
+  const lib=await load(),selected=lib.stopHistorySelection({...trade,source:{...trade.source,contractSymbol:undefined}},'Tradovate:71');
+  const output=(await archive()).res.body;
+  assert.equal(lib.validateStopEvidence(output,selected),output);
+  const empty=(await archive({mutate(d){d[reportPath]={data:' \r\n'}}})).res.body;
+  assert.equal(lib.validateStopEvidence(empty,selected),empty);
+  for(const options of [{mutate(d){d[definitionsPath].reports=[]}},{response:{[reportPath]:()=>json({error:'synthetic failure'})}}]){
+    const failure=(await archive(options)).res.body;assert.equal(lib.validateStopEvidence(failure,selected),failure);
+  }
+  const mutations=[
+    v=>v.extra='unreviewed',v=>v.status='partial',v=>v.reason='private',v=>delete v.reports,
+    v=>v.provenance.extra='unreviewed',v=>v.provenance.source='validated_rows',
+    v=>v.provenance.account.id='72',v=>v.provenance.account.name='',v=>v.provenance.account.name=' padded ',
+    v=>v.provenance.account.name='x'.repeat(129),v=>v.provenance.account.extra='unreviewed',
+    v=>v.provenance.tradeId='tradovate-71:503:504',v=>v.provenance.openedAt='2026-01-05T10:02:00.000000000Z',
+    v=>v.provenance.closedAt='2026-01-05T10:10:00.000000000Z',v=>delete v.provenance.closedAt,
+    v=>v.provenance.representationType='html',v=>v.provenance.schema='verified',v=>v.provenance.rowIdentity='verified',v=>v.provenance.coverage='complete',
+    v=>v.provenance.window.startDate='2026-01-04',v=>v.provenance.window.endDate='2026-01-07',
+    v=>v.provenance.window.startTime='01:00:00',v=>v.provenance.window.endTime='23:59:59',
+    v=>v.provenance.window.timeZone='America/New_York',v=>v.provenance.window.timezoneOffset=-300,
+    v=>v.provenance.window.endExclusive=false,v=>v.provenance.window.extra='unreviewed',
+    v=>v.reports.pop(),v=>v.reports.push(v.reports[0]),v=>v.reports[1].name='Orders',
+    v=>v.reports[0].name='Order Details',v=>v.reports[0].extra='unreviewed',v=>delete v.reports[0].textBytes,
+    v=>v.reports[0].status='empty',v=>v.reports[0].status='accepted',v=>v.reports[0].textBytes++,
+    v=>v.reports[0].text=42,v=>{v.reports[0].text='x'.repeat(131073);v.reports[0].textBytes=131073},
+    v=>{v.reports[0].text='<html>bad</html>';v.reports[0].textBytes=16},
+  ];
+  for(const mutate of mutations){const bad=structuredClone(output);mutate(bad.mismatch.historicalEvidence);assert.throws(()=>lib.validateStopEvidence(bad,selected),/inconsistent/);}
+  for(const mutate of [v=>v.mismatch.stage='trade-crosscheck',v=>v.mismatch.counts.accountOrders=1,v=>v.mismatch.reportDefinitions={status:'unavailable',reason:'upstream_rejected'},v=>v.mismatch.reportDefinitions.reports.pop(),v=>v.mismatch.reportDefinitions.reports[1].params[0].paramType='TEXT']){
+    const bad=structuredClone(output);mutate(bad);assert.throws(()=>lib.validateStopEvidence(bad,selected),/inconsistent/);
+  }
+  for(const value of [{status:'unavailable',reason:'private'},{status:'unavailable',reason:'upstream_rejected',reports:[]},{status:'unavailable',reason:'upstream_rejected',provenance:{}}]){
+    const bad=structuredClone(output);bad.mismatch.historicalEvidence=value;assert.throws(()=>lib.validateStopEvidence(bad,selected),/inconsistent/);
+  }
+  const probe=new lib.StopHistoryProbe(async url=>json(url==='/api/tradovate/status'?{available:true,connected:true,connectionId:selection.connectionId}:output));
+  probe.update({owner:'synthetic-owner',connectionId:selection.connectionId,accountKey:'Tradovate:71',selection:selected});
+  assert.deepEqual(await probe.check(()=>true),output);
+});
+
+test('late archived evidence is revoked for changed owner connection account or trade',async()=>{
+  const lib=await load(),output=(await archive()).res.body;
+  const selected=lib.stopHistorySelection({...trade,source:{...trade.source,contractSymbol:undefined}},'Tradovate:71');
+  for(const stage of ['status','evidence'])for(const change of ['owner','connectionId','accountKey','selection']){
+    let release;const wait=new Promise(r=>release=r),calls=[];
+    const context={owner:'synthetic-owner',connectionId:selection.connectionId,accountKey:'Tradovate:71',selection:selected};
+    const probe=new lib.StopHistoryProbe(async(url,init)=>{
+      calls.push({url,init});if((stage==='status')===(url==='/api/tradovate/status'))await wait;
+      return json(url==='/api/tradovate/status'?{available:true,connected:true,connectionId:context.connectionId}:output);
+    });
+    probe.update(context);const pending=probe.check(()=>true),rejected=assert.rejects(pending,e=>e.name==='AbortError');
+    if(stage==='evidence')while(calls.length<2)await new Promise(r=>setTimeout(r,0));
+    probe.update({...context,[change]:change==='selection'?{...selected,tradeId:'tradovate-71:503:504'}:'other'});
+    probe.update(context);release();await rejected;
+    assert(calls.every(c=>c.init.signal.aborted));assert.equal(calls.length,stage==='status'?1:2);
+  }
+});
 
 test('client accepts the actual-handler mismatch projection only through a closed bounded nested schema',async()=>{
   const lib=await load(),selected=lib.stopHistorySelection(trade,'Tradovate:71');
