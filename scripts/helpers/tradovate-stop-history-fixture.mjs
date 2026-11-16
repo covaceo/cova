@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { encryptSecret } from '../../api/_lib/encryption.js';
 import handler from '../../api/tradovate/sync.js';
 // Entirely synthetic raw entity fixtures. Not a reproduction of a private trade.
+export const definitionsURL = 'https://rpt-demo.tradovateapi.com/v1/reports/requestReportDefinitions';
+export const definitionsPath = '/reports/requestReportDefinitions';
 export const at = minute => `2026-01-05T10:${minute}:00.000Z`;
 export const selection = { diagnostic:'stop-history', connectionId:'synthetic-connection', accountId:'71', tradeId:'tradovate-71:501:502', contractSymbol:'MESM6', openedAt:at('01'), closedAt:at('09'), side:'Long', quantity:'1', entry:'6000', exit:'6005' };
 export const json = (v,status=200) => new Response(JSON.stringify(v),{status,headers:{'content-type':'application/json'}});
@@ -9,6 +11,7 @@ export function fixtures() {
   const order = (id,action,timestamp) => ({ id,accountId:71,contractId:81,action,timestamp,ordStatus:'Filled',admin:false,clOrdId:'private-provider-string' });
   const command = (id,orderId,commandType,timestamp) => ({id,orderId,commandType,timestamp,commandStatus:'AtExecution',senderId:9999});
   return {
+    [definitionsPath]: [],
     '/account/list': [{id:71,name:'private-provider-string'}],
     '/order/deps?masterid=71': [order(101,'Buy',at('00')),order(102,'Sell',at('08')),order(103,'Sell',at('02'))],
     '/contract/item?id=81': {id:81,name:'MESM6',productId:901,private:'private-provider-string'},
@@ -44,10 +47,10 @@ export async function run(options={}) {
       assert.equal(new URL(target).searchParams.get('user_id'),'eq.synthetic-owner');
       assert.equal(new URL(target).searchParams.get('id'),'eq.synthetic-connection');
       assert(!init.method||init.method==='GET','No credential cleanup/write');
-      return json(options.wrongOwner?[]:[{access_token_encrypted:encryptSecret('synthetic-provider-token'),expires_at:options.expired?'2000-01-01T00:00:00Z':'2099-01-01T00:00:00Z'}]);
+      return json(options.wrongOwner?[]:[{access_token_encrypted:encryptSecret(options.token||'synthetic-provider-token'),expires_at:options.expired?'2000-01-01T00:00:00Z':'2099-01-01T00:00:00Z'}]);
     }
     const u=new URL(target), key=u.pathname.replace(/^\/v1/,'')+u.search;
-    assert.equal(u.origin,'https://demo.tradovateapi.com');assert.equal(init.method,'GET');assert.equal(init.redirect,'error');assert(init.signal);assert.equal(init.headers.Authorization,'Bearer synthetic-provider-token');
+    assert.equal(u.origin,target===definitionsURL?'https://rpt-demo.tradovateapi.com':'https://demo.tradovateapi.com');assert.equal(init.method,'GET');assert.equal(init.redirect,'error');assert(init.signal);assert.equal(init.headers.Authorization,`Bearer ${options.token||'synthetic-provider-token'}`);assert.equal(init.body,undefined);
     if(options.stall===key)return new Promise(()=>{});
     if(options.response?.[key])return options.response[key]();
     if(Object.hasOwn(data,key))return json(data[key]);
@@ -58,10 +61,11 @@ export async function run(options={}) {
   for(const call of calls) {
     if(call.target=== 'https://fixture.upstash.io') continue; // Existing rate-limit lease only.
     assert(!call.init.method||call.init.method==='GET','No provider, ledger or credential mutations');
-    assert.doesNotMatch(call.target,/workspace|cash|requestreport|placeorder|modifyorder|cancelorder/i);
-    if(call.target.includes('tradovateapi.com')) {assert.equal(call.init.method,'GET');assert.equal(call.init.redirect,'error');assert.equal(new URL(call.target).origin,'https://demo.tradovateapi.com');}
+    assert.doesNotMatch(call.target,/workspace|cash|requestreport(?:$|[?])|placeorder|modifyorder|cancelorder/i);
+    if(call.target.includes('tradovateapi.com')) {assert.equal(call.init.method,'GET');assert.equal(call.init.redirect,'error');assert.equal(new URL(call.target).origin,call.target===definitionsURL?'https://rpt-demo.tradovateapi.com':'https://demo.tradovateapi.com');}
   }
   assert.doesNotMatch(JSON.stringify(res.body),/private-provider-string|synthetic-provider-token|synthetic-cova-token|synthetic-connection|senderId|clOrdId/);
+  if(options.token)assert(!JSON.stringify(res.body).includes(JSON.stringify(options.token).slice(1,-1)),'No serialized credential reflection');
   assert.equal(res.body.trades,undefined);assert.equal(res.body.csv,undefined);assert.equal(res.body.risk,undefined);
   assert.equal(res.headers['cache-control'],'private, no-store');
   const provider=calls.filter(c=>c.target.includes('tradovateapi.com'));

@@ -40,7 +40,7 @@ function selectPerformance(payload) {
   return { name: "Performance", params: safe };
 }
 // Metadata is projected, never copied wholesale from provider-controlled descriptors.
-function reportDefinitions(payload) {
+export function reportDefinitions(payload) {
   if (hasError(payload)) fail("provider_error");
   const reports = Array.isArray(payload) ? payload : payload?.reports;
   if (hasError(reports) || Array.isArray(reports) && reports.some(hasError)) fail("provider_error");

@@ -5,7 +5,13 @@ export type StopSelection = { accountId: string; tradeId: string; contractSymbol
 type Context = { owner: string; connectionId: string; accountKey: string; selection: StopSelection | null };
 type Fetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 type Row = Record<string, string | number | boolean | null>;
-export type StopEvidence = { diagnostic: "tradovate-stop-history-v1"; status: "collected" | "unavailable"; reason: string; plannedRisk: "unavailable"; selection?: Row; orders?: Row[]; fills?: Row[]; commands?: Row[]; versions?: Row[]; commandReports?: Row[]; executionReports?: Row[]; timeline?: Row[]; unsupportedCommandReports?: string[] };
+type ReportDescriptor = { name: string; label?: string; params: { name: string; paramType: string; optional: boolean }[] };
+type Mismatch = {
+  stage: "legacy-fill-resolution" | "trade-crosscheck";
+  counts: { accountOrders: number; discoveryOrders: number; fills: number; matchedFillIds: number };
+  reportDefinitions: { status: "collected"; reports: ReportDescriptor[] } | { status: "unavailable"; reason: string };
+};
+export type StopEvidence = { diagnostic: "tradovate-stop-history-v1"; status: "collected" | "unavailable"; reason: string; plannedRisk: "unavailable"; mismatch?: Mismatch; selection?: Row; orders?: Row[]; fills?: Row[]; commands?: Row[]; versions?: Row[]; commandReports?: Row[]; executionReports?: Row[]; timeline?: Row[]; unsupportedCommandReports?: string[] };
 const id = (v: unknown): v is string => typeof v === "string" && /^[1-9]\d{0,18}$/.test(v) && BigInt(v) <= 9223372036854775807n;
 const timestamp = (v: unknown): v is string => typeof v === "string" && /^20\d{2}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(v) && Number.isFinite(Date.parse(v)) && new Date(v).toISOString() === v;
 const rawTimestamp = (v: unknown): v is string => typeof v === "string" && /^20\d{2}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{9}Z$/.test(v) && Number.isFinite(Date.parse(v)) && new Date(v).toISOString().slice(0,19)===v.slice(0,19);
@@ -34,13 +40,40 @@ function record(value: unknown, fields: Record<string, Predicate>, optional: str
   return obj;
 }
 // Closed schema: neither preview nor download may reflect unreviewed provider fields.
+const metadataFailure = oneOf("request_limit","byte_limit","upstream_rejected","unsupported_media","empty_response","invalid_json","duplicate_json_key","provider_error","invalid_reports_envelope","invalid_report_descriptor","invalid_report_params","missing_or_invalid_optional","invalid_report_fields","network_or_redirect");
+const boundedCount = (max: number) => (v: unknown) => typeof v === "number" && Number.isSafeInteger(v) && v >= 0 && v <= max;
+const safeLabel = (v: unknown) => typeof v === "string" && v.length > 0 && v.length <= 128 && v === v.trim() && !/[\x00-\x1f\x7f]/.test(v);
+function validateMismatch(value: unknown) {
+  const mismatch=record(value,{stage:oneOf("legacy-fill-resolution","trade-crosscheck"),counts:()=>true,reportDefinitions:()=>true});
+  const counts=record(mismatch.counts,{accountOrders:boundedCount(4000),discoveryOrders:boundedCount(24),fills:boundedCount(4000),matchedFillIds:boundedCount(2)});
+  if(Number(counts.discoveryOrders)>Number(counts.accountOrders)||Number(counts.matchedFillIds)>Number(counts.fills))fail();
+  const definitions=record(mismatch.reportDefinitions,{status:oneOf("collected","unavailable"),reports:Array.isArray,reason:metadataFailure},["reports","reason"]);
+  if(definitions.status==="unavailable"){
+    record(definitions,{status:oneOf("unavailable"),reason:metadataFailure});return;
+  }
+  record(definitions,{status:oneOf("collected"),reports:v=>Array.isArray(v)&&v.length<=256});
+  for(const value of definitions.reports as unknown[]){
+    const report=record(value,{name:safeLabel,label:safeLabel,params:v=>Array.isArray(v)&&v.length<=32},["label"]);
+    const names=new Set();
+    for(const value of report.params as unknown[]){
+      const param=record(value,{name:safeLabel,paramType:safeLabel,optional:v=>typeof v==="boolean"});
+      if(names.has(param.name))fail();names.add(param.name);
+    }
+  }
+}
 export function validateStopEvidence(value: unknown, selected: StopSelection): StopEvidence {
   const root = record(value, {
-    diagnostic:oneOf("tradovate-stop-history-v1"),status:oneOf("collected","unavailable"),reason:v=>typeof v==="string"&&reasons.includes(v),plannedRisk:oneOf("unavailable"),
+    diagnostic:oneOf("tradovate-stop-history-v1"),status:oneOf("collected","unavailable"),reason:v=>typeof v==="string"&&reasons.includes(v),plannedRisk:oneOf("unavailable"),mismatch:()=>true,
     selection:()=>true,lifetime:()=>true,timestampCrosscheck:oneOf("fill_ids_plus_report_second"),contractId:id,orders:Array.isArray,fills:Array.isArray,commands:Array.isArray,versions:Array.isArray,commandReports:Array.isArray,executionReports:Array.isArray,unsupportedCommandReports:Array.isArray,timeline:Array.isArray,
     scope:oneOf("candidate_order_lifetimes_not_proven_protection"),commandVersionJoin:oneOf("observed_native_client"),acceptanceSemantics:oneOf("unverified"),archivalCompleteness:oneOf("unverified"),protectiveLinkage:oneOf("unverified"),limits:()=>true,usage:()=>true,
-  }, ["selection","lifetime","timestampCrosscheck","contractId","orders","fills","commands","versions","commandReports","executionReports","unsupportedCommandReports","timeline","scope","commandVersionJoin","acceptanceSemantics","archivalCompleteness","protectiveLinkage","limits","usage"]);
-  if (root.status === "unavailable") { if(Object.keys(root).length!==4)fail(); return root as StopEvidence; }
+  }, ["mismatch","selection","lifetime","timestampCrosscheck","contractId","orders","fills","commands","versions","commandReports","executionReports","unsupportedCommandReports","timeline","scope","commandVersionJoin","acceptanceSemantics","archivalCompleteness","protectiveLinkage","limits","usage"]);
+  if (root.status === "unavailable") {
+    const hasMismatch=Object.prototype.hasOwnProperty.call(root,"mismatch");
+    if(Object.keys(root).length!==(hasMismatch?5:4))fail();
+    if(hasMismatch){if(root.reason!=="trade_mismatch")fail();validateMismatch(root.mismatch);}
+    return root as StopEvidence;
+  }
+  if(Object.prototype.hasOwnProperty.call(root,"mismatch"))fail();
   if(["selection","lifetime","timestampCrosscheck","contractId","orders","fills","commands","versions","commandReports","executionReports","unsupportedCommandReports","timeline","scope","commandVersionJoin","acceptanceSemantics","archivalCompleteness","protectiveLinkage","limits","usage"].some(k=>root[k]===undefined))fail();
   const pair=selected.tradeId.split(":");
   const expected={...selected,openedAt:precise(selected.openedAt),closedAt:precise(selected.closedAt),quantity:Number(selected.quantity),entry:Number(selected.entry),exit:Number(selected.exit),buyFillId:pair[1],sellFillId:pair[2]};
