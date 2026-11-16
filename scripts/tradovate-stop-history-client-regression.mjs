@@ -5,7 +5,50 @@ import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {pathToFileURL} from 'node:url';
 import ts from 'typescript';
-import {run,selection} from './helpers/tradovate-stop-history-fixture.mjs';
+import {run,selection,definitionsPath} from './helpers/tradovate-stop-history-fixture.mjs';
+
+test('client accepts the actual-handler mismatch projection only through a closed bounded nested schema',async()=>{
+  const lib=await load(),selected=lib.stopHistorySelection(trade,'Tradovate:71');
+  const output=(await run({omitQuery:['contractSymbol'],mutate(d){
+    d['/fill/deps?masterid=102']=[];
+    d[definitionsPath]=[{name:'SyntheticArchive',label:'Synthetic order archive',params:[{name:'account',paramType:'accounts',optional:false}]}];
+  }})).res.body;
+  assert.equal(lib.validateStopEvidence(output,selected),output);
+  const crosscheck=(await run({mutate(d){d['/fill/deps?masterid=101'][0].price=5999}})).res.body;
+  assert.equal(lib.validateStopEvidence(crosscheck,selected).mismatch.stage,'trade-crosscheck');
+  const unavailable=structuredClone(output);unavailable.mismatch.reportDefinitions={status:'unavailable',reason:'upstream_rejected'};
+  assert.equal(lib.validateStopEvidence(unavailable,selected),unavailable);
+  for(const reason of ['trade_mismatch','timeout','foreign_edge'])assert.equal(lib.validateStopEvidence({diagnostic:'tradovate-stop-history-v1',status:'unavailable',reason,plannedRisk:'unavailable'},selected).reason,reason);
+  const mutations=[
+    v=>v.mismatch.extra='private',v=>v.mismatch.stage='guessed-archive',v=>delete v.mismatch.stage,
+    v=>v.mismatch.counts.extra=1,v=>delete v.mismatch.counts.fills,
+    v=>v.mismatch.counts.accountOrders=4001,v=>v.mismatch.counts.discoveryOrders=25,
+    v=>v.mismatch.counts.accountOrders=1,v=>v.mismatch.counts.fills=4001,
+    v=>v.mismatch.counts.fills=-1,v=>v.mismatch.counts.fills=1.5,v=>v.mismatch.counts.fills='1',
+    v=>v.mismatch.counts.matchedFillIds=3,v=>v.mismatch.counts.fills=0,
+    v=>v.mismatch.reportDefinitions.extra='private',v=>v.mismatch.reportDefinitions.status='accepted',
+    v=>v.mismatch.reportDefinitions.reason='provider_error',v=>delete v.mismatch.reportDefinitions.reports,
+    v=>v.mismatch.reportDefinitions.reports=Array(257).fill(v.mismatch.reportDefinitions.reports[0]),
+    v=>v.mismatch.reportDefinitions.reports[0].fields=['private'],
+    v=>v.mismatch.reportDefinitions.reports[0].name='x'.repeat(129),v=>v.mismatch.reportDefinitions.reports[0].name='',
+    v=>v.mismatch.reportDefinitions.reports[0].label=' bad ',v=>v.mismatch.reportDefinitions.reports[0].label='bad\nlabel',
+    v=>v.mismatch.reportDefinitions.reports[0].params=Array(33).fill({name:'x',paramType:'String',optional:true}),
+    v=>v.mismatch.reportDefinitions.reports[0].params[0].extra='private',
+    v=>v.mismatch.reportDefinitions.reports[0].params[0].optional='false',
+    v=>delete v.mismatch.reportDefinitions.reports[0].params[0].optional,
+    v=>v.mismatch.reportDefinitions.reports[0].params[0].paramType='x'.repeat(129),
+    v=>v.mismatch.reportDefinitions.reports[0].params.push({...v.mismatch.reportDefinitions.reports[0].params[0]}),
+    v=>v.reason='foreign_edge',v=>v.selection={},v=>v.mismatch=null,
+    v=>v.mismatch.reportDefinitions={status:'unavailable',reason:'private-provider-error'},
+    v=>v.mismatch.reportDefinitions={status:'unavailable',reason:'upstream_rejected',reports:[]},
+  ];
+  for(const mutate of mutations){const bad=structuredClone(output);mutate(bad);assert.throws(()=>lib.validateStopEvidence(bad,selected),/inconsistent/);}
+  const collected=(await run()).res.body;collected.mismatch=output.mismatch;
+  assert.throws(()=>lib.validateStopEvidence(collected,selected),/inconsistent/);
+  const context={owner:'synthetic-owner',connectionId:'synthetic-connection',accountKey:'Tradovate:71',selection:selected};
+  const client=new lib.StopHistoryProbe(async url=>json(url==='/api/tradovate/status'?{available:true,connected:true,connectionId:context.connectionId}:output));
+  client.update(context);assert.deepEqual(await client.check(()=>true),output);
+});
 
 const trade={id:selection.tradeId,date:'2026-01-05',market:'MES',side:'Long',contracts:1,entry:6000,exit:6005,pnl:25,risk:0,setup:'Synthetic',notes:'Not sent',source:{provider:'Tradovate',accountId:'71',contractSymbol:'MESM6',openedAt:selection.openedAt,closedAt:selection.closedAt,timeZone:'UTC',pnlBasis:'gross_before_fees'}};
 let lib,dir;
