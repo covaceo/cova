@@ -1,4 +1,5 @@
 import type { Trade } from "./risk";
+import { matchHistoricalIdentity, validateDetailContracts, type HistoricalIdentity } from "../../api/_lib/tradovate-historical-identity.js";
 import { fetchHistoryJson } from "./tradovateHistory";
 
 export type StopSelection = { accountId: string; tradeId: string; contractSymbol?: string; openedAt: string; closedAt: string; side: "Long" | "Short"; quantity: string; entry: string; exit: string };
@@ -7,6 +8,8 @@ type Fetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Respons
 type Row = Record<string, string | number | boolean | null>;
 type ReportDescriptor = { name: string; label?: string; params: { name: string; paramType: string; optional: boolean }[] };
 type HistoricalFailure = "missing_report_contract" | "ambiguous_report_contract" | "unsupported_parameter_type" | "unsupported_required_parameter" | "invalid_report_account" | "request_limit" | "byte_limit" | "upstream_rejected" | "unsupported_media" | "empty_response" | "invalid_json" | "duplicate_json_key" | "provider_error" | "unsupported_report_envelope" | "unsupported_report_content" | "report_text_limit" | "network_or_redirect";
+type DetailFailure = HistoricalFailure | "invalid_historical_csv" | "historical_identity_mismatch" | "historical_row_limit" | "historical_order_limit" | "historical_candidate_limit" | "unsupported_historical_order_type" | "row_limit";
+type DetailEvidence = {status:"unavailable";reason:DetailFailure} | {status:"collected";identity:HistoricalIdentity;reports:{name:"Order Details"|"Position History";orderId?:string;status:"collected";text:string;textBytes:number}[];acceptanceSemantics:"unverified";coverage:"unverified";protectiveLinkage:"unverified"};
 type HistoricalEvidence = { status: "unavailable"; reason: HistoricalFailure } | {
   status: "collected";
   provenance: {
@@ -15,6 +18,7 @@ type HistoricalEvidence = { status: "unavailable"; reason: HistoricalFailure } |
     window: { startDate: string; endDate: string; startTime: "00:00:00"; endTime: "00:00:00"; timeZone: "UTC"; timezoneOffset: 0; endExclusive: true };
     representationType: "csv"; rowIdentity: "unverified"; schema: "unverified"; coverage: "unverified";
   };
+  followup?: DetailEvidence;
   reports: { name: "Orders" | "Fills"; status: "collected" | "empty"; text: string; textBytes: number }[];
 };
 type Mismatch = {
@@ -56,11 +60,11 @@ const metadataFailure = oneOf("request_limit","byte_limit","upstream_rejected","
 const boundedCount = (max: number) => (v: unknown) => typeof v === "number" && Number.isSafeInteger(v) && v >= 0 && v <= max;
 const safeLabel = (v: unknown) => typeof v === "string" && v.length > 0 && v.length <= 128 && v === v.trim() && !/[\x00-\x1f\x7f]/.test(v);
 function validateHistorical(value: unknown, selected: StopSelection, descriptors: ReportDescriptor[]) {
-  const historical=record(value,{status:oneOf("collected","unavailable"),reason:oneOf("missing_report_contract","ambiguous_report_contract","unsupported_parameter_type","unsupported_required_parameter","invalid_report_account","request_limit","byte_limit","upstream_rejected","unsupported_media","empty_response","invalid_json","duplicate_json_key","provider_error","unsupported_report_envelope","unsupported_report_content","report_text_limit","network_or_redirect"),provenance:()=>true,reports:Array.isArray},["reason","provenance","reports"]);
+  const historical=record(value,{status:oneOf("collected","unavailable"),reason:oneOf("missing_report_contract","ambiguous_report_contract","unsupported_parameter_type","unsupported_required_parameter","invalid_report_account","request_limit","byte_limit","upstream_rejected","unsupported_media","empty_response","invalid_json","duplicate_json_key","provider_error","unsupported_report_envelope","unsupported_report_content","report_text_limit","network_or_redirect"),provenance:()=>true,reports:Array.isArray,followup:()=>true},["reason","provenance","reports","followup"]);
   if(historical.status==="unavailable"){
     if(Object.keys(historical).length!==2||historical.reason===undefined)fail();return;
   }
-  record(historical,{status:oneOf("collected"),provenance:()=>true,reports:v=>Array.isArray(v)&&v.length===2});
+  record(historical,{status:oneOf("collected"),provenance:()=>true,reports:v=>Array.isArray(v)&&v.length===2,followup:()=>true},["followup"]);
   const types:Record<string,string>={startDate:"Date",endDate:"Date",startTime:"Time",endTime:"Time",account:"accounts",contract:"contracts",product:"products",exchange:"exchanges",orderStatus:"OrderStatus"};
   const supplied=["startDate","endDate","startTime","endTime","account"];
   for(const name of ["Orders","Fills"]){
@@ -78,6 +82,26 @@ function validateHistorical(value: unknown, selected: StopSelection, descriptors
     const report=record(value,{name:oneOf(i===0?"Orders":"Fills"),status:oneOf("collected","empty"),text:v=>typeof v==="string"&&v.length<=131072,textBytes:boundedCount(131072)});
     const text=report.text as string;
     if(new TextEncoder().encode(text).byteLength!==report.textBytes||report.status!==(text.trim()?"collected":"empty")||/^\s*(?:<|\{|\[|error\b|unauthorized\b|forbidden\b|access denied\b)/i.test(text)||/<\/?[a-z][\w:-]*(?:\s|\/?>)/i.test(text))fail();
+  }
+  if(Object.prototype.hasOwnProperty.call(historical,"followup"))validateDetails(historical.followup,historical as HistoricalEvidence & {status:"collected"},selected,descriptors);
+}
+function validateDetails(value: unknown,historical: HistoricalEvidence & {status:"collected"},selected:StopSelection,descriptors:ReportDescriptor[]) {
+  const followup=record(value,{status:oneOf("collected","unavailable"),reason:oneOf("missing_report_contract","ambiguous_report_contract","unsupported_parameter_type","unsupported_required_parameter","request_limit","byte_limit","upstream_rejected","unsupported_media","empty_response","invalid_json","duplicate_json_key","provider_error","unsupported_report_envelope","unsupported_report_content","report_text_limit","network_or_redirect","invalid_historical_csv","historical_identity_mismatch","historical_row_limit","historical_order_limit","historical_candidate_limit","unsupported_historical_order_type","row_limit"),identity:()=>true,reports:Array.isArray,acceptanceSemantics:oneOf("unverified"),coverage:oneOf("unverified"),protectiveLinkage:oneOf("unverified")},["reason","identity","reports","acceptanceSemantics","coverage","protectiveLinkage"]);
+  if(followup.status==="unavailable"){if(Object.keys(followup).length!==2||followup.reason===undefined)fail();return;}
+  if(Object.keys(followup).length!==6||followup.reason!==undefined)fail();
+  let identity:HistoricalIdentity;
+  try{
+    identity=matchHistoricalIdentity(historical.reports[0].text,historical.reports[1].text,selected,historical.provenance.account.name,historical.provenance.window);
+    validateDetailContracts(descriptors);
+  }catch{return fail();}
+  record(followup.identity,Object.fromEntries(Object.entries(identity).map(([k,v])=>[k,(got:unknown)=>JSON.stringify(got)===JSON.stringify(v)])));
+  const reports=followup.reports as unknown[];
+  if(!Array.isArray(reports)||reports.length!==identity.candidateOrderIds.length+1)fail();
+  for(const [i,value] of reports.entries()){
+    const orderId=identity.candidateOrderIds[i];
+    const report=record(value,{name:oneOf(orderId?"Order Details":"Position History"),...(orderId?{orderId:(v:unknown)=>v===orderId}:{}),status:oneOf("collected"),text:v=>typeof v==="string"&&v.length<=131072,textBytes:boundedCount(131072)});
+    const text=report.text as string;
+    if(!text.trim()||new TextEncoder().encode(text).byteLength!==report.textBytes||/^\s*(?:<|\{|\[|error\b|unauthorized\b|forbidden\b|access denied\b)/i.test(text)||/<\/?[a-z][\w:-]*(?:\s|\/?>)/i.test(text))fail();
   }
 }
 function validateMismatch(value: unknown, selected: StopSelection) {

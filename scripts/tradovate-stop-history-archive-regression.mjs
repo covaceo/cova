@@ -142,7 +142,7 @@ test('zero-order owned mismatch acquires only Orders and Fills CSV with exact UT
     window:{startDate:'2026-01-05',endDate:'2026-01-06',startTime:'00:00:00',endTime:'00:00:00',timeZone:'UTC',timezoneOffset:0,endExclusive:true},
     representationType:'csv',rowIdentity:'unverified',schema:'unverified',coverage:'unverified',
   });
-  assert.deepEqual(evidence,{status:'collected',provenance:evidence.provenance,reports:['Orders','Fills'].map(name=>({name,status:'collected',text,textBytes:Buffer.byteLength(text)}))});
+  assert.deepEqual(evidence,{status:'collected',provenance:evidence.provenance,reports:['Orders','Fills'].map(name=>({name,status:'collected',text,textBytes:Buffer.byteLength(text)})),followup:{status:'unavailable',reason:'invalid_historical_csv'}});
   const posts=r.provider.filter(c=>c.init.method==='POST');assert.equal(posts.length,2);assert.equal(r.provider.length,5);
   for(const [i,c] of posts.entries()){
     assert.equal(c.target,reportURL);

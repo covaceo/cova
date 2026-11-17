@@ -6,6 +6,32 @@ import {tmpdir} from 'node:os';
 import {pathToFileURL} from 'node:url';
 import ts from 'typescript';
 import {run,selection,definitionsPath,archive,reportPath} from './helpers/tradovate-stop-history-fixture.mjs';
+import {details} from './helpers/tradovate-historical-csv-fixture.mjs';
+test('client binds opaque detail reports to reparsed selected identity and exact candidate membership',async()=>{
+  const lib=await load(),selected=lib.stopHistorySelection({...trade,source:{...trade.source,contractSymbol:undefined}},'Tradovate:71');
+  const output=(await details()).res.body;
+  assert.equal(lib.validateStopEvidence(output,selected),output);
+  for(const options of [{change(d){d.fills[0]._accountId='72'}},{mutate(d){d[definitionsPath].reports.pop()}}]){
+    const unavailable=(await details(options)).res.body;assert.equal(lib.validateStopEvidence(unavailable,selected),unavailable);
+  }
+  const changes=[
+    f=>f.extra='unreviewed',f=>f.status='partial',f=>f.reason='private',f=>delete f.identity,
+    f=>f.acceptanceSemantics='verified',f=>f.coverage='complete',f=>f.protectiveLinkage='verified',
+    f=>f.identity.contractId='82',f=>f.identity.contractSymbol='MESU6',f=>f.identity.entryOrderId='104',
+    f=>f.identity.buyFillId='503',f=>f.identity.openedAt='2026-01-05T10:01:00.999999999Z',f=>f.identity.orderCount++,
+    f=>f.identity.extra='unreviewed',f=>f.identity.candidateOrderIds[0]='104',f=>f.identity.candidateOrderIds.push('101'),
+    f=>f.reports.pop(),f=>f.reports.push(f.reports[0]),f=>f.reports[1].orderId='103',f=>f.reports[0].orderId='104',
+    f=>f.reports[3].orderId='103',f=>f.reports[3].name='Order Details',f=>f.reports[0].name='Orders',
+    f=>f.reports[0].status='empty',f=>f.reports[0].textBytes++,f=>f.reports[0].extra='unreviewed',
+    f=>{f.reports[0].text='';f.reports[0].textBytes=0},f=>{f.reports[0].text='<script>bad</script>';f.reports[0].textBytes=20},
+  ];
+  for(const change of changes){const bad=structuredClone(output);change(bad.mismatch.historicalEvidence.followup);assert.throws(()=>lib.validateStopEvidence(bad,selected),/inconsistent/);}
+  for(const change of [v=>v.mismatch.historicalEvidence.reports[0].text=v.mismatch.historicalEvidence.reports[0].text.replace('DEMO-SYNTHETIC','OTHER-SYNTHETIC'),v=>v.mismatch.reportDefinitions.reports.pop(),v=>v.mismatch.historicalEvidence.provenance.account.id='72']){
+    const bad=structuredClone(output);change(bad);assert.throws(()=>lib.validateStopEvidence(bad,selected),/inconsistent/);
+  }
+  const probe=new lib.StopHistoryProbe(async url=>json(url==='/api/tradovate/status'?{available:true,connected:true,connectionId:selection.connectionId}:output));
+  probe.update({owner:'synthetic-owner',connectionId:selection.connectionId,accountKey:'Tradovate:71',selection:selected});assert.deepEqual(await probe.check(()=>true),output);
+});
 
 test('client accepts opaque archive text only with closed exact selected-account and UTC-window provenance',async()=>{
   const lib=await load(),selected=lib.stopHistorySelection({...trade,source:{...trade.source,contractSymbol:undefined}},'Tradovate:71');
@@ -115,7 +141,7 @@ async function load(){
   assert(existsSync(source),'Single-trade read-only client must exist');
   dir=mkdtempSync(join(tmpdir(),'cova-stop-client-'));
   for(const name of ['risk','tradovateHistory','tradovateStopHistory']) {
-    const text=readFileSync(new URL(`../src/lib/${name}.ts`,import.meta.url),'utf8').replaceAll('"./risk"','"./risk.mjs"').replaceAll('"./tradovateHistory"','"./tradovateHistory.mjs"');
+    const text=readFileSync(new URL(`../src/lib/${name}.ts`,import.meta.url),'utf8').replaceAll('"./risk"','"./risk.mjs"').replaceAll('"./tradovateHistory"','"./tradovateHistory.mjs"').replaceAll('"../../api/_lib/tradovate-historical-identity.js"',JSON.stringify(new URL('../api/_lib/tradovate-historical-identity.js',import.meta.url).href));
     writeFileSync(join(dir,`${name}.mjs`),ts.transpileModule(text,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText);
   }
   lib=await import(pathToFileURL(join(dir,'tradovateStopHistory.mjs')).href);return lib;
