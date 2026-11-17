@@ -1,5 +1,7 @@
 // Read-only acquisition. Never an original-stop selector or ledger enrichment adapter.
 import { reportDefinitions } from './tradovate-report-diagnostic.js';
+import { matchHistoricalIdentity, validateDetailContracts } from './tradovate-historical-identity.js';
+const IDENTITY_FAILURES = ['invalid_historical_csv','historical_identity_mismatch','historical_row_limit','historical_order_limit','historical_candidate_limit','unsupported_historical_order_type'];
 const ORIGIN = 'https://demo.tradovateapi.com/v1';
 const DEFINITIONS_PATH = '/reports/requestReportDefinitions';
 const DEFINITIONS_ORIGIN = 'https://rpt-demo.tradovateapi.com/v1';
@@ -259,7 +261,7 @@ export async function collectTradovateStopHistory(token, query, parentSignal) {
     const display=d=>`${d.slice(5,7)}/${d.slice(8,10)}/${d.slice(0,4)}`;
     const params=[{name:'startDate',value:display(startDate)},{name:'endDate',value:display(endDate)},{name:'startTime',value:'00:00:00'},{name:'endTime',value:'00:00:00'},{name:'account',value:ownedAccount.name}];
     const collected=[];
-    for(const name of ['Orders','Fills']){
+    async function reportText(name,params){
       const payload=await request(REPORT_PATH,false,{name,representationType:'csv',timezone:0,params});
       if(payload?.data&&typeof payload.data==='object'&&['error','errorText','errorMessage','errorCode','errors'].some(k=>Object.hasOwn(payload.data,k)))fail('provider_error');
       if(!payload||Array.isArray(payload)||typeof payload.data!=='string')fail('unsupported_report_envelope');
@@ -267,9 +269,30 @@ export async function collectTradovateStopHistory(token, query, parentSignal) {
       if(reflected(text))fail('unsafe_output');
       if(textBytes>131072)fail('report_text_limit');
       if(/^\s*(?:<|\{|\[|error\b|unauthorized\b|forbidden\b|access denied\b)/i.test(text)||/<\/?[a-z][\w:-]*(?:\s|\/?>)/i.test(text))fail('unsupported_report_content');
-      collected.push({name,status:text.trim()?'collected':'empty',text,textBytes});
+      if(['Order Details','Position History'].includes(name)&&!text.trim())fail('empty_response');
+      return {name,status:text.trim()?'collected':'empty',text,textBytes};
     }
-    return {status:'collected',provenance,reports:collected};
+    for(const name of ['Orders','Fills'])collected.push(await reportText(name,params));
+    const historical={status:'collected',provenance,reports:collected};
+    try {
+      const identity=matchHistoricalIdentity(collected[0].text,collected[1].text,selection,ownedAccount.name,window);
+      rows+=identity.orderCount+identity.fillCount;if(rows>LIMITS.rows)fail('row_limit');
+      validateDetailContracts(reports);
+      const detailReports=[];
+      historical.followup={status:'collected',identity,reports:detailReports,acceptanceSemantics:'unverified',coverage:'unverified',protectiveLinkage:'unverified'};
+      const checkOutput=()=>{
+        const envelope={diagnostic:'tradovate-stop-history-v1',status:'unavailable',reason:'trade_mismatch',plannedRisk:'unavailable',mismatch:{...mismatch,reportDefinitions:{status:'collected',reports},historicalEvidence:historical}};
+        if(Buffer.byteLength(JSON.stringify(envelope))>LIMITS.outputBytes)fail('output_limit');
+      };
+      checkOutput();
+      for(const orderId of identity.candidateOrderIds){detailReports.push({...await reportText('Order Details',[{name:'order',value:orderId}]),orderId});checkOutput();}
+      detailReports.push(await reportText('Position History',params));checkOutput();
+    }catch(error){
+      if(signal.aborted)fail('timeout');
+      if(['unsafe_output','output_limit'].includes(error?.reason))throw error;
+      historical.followup={status:'unavailable',reason:[...IDENTITY_FAILURES,...REPORT_FAILURES,'row_limit','missing_report_contract','ambiguous_report_contract','unsupported_parameter_type','unsupported_required_parameter'].includes(error?.reason)?error.reason:'network_or_redirect'};
+    }
+    return historical;
   }
   async function executeWithMismatch() {
     try { return await execute(); }
@@ -288,7 +311,7 @@ export async function collectTradovateStopHistory(token, query, parentSignal) {
         try {historical=await historicalEvidence(definitions.reports);}
         catch(reportError){
           if(signal.aborted)fail('timeout');
-          if(reportError?.reason==='unsafe_output')throw reportError;
+          if(['unsafe_output','output_limit'].includes(reportError?.reason))throw reportError;
           // All-or-nothing: discard any earlier report, never expose a partial pair.
           historical={status:'unavailable',reason:REPORT_FAILURES.includes(reportError?.reason)?reportError.reason:'network_or_redirect'};
         }

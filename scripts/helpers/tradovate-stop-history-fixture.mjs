@@ -73,9 +73,9 @@ export async function run(options={}) {
     if(report){
       const body=JSON.parse(init.body);
       assert.deepEqual(Object.keys(body).sort(),['name','params','representationType','timezone']);
-      assert(['Orders','Fills'].includes(body.name));assert.equal(body.representationType,'csv');assert.equal(body.timezone,0);
+      assert(['Orders','Fills','Order Details','Position History'].includes(body.name));assert.equal(body.representationType,'csv');assert.equal(body.timezone,0);
       assert.equal(init.headers['Content-Type'],'application/json');
-      assert.deepEqual(body.params.map(p=>p.name).sort(),['account','endDate','endTime','startDate','startTime']);
+      assert.deepEqual(body.params.map(p=>p.name).sort(),body.name==='Order Details'?['order']:['account','endDate','endTime','startDate','startTime']);
       for(const p of body.params)assert.deepEqual(Object.keys(p).sort(),['name','value']);
     }else assert.equal(init.body,undefined);
     if(options.stall===key)return new Promise(()=>{});
