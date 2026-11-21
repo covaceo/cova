@@ -165,7 +165,7 @@ export default function App() {
 function TradingApp() {
   const [section, setSection] = useHashSection();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [authMode, setAuthMode] = useState<AuthMode | null>(null);
+  const [authMode, setAuthMode] = useState<AuthMode | "pricing-pro" | null>(null);
   const [authSession, setAuthSession] = useState<AuthSession | null>(() => loadAuthSession());
   const authSessionRef = useRef(authSession);
   const workspaceSearchRef = useRef<WorkspaceSearchHandle>(null);
@@ -1150,8 +1150,9 @@ function TradingApp() {
   }
 
   function upgradeToPro() {
+    const signupEntry = section === "pricing" ? "pricing-pro" : "signup";
     if (isBillingEnabled()) {
-      if (authSession?.source !== "supabase") { openAuth("signup"); return; }
+      if (authSession?.source !== "supabase") { setAuthMode(signupEntry); return; }
       openBilling(); return;
     }
     const checkoutUrl = getProCheckoutUrl();
@@ -1161,7 +1162,7 @@ function TradingApp() {
     }
 
     if (!authSession) {
-      openAuth("signup");
+      setAuthMode(signupEntry);
       announce("Create a free account first, then choose Pro.", "info");
       return;
     }
@@ -1476,7 +1477,8 @@ function TradingApp() {
       />
       <AuthSheet
         authIntentKey={AUTH_INTENT_KEY}
-        mode={authMode}
+        mode={authMode === "pricing-pro" ? "signup" : authMode}
+        pricingProSignup={authMode === "pricing-pro"}
         setMode={openAuth}
         close={() => { void closeAuthSheet(); }}
         onAuthenticated={completeAuth}

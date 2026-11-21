@@ -24,7 +24,7 @@ window.fetch=async(input,init={})=>{const u=new URL(String(input),location.origi
 if(u.pathname==='/api/auth/consent'){if(location.search.includes('delayPolicy'))await new Promise(r=>fixture.policyRelease=r);fixture.policyDelivered=true;return json({accepted:true,termsVersion:'synthetic',privacyVersion:'synthetic'})}
 if(u.pathname==='/api/passport')return new Response('{}',{status:503,headers:{'content-type':'application/json'}});
 if(u.pathname==='/api/rithmic/status')return json({available:false});
-if(u.pathname==='/api/tradovate/status'){if(fixture.delay==='status')await new Promise(r=>fixture.releases.push(r));fixture.delivered++;fixture.completed.push(callId);return json({available:true,connected:true,provider:'Tradovate',connectionId:fixture.connectionId,expiresAt:'2099-01-01T00:00:00Z'})}
+if(u.pathname==='/api/tradovate/status'){if(fixture.delay==='status')await new Promise(r=>fixture.releases.push(r));fixture.delivered++;fixture.completed.push(callId);if(window.statusFixture)return new Response(window.statusFixture.body,{status:window.statusFixture.code,headers:{'content-type':'application/json'}});return json({available:true,linked:true,connected:true,status:'connected',provider:'Tradovate',connectionId:fixture.connectionId,expiresAt:'2099-01-01T00:00:00Z'})}
 if(u.pathname==='/api/tradovate/sync'&&u.searchParams.get('diagnostic')==='stop-history'){if(fixture.delay==='diagnostic')await new Promise(r=>fixture.releases.push(r));const response=await nativeFetch('/__probe'+u.search);const data=await response.json();fixture.delivered++;fixture.completed.push(callId);return json(data)}
 if(u.pathname==='/api/tradovate/sync'&&u.searchParams.get('history')==='recent'){if(location.search.includes('delayHistory'))await new Promise(r=>fixture.historyRelease=r);fixture.historyDelivered=true;const t={...saved,date:closedAt};return json({status:'history_ready',provider:'Tradovate',coverage:'bounded_matched_fill_pairs',pnlBasis:'gross_before_fees',window:{startDate:u.searchParams.get('startDate'),endDate:u.searchParams.get('endDate'),timeZone:'UTC',timezoneOffset:0},accounts:[{account:{id:'71',name:'Synthetic DEMO'},status:'ready',trades:[t],counts:{trades:1},csv:header+'\\n'+[closedAt,'MES','Long',1,6000,6005,25,0,'Imported','','Tradovate','71',t.id,openedAt,closedAt,'UTC','gross_before_fees'].join(',')}]})}
 fixture.unexpected.push(u.pathname+u.search);throw Error('Unexpected API path '+u.pathname)};
@@ -35,6 +35,37 @@ async function noWrites(page){const state=await page.evaluate(()=>({writes:fixtu
 try{
 server=await createServer({configFile:false,envDir:scratch,logLevel:'error',server:{host:'127.0.0.1',port:0,fs:{allow:[process.cwd(),realpathSync('node_modules')]}},plugins:[{name:'synthetic-boundaries',enforce:'pre',transform(code,id){if(id.endsWith('/src/lib/supabaseClient.ts'))return{code:code.replace('export function getSupabaseClient() {',`export function getSupabaseClient() { const f=(window as any).fixture; return { auth: { getSession: async()=>({data:{session:f.session}}), onAuthStateChange:(callback:any)=>{ f.subscribers.push(callback); queueMicrotask(()=>{if(f.subscribers.includes(callback))callback('INITIAL_SESSION',f.session)}); return {data:{subscription:{unsubscribe:()=>{f.subscribers=f.subscribers.filter((c:any)=>c!==callback)}}}}; } } } as any;`),map:null}},resolveId(id){if(id==='/__app.tsx')return id},load(id){if(id==='/__app.tsx')return entry},configureServer(vite){vite.middlewares.use(async(req,res,next)=>{if(req.url.startsWith('/__probe?')){try{const query=Object.fromEntries(new URL(req.url,'http://localhost').searchParams);const day=query.openedAt.slice(0,10);const response=await run({query,omitQuery:query.contractSymbol?[]:['contractSymbol'],mutate(d){for(const v of Object.values(d))for(const row of Array.isArray(v)?v:[v])if(typeof row.timestamp==='string')row.timestamp=row.timestamp.replace('2026-01-05',day)}});providerReceipts.push({query,calls:response.provider.map(c=>c.target),status:response.res.body.status});res.setHeader('Content-Type','application/json');res.end(JSON.stringify(response.res.body))}catch(e){errors.push(e.stack);res.statusCode=500;res.end('{}')}return}if(req.url.split('?')[0]!=='/__app.html')return next();res.setHeader('Content-Type','text/html');res.end(await vite.transformIndexHtml(req.url,'<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="data:,"></head><body><div id="root"></div><script type="module" src="/__app.tsx"></script></body></html>'))})}}]});await server.listen();
 const origin='http://127.0.0.1:'+server.httpServer.address().port;const executablePath=process.env.CHROME_PATH||'C:/Program Files/Google/Chrome/Application/chrome.exe';assert(existsSync(executablePath));browser=await chromium.launch({executablePath,headless:true});
+const linked={provider:'Tradovate',linked:true,connectionId:'synthetic-connection',expiresAt:'2099-01-01T00:00:00Z'};
+const configuration='Tradovate is unavailable in this Cova environment. Try this read-only check again later.';
+const unknown='Cova could not verify your Tradovate connection status. Reopen this read-only check to try again.';
+const connected={...linked,available:true,connected:true,status:'connected'};
+const unlinked={provider:'Tradovate',available:true,linked:false,connected:false,status:'not-connected'};
+const failures=[];
+for(const [label,body,expected,code=200] of [
+ ['configuration unavailable',{...linked,available:false,connected:true,status:'configuration-unavailable'},configuration],
+ ['unavailable with no link',{...unlinked,available:false,status:'unavailable'},configuration],
+ ['configuration before reconnect',{...linked,available:false,connected:false,status:'reconnect-required'},configuration],
+ ['not connected',unlinked,'No Tradovate account is connected. Connect Tradovate Simulation from Accounts with Cova Pro, then reopen this check.'],
+ ['linked reconnect',{...linked,available:true,connected:false,status:'reconnect-required'},'Reconnect Tradovate Simulation from Accounts, then reopen this read-only check.'],
+ ['unexpected status',{...connected,status:'unknown'},unknown],
+ ['wrong provider',{...connected,provider:'Rithmic'},unknown],
+ ['missing identity',{...connected,connectionId:' '},unknown],
+ ['mistyped flag',{...connected,available:'false'},unknown],
+ ['inconsistent link',{...unlinked,status:'reconnect-required'},unknown],
+ ['null status',null,unknown],
+ ['status request failed',{error:'private-error'},unknown,503],
+]){
+ const denied=await observedPage(origin);
+ await denied.addInitScript(f=>{window.statusFixture=f;window.ledgerReads=0;const get=Storage.prototype.getItem;Storage.prototype.getItem=function(k){if(window.fixture&&k===fixture.ledgerKey)window.ledgerReads++;return get.call(this,k)}},{body:JSON.stringify(body),code});
+ await denied.goto(origin+'/__app.html#stop-history');
+ await denied.waitForFunction(()=>document.querySelector('select')||(/./.test(document.querySelector('[role=status]')?.textContent||'')&&!/Verifying|Connection or account changed/.test(document.querySelector('[role=status]').textContent)));
+ const text=(await denied.getByRole('status').allTextContents()).join('');
+ const reads=await denied.evaluate(()=>window.ledgerReads);
+ if(text!==expected||reads!==0||await denied.getByLabel('Closed Tradovate trade').count())failures.push({label,text,reads});
+ const state=await noWrites(denied);assert(state.calls.length>0&&state.calls.every(c=>c.path==='/api/tradovate/status'),label);
+ results.push({scenario:'first-run '+label,text,reads});await denied.close();
+}
+assert.deepEqual(failures,[],'Only verified status may unlock the check or recommend a connection action');
 const page=await observedPage(origin);await page.goto(origin+'/__app.html#stop-history');
 if(process.env.STOP_NEGATIVE==='pageerror')await page.evaluate(()=>{setTimeout(()=>{throw Error('STOP_NEGATIVE_SENTINEL')},0)});
 if(process.env.STOP_NEGATIVE==='external')await page.evaluate(()=>{const img=new Image();img.src='https://unexpected.invalid/negative.png'});

@@ -9,6 +9,27 @@ import { SectionShell } from "./LayoutShell";
 import { TradovateStopHistoryCheck } from "./TradovateStopHistoryCheck";
 
 type Snapshot = { owner: string; connectionId: string; trades: Trade[]; account: string };
+const unverified = "Cova could not verify your Tradovate connection status. Reopen this read-only check to try again.";
+
+function verifiedConnectionId(value: unknown): string {
+  if (!value || typeof value !== "object") throw Error(unverified);
+  const { provider, available, linked, connected, status, connectionId } = value as Record<string, unknown>;
+  if (provider !== "Tradovate") throw Error(unverified);
+  // Configuration can be unavailable even when a link needs reconnection.
+  if (available === false) throw Error("Tradovate is unavailable in this Cova environment. Try this read-only check again later.");
+  if (available !== true) throw Error(unverified);
+  if (status === "not-connected" && linked === false && connected === false && connectionId === undefined) {
+    throw Error("No Tradovate account is connected. Connect Tradovate Simulation from Accounts with Cova Pro, then reopen this check.");
+  }
+  if (linked === true && typeof connectionId === "string" && connectionId && connectionId.trim() === connectionId) {
+    if (status === "connected" && connected === true) return connectionId;
+    if (status === "reconnect-required" && connected === false) {
+      throw Error("Reconnect Tradovate Simulation from Accounts, then reopen this read-only check.");
+    }
+  }
+  throw Error(unverified);
+}
+
 // A distinct App entry: no ImportDesk, workspace synchronization, hydration,
 // automatic account persistence or publishing components are mounted here.
 export function TradovateStopHistoryPage() {
@@ -29,17 +50,17 @@ export function TradovateStopHistoryPage() {
         const {data}=await client.auth.getSession();if(!current())return;
         const owner=data.session?.user.id;
         if(!owner)throw Error("Sign in to Cova before opening this read-only check.");
-        const status=await fetchHistoryJson(authorizedFetch,"/api/tradovate/status",signal,5000,16384) as {available?:boolean;connected?:boolean;connectionId?:string};
+        const status=await fetchHistoryJson(authorizedFetch,"/api/tradovate/status",signal,5000,16384).catch(()=>null);
         if(!current())return;
         // Reconfirm the same session after authenticated status, before reading
         // any saved ledger. Auth callbacks revoke this generation synchronously.
         const latest=await client.auth.getSession();if(!current())return;
         if(latest.data.session?.user.id!==owner||latest.data.session?.access_token!==data.session?.access_token)throw Error("Cova account changed. Reopen the read-only check.");
-        if(!status.available||!status.connected||typeof status.connectionId!=="string"||!status.connectionId)throw Error("A current Pro Tradovate connection is required. Connect from Accounts, then reopen this read-only check.");
+        const connectionId=verifiedConnectionId(status);
         const raw=JSON.parse(localStorage.getItem("cova-react-risk-os-v2:"+encodeURIComponent(owner))||"null");
         const trades:Trade[]=Array.isArray(raw?.trades)?raw.trades.filter((t:Trade)=>{try{return !!stopHistorySelection(t,`Tradovate:${t.source?.accountId}`);}catch{return false;}}):[];
         const accounts=[...new Set(trades.map(t=>`Tradovate:${t.source?.accountId}`))];
-        const next={owner,connectionId:status.connectionId,trades,account:accounts.includes(raw?.tradeAccount)?raw.tradeAccount:accounts[0]||""};
+        const next={owner,connectionId,trades,account:accounts.includes(raw?.tradeAccount)?raw.tradeAccount:accounts[0]||""};
         live.current=next;setSnapshot(next);setMessage("");
       }catch(error){if(current())setMessage(error instanceof Error?error.message:"Evidence unavailable. Saved trades are unchanged.");}
     }
