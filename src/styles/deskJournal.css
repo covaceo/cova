@@ -14,6 +14,7 @@
 .astra-dashboard[data-dashboard-visual] .astra-add-trade { min-height:40px; white-space:nowrap; padding:0 12px; font:12px Inter,Arial,sans-serif; }
 .astra-manual-tag { display:block; color:#a6b8cd; font:10px/1.4 Inter,Arial,sans-serif; }
 .astra-trade-dialog.manual-trade-dialog { width:min(520px,calc(100vw - 28px)); max-height:calc(100dvh - 32px); overflow:auto; padding:22px; color-scheme:dark; }
+.manual-trade-heading { display:contents; }
 .manual-trade-dialog h2 { margin-right:35px; }
 .manual-trade-dialog form { display:grid; gap:14px; margin-top:18px; }
 .manual-trade-dialog label { display:flex; flex-direction:column; gap:6px; min-width:0; color:#bdcada; font:12px/1.4 Inter,Arial,sans-serif; }
@@ -42,6 +43,19 @@
 .manual-trade-dialog [role=alert] { color:#f1a4ac; font:12px/1.5 Inter,Arial,sans-serif; }
 .astra-delete-manual { display:block; margin-top:16px; color:#e9a0aa; }
 @media(max-width:600px) { .astra-trade-dialog.manual-trade-dialog { padding:18px; } .manual-trade-fields { gap:12px; } .mini-journal-footer span { max-width:65%; } }
+@media(max-width:850px), (max-height:720px) {
+  .astra-trade-dialog.manual-trade-dialog { --manual-inset:22px; padding:0 0 var(--manual-inset); }
+  .manual-trade-dialog > :is(p,form) { margin-inline:var(--manual-inset); }
+  .manual-trade-dialog .manual-trade-heading {
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    position:sticky; top:0; z-index:1; padding:10px var(--manual-inset);
+    background:inherit; border-bottom:1px solid rgb(255 255 255 / 8%);
+  }
+  .manual-trade-heading .astra-dialog-close { order:1; position:static; flex:none; margin:0; }
+  .manual-trade-dialog .manual-trade-heading h2 { margin-right:0; }
+  .manual-trade-dialog { scroll-padding-block-start:72px; }
+}
+@media(max-width:600px) { .astra-trade-dialog.manual-trade-dialog { --manual-inset:18px; } }
 
 .oa-dashboard-app .mini-journal > textarea { width:calc(100% - 40px); margin-inline:20px; }
 .oa-dashboard-app .mini-journal-footer { margin:10px 20px 16px; }
