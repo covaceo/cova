@@ -3,6 +3,31 @@ import {workspaceRoutes,workspaceSemanticChecks,workspaceStateChecks} from './wo
 import {workspaceNavigation,workspaceDetails,workspaceLocalEditing,workspacePending} from './workspace-consistency-interactions.mjs';
 const widths=[2560,1920,1536,1440,1280,851,850,768,390,360];
 const gutter=w=>w>=1920?64:w>=1400?48:w>850?40:w>620?24:20;
+async function mobileTitle(page){return page.evaluate(()=>{
+ const header=document.querySelector('.workspace-top-header'),title=document.querySelector('.workspace-content h1');
+ const range=document.createRange();range.selectNodeContents(title);const ink=range.getBoundingClientRect();
+ const hit=document.elementFromPoint(ink.left+ink.width/2,ink.top+2);
+ return {header:header.getBoundingClientRect().toJSON(),ink:ink.toJSON(),hitTitle:title.contains(hit)};
+});}
+export async function checkMobileTitle(page,label,check,minimumHeight=0){
+ const measure=await mobileTitle(page);
+ check(`${label} whole title clears actual mobile header`,measure.header.height>=minimumHeight&&measure.ink.top>=measure.header.bottom+4&&measure.hitTitle,{...measure,minimumHeight});
+}
+export async function checkTallAccountsHeader(page,check){
+ const minimumHeight=(await mobileTitle(page)).header.height+33;
+ const extra=await page.addStyleTag({content:'.oa-dashboard-app .cova-site-header.workspace-top-header { padding-top:44px!important; }'});
+ try{
+  await page.waitForFunction(height=>document.querySelector('.workspace-top-header').getBoundingClientRect().height>=height,minimumHeight,{timeout:3000});
+  await page.evaluate(()=>scrollTo({top:0,behavior:'instant'}));
+  await checkMobileTitle(page,'Accounts with taller mobile navigation',check,minimumHeight);
+  await page.evaluate(()=>scrollTo({top:220,behavior:'instant'}));
+  const menu=page.getByRole('button',{name:'Toggle menu',exact:true});
+  const probe=await menu.evaluate(el=>{const b=el.getBoundingClientRect(),h=el.closest('header').getBoundingClientRect();return {header:h.toJSON(),scrollY,hit:el.contains(document.elementFromPoint(b.x+b.width/2,b.y+b.height/2))};});
+  const pinned=probe.header.height>=minimumHeight&&probe.scrollY>100&&Math.abs(probe.header.top)<1&&probe.hit;
+  check('Accounts menu stays pinned and hit-testable during scroll',pinned,{...probe,minimumHeight});
+  if(pinned){await menu.click();await page.locator('.operator-mobile-menu-panel').waitFor();await menu.click();await page.locator('.operator-mobile-menu-panel').waitFor({state:'hidden'});}
+ }finally{await extra.evaluate(el=>el.remove());await page.evaluate(()=>scrollTo({top:0,behavior:'instant'}));}
+}
 export async function frame(page){return page.evaluate(()=>{
  const box=el=>el?.getBoundingClientRect().toJSON(),root=document.querySelector('.workspace-content'),canvas=document.querySelector('.astra-dashboard,.astra-workspace-page'),c=getComputedStyle(canvas),heading=document.querySelector('.workspace-content h1');
  const style=el=>{const s=getComputedStyle(el);return [s.fontFamily,s.fontSize,s.fontWeight,s.lineHeight,s.letterSpacing,s.color];};
@@ -25,7 +50,9 @@ export async function runFramingChecks({open,finish,check,screenshot,report,out}
     const side=(width-Math.min(width,2240))/2+gutter(width);
     check(`${width} ${route} exact symmetric outer gutters`,Math.abs(m.left-side)<1&&Math.abs(m.right-side)<1,{expected:side,actual:m});
     check(`${width} ${route} centered bounded workspace`,Math.abs(m.workspace.width-Math.min(width,2240))<1&&Math.abs(m.workspace.x-(width-m.workspace.width)/2)<1,m.workspace);
-    check(`${width} ${route} meaningful top gap and nav clearance`,width>850?Math.abs(m.top-32)<1:m.heading.y>=80,m);
+    if(width>850)check(`${width} ${route} exact desktop top gap`,Math.abs(m.top-32)<1,m);
+    else await checkMobileTitle(p,`${width} ${route}`,check);
+    if(width===390&&route==='import')await checkTallAccountsHeader(p,check);
     check(`${width} ${route} no page overflow or zoom`,m.overflow<=1&&m.zoom==='1'&&m.rootFont==='16px',m);
     if(width>850&&m.sync)check(`${width} ${route} sync follows title inside frame`,m.sync.x>=m.trigger.right+12&&Math.abs(m.sync.y-42)<1&&m.sync.right<=width-side,m);
     const b=pairs[width].baseline[route];check(`${width} ${route} approved typography and controls preserved`,JSON.stringify(m.headingStyle)===JSON.stringify(b.headingStyle)&&JSON.stringify(m.controls)===JSON.stringify(b.controls),{before:b.headingStyle,after:m.headingStyle});
