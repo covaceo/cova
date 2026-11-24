@@ -1504,7 +1504,6 @@ function TradingApp() {
         {isProtectedSection(section) ? (
           isSignedIn ? (
             <WorkspaceShell searchRef={workspaceSearchRef} searchSource={workspaceSearchSource} brokerLabel={brokerLabel} deleteAccount={deleteAccount} email={authSession?.email} go={go} riskScore={visibleRiskScore} section={section} signOut={signOut}>
-              <a className="mx-4 text-sm" href="#stop-history">Read-only stop-history check</a>
               <WorkspaceSyncPanel sync={workspaceSync} />
               {workspaceSync.hasWorkspace && <div {...(!workspaceSync.allowEdit ? { inert: '' } as any : {})} aria-busy={!workspaceSync.allowEdit}>
               {tradeAccounts.some(account => account !== "local") && section !== "oauth" && section !== "dashboard" && section !== "rules" && section !== "coach" && section !== "passport" && section !== "import" && (

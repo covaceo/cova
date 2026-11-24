@@ -39,6 +39,7 @@ html:root:root:has(.astra-dashboard[data-dashboard-visual]) .oa-dashboard-app .a
  & .astra-trade-table td { height:36px; border-bottom:1px solid #ffffff12; }
  & .astra-trade-table .astra-symbol { display:none; }
  & .astra-trade-table .astra-trade-link { padding:0 !important; }
+ & .astra-trade-table .astra-phone-field { display:none; }
  & .oa-discipline-reading { margin-top:4px; }
  & .oa-discipline-score strong { font-size:48px; }
  & .oa-discipline-focus { padding:0; background:transparent; border:0; }
@@ -114,6 +115,30 @@ html:root:root:has(.astra-dashboard[data-dashboard-visual]) .oa-dashboard-app .a
  & .astra-trade-table :is(th,td):first-child { width:auto; }
  & .astra-trade-table .astra-manual-tag { display:inline; margin-left:5px; }
  & .astra-table-scroll { overflow-x:auto; }
+}
+@media (max-width:600px) {
+html:root:root:has(.astra-dashboard[data-dashboard-visual]) .oa-dashboard-app .astra-dashboard[data-dashboard-visual] {
+ & .astra-recent-trades .astra-trade-table { min-width:0; width:100%; }
+ & .astra-recent-trades .astra-trade-table thead { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+ & .astra-recent-trades .astra-trade-table tbody { display:block; }
+ & .astra-recent-trades .astra-trade-table tr[data-recent-trade] {
+   display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); align-items:center;
+   gap:4px 8px; padding:4px 0 14px; border-bottom:1px solid #ffffff12;
+ }
+ & .astra-recent-trades .astra-trade-table tr[data-recent-trade] + tr { padding-top:8px; }
+ & .astra-recent-trades .astra-trade-table td {
+   display:block; height:auto; width:auto; min-width:0; padding:0; border:0;
+   text-align:left; white-space:normal; overflow-wrap:anywhere;
+ }
+ & .astra-recent-trades .astra-trade-table td:nth-child(1) { grid-area:2 / 1 / 3 / 3; }
+ & .astra-recent-trades .astra-trade-table td:nth-child(2) { grid-area:1 / 1 / 2 / 3; }
+ & .astra-recent-trades .astra-trade-table td:nth-child(3) { grid-area:2 / 3 / 3 / 5; text-align:right; }
+ & .astra-recent-trades .astra-trade-table td:nth-child(4) { grid-area:3 / 1 / 4 / 5; margin-bottom:4px; }
+ & .astra-recent-trades .astra-trade-table td:nth-child(8) { grid-area:1 / 3 / 2 / 5; text-align:right; }
+ & .astra-recent-trades .astra-trade-table td:nth-child(n+5):not(:nth-child(8)) { grid-row:4; }
+ & .astra-recent-trades .astra-trade-table :is(td:first-child,td:nth-child(4),td:nth-child(n+5):not(:nth-child(8))) { font-size:12px; }
+ & .astra-recent-trades .astra-phone-field { display:block; font-size:11px; line-height:1.4; color:#b4b9c4; }
+}
 }
 @media(max-width:1279px) {
  .oa-dashboard-app:has(.ask-cova-panel[aria-modal=true]) .workspace-top-header { visibility:hidden; }
