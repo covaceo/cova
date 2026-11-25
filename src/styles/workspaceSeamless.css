@@ -175,7 +175,7 @@ html:root:root:root .oa-dashboard-app .oa-dashboard-shell[data-compact-navigatio
 @media(min-width:851px) {
  html:root:root:root .oa-dashboard-app .oa-dashboard-shell[data-compact-navigation] {
   & .workspace-sync-compact { left:calc(var(--workspace-gutter) + 300px); top:calc(var(--workspace-top) + 6px); }
-  &[data-workspace-section="dashboard"] .workspace-sync-compact { left:calc(var(--workspace-gutter) + 228px); }
+  &[data-workspace-section="dashboard"] .workspace-sync-compact { left:calc(var(--workspace-gutter) + 278px); }
  }
 }
 @media(max-width:850px) {

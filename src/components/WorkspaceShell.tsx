@@ -1,6 +1,6 @@
-import { Activity, BarChart3, ChevronRight, Gauge, BookUser, ArrowLeft, ArrowRight, Menu, X } from "lucide-react";
+import { Activity, BarChart3, ChevronDown, ChevronRight, Gauge, BookUser, ArrowLeft, ArrowRight, Menu, Search, X } from "lucide-react";
 import { WorkspaceNavIcon } from "./WorkspaceNavIcon";
-import { GooeyInput } from "./ui/gooey-input";
+
 import { WorkspaceSearch, type WorkspaceSearchSource, type WorkspaceSearchHandle } from "./WorkspaceSearch";
 import { GooeyNavSurface, gooeyTransition } from "./ui/GooeyNavSurface";
 import { ProfileMenu } from "./UserProfile";
@@ -92,13 +92,17 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
   }, [collapsed]);
   const fallbackSearchRef = useRef<WorkspaceSearchHandle>(null);
   const searchController = searchRef || fallbackSearchRef;
-  const openSearch = () => {
+  const openSearch = (edge?: 'first' | 'last') => {
     // The existing search intentionally refuses to open over another dialog.
     // Finish this menu's focus/scroll cleanup before handing off to it.
     if (menuOpen) flushSync(() => setMenuOpen(false));
-    searchController.current?.open();
+    searchController.current?.open(edge);
   };
   const [searchOpen, setSearchOpen] = useState(false);
+  const searchButton = (desktop: boolean) => <button type="button" className={`workspace-search-trigger ${desktop ? 'workspace-search-trigger-desktop' : 'workspace-search-trigger-drawer'}`} aria-label="Search workspace" title="Search workspace (Ctrl/⌘ + K)" aria-keyshortcuts="Control+K Meta+K" aria-haspopup="dialog" aria-expanded={searchOpen} aria-controls={searchOpen ? 'cova-workspace-search' : undefined}
+    onClick={() => openSearch()} onKeyDown={event => { if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {event.preventDefault();openSearch(event.key === 'ArrowUp' ? 'last' : 'first');} }}>
+      <Search aria-hidden="true" /><span>Search workspace</span><ChevronDown aria-hidden="true" className="workspace-search-chevron" />
+    </button>;
   const [focusSource, setFocusSource] = useState<"pointer" | "keyboard">("keyboard");
   useEffect(() => {
     // Listen outside the shell too, so the first Tab into the workspace is visible.
@@ -121,7 +125,7 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
         <button className="workspace-sidebar-toggle" hidden={compactNavigation} type="button" aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!collapsed} aria-controls="cova-workspace-sidebar" title={collapsed ? "Expand sidebar" : "Collapse sidebar"} onClick={() => setCollapsed(value => !value)}>
           {collapsed ? <ArrowRight aria-hidden="true" /> : <ArrowLeft aria-hidden="true" />}
         </button>
-        <GooeyInput open={searchOpen} onActivate={openSearch} placeholder="Search" className="cova-gooey-search" classNames={{trigger:"cova-gooey-search-surface",input:"cova-gooey-search-input",bubbleSurface:"cova-gooey-search-bubble"}} />
+        {searchButton(false)}
 
         <button className="astra-rail-account" aria-label="Accounts" title={`Accounts: ${brokerLabel}`} aria-current={isWorkspaceNavActive(section, "import") ? "page" : undefined} onClick={() => go("import")} type="button"><WorkspaceNavIcon section="import" /><span className="astra-rail-account-copy"><strong>Accounts</strong><small>{brokerLabel}</small></span><ChevronRight aria-hidden="true" /></button>
 
@@ -181,7 +185,7 @@ export function WorkspaceShell({ brokerLabel, children, deleteAccount, email, go
         animate={{ y: 0 }}
         transition={{ duration: reducedMotion ? 0 : 0.2, ease: "easeOut" }}
       >
-        <WorkspaceMenuContext.Provider value={compactNavigation ? <button ref={menuTrigger} type="button" className="workspace-menu-trigger" aria-label="Open workspace menu" aria-haspopup="dialog" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}><Menu aria-hidden="true" /></button> : null}>
+        <WorkspaceMenuContext.Provider value={compactNavigation ? <><button ref={menuTrigger} type="button" className="workspace-menu-trigger" aria-label="Open workspace menu" aria-haspopup="dialog" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}><Menu aria-hidden="true" /></button>{searchButton(true)}</> : null}>
         {section === "dashboard" ? children : (
           <div className="astra-workspace-page" data-astra-route={section}>
 

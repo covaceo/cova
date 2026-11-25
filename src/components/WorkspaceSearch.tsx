@@ -14,8 +14,16 @@ export type WorkspaceSearchSource = {
   names: Record<string, string>;
   isCurrent: () => boolean;
 };
-export type WorkspaceSearchHandle = { open: () => void; revoke: () => void };
+export type WorkspaceSearchHandle = { open: (edge?: 'first' | 'last') => void; revoke: () => void };
 const PAGE_SIZE = 30;
+const resultGroup = { Page: 'Pages', Trade: 'Trades', 'Journal note': 'Journal notes' };
+
+function highlighted(text: string, query: string) {
+  const words = [...new Set(query.trim().split(/\s+/u).filter(Boolean))].sort((a, b) => b.length - a.length);
+  if (!words.length || query.length > 512) return text;
+  const pattern = new RegExp(`(${words.map(word => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'giu');
+  return text.split(pattern).map((part, index) => index % 2 ? <mark key={index}>{part}</mark> : part);
+}
 
 /** No query history, URLs, persistence, transport, or copied selected record. */
 export const WorkspaceSearch = forwardRef<WorkspaceSearchHandle, { source?: WorkspaceSearchSource; go: (section: Section) => void; onOpenChange?: (open: boolean) => void }>(function WorkspaceSearch({source, go, onOpenChange}, ref) {
@@ -23,6 +31,7 @@ export const WorkspaceSearch = forwardRef<WorkspaceSearchHandle, { source?: Work
   const [query, setQuery] = useState('');
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [active, setActive] = useState(0);
+  const scrollActive = useRef(false);
   const [revision, refresh] = useState(0);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -38,19 +47,31 @@ export const WorkspaceSearch = forwardRef<WorkspaceSearchHandle, { source?: Work
   }, [open, ready, source?.owner, source?.scopeKey, source?.trades, namesKey, revision]);
   const results = useMemo(() => searchWorkspace(index, query), [index, query]);
   const selected = selectedKey ? index.find(item => item.key === selectedKey) : undefined;
-  const activeIndex = Math.min(active, Math.max(0, results.length - 1));
+  const activeIndex = active < 0 ? Math.max(0, results.length - 1) : Math.min(active, Math.max(0, results.length - 1));
   const page = Math.floor(activeIndex / PAGE_SIZE);
   const visible = results.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  // Preserve the existing ranked order, including when a kind appears in two runs.
+  const groups: { kind: WorkspaceSearchResult['kind']; start: number; items: WorkspaceSearchResult[] }[] = [];
+  visible.forEach((item, offset) => {
+    const last = groups[groups.length - 1];
+    if (last?.kind === item.kind) last.items.push(item);
+    else groups.push({ kind: item.kind, start: page * PAGE_SIZE + offset, items: [item] });
+  });
   const valid = () => !!current.current.source?.isCurrent() && authority.current === current.current.source.scopeKey;
   function close() {
     authority.current = null;
     setOpen(false); setQuery(''); setSelectedKey(null); setActive(0);
   }
-  function reveal() {
+  function back() {
+    scrollActive.current = true;
+    setSelectedKey(null);
+  }
+  function reveal(edge: 'first' | 'last' = 'first') {
     const live = current.current.source;
     if (!live?.isCurrent() || document.querySelector('dialog[open]')) return;
     opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     authority.current = live.scopeKey;
+    scrollActive.current = true; setActive(edge === 'last' ? -1 : 0);
     refresh(value => value + 1); setOpen(true);
   }
   useImperativeHandle(ref, () => ({open: reveal, revoke: () => {
@@ -63,7 +84,7 @@ export const WorkspaceSearch = forwardRef<WorkspaceSearchHandle, { source?: Work
     const keyboard = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k' && !event.altKey && !event.isComposing) {
         event.preventDefault();
-        if (dialogRef.current?.open) { setSelectedKey(null); inputRef.current?.focus(); }
+        if (dialogRef.current?.open) { back(); inputRef.current?.focus(); }
         else reveal();
       }
     };
@@ -97,7 +118,15 @@ export const WorkspaceSearch = forwardRef<WorkspaceSearchHandle, { source?: Work
     if (selectedKey) dialogRef.current?.querySelector<HTMLButtonElement>('.workspace-search-back')?.focus();
     else if (open) inputRef.current?.focus();
   }, [selectedKey]);
-  useLayoutEffect(() => { dialogRef.current?.querySelector(`#workspace-search-option-${activeIndex}`)?.scrollIntoView({block:'nearest'}); }, [activeIndex, page, selectedKey, query]);
+  useLayoutEffect(() => {
+    if (selectedKey || !scrollActive.current) return;
+    scrollActive.current = false;
+    dialogRef.current?.querySelector(`#workspace-search-option-${activeIndex}`)?.scrollIntoView({block:'nearest'});
+  }, [open, active, activeIndex, page, selectedKey, query]);
+  function moveTo(index: number) {
+    if (index === activeIndex) return;
+    scrollActive.current = true; setActive(index);
+  }
   function activate(item: WorkspaceSearchResult) {
     if (!valid()) { close(); return; }
     // Resolve by identity in the current index, never a captured record object.
@@ -106,7 +135,7 @@ export const WorkspaceSearch = forwardRef<WorkspaceSearchHandle, { source?: Work
     if (live.kind === 'Page') { close(); current.current.go(live.section); }
     else setSelectedKey(live.key);
   }
-  function back() { setSelectedKey(null); requestAnimationFrame(() => inputRef.current?.focus()); }
+
   const snippet = (text: string) => {
     const token = query.trim().split(/\s+/u).find(word => text.toLocaleLowerCase().includes(word.toLocaleLowerCase()));
     const start = token ? Math.max(0, text.toLocaleLowerCase().indexOf(token.toLocaleLowerCase()) - 45) : 0;
@@ -115,6 +144,11 @@ export const WorkspaceSearch = forwardRef<WorkspaceSearchHandle, { source?: Work
   if (!open || !ready || authority.current !== source?.scopeKey) return null;
   return <dialog id="cova-workspace-search" ref={dialogRef} className="workspace-search-dialog" aria-labelledby="workspace-search-title" aria-describedby="workspace-search-scope"
     onCancel={event => {event.preventDefault();close();}}
+    onPointerDown={event => {
+      if (event.target !== event.currentTarget) return;
+      const box = event.currentTarget.getBoundingClientRect();
+      if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) close();
+    }}
     onKeyDown={event => {
       if (event.key !== 'Tab') return;
       const controls = [...event.currentTarget.querySelectorAll<HTMLElement>('button:not([disabled]),input,[tabindex="0"]')].filter(el => el.tabIndex >= 0 && el.checkVisibility());
@@ -134,21 +168,31 @@ export const WorkspaceSearch = forwardRef<WorkspaceSearchHandle, { source?: Work
       </> : <p role="status">This result is no longer available. Search again for current records.</p>}
     </section> : <>
       <div className="workspace-search-field"><Search aria-hidden="true" /><input ref={inputRef} type="text" role="combobox" aria-label="Search workspace" aria-autocomplete="list" aria-expanded="true" aria-controls="workspace-search-results" aria-activedescendant={results.length ? `workspace-search-option-${activeIndex}` : undefined} autoComplete="off" spellCheck={false} placeholder="Search pages, markets, setups, notes…" value={query}
-        onChange={event => {setQuery(event.target.value);setActive(0);}}
+        onChange={event => {scrollActive.current=true;setQuery(event.target.value);setActive(0);}}
         onKeyDown={event => {
-          if (event.nativeEvent.isComposing) return;
-          if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {event.preventDefault();setActive(Math.max(0,Math.min(results.length-1,activeIndex+(event.key==='ArrowDown'?1:-1))));}
+          if (event.nativeEvent.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+          // Home/End belong to the editable query, including native text selection.
+          if (results.length && ['ArrowDown','ArrowUp','PageDown','PageUp'].includes(event.key)) {
+            event.preventDefault();
+            const last = results.length - 1;
+            if (event.key === 'PageDown') moveTo(Math.min(last,activeIndex+8));
+            else if (event.key === 'PageUp') moveTo(Math.max(0,activeIndex-8));
+            else moveTo((activeIndex+(event.key==='ArrowDown'?1:-1)+results.length)%results.length);
+          }
           if (event.key === 'Enter') {event.preventDefault();if(results[activeIndex])activate(results[activeIndex]);}
-        }} />{query && <button type="button" aria-label="Clear search" onClick={() => {setQuery('');setActive(0);inputRef.current?.focus();}}><X aria-hidden="true" /></button>}</div>
+        }} />{query && <button type="button" aria-label="Clear search" onClick={() => {scrollActive.current=true;setQuery('');setActive(0);inputRef.current?.focus();}}><X aria-hidden="true" /></button>}</div>
       <p className="workspace-search-count" role="status">{query.trim() ? `${results.length} ${results.length===1?'result':'results'}` : 'Find a page, trade or journal note'}</p>
-      <div id="workspace-search-results" className="workspace-search-results" role="listbox" aria-label="Workspace results">
-        {visible.map((item,i) => <button type="button" role="option" tabIndex={-1} id={`workspace-search-option-${page*PAGE_SIZE+i}`} key={item.key} aria-selected={activeIndex===page*PAGE_SIZE+i} onMouseMove={() => setActive(page*PAGE_SIZE+i)} onClick={() => activate(item)}>
-          <span className="workspace-search-result-heading"><strong>{item.title}</strong><small>{item.kind}</small></span><span className="workspace-search-meta">{item.context}</span>{item.kind !== 'Page' && item.text && <span className="workspace-search-snippet">{snippet(item.text)}</span>}
-        </button>)}
-      </div>
+      <ul id="workspace-search-results" className="workspace-search-results" role="listbox" aria-label="Workspace results">
+        {groups.map(({kind,start,items}) => <li role="presentation" key={start}>
+          <span className="workspace-search-group-label" aria-hidden="true">{resultGroup[kind]}</span>
+          <ul role="group" aria-label={resultGroup[kind]}>{items.map((item,i) => <li role="option" id={`workspace-search-option-${start+i}`} key={item.key} aria-selected={activeIndex===start+i} data-active={activeIndex===start+i || undefined} onMouseMove={() => {scrollActive.current=false;setActive(start+i);}} onMouseDown={event => event.preventDefault()} onClick={() => activate(item)}>
+            <span className="workspace-search-result-heading"><strong>{highlighted(item.title,query)}</strong><small>{item.kind}</small></span><span className="workspace-search-meta">{highlighted(item.context,query)}</span>{item.kind !== 'Page' && item.text && <span className="workspace-search-snippet">{highlighted(snippet(item.text),query)}</span>}
+          </li>)}</ul>
+        </li>)}
+      </ul>
       {!results.length && <p className="workspace-search-empty">No matches in your loaded workspace. Try a market, setup, date or words from a note.</p>}
-      {results.length > PAGE_SIZE && <nav className="workspace-search-pagination" aria-label="Search result pages"><button type="button" disabled={page===0} onClick={() => setActive((page-1)*PAGE_SIZE)}>Previous</button><span>{page*PAGE_SIZE+1}–{Math.min((page+1)*PAGE_SIZE,results.length)} of {results.length}</span><button type="button" disabled={(page+1)*PAGE_SIZE>=results.length} onClick={() => setActive((page+1)*PAGE_SIZE)}>Next</button></nav>}
-      <p className="workspace-search-help">↑ ↓ to select · Enter to open · Esc to close</p>
+      {results.length > PAGE_SIZE && <nav className="workspace-search-pagination" aria-label="Search result pages"><button type="button" disabled={page===0} onClick={() => moveTo((page-1)*PAGE_SIZE)}>Previous</button><span>{page*PAGE_SIZE+1}–{Math.min((page+1)*PAGE_SIZE,results.length)} of {results.length}</span><button type="button" disabled={(page+1)*PAGE_SIZE>=results.length} onClick={() => moveTo((page+1)*PAGE_SIZE)}>Next</button></nav>}
+      <p className="workspace-search-help"><span><kbd>↑</kbd> <kbd>↓</kbd> select</span><span><kbd>Enter</kbd> open</span><span><kbd>Esc</kbd> close</span></p>
     </>}
   </dialog>;
 });
